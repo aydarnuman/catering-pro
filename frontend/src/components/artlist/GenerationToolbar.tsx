@@ -41,6 +41,7 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
+import { useNotesModal } from '@/context/NotesContext';
 import { ToolbarNotesWidget } from './ToolbarNotesWidget';
 
 export type GenerationToolbarVariant = 'artlist' | 'catering';
@@ -485,6 +486,7 @@ export function GenerationToolbar({
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const { openNotes: openNotesModal } = useNotesModal();
 
   const isCatering = variant === 'catering';
   const isCollapsed = isCatering && !expanded;
@@ -727,7 +729,7 @@ export function GenerationToolbar({
                               onSearchClick?.();
                             }
                           : item.action === 'notes'
-                            ? () => window.dispatchEvent(new CustomEvent('open-notes-modal'))
+                            ? () => openNotesModal()
                             : undefined
                         : undefined
                     }

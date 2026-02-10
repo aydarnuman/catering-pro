@@ -8,7 +8,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { normalizeAnalyzData } from '../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js';
-import { logAPI, logError } from '../utils/logger.js';
+import logger, { logAPI, logError } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -2104,14 +2104,14 @@ router.post('/:id/modul/:modul/calistir', async (req, res) => {
     // Arka planda çalıştır (async IIFE)
     const t0 = Date.now();
     (async () => {
-      console.log(`  🔎 [İSTİHBARAT] yk=${id} ⏳ ${modul} başladı`);
+      logger.info(`[İSTİHBARAT] yk=${id} ⏳ ${modul} başladı`);
       try {
         await calistirModul(parseInt(id, 10), modul, yuklenici);
         const sure = ((Date.now() - t0) / 1000).toFixed(1);
-        console.log(`  🔎 [İSTİHBARAT] yk=${id} ✅ ${modul} tamamlandı (${sure}s)`);
+        logger.info(`[İSTİHBARAT] yk=${id} ✅ ${modul} tamamlandı (${sure}s)`);
       } catch (err) {
         const sure = ((Date.now() - t0) / 1000).toFixed(1);
-        console.log(`  🔎 [İSTİHBARAT] yk=${id} ❌ ${modul} hata (${sure}s): ${err.message}`);
+        logger.error(`[İSTİHBARAT] yk=${id} ❌ ${modul} hata (${sure}s): ${err.message}`);
         await updateModulDurum(id, modul, 'hata', {
           hata_mesaji: err.message || 'Bilinmeyen hata',
         });
@@ -2181,7 +2181,7 @@ router.post('/:id/modul/tumunu-calistir', async (req, res) => {
     // Arka planda TÜM modülleri paralel çalıştır
     // Her modül bağımsız: biri takılırsa diğerleri etkilenmez
     const yukId = parseInt(id, 10);
-    const istihbaratLog = (msg) => console.log(`  🔎 [İSTİHBARAT] yk=${yukId} ${msg}`);
+    const istihbaratLog = (msg) => logger.info(`[İSTİHBARAT] yk=${yukId} ${msg}`);
 
     // Sıralama: veri_havuzu İLK → diğerleri PARALEL → ai_arastirma SON
     const havuzModul = 'veri_havuzu';
@@ -2653,7 +2653,7 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
         const result = await scrapeContractorTenders(page, yuklenici, {
           maxPages: 5,
           onPageComplete: (pageNum, tenders, s) => {
-            console.log(`  🔎 [İSTİHBARAT] yk=${yukleniciId} ihale_gecmisi: sayfa ${pageNum} — ${tenders.length} ihale (toplam: ${s.tenders_found})`);
+            logger.info(`[İSTİHBARAT] yk=${yukleniciId} ihale_gecmisi: sayfa ${pageNum} — ${tenders.length} ihale (toplam: ${s.tenders_found})`);
           },
         });
         await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
@@ -2726,7 +2726,7 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
         const result = await scrapeKikDecisions(page, yuklenici, {
           maxPages: 3,
           onProgress: (info) => {
-            console.log(`  🔎 [İSTİHBARAT] yk=${yukleniciId} kik_kararlari: ${info}`);
+            logger.info(`[İSTİHBARAT] yk=${yukleniciId} kik_kararlari: ${info}`);
           },
         });
         await updateModulDurum(yukleniciId, modul, 'tamamlandi', {

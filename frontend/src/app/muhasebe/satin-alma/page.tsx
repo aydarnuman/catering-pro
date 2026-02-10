@@ -1050,7 +1050,7 @@ export default function SatinAlmaPage() {
                         size="xs"
                         data={birimler}
                         value={kalem.birim}
-                        onChange={(v) => updateKalem(index, 'birim', v)}
+                        onChange={(v) => updateKalem(index, 'birim', v ?? '')}
                         style={{ width: 100 }}
                       />
                     </Table.Td>

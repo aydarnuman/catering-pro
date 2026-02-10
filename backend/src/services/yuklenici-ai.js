@@ -12,7 +12,7 @@ import logger from '../utils/logger.js';
 class YukleniciAIService {
   constructor() {
     this.client = null;
-    this.model = 'claude-3-haiku-20240307';
+    this.model = 'claude-opus-4-6';
   }
 
   getClient() {

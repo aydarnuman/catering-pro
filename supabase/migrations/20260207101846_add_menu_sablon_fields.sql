@@ -1,0 +1,3 @@
+-- Migration: add_menu_sablon_fields
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

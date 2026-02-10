@@ -192,7 +192,7 @@ Bağımsız ihale döküman toplama ve analiz sistemi.
 ║   │   │   │   • onemli_notlar[]                                     │ │ │   ║
 ║   │   │   │                                                         │ │ │   ║
 ║   │   │   │   Concurrency: 4 paralel istek                          │ │ │   ║
-║   │   │   │   Model: claude-haiku-4-5-20251001                      │ │ │   ║
+║   │   │   │   Model: claude-opus-4-6                                │ │ │   ║
 ║   │   │   │                                                         │ │ │   ║
 ║   │   │   └─────────────────────────────────────────────────────────┘ │ │   ║
 ║   │   │                           │                                   │ │   ║
@@ -206,7 +206,7 @@ Bağımsız ihale döküman toplama ve analiz sistemi.
 ║   │   │   │   • Çelişkiler belirlenir                               │ │ │   ║
 ║   │   │   │   • Final analiz üretilir                               │ │ │   ║
 ║   │   │   │                                                         │ │ │   ║
-║   │   │   │   Model: claude-sonnet-4-20250514                       │ │ │   ║
+║   │   │   │   Model: claude-opus-4-6                                │ │ │   ║
 ║   │   │   │                                                         │ │ │   ║
 ║   │   │   │   OPTİMİZASYON:                                         │ │ │   ║
 ║   │   │   │   ≤2 chunk → Direkt Sonnet (tek aşama)                  │ │ │   ║

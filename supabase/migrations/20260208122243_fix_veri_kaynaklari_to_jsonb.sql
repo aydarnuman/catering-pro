@@ -1,0 +1,3 @@
+-- Migration: fix_veri_kaynaklari_to_jsonb
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

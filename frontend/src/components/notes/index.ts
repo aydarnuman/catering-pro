@@ -22,10 +22,14 @@ export {
   PRIORITY_COLORS,
   PRIORITY_LABELS,
 } from '@/types/notes';
-export { ContextualNotesSection } from './ContextualNotesSection';
+export { NoteAttachments } from './NoteAttachments';
 export { NoteCard } from './NoteCard';
+export type { ChecklistItem } from './NoteChecklist';
+export { NoteChecklist } from './NoteChecklist';
 export { NoteColorPicker } from './NoteColorPicker';
 export { NoteEditor } from './NoteEditor';
 export { NotePrioritySelect } from './NotePrioritySelect';
+export type { SidebarFilter } from './NotesSidebar';
+export { NotesSidebar } from './NotesSidebar';
 export { NoteTagsInput } from './NoteTagsInput';
 export { UnifiedNotesModal } from './UnifiedNotesModal';

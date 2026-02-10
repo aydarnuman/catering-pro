@@ -55,6 +55,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { useNotesModal } from '@/context/NotesContext';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import {
   type KasaBankaHareket,
@@ -74,9 +75,7 @@ const MutabakatModal = dynamic(
   () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
   { ssr: false }
 );
-const UnifiedNotesModal = dynamic(() => import('@/components/notes/UnifiedNotesModal'), {
-  ssr: false,
-});
+// Notes modal artık Providers.tsx'de global olarak render ediliyor
 
 // ==================== INTERFACES ====================
 
@@ -154,6 +153,7 @@ const formatDate = (date: string) => {
 export default function FinansMerkeziPage() {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
+  const { openNotes } = useNotesModal();
 
   // URL'den gelen tab parametresini kullan, yoksa 'ozet' varsayılan
   const [activeTab, setActiveTab] = useState<string | null>(tabFromUrl || 'ozet');
@@ -183,7 +183,6 @@ export default function FinansMerkeziPage() {
   const [projeHareketler, setProjeHareketler] = useState<ProjeHareket[]>([]);
 
   // Modal States
-  const [notesModalOpened, setNotesModalOpened] = useState(false);
   const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
   const [hesapModalOpen, setHesapModalOpen] = useState(false);
   const [hareketModalOpen, setHareketModalOpen] = useState(false);
@@ -409,7 +408,7 @@ export default function FinansMerkeziPage() {
             variant="gradient"
             gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
             leftSection={<IconNotes size={18} />}
-            onClick={() => setNotesModalOpened(true)}
+            onClick={() => openNotes()}
           >
             Notlar & Ajanda
           </Button>
@@ -2274,8 +2273,7 @@ export default function FinansMerkeziPage() {
         }}
       />
 
-      {/* Notlar & Ajanda Modal */}
-      <UnifiedNotesModal opened={notesModalOpened} onClose={() => setNotesModalOpened(false)} />
+      {/* Notes modal artık Providers.tsx'de global olarak render ediliyor */}
 
       {/* Rapor Merkezi Modal */}
       <RaporMerkeziModal

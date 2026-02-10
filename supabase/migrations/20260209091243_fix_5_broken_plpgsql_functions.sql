@@ -1,0 +1,3 @@
+-- Migration: fix_5_broken_plpgsql_functions
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

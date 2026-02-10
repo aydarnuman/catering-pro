@@ -4,6 +4,7 @@
  */
 
 import { query } from '../../database.js';
+import logger from '../../utils/logger.js';
 import claudeAI from '../claude-ai.js';
 import { searchHalPrices } from '../hal-scraper.js';
 import { parseProductName, searchMarketPrices } from '../market-scraper.js';
@@ -768,10 +769,10 @@ export const piyasaToolImplementations = {
         if (camgozResult.success && camgozResult.fiyatlar?.length > 0) {
           piyasaData = camgozResult;
           kaynakTip = 'market';
-          console.info(`[Piyasa] Camgöz birincil: ${camgozResult.fiyatlar.length} fiyat bulundu (${urun_adi})`);
+          logger.info(`[Piyasa] Camgöz birincil: ${camgozResult.fiyatlar.length} fiyat bulundu (${urun_adi})`);
         }
       } catch (camgozErr) {
-        console.warn(`[Piyasa] Camgöz arama hatası: ${camgozErr.message}`);
+        logger.warn(`[Piyasa] Camgöz arama hatası: ${camgozErr.message}`);
       }
 
       // ── Katman 2: Tavily AI Answer (TAMAMLAYICI) ──
@@ -806,7 +807,7 @@ export const piyasaToolImplementations = {
                   const aiFiyat = f.birimFiyat || f.fiyat;
                   const sapmaOrani = Math.abs(aiFiyat - camgozOrt) / camgozOrt;
                   if (sapmaOrani > 0.60) {
-                    console.info(`[Piyasa] Tavily AI fiyat elendi (sapma %${Math.round(sapmaOrani * 100)}): ${aiFiyat} vs Camgöz ort ${camgozOrt.toFixed(0)}`);
+                    logger.info(`[Piyasa] Tavily AI fiyat elendi (sapma %${Math.round(sapmaOrani * 100)}): ${aiFiyat} vs Camgöz ort ${camgozOrt.toFixed(0)}`);
                     return false;
                   }
                 }
@@ -816,7 +817,7 @@ export const piyasaToolImplementations = {
                 piyasaData.fiyatlar = [...piyasaData.fiyatlar, ...newItems];
                 piyasaData.toplam_sonuc = piyasaData.fiyatlar.length;
                 kaynakTip = 'market+tavily_ai';
-                console.info(`[Piyasa] Tavily AI tamamlayıcı: +${newItems.length} fiyat eklendi (uyum filtresi geçti)`);
+                logger.info(`[Piyasa] Tavily AI tamamlayıcı: +${newItems.length} fiyat eklendi (uyum filtresi geçti)`);
               }
               // Tavily AI answer'ı da sakla (rapor/gösterim için)
               if (tavilyResult.aiAnswer) {
@@ -826,11 +827,11 @@ export const piyasaToolImplementations = {
               // Camgöz boştu → Tavily full sonuçları birincil ol
               piyasaData = tavilyResult;
               kaynakTip = 'tavily_referans';
-              console.info(`[Piyasa] Camgöz boş, Tavily full: ${tavilyResult.fiyatlar.length} fiyat (${urun_adi})`);
+              logger.info(`[Piyasa] Camgöz boş, Tavily full: ${tavilyResult.fiyatlar.length} fiyat (${urun_adi})`);
             }
           }
         } catch (tavilyErr) {
-          console.warn(`[Piyasa] Tavily arama hatası: ${tavilyErr.message}`);
+          logger.warn(`[Piyasa] Tavily arama hatası: ${tavilyErr.message}`);
         }
       }
 
@@ -857,7 +858,7 @@ export const piyasaToolImplementations = {
             kaynakTip = 'toptanci_hal';
           }
         } catch (halErr) {
-          console.warn(`[Piyasa] Hal fallback hatası: ${halErr.message}`);
+          logger.warn(`[Piyasa] Hal fallback hatası: ${halErr.message}`);
         }
       }
 

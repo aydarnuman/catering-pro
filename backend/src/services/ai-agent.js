@@ -93,7 +93,7 @@ class AIAgentService {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
-    this.defaultModel = 'claude-sonnet-4-20250514'; // Fallback model
+    this.defaultModel = 'claude-opus-4-6'; // Fallback model
     this.maxIterations = 10; // Sonsuz döngüyü önle
   }
 
@@ -968,7 +968,7 @@ JSON formatında döndür (boş olabilir):
 Eğer önemli bir bilgi yoksa: {"facts": []}`;
 
       const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514', // Fact çıkarımı için hızlı model yeterli
+        model: 'claude-opus-4-6', // Fact çıkarımı için hızlı model yeterli
         max_tokens: 500,
         system: 'Sen bir bilgi çıkarım asistanısın. Sadece JSON formatında yanıt ver.',
         messages: [{ role: 'user', content: extractionPrompt }],

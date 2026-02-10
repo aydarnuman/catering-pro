@@ -12,7 +12,7 @@ class ClaudeAIService {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
-    this.model = 'claude-3-haiku-20240307';
+    this.model = 'claude-opus-4-6';
   }
 
   /**

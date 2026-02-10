@@ -197,7 +197,7 @@ export async function parseWithAI(productName) {
     });
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-opus-4-6',
       max_tokens: 200,
       messages: [
         {

@@ -328,7 +328,7 @@ AZURE_USE_CUSTOM_MODEL=false  # true = custom model öncelikli
 
 # Claude (Fallback)
 ANTHROPIC_API_KEY=your-key
-CLAUDE_MODEL=claude-sonnet-4-20250514
+CLAUDE_MODEL=claude-opus-4-6
 ```
 
 ---

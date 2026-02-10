@@ -1,0 +1,3 @@
+-- Migration: disable_rls_on_no_policy_tables
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

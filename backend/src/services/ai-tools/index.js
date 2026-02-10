@@ -9,6 +9,7 @@
 import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import vm from 'node:vm';
 import { query } from '../../database.js';
@@ -21,6 +22,7 @@ import { personelToolDefinitions, personelToolImplementations } from './personel
 import { piyasaToolDefinitions, piyasaToolImplementations } from './piyasa-tools.js';
 import raporTools from './rapor-tools.js';
 import satinAlmaTools from './satin-alma-tools.js';
+import { validateManifest, getToolCount } from './module-manifest.js';
 import { webToolDefinitions, webToolImplementations } from './web-tools.js';
 
 const execAsync = promisify(exec);
@@ -1093,6 +1095,10 @@ class AIToolsRegistry {
 
     // Menü planlama modülü
     this.registerMenuModule();
+
+    // ---- AUTO-DISCOVERY (mevcut kayıtları ezmez) ----
+    this.discoveredModules = []; // manifest'li modüllerin metadata'sı
+    this.discoveryComplete = this.autoDiscoverModules();
   }
 
   /**
@@ -1175,6 +1181,134 @@ class AIToolsRegistry {
     });
   }
 
+  // ============================================================
+  // AUTO-DISCOVERY METODU
+  // ============================================================
+
+  /**
+   * *-tools.js dosyalarını tarar, manifest export'u olanları keşfeder.
+   * Manifest'i olmayanlar atlanır (zaten elle kayıtlı).
+   * Zaten kayıtlı modüller tekrar EKLENMEZ, ama metadata'ları saklanır.
+   *
+   * Her modül kendi try-catch'i içinde: tek hata diğerlerini etkilemez.
+   * Tüm mekanizma başarısız olursa elle kayıtlı 9 modül çalışmaya devam eder.
+   */
+  async autoDiscoverModules() {
+    try {
+      const toolsDir = path.dirname(fileURLToPath(import.meta.url));
+      const files = await fs.readdir(toolsDir);
+      const toolFiles = files.filter(
+        (f) => f.endsWith('-tools.js') && f !== 'index.js' && f !== 'module-manifest.js'
+      );
+
+      for (const file of toolFiles) {
+        try {
+          const mod = await import(`./${file}`);
+
+          // Manifest yoksa atla (eski modül, zaten elle kayıtlı)
+          if (!mod.manifest) continue;
+
+          const manifest = mod.manifest;
+
+          // Manifest doğrulama
+          const errors = validateManifest(manifest);
+          if (errors.length > 0) {
+            logger.warn(`[Auto-Discovery] ${file}: Manifest geçersiz — ${errors.join(', ')}`);
+            continue;
+          }
+
+          // Aktif değilse atla
+          if (manifest.enabled === false) {
+            logger.debug(`[Auto-Discovery] ${file}: Devre dışı (enabled=false)`);
+            continue;
+          }
+
+          // Zaten elle kayıtlı mı kontrol et (çift kayıt önleme)
+          const isAlreadyRegistered = this.isModuleRegistered(manifest);
+          if (isAlreadyRegistered) {
+            // Metadata'yı yine de kaydet (departman/route info için)
+            this.discoveredModules.push({
+              ...manifest,
+              source: 'manual+manifest',
+              toolCount: getToolCount(manifest),
+              module: undefined, // Büyük objeleri metadata'ya ekleme
+              definitions: undefined,
+              implementations: undefined,
+            });
+            logger.debug(`[Auto-Discovery] ${manifest.id}: Zaten kayıtlı, metadata kaydedildi`);
+            continue;
+          }
+
+          // YENİ MODÜL — kaydet!
+          this.registerManifestModule(manifest);
+          this.discoveredModules.push({
+            ...manifest,
+            source: 'auto-discovered',
+            toolCount: getToolCount(manifest),
+            module: undefined,
+            definitions: undefined,
+            implementations: undefined,
+          });
+
+          logger.info(
+            `[Auto-Discovery] YENİ modül keşfedildi: ${manifest.name} (${manifest.id}) — ${getToolCount(manifest)} tool`
+          );
+        } catch (err) {
+          // Tek bir modül hata verse diğerleri etkilenmez
+          logger.warn(`[Auto-Discovery] ${file} yüklenemedi: ${err.message}`);
+        }
+      }
+
+      logger.info(
+        `[Auto-Discovery] Tamamlandı: ${this.discoveredModules.length} manifest bulundu, toplam ${this.tools.size} tool aktif`
+      );
+    } catch (err) {
+      // Auto-discovery tamamen başarısız olsa bile,
+      // elle kayıtlı modüller sorunsuz çalışmaya devam eder
+      logger.error('[Auto-Discovery] HATA (elle kayıtlı modüller etkilenmez):', err.message);
+    }
+  }
+
+  /**
+   * Manifest'li modülü format'ına göre kaydet
+   * @param {object} manifest
+   */
+  registerManifestModule(manifest) {
+    if (manifest.format === 'legacy' && manifest.module) {
+      // Legacy format: { toolName: { description, parameters, handler } }
+      this.registerModule(manifest.id, manifest.module);
+    } else if (manifest.format === 'definitions' && manifest.definitions && manifest.implementations) {
+      // Definitions format: definitions[] + implementations{}
+      for (const toolDef of manifest.definitions) {
+        const handler = manifest.implementations[toolDef.name];
+        if (handler) {
+          this.tools.set(toolDef.name, handler.bind(manifest.implementations));
+          this.toolDefinitions.push(toolDef);
+        }
+      }
+      logger.info(`[Auto-Discovery] ${manifest.id}: ${manifest.definitions.length} tool (definitions format)`);
+    }
+  }
+
+  /**
+   * Modülün zaten elle kayıtlı olup olmadığını kontrol et
+   * @param {object} manifest
+   * @returns {boolean}
+   */
+  isModuleRegistered(manifest) {
+    if (manifest.format === 'legacy') {
+      // Legacy modüller "moduleid_toolname" formatında kayıtlı
+      return Array.from(this.tools.keys()).some((key) => key.startsWith(`${manifest.id}_`));
+    }
+
+    if (manifest.format === 'definitions' && Array.isArray(manifest.definitions) && manifest.definitions.length > 0) {
+      // Definitions modüller tool adıyla kayıtlı (örn: "personel_listele")
+      return this.tools.has(manifest.definitions[0].name);
+    }
+
+    return false;
+  }
+
   /**
    * Modül tool'larını register et
    */
@@ -1242,17 +1376,26 @@ class AIToolsRegistry {
    * Sistem özeti (AI context için)
    */
   getSystemContext() {
+    // MEVCUT sabit liste aynen kalır
+    const baseModules = [
+      'satin_alma - Satın alma ve sipariş yönetimi',
+      'cari - Müşteri ve tedarikçi yönetimi',
+      'fatura - Fatura ve e-fatura yönetimi',
+      'ihale - İhale takip ve analiz',
+      'rapor - Raporlama ve analitik',
+      'personel - Personel, bordro, izin ve kıdem yönetimi',
+      'piyasa - Piyasa fiyat araştırma ve takip',
+      'menu - Reçete ve menü planlama, maliyet hesaplama',
+    ];
+
+    // YENİ: Auto-discover edilen modüllerden ek bilgi
+    const baseIds = ['satin_alma', 'cari', 'fatura', 'ihale', 'rapor', 'personel', 'piyasa', 'menu', 'web'];
+    const discoveredNames = this.discoveredModules
+      .filter((m) => !baseIds.includes(m.id))
+      .map((m) => `${m.id} - ${m.name}`);
+
     return {
-      availableModules: [
-        'satin_alma - Satın alma ve sipariş yönetimi',
-        'cari - Müşteri ve tedarikçi yönetimi',
-        'fatura - Fatura ve e-fatura yönetimi',
-        'ihale - İhale takip ve analiz',
-        'rapor - Raporlama ve analitik',
-        'personel - Personel, bordro, izin ve kıdem yönetimi',
-        'piyasa - Piyasa fiyat araştırma ve takip',
-        'menu - Reçete ve menü planlama, maliyet hesaplama',
-      ],
+      availableModules: [...baseModules, ...discoveredNames],
       totalTools: this.tools.size,
       capabilities: [
         'Veri sorgulama (siparişler, cariler, faturalar, ihaleler, personeller)',
@@ -1270,6 +1413,25 @@ class AIToolsRegistry {
         'Analiz ve öneriler',
       ],
     };
+  }
+
+  /**
+   * Keşfedilen modüllerin listesini döner (API endpoint için)
+   * @returns {object[]}
+   */
+  getDiscoveredModules() {
+    return this.discoveredModules.map((m) => ({
+      id: m.id,
+      name: m.name,
+      department: m.department,
+      aiRole: m.aiRole || null,
+      routes: m.routes || [],
+      contextType: m.contextType || null,
+      enabled: m.enabled !== false,
+      version: m.version || '1.0.0',
+      source: m.source,
+      toolCount: m.toolCount || 0,
+    }));
   }
 
   // ============================================================

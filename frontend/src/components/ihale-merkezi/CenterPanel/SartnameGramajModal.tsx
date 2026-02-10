@@ -73,7 +73,6 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                     .filter((tablo) => tablo.rows && tablo.headers)
                     .map((tablo, tabloIdx) => (
                       <Table
-                        // biome-ignore lint/suspicious/noArrayIndexKey: Tablo nesnelerinin benzersiz ID'si yok
                         key={`modal-ogun-tablo-${tabloIdx}`}
                         striped
                         highlightOnHover
@@ -86,7 +85,6 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                           <Table.Tr>
                             {(tablo.headers ?? []).map((header, hIdx) => (
                               <Table.Th
-                                // biome-ignore lint/suspicious/noArrayIndexKey: Tablo başlıkları tekrar edebilir
                                 key={`modal-ogun-h-${tabloIdx}-${hIdx}`}
                                 style={hIdx > 0 ? { textAlign: 'right', whiteSpace: 'nowrap' } : undefined}
                               >
@@ -101,13 +99,11 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                             const isToplam = firstCol === 'toplam';
                             return (
                               <Table.Tr
-                                // biome-ignore lint/suspicious/noArrayIndexKey: Tablo satırları benzersiz ID içermez
                                 key={`modal-ogun-r-${tabloIdx}-${rIdx}`}
                                 style={isToplam ? { fontWeight: 700, backgroundColor: 'var(--mantine-color-orange-0)' } : undefined}
                               >
                                 {row.map((cell, cIdx) => (
                                   <Table.Td
-                                    // biome-ignore lint/suspicious/noArrayIndexKey: Tablo hücreleri benzersiz ID içermez
                                     key={`modal-ogun-c-${tabloIdx}-${rIdx}-${cIdx}`}
                                     style={cIdx > 0 ? { textAlign: 'right' } : undefined}
                                   >

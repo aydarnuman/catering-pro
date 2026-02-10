@@ -1,0 +1,3 @@
+-- Migration: add_table_comments_part2_ik_proje_stok
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

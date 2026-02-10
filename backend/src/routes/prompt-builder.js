@@ -706,7 +706,7 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
     });
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-6',
       max_tokens: 1000,
       messages: [{ role: 'user', content: systemPrompt }],
     });
@@ -778,7 +778,7 @@ router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-6',
       max_tokens: 2000,
       messages: [
         {
@@ -851,7 +851,7 @@ Optimize edilmiş prompt:`;
     });
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: systemPrompt }],
     });

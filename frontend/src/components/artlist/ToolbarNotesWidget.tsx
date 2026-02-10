@@ -3,22 +3,15 @@
 import { Box, Stack, Text, UnstyledButton, useMantineColorScheme } from '@mantine/core';
 import { IconNote } from '@tabler/icons-react';
 import useSWR from 'swr';
+import { useNotesModal } from '@/context/NotesContext';
 import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
+import type { UnifiedNote } from '@/types/notes';
 
-interface NotItem {
-  id: number;
-  content: string;
-  is_completed: boolean;
-  due_date: string | null;
-  pinned?: boolean;
-  color?: string;
-  priority?: string;
-}
-
-interface NotlarResponse {
+interface NotesResponse {
   success: boolean;
-  notlar: NotItem[];
+  notes: UnifiedNote[];
+  total: number;
 }
 
 function getTodayStart(): Date {
@@ -34,28 +27,18 @@ function getWeekEnd(): Date {
   return d;
 }
 
-/** Yerel tarih (gün/ay/yıl) karşılaştırması için */
+/** Yerel tarih karsilastirmasi icin */
 function toLocalDateKey(d: Date): number {
   return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
 }
 
-const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt'];
 const AYLAR_KISA = [
-  'Oca',
-  'Şub',
-  'Mar',
-  'Nis',
-  'May',
-  'Haz',
-  'Tem',
-  'Ağu',
-  'Eyl',
-  'Eki',
-  'Kas',
-  'Ara',
+  'Oca', 'Sub', 'Mar', 'Nis', 'May', 'Haz',
+  'Tem', 'Agu', 'Eyl', 'Eki', 'Kas', 'Ara',
 ];
 
-/** Vade etiketi: due_date varsa her zaman göster – bugün 16.00, yarın, Cum 14.00, 5 Şub vb. */
+/** Vade etiketi */
 function formatVadeEtiket(
   d: Date,
   todayKey: number,
@@ -68,8 +51,8 @@ function formatVadeEtiket(
     ? `${d.getHours().toString().padStart(2, '0')}.${d.getMinutes().toString().padStart(2, '0')}`
     : '';
 
-  if (key === todayKey) return timeStr ? `bugün ${timeStr}` : 'bugün';
-  if (key === tomorrowKey) return timeStr ? `yarın ${timeStr}` : 'yarın';
+  if (key === todayKey) return timeStr ? `bugun ${timeStr}` : 'bugun';
+  if (key === tomorrowKey) return timeStr ? `yarin ${timeStr}` : 'yarin';
   if (key >= todayKey && key <= weekEndKey) {
     const dayName = GUN_KISA[d.getDay()];
     return timeStr ? `${dayName} ${timeStr}` : dayName;
@@ -81,7 +64,7 @@ function formatVadeEtiket(
 const PREVIEW_LEN = 36;
 function preview(content: string): string {
   const t = (content || '').trim().replace(/\s+/g, ' ');
-  return t.length <= PREVIEW_LEN ? t : `${t.slice(0, PREVIEW_LEN)}…`;
+  return t.length <= PREVIEW_LEN ? t : `${t.slice(0, PREVIEW_LEN)}...`;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -90,28 +73,35 @@ const COLOR_MAP: Record<string, string> = {
   orange: '#f97316',
   red: '#ef4444',
   violet: '#8b5cf6',
+  yellow: '#eab308',
+  pink: '#ec4899',
+  purple: '#a855f7',
+  gray: '#6b7280',
 };
 
-function getColor(n: NotItem): string {
+function getColor(n: UnifiedNote): string {
   return COLOR_MAP[n.color ?? ''] ?? COLOR_MAP.blue;
 }
 
-/** Bugün vadeli notlar kırmızı etiket (sol çubuk) */
-function getBarColor(n: NotItem & { vadeEtiket?: string | null }): string {
-  if (n.vadeEtiket?.startsWith('bugün')) return COLOR_MAP.red;
+/** Bugun vadeli notlar kirmizi etiket */
+function getBarColor(n: UnifiedNote & { vadeEtiket?: string | null }): string {
+  if (n.vadeEtiket?.startsWith('bugun')) return COLOR_MAP.red;
   return getColor(n);
 }
 
 export function ToolbarNotesWidget() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
-  const { data } = useSWR<NotlarResponse>(
+  const { openNotes } = useNotesModal();
+
+  const { data } = useSWR<NotesResponse>(
     'toolbar-notlar',
     () => authFetch(`${API_BASE_URL}/api/notes?limit=30`).then((r) => r.json()),
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
-  const notlar = data?.notlar ?? [];
+  // Unified API returns 'notes' field
+  const notlar = data?.notes ?? [];
   const todayStart = getTodayStart();
   const todayKey = toLocalDateKey(todayStart);
   const tomorrowStart = new Date(todayStart);
@@ -129,9 +119,7 @@ export function ToolbarNotesWidget() {
       return { ...n, vadeEtiket };
     });
 
-  const openNotes = () => window.dispatchEvent(new CustomEvent('open-notes-modal'));
-
-  /* Gömülü his: parlak olmayan, arka planla uyumlu tonlar */
+  /* Gomulu his: parlak olmayan, arka planla uyumlu tonlar */
   const noteTextColor = isDark ? 'rgba(255,255,255,0.58)' : 'rgba(0,0,0,0.52)';
   const noteMetaColor = isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.42)';
   const hoverBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)';
@@ -149,7 +137,7 @@ export function ToolbarNotesWidget() {
           gosterilecek.map((n) => (
             <UnstyledButton
               key={n.id}
-              onClick={openNotes}
+              onClick={() => openNotes()}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -166,7 +154,7 @@ export function ToolbarNotesWidget() {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              {/* Sol çubuk – yumuşak, toolbar ile uyumlu */}
+              {/* Sol cubuk */}
               <Box
                 style={{
                   width: 3,
@@ -177,7 +165,7 @@ export function ToolbarNotesWidget() {
                   opacity: 0.9,
                 }}
               />
-              {/* Not metni – notlara uyumlu yazı tipi, tek satır */}
+              {/* Not metni */}
               <Text
                 size="sm"
                 lineClamp={1}
@@ -193,7 +181,7 @@ export function ToolbarNotesWidget() {
               >
                 {preview(n.content)}
               </Text>
-              {/* Vade – küçük etiket, metinle uyumlu */}
+              {/* Vade */}
               {n.vadeEtiket && (
                 <Text
                   size="xs"
@@ -214,7 +202,7 @@ export function ToolbarNotesWidget() {
           ))
         ) : (
           <UnstyledButton
-            onClick={openNotes}
+            onClick={() => openNotes()}
             style={{
               display: 'flex',
               alignItems: 'center',

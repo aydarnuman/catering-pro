@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -29,7 +29,6 @@ const EXCLUDED_PATHS = ['/giris', '/kayit', '/sifremi-unuttum', '/auth'];
 
 export function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
   // Toolbar açılır kapanır; AI açıldığında toolbar kapalı olsun
@@ -40,14 +39,8 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     return () => window.removeEventListener('open-ai-chat', handler);
   }, []);
 
-  // Toolbar "Hızlı Not": ana sayfada değilsek önce ana sayfaya yönlendir, notlar modalı açılsın
-  useEffect(() => {
-    const handler = () => {
-      if (pathname !== '/') router.push('/?openNotes=1');
-    };
-    window.addEventListener('open-notes-modal', handler);
-    return () => window.removeEventListener('open-notes-modal', handler);
-  }, [pathname, router]);
+  // Notes modal artık NotesContext üzerinden global olarak yönetiliyor
+  // Toolbar widget doğrudan useNotesModal().openNotes() kullanıyor
 
   const shouldShowChat =
     !isLoading && isAuthenticated && !EXCLUDED_PATHS.some((path) => pathname?.startsWith(path));

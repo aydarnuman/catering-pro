@@ -4,7 +4,7 @@ import pdf from 'pdf-parse/lib/pdf-parse.js';
 import XLSX from 'xlsx';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-6';
 
 /**
  * Menü PDF'i için özel analiz (document-analyzer.js yerine inline)
@@ -174,7 +174,7 @@ Görselden tarihleri ve o tarihlere ait yemekleri çıkar.
       };
 
   const result = await anthropic.messages.create({
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+    model: process.env.CLAUDE_MODEL || 'claude-opus-4-6',
     max_tokens: 4096,
     messages: [
       {

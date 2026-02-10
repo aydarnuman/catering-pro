@@ -174,7 +174,6 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
           <ScrollArea h={250}>
             <Stack gap="xs">
               {teklifListesi.map((teklif, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: dynamic list with add/remove
                 <Group key={index} gap="xs">
                   <TextInput placeholder="Firma" value={teklif.firma} onChange={(e) => setTeklifListesi((prev) => prev.map((t, i) => (i === index ? { ...t, firma: e.target.value } : t)))} size="xs" style={{ flex: 1 }} />
                   <NumberInput placeholder="Tutar" value={teklif.tutar || ''} onChange={(val) => setTeklifListesi((prev) => prev.map((t, i) => (i === index ? { ...t, tutar: Number(val) || 0 } : t)))} min={0} thousandSeparator="." decimalSeparator="," suffix=" ₺" size="xs" style={{ width: 150 }} />

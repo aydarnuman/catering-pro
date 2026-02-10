@@ -13,7 +13,7 @@
 import { api } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { Tender, TendersResponse } from '@/types/api';
-import type { TeklifResponse, TenderNote } from '@/types/domain';
+import type { TeklifResponse } from '@/types/domain';
 import type { ApiResponse } from '../types';
 
 // ─── Rakip Analizi Types ────────────────────────────────────
@@ -244,112 +244,10 @@ export const tendersAPI = {
     return response.data;
   },
 
-  // ========== TENDER NOTES (LEGACY COMPATIBILITY) ==========
-  // Bu bölüm eski NotesSection component'i için geriye dönük uyumluluk sağlar.
-  // Yeni kodlar için unified notes sistemi kullanılmalıdır.
-  // Frontend: ContextualNotesSection component'i ve useNotes hook'u
-  // Backend: /api/notes/context/tender/:id endpoint'leri
-
-  async getTenderNotes(trackingId: number): Promise<ApiResponse<TenderNote[]>> {
-    const response = await api.get(`/api/notes/context/tender/${trackingId}`);
-    return response.data;
-  },
-
-  async getTagSuggestions(): Promise<ApiResponse<string[]>> {
-    const response = await api.get('/api/notes/tags/suggestions');
-    return response.data;
-  },
-
-  async createTenderNote(
-    trackingId: number,
-    noteData: {
-      text?: string;
-      content?: string;
-      color?: string;
-      priority?: string;
-      tags?: string[];
-      pinned?: boolean;
-      reminder_date?: string | null;
-    }
-  ): Promise<ApiResponse<TenderNote>> {
-    // Legacy field mapping: text -> content
-    const payload = {
-      content: noteData.content || noteData.text || '',
-      color: noteData.color,
-      priority: noteData.priority,
-      tags: noteData.tags,
-      is_pinned: noteData.pinned,
-      due_date: noteData.reminder_date,
-    };
-    const response = await api.post(`/api/notes/context/tender/${trackingId}`, payload);
-    return response.data;
-  },
-
-  async updateTenderNote(
-    _trackingId: number,
-    noteId: number,
-    updates: {
-      text?: string;
-      content?: string;
-      color?: string;
-      priority?: string;
-      pinned?: boolean;
-      tags?: string[];
-      reminder_date?: string | null;
-    }
-  ): Promise<ApiResponse<TenderNote>> {
-    // Legacy field mapping
-    const payload: Record<string, unknown> = {};
-    if (updates.content || updates.text) payload.content = updates.content || updates.text;
-    if (updates.color !== undefined) payload.color = updates.color;
-    if (updates.priority !== undefined) payload.priority = updates.priority;
-    if (updates.pinned !== undefined) payload.is_pinned = updates.pinned;
-    if (updates.tags !== undefined) payload.tags = updates.tags;
-    if (updates.reminder_date !== undefined) payload.due_date = updates.reminder_date;
-    const response = await api.put(`/api/notes/${noteId}`, payload);
-    return response.data;
-  },
-
-  async deleteTenderNote(_trackingId: number, noteId: number): Promise<ApiResponse<void>> {
-    const response = await api.delete(`/api/notes/${noteId}`);
-    return response.data;
-  },
-
-  async pinTenderNote(
-    _trackingId: number,
-    noteId: number,
-    _pinned: boolean
-  ): Promise<ApiResponse<TenderNote>> {
-    const response = await api.put(`/api/notes/${noteId}/pin`);
-    return response.data;
-  },
-
-  async addTenderNoteAttachment(
-    _trackingId: number,
-    noteId: number,
-    formData: FormData
-  ): Promise<ApiResponse<any>> {
-    const response = await api.post(`/api/notes/${noteId}/attachments`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-  },
-
-  async deleteTenderNoteAttachment(
-    _trackingId: number,
-    noteId: number,
-    attachmentId: number
-  ): Promise<ApiResponse<void>> {
-    const response = await api.delete(`/api/notes/${noteId}/attachments/${attachmentId}`);
-    return response.data;
-  },
-
-  async reorderTenderNotes(trackingId: number, noteIds: number[]): Promise<ApiResponse<void>> {
-    const response = await api.put(`/api/notes/context/tender/${trackingId}/reorder`, {
-      noteIds: noteIds.map(String),
-    });
-    return response.data;
-  },
+  // TENDER NOTES: Eski legacy API fonksiyonlari kaldirildi (2026-02-10).
+  // Yeni kodlar icin unified notes sistemi kullanilmalidir:
+  //   Frontend: useNotes hook + useNotesModal context
+  //   Backend: /api/notes/* endpoint'leri
 
   // ========== TENDER CONTENT & DOCUMENTS ==========
 

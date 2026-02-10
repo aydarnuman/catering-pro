@@ -5,6 +5,7 @@ import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
 import { optimizeSingleProduct } from '../services/arama-terimi-optimizer.js';
 import { parseExcelMenu, parseImageMenu, parsePdfMenu } from '../services/menu-import.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -795,7 +796,7 @@ async function hesaplaReceteMaliyet(receteId) {
 
     return toplamMaliyet;
   } catch (error) {
-    console.error(`Reçete ${receteId} maliyet hesaplama hatası:`, error.message);
+    logger.error(`Reçete ${receteId} maliyet hesaplama hatası: ${error.message}`);
     return 0;
   }
 }
@@ -2733,7 +2734,7 @@ router.get('/urun-kartlari', async (req, res) => {
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Ürün kartları listeleme hatası:', error.message);
+    logger.error('Ürün kartları listeleme hatası:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2826,7 +2827,7 @@ router.post('/urun-kartlari', async (req, res) => {
     // Arka planda: en iyi arama terimini bul ve sabitle
     // Yanıtı bekletmemek için async fire-and-forget
     optimizeSingleProduct(newProduct.id).catch((err) => {
-      console.warn(`[UrunKart] Arama terimi optimizasyonu hatası: ${err.message}`);
+      logger.warn(`[UrunKart] Arama terimi optimizasyonu hatası: ${err.message}`);
     });
 
     res.json({ success: true, data: newProduct });
@@ -2967,7 +2968,7 @@ router.get('/urun-kartlari/:id/varyantlar', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Varyant listesi hatası:', error.message);
+    logger.error('Varyant listesi hatası:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });

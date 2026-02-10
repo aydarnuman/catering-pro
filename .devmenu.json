@@ -4,24 +4,6 @@
     {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
-      "time": "19:30:05",
-      "success": true
-    },
-    {
-      "id": "backend-restart",
-      "label": "Sadece Backend Yenile",
-      "time": "19:33:45",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "19:37:58",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
       "time": "19:54:43",
       "success": true
     },
@@ -299,6 +281,24 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "12:16:48",
+      "success": true
+    },
+    {
+      "id": "start-all",
+      "label": "🎯 HER ŞEYİ BAŞLAT",
+      "time": "17:15:06",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "17:19:25",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "17:29:53",
       "success": true
     }
   ],

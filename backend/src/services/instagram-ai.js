@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import Anthropic from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-6';
 
 /**
  * Görsel dosyasını Claude için hazırla

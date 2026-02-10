@@ -16,7 +16,7 @@ import {
 import { IconBolt, IconFlame, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
@@ -85,6 +85,17 @@ const pathToContextType: Record<string, PageContext['type']> = {
   '/muhasebe/menu-planlama': 'planlama',
 };
 
+// Dinamik modül tipi (backend manifest'lerden gelen)
+interface DynamicModule {
+  id: string;
+  name: string;
+  department: string;
+  aiRole?: { title: string; icon: string; color: string };
+  routes: string[];
+  contextType?: string;
+  enabled: boolean;
+}
+
 export function FloatingAIChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -94,15 +105,68 @@ export function FloatingAIChat() {
   const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
   const [godModeEnabled, setGodModeEnabled] = useState(false);
   const [showGodModeConfirm, setShowGodModeConfirm] = useState(false);
+  const [dynamicModules, setDynamicModules] = useState<DynamicModule[]>([]);
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
   const { isMobile, isMounted } = useResponsive();
   const { isSuperAdmin } = useAuth();
 
-  // Path'e göre department belirle
-  const department = pathToDepartment[pathname] || 'TÜM SİSTEM';
-  const info = departmentInfo[department] || departmentInfo['TÜM SİSTEM'];
+  // Backend'den manifest'li modül listesini çek (bir kez)
+  useEffect(() => {
+    fetch('/api/ai/modules', { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.modules)) {
+          setDynamicModules(data.modules.filter((m: DynamicModule) => m.enabled));
+        }
+      })
+      .catch(() => {
+        // Hata olursa sessizce devam et — hardcoded mapping'ler çalışır
+      });
+  }, []);
+
+  // Path'e göre department belirle (hardcoded öncelikli, sonra dinamik)
+  const getDepartment = useCallback(
+    (p: string): string => {
+      // 1. Önce hardcoded'a bak (mevcut davranış korunur)
+      if (pathToDepartment[p]) return pathToDepartment[p];
+
+      // 2. Sonra dinamik modüllere bak
+      const dynamicMatch = dynamicModules.find((m) => m.routes.some((r) => p.startsWith(r)));
+      if (dynamicMatch) return dynamicMatch.department;
+
+      // 3. Fallback (mevcut davranış)
+      return 'TÜM SİSTEM';
+    },
+    [dynamicModules]
+  );
+
+  const department = getDepartment(pathname);
+
+  // Dinamik modül eşleşirse, departmentInfo'yu genişlet
+  const getDepartmentInfo = useCallback(
+    (dept: string): { title: string; color: string; icon: string } => {
+      // 1. Hardcoded info varsa onu döndür
+      if (departmentInfo[dept]) return departmentInfo[dept];
+
+      // 2. Dinamik modülden al
+      const dynMod = dynamicModules.find((m) => m.department === dept);
+      if (dynMod?.aiRole) {
+        return {
+          title: dynMod.aiRole.title,
+          color: dynMod.aiRole.color,
+          icon: dynMod.aiRole.icon,
+        };
+      }
+
+      // 3. Fallback
+      return departmentInfo['TÜM SİSTEM'];
+    },
+    [dynamicModules]
+  );
+
+  const info = getDepartmentInfo(department);
 
   // Sayfa context'ini tespit et
   useEffect(() => {

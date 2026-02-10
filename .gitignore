@@ -81,5 +81,13 @@ backend/scripts/azure-training/temp-pdfs/
 # Temp analysis output
 temp-analysis/
 
+# Binary/report dosyalari
+*.docx
+*.pdf
+!backend/docs/*.pdf
+
+# Dahili plan dosyalari
+auto-discovery-plan.md
+
 # Cursor IDE
 .cursor/

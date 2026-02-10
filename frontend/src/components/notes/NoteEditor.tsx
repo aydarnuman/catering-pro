@@ -1,43 +1,41 @@
 'use client';
 
-import {
-  ActionIcon,
-  Box,
-  Divider,
-  Group,
-  Paper,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  Tooltip,
-} from '@mantine/core';
+/**
+ * NoteEditor - Baslik + Zengin metin editoru + Checklist
+ * Tiptap + Mantine entegrasyonu
+ */
+
+import { Box, Button, Divider, Group, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import {
-  IconBold,
-  IconCode,
-  IconItalic,
-  IconLink,
-  IconList,
-  IconMarkdown,
-  IconStrikethrough,
-} from '@tabler/icons-react';
-import DOMPurify from 'dompurify';
-import { useCallback, useRef, useState } from 'react';
+import { Link, RichTextEditor } from '@mantine/tiptap';
+import { IconCheck, IconX } from '@tabler/icons-react';
+import Highlight from '@tiptap/extension-highlight';
+import Placeholder from '@tiptap/extension-placeholder';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
+import TextAlign from '@tiptap/extension-text-align';
+import { useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { useCallback, useState } from 'react';
+
 import type { CreateNoteDTO, NoteColor, NoteContentFormat, NotePriority } from '@/types/notes';
+import type { ChecklistItem } from './NoteChecklist';
+import { NoteChecklist } from './NoteChecklist';
 import { NoteColorPicker } from './NoteColorPicker';
 import { NotePrioritySelect } from './NotePrioritySelect';
 import { NoteTagsInput } from './NoteTagsInput';
 
 interface NoteEditorProps {
+  initialTitle?: string;
   initialContent?: string;
+  initialContentFormat?: NoteContentFormat;
   initialColor?: NoteColor;
   initialPriority?: NotePriority;
   initialTags?: string[];
   initialDueDate?: Date | null;
   initialReminderDate?: Date | null;
   initialIsTask?: boolean;
-  initialContentFormat?: NoteContentFormat;
+  initialChecklist?: ChecklistItem[];
   onSave: (data: CreateNoteDTO) => void;
   onCancel?: () => void;
   showTaskToggle?: boolean;
@@ -45,70 +43,26 @@ interface NoteEditorProps {
   showDueDate?: boolean;
   showReminder?: boolean;
   showTags?: boolean;
-  minRows?: number;
-  maxRows?: number;
+  showChecklist?: boolean;
+  showActions?: boolean;
   placeholder?: string;
-}
-
-/**
- * Format toolbar button
- */
-function FormatButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: React.ComponentType<{ size?: number | string }>;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip label={label}>
-      <ActionIcon variant="subtle" size="sm" onClick={onClick}>
-        <Icon size={16} />
-      </ActionIcon>
-    </Tooltip>
-  );
-}
-
-/**
- * Simple markdown preview
- */
-function MarkdownPreview({ content }: { content: string }) {
-  const rendered = content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/~~(.*?)~~/g, '<del>$1</del>')
-    .replace(
-      /`(.*?)`/g,
-      '<code style="background:#f1f3f4;padding:2px 4px;border-radius:3px">$1</code>'
-    )
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/^- (.*)$/gm, '<li>$1</li>')
-    .replace(/\n/g, '<br/>');
-
-  const sanitizedPreview = DOMPurify.sanitize(
-    rendered || '<em style="color:gray">Onizleme...</em>'
-  );
-  // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify
-  const previewHtml = <span dangerouslySetInnerHTML={{ __html: sanitizedPreview }} />;
-
-  return (
-    <Paper p="xs" withBorder style={{ minHeight: 60 }}>
-      <Text size="sm">{previewHtml}</Text>
-    </Paper>
-  );
+  saveLabel?: string;
+  compact?: boolean;
+  /** Gorev modu: otomatik is_task=true, baslik odakli */
+  taskMode?: boolean;
 }
 
 export function NoteEditor({
+  initialTitle = '',
   initialContent = '',
+  initialContentFormat = 'html',
   initialColor = 'blue',
   initialPriority = 'normal',
   initialTags = [],
   initialDueDate = null,
   initialReminderDate = null,
   initialIsTask = false,
-  initialContentFormat = 'plain',
+  initialChecklist = [],
   onSave,
   onCancel,
   showTaskToggle = true,
@@ -116,158 +70,180 @@ export function NoteEditor({
   showDueDate = true,
   showReminder = true,
   showTags = true,
-  minRows = 3,
-  maxRows = 8,
-  placeholder = 'Not yazin...',
+  showChecklist = true,
+  showActions = true,
+  placeholder = 'Icerik yazin...',
+  saveLabel = 'Kaydet',
+  compact = false,
+  taskMode = false,
 }: NoteEditorProps) {
-  const [content, setContent] = useState(initialContent);
+  const [title, setTitle] = useState(initialTitle);
   const [color, setColor] = useState<NoteColor>(initialColor);
   const [priority, setPriority] = useState<NotePriority>(initialPriority);
   const [tags, setTags] = useState<string[]>(initialTags);
   const [dueDate, setDueDate] = useState<Date | null>(initialDueDate);
   const [reminderDate, setReminderDate] = useState<Date | null>(initialReminderDate);
-  const [isTask, setIsTask] = useState(initialIsTask);
-  const [contentFormat, setContentFormat] = useState<NoteContentFormat>(initialContentFormat);
-  const [showPreview, setShowPreview] = useState(false);
+  const [isTask, setIsTask] = useState(taskMode || initialIsTask);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Determine initial HTML content from various formats
+  const getInitialHtml = () => {
+    if (!initialContent) return '';
+    if (initialContentFormat === 'html') return initialContent;
+    if (initialContentFormat === 'markdown') {
+      return initialContent
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/~~(.*?)~~/g, '<del>$1</del>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/^- (.*)$/gm, '<li>$1</li>')
+        .replace(/\n/g, '<br/>');
+    }
+    return `<p>${initialContent.replace(/\n/g, '<br/>')}</p>`;
+  };
 
-  /**
-   * Insert formatting at cursor position
-   */
-  const insertFormatting = useCallback(
-    (before: string, after: string = before) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selectedText = content.substring(start, end);
-
-      const newContent =
-        content.substring(0, start) + before + selectedText + after + content.substring(end);
-
-      setContent(newContent);
-
-      // Re-focus and set cursor position
-      setTimeout(() => {
-        textarea.focus();
-        const _newCursorPos = start + before.length + selectedText.length + after.length;
-        textarea.setSelectionRange(
-          start + before.length,
-          start + before.length + selectedText.length
-        );
-      }, 0);
-    },
-    [content]
-  );
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: false }),
+      Highlight,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder }),
+    ],
+    content: getInitialHtml(),
+  });
 
   /**
    * Handle save
    */
-  const _handleSave = useCallback(() => {
-    if (!content.trim()) return;
+  const handleSave = useCallback(() => {
+    if (!editor) return;
+    const htmlContent = editor.getHTML();
+    const textContent = editor.getText();
+
+    // En az baslik veya icerik olmali
+    if (!title.trim() && !textContent.trim()) return;
+
+    const metadata: Record<string, unknown> = {};
+    if (checklist.length > 0) {
+      metadata.checklist = checklist;
+    }
 
     const data: CreateNoteDTO = {
-      content: content.trim(),
-      content_format: contentFormat,
+      title: title.trim() || undefined,
+      content: htmlContent,
+      content_format: 'html',
       color,
       priority,
       tags,
       is_task: isTask,
       due_date: dueDate?.toISOString() ?? null,
       reminder_date: reminderDate?.toISOString() ?? null,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     };
 
     onSave(data);
-  }, [content, contentFormat, color, priority, tags, isTask, dueDate, reminderDate, onSave]);
+  }, [editor, title, color, priority, tags, isTask, dueDate, reminderDate, checklist, onSave]);
+
+  if (!editor) return null;
 
   return (
     <Stack gap="sm">
-      {/* Content format toggle and toolbar */}
-      <Group justify="space-between">
-        <Group gap="xs">
-          {contentFormat === 'markdown' && (
-            <>
-              <FormatButton icon={IconBold} label="Kalin" onClick={() => insertFormatting('**')} />
-              <FormatButton
-                icon={IconItalic}
-                label="Italik"
-                onClick={() => insertFormatting('*')}
-              />
-              <FormatButton
-                icon={IconStrikethrough}
-                label="Ustu cizili"
-                onClick={() => insertFormatting('~~')}
-              />
-              <FormatButton icon={IconCode} label="Kod" onClick={() => insertFormatting('`')} />
-              <FormatButton
-                icon={IconLink}
-                label="Link"
-                onClick={() => insertFormatting('[', '](url)')}
-              />
-              <FormatButton
-                icon={IconList}
-                label="Liste"
-                onClick={() => insertFormatting('- ', '')}
-              />
-              <Divider orientation="vertical" />
-            </>
-          )}
-          <Tooltip label={contentFormat === 'markdown' ? 'Markdown acik' : 'Markdown kapali'}>
-            <ActionIcon
-              variant={contentFormat === 'markdown' ? 'filled' : 'subtle'}
-              size="sm"
-              color={contentFormat === 'markdown' ? 'blue' : 'gray'}
-              onClick={() => setContentFormat(contentFormat === 'markdown' ? 'plain' : 'markdown')}
-            >
-              <IconMarkdown size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
+      {/* Title input */}
+      <TextInput
+        value={title}
+        onChange={(e) => setTitle(e.currentTarget.value)}
+        placeholder="Baslik yazin..."
+        size={compact ? 'sm' : 'md'}
+        variant="unstyled"
+        styles={{
+          input: {
+            fontWeight: 700,
+            fontSize: compact ? 16 : 18,
+            letterSpacing: '-0.01em',
+            borderBottom: '1px solid var(--mantine-color-default-border)',
+            borderRadius: 0,
+            paddingBottom: 8,
+          },
+        }}
+      />
 
-        {contentFormat === 'markdown' && (
-          <Switch
-            label="Onizleme"
-            size="xs"
-            checked={showPreview}
-            onChange={(e) => setShowPreview(e.currentTarget.checked)}
-          />
-        )}
-      </Group>
-
-      {/* Textarea or preview */}
-      {showPreview && contentFormat === 'markdown' ? (
-        <MarkdownPreview content={content} />
-      ) : (
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.currentTarget.value)}
-          placeholder={placeholder}
-          minRows={minRows}
-          maxRows={maxRows}
-          autosize
+      {/* Rich Text Editor */}
+      {!taskMode && (
+        <RichTextEditor
+          editor={editor}
           styles={{
-            input: {
-              fontFamily: contentFormat === 'markdown' ? 'monospace' : 'inherit',
+            root: {
+              border: '1px solid var(--mantine-color-default-border)',
+              borderRadius: 'var(--mantine-radius-md)',
+            },
+            toolbar: {
+              borderBottom: '1px solid var(--mantine-color-default-border)',
+              padding: '4px 8px',
+              gap: 2,
+            },
+            content: {
+              minHeight: compact ? 80 : 120,
+              fontSize: compact ? 13 : 14,
             },
           }}
-        />
+        >
+          <RichTextEditor.Toolbar sticky stickyOffset={0}>
+            <RichTextEditor.ControlsGroup>
+              <RichTextEditor.Bold />
+              <RichTextEditor.Italic />
+              <RichTextEditor.Strikethrough />
+              <RichTextEditor.Highlight />
+              <RichTextEditor.Code />
+            </RichTextEditor.ControlsGroup>
+
+            <RichTextEditor.ControlsGroup>
+              <RichTextEditor.H2 />
+              <RichTextEditor.H3 />
+            </RichTextEditor.ControlsGroup>
+
+            <RichTextEditor.ControlsGroup>
+              <RichTextEditor.BulletList />
+              <RichTextEditor.OrderedList />
+              <RichTextEditor.TaskList />
+            </RichTextEditor.ControlsGroup>
+
+            <RichTextEditor.ControlsGroup>
+              <RichTextEditor.Link />
+              <RichTextEditor.Unlink />
+            </RichTextEditor.ControlsGroup>
+
+            <RichTextEditor.ControlsGroup>
+              <RichTextEditor.Blockquote />
+              <RichTextEditor.Hr />
+            </RichTextEditor.ControlsGroup>
+          </RichTextEditor.Toolbar>
+
+          <RichTextEditor.Content />
+        </RichTextEditor>
+      )}
+
+      {/* Checklist */}
+      {showChecklist && (
+        <Box>
+          <Divider my="xs" label="Alt Gorevler" labelPosition="left" />
+          <NoteChecklist items={checklist} onChange={setChecklist} />
+        </Box>
       )}
 
       {/* Color picker */}
       <Group gap="xs" align="center">
-        <Text size="xs" c="dimmed">
-          Renk:
-        </Text>
+        <Text size="xs" c="dimmed">Renk:</Text>
         <NoteColorPicker value={color} onChange={setColor} size="sm" />
       </Group>
 
       {/* Task toggle */}
-      {showTaskToggle && (
+      {showTaskToggle && !taskMode && (
         <Switch
           label="Gorev olarak isaretle"
+          size="xs"
           checked={isTask}
           onChange={(e) => setIsTask(e.currentTarget.checked)}
         />
@@ -276,9 +252,7 @@ export function NoteEditor({
       {/* Priority */}
       {showPriority && isTask && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>
-            Oncelik:
-          </Text>
+          <Text size="xs" c="dimmed" mb={4}>Oncelik:</Text>
           <NotePrioritySelect value={priority} onChange={setPriority} size="sm" />
         </Box>
       )}
@@ -292,6 +266,7 @@ export function NoteEditor({
           onChange={setDueDate}
           clearable
           minDate={new Date()}
+          size={compact ? 'xs' : 'sm'}
         />
       )}
 
@@ -304,17 +279,35 @@ export function NoteEditor({
           onChange={setReminderDate}
           clearable
           minDate={new Date()}
+          size={compact ? 'xs' : 'sm'}
         />
       )}
 
       {/* Tags */}
       {showTags && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>
-            Etiketler:
-          </Text>
+          <Text size="xs" c="dimmed" mb={4}>Etiketler:</Text>
           <NoteTagsInput value={tags} onChange={setTags} />
         </Box>
+      )}
+
+      {/* Action buttons */}
+      {showActions && (
+        <Group justify="flex-end" mt="xs">
+          {onCancel && (
+            <Button variant="subtle" size={compact ? 'xs' : 'sm'} onClick={onCancel} leftSection={<IconX size={14} />}>
+              Iptal
+            </Button>
+          )}
+          <Button
+            size={compact ? 'xs' : 'sm'}
+            onClick={handleSave}
+            disabled={!title.trim() && !editor.getText().trim()}
+            leftSection={<IconCheck size={14} />}
+          >
+            {saveLabel}
+          </Button>
+        </Group>
       )}
     </Stack>
   );

@@ -13,7 +13,11 @@ const router = express.Router();
 router.use(authenticate);
 
 // Valid context types
-const VALID_CONTEXT_TYPES = ['tender', 'customer', 'event', 'project'];
+const VALID_CONTEXT_TYPES = [
+  'tender', 'customer', 'event', 'project', 'contractor',
+  'invoice', 'stock', 'personnel', 'purchasing', 'asset',
+  'finance', 'menu', 'recipe',
+];
 
 /**
  * GET /api/notes/context/:type/:id
@@ -105,6 +109,7 @@ router.post('/:type/:id', async (req, res) => {
     const userId = req.user.id;
     const { type, id: contextId } = req.params;
     const {
+      title = null,
       content,
       content_format = 'markdown',
       is_task = false,
@@ -114,6 +119,7 @@ router.post('/:type/:id', async (req, res) => {
       due_date = null,
       reminder_date = null,
       tags = [],
+      metadata = null,
     } = req.body;
 
     if (!VALID_CONTEXT_TYPES.includes(type)) {
@@ -138,10 +144,10 @@ router.post('/:type/:id', async (req, res) => {
     // Insert note
     const insertQuery = `
       INSERT INTO unified_notes (
-        user_id, context_type, context_id, content, content_format,
-        is_task, priority, color, pinned, due_date, reminder_date, sort_order
+        user_id, context_type, context_id, title, content, content_format,
+        is_task, priority, color, pinned, due_date, reminder_date, sort_order, metadata
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, COALESCE($14::jsonb, '{}'::jsonb))
       RETURNING *
     `;
 
@@ -149,6 +155,7 @@ router.post('/:type/:id', async (req, res) => {
       userId,
       type,
       parseInt(contextId, 10),
+      title?.trim() || null,
       content.trim(),
       content_format,
       is_task,
@@ -158,6 +165,7 @@ router.post('/:type/:id', async (req, res) => {
       due_date,
       reminder_date,
       sortOrder,
+      metadata ? JSON.stringify(metadata) : null,
     ]);
 
     const note = noteResult.rows[0];

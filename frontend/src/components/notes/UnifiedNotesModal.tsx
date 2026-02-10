@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * UnifiedNotesModal - Gelismis tek notlar modali
+ * Sidebar filtreleme, zengin metin, dosya ekleri, checklist, paylasma
+ */
+
 import {
   closestCenter,
   DndContext,
@@ -22,6 +27,7 @@ import {
   Box,
   Button,
   Center,
+  Checkbox,
   Collapse,
   Divider,
   Group,
@@ -29,51 +35,54 @@ import {
   Modal,
   Paper,
   ScrollArea,
-  SimpleGrid,
+  SegmentedControl,
   Stack,
-  Tabs,
   Text,
   TextInput,
   useMantineColorScheme,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  IconCalendar,
   IconCheck,
-  IconChevronDown,
-  IconChevronUp,
+  IconNote,
   IconNotes,
-  IconPin,
   IconPlus,
   IconSearch,
   IconTrash,
+  IconUser,
+  IconX,
 } from '@tabler/icons-react';
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
-} from 'date-fns';
-import { tr } from 'date-fns/locale';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useNotes } from '@/hooks/useNotes';
+import { useNotesModal } from '@/context/NotesContext';
+import { useNotes, useNoteTags } from '@/hooks/useNotes';
 import type { CreateNoteDTO, NoteColor, UnifiedNote } from '@/types/notes';
+import { NoteAttachments } from './NoteAttachments';
 import { NoteCard } from './NoteCard';
+import { type ChecklistItem, NoteChecklist } from './NoteChecklist';
 import { NoteEditor } from './NoteEditor';
+import { NotesSidebar, type SidebarFilter } from './NotesSidebar';
 
-interface UnifiedNotesModalProps {
-  opened: boolean;
-  onClose: () => void;
-}
+// Context type labels
+const CONTEXT_LABELS: Record<string, string> = {
+  tender: 'Ihale',
+  customer: 'Musteri',
+  event: 'Etkinlik',
+  project: 'Proje',
+  contractor: 'Yuklenici',
+  invoice: 'Fatura',
+  stock: 'Stok',
+  personnel: 'Personel',
+  purchasing: 'Satin Alma',
+  asset: 'Demirbas',
+  finance: 'Finans',
+  menu: 'Menu',
+  recipe: 'Recete',
+};
 
-// Sortable note card wrapper
+// ──────────────────────────────────────────────
+// Sortable Note Card Wrapper
+// ──────────────────────────────────────────────
 function SortableNoteCard({
   note,
   ...props
@@ -108,123 +117,42 @@ function SortableNoteCard({
   );
 }
 
-// Mini Calendar Component
-function MiniCalendar({
-  selectedDate,
-  onDateSelect,
-  noteDates,
-}: {
-  selectedDate: Date | null;
-  onDateSelect: (date: Date | null) => void;
-  noteDates: Map<string, number>;
-}) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
-
-  const weekDays = ['Pt', 'Sa', 'Ca', 'Pe', 'Cu', 'Ct', 'Pa'];
-
-  return (
-    <Paper p="xs" withBorder>
-      {/* Month navigation */}
-      <Group justify="space-between" mb="xs">
-        <ActionIcon
-          variant="subtle"
-          size="sm"
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-        >
-          <IconChevronDown size={14} style={{ transform: 'rotate(90deg)' }} />
-        </ActionIcon>
-        <Text size="sm" fw={500}>
-          {format(currentMonth, 'MMMM yyyy', { locale: tr })}
-        </Text>
-        <ActionIcon
-          variant="subtle"
-          size="sm"
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-        >
-          <IconChevronDown size={14} style={{ transform: 'rotate(-90deg)' }} />
-        </ActionIcon>
-      </Group>
-
-      {/* Weekday headers */}
-      <SimpleGrid cols={7} spacing={2}>
-        {weekDays.map((day) => (
-          <Center key={day}>
-            <Text size="xs" c="dimmed" fw={500}>
-              {day}
-            </Text>
-          </Center>
-        ))}
-      </SimpleGrid>
-
-      {/* Days */}
-      <SimpleGrid cols={7} spacing={2} mt={4}>
-        {days.map((day) => {
-          const dateKey = format(day, 'yyyy-MM-dd');
-          const noteCount = noteDates.get(dateKey) || 0;
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const isSelected = selectedDate && isSameDay(day, selectedDate);
-          const isTodayDate = isToday(day);
-
-          return (
-            <Box
-              key={dateKey}
-              onClick={() => {
-                if (isSelected) {
-                  onDateSelect(null);
-                } else {
-                  onDateSelect(day);
-                }
-              }}
-              style={{
-                cursor: 'pointer',
-                borderRadius: 4,
-                padding: 2,
-                textAlign: 'center',
-                backgroundColor: isSelected
-                  ? 'var(--mantine-color-blue-5)'
-                  : isTodayDate
-                    ? 'var(--mantine-color-blue-1)'
-                    : 'transparent',
-                opacity: isCurrentMonth ? 1 : 0.3,
-              }}
-            >
-              <Text
-                size="xs"
-                c={isSelected ? 'white' : isTodayDate ? 'blue' : undefined}
-                fw={isTodayDate ? 600 : 400}
-              >
-                {format(day, 'd')}
-              </Text>
-              {noteCount > 0 && (
-                <Badge size="xs" variant="filled" color="orange" circle>
-                  {noteCount}
-                </Badge>
-              )}
-            </Box>
-          );
-        })}
-      </SimpleGrid>
-    </Paper>
-  );
-}
-
-export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
+// ──────────────────────────────────────────────
+// Main Modal Component
+// ──────────────────────────────────────────────
+export function UnifiedNotesModal() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [activeTab, setActiveTab] = useState<string | null>('all');
+  // Global context
+  const { state, closeNotes } = useNotesModal();
+  const { opened, contextType, contextId, contextTitle, initialTab } = state;
+
+  // Local state
   const [searchQuery, setSearchQuery] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<UnifiedNote | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [noteMode, setNoteMode] = useState<'personal' | 'context'>('personal');
+  const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+  const [editChecklist, setEditChecklist] = useState<ChecklistItem[]>([]);
 
-  // Fetch personal notes
+  // Reset on open
+  useEffect(() => {
+    if (opened) {
+      setSearchQuery('');
+      setComposerOpen(false);
+      setEditingNote(null);
+      setNoteMode(contextType ? 'context' : 'personal');
+      setSidebarFilter({
+        type: initialTab === 'pinned' ? 'pinned' : initialTab === 'tasks' ? 'tasks' : 'all',
+      });
+      setEditChecklist([]);
+    }
+  }, [opened, contextType, initialTab]);
+
+  const isContextMode = noteMode === 'context' && !!contextType && contextId != null;
+
+  // Fetch notes
   const {
     notes,
     isLoading,
@@ -235,36 +163,37 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
     togglePin,
     reorderNotes,
     deleteCompleted,
-  } = useNotes({ enabled: opened });
+    refresh,
+  } = useNotes({
+    contextType: isContextMode ? contextType : null,
+    contextId: isContextMode ? contextId : null,
+    enabled: opened,
+  });
 
-  // DnD sensors
+  // Fetch tags for sidebar
+  const { suggestions: allTags } = useNoteTags();
+
+  // DnD
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Filter notes based on active tab and search
+  // ── Filtering ──
   const filteredNotes = useMemo(() => {
     let result = [...notes];
 
-    // Tab filtering
-    if (activeTab === 'pinned') {
+    // Sidebar filter
+    if (sidebarFilter.type === 'pinned') {
       result = result.filter((n) => n.pinned);
-    } else if (activeTab === 'agenda') {
-      // Filter by selected date if any
-      if (selectedDate) {
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        result = result.filter((n) => {
-          if (!n.due_date) return false;
-          return format(new Date(n.due_date), 'yyyy-MM-dd') === dateStr;
-        });
-      } else {
-        // Show only notes with due dates
-        result = result.filter((n) => n.due_date);
-      }
+    } else if (sidebarFilter.type === 'tasks') {
+      result = result.filter((n) => n.is_task);
+    } else if (sidebarFilter.type === 'tag' && sidebarFilter.tagName) {
+      const tagName = sidebarFilter.tagName.toLowerCase();
+      result = result.filter((n) => n.tags?.some((t) => t.name.toLowerCase() === tagName));
     }
 
-    // Search filtering
+    // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -275,33 +204,51 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
     }
 
     return result;
-  }, [notes, activeTab, selectedDate, searchQuery]);
+  }, [notes, sidebarFilter, searchQuery]);
 
-  // Compute note counts by date for calendar
-  const noteDates = useMemo(() => {
-    const map = new Map<string, number>();
-    notes.forEach((n) => {
-      if (n.due_date) {
-        const dateKey = format(new Date(n.due_date), 'yyyy-MM-dd');
-        map.set(dateKey, (map.get(dateKey) || 0) + 1);
+  const isTaskView = sidebarFilter.type === 'tasks';
+
+  // ── Inline checklist items from all notes (for tasks tab section 2) ──
+  const inlineChecklist = useMemo(() => {
+    if (!isTaskView) return [];
+    const items: Array<ChecklistItem & { noteId: string; noteTitle: string }> = [];
+    for (const note of notes) {
+      const meta = note.metadata as Record<string, unknown> | undefined;
+      const cl = meta?.checklist;
+      if (Array.isArray(cl)) {
+        const title = note.title || note.content.replace(/<[^>]+>/g, '').slice(0, 50);
+        for (const item of cl as ChecklistItem[]) {
+          items.push({ ...item, noteId: note.id, noteTitle: title });
+        }
       }
-    });
-    return map;
-  }, [notes]);
+    }
+    return items;
+  }, [notes, isTaskView]);
 
-  // Stats
+  // ── Stats ──
   const stats = useMemo(() => {
-    const pending = notes.filter((n) => n.is_task && !n.is_completed).length;
-    const completed = notes.filter((n) => n.is_task && n.is_completed).length;
-    const pinned = notes.filter((n) => n.pinned).length;
-    return { pending, completed, pinned, total: notes.length };
+    const tasks = notes.filter((n) => n.is_task);
+    return {
+      total: notes.length,
+      pending: tasks.filter((n) => !n.is_completed).length,
+      completed: tasks.filter((n) => n.is_completed).length,
+      pinned: notes.filter((n) => n.pinned).length,
+    };
   }, [notes]);
 
-  // Handlers
+  // ── Handlers ──
   const handleCreateNote = useCallback(
     async (data: CreateNoteDTO) => {
-      await createNote(data);
-      setComposerOpen(false);
+      const result = await createNote(data);
+      if (result) {
+        setComposerOpen(false);
+        notifications.show({
+          message: 'Not olusturuldu',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+          autoClose: 2000,
+        });
+      }
     },
     [createNote]
   );
@@ -309,15 +256,30 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
   const handleUpdateNote = useCallback(
     async (data: CreateNoteDTO) => {
       if (!editingNote) return;
-      await updateNote(editingNote.id, data);
-      setEditingNote(null);
+      const result = await updateNote(editingNote.id, {
+        ...data,
+        sort_order: editingNote.sort_order,
+      });
+      if (result) {
+        setEditingNote(null);
+        setEditChecklist([]);
+        notifications.show({
+          message: 'Not guncellendi',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+          autoClose: 2000,
+        });
+      }
     },
     [editingNote, updateNote]
   );
 
   const handleDeleteNote = useCallback(
     async (id: string) => {
-      await deleteNote(id);
+      const success = await deleteNote(id);
+      if (success) {
+        notifications.show({ message: 'Not silindi', color: 'orange', autoClose: 2000 });
+      }
     },
     [deleteNote]
   );
@@ -328,14 +290,12 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
     },
     [toggleComplete]
   );
-
   const handleTogglePin = useCallback(
     async (id: string) => {
       await togglePin(id);
     },
     [togglePin]
   );
-
   const handleColorChange = useCallback(
     async (id: string, color: NoteColor) => {
       await updateNote(id, { color });
@@ -347,10 +307,8 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-
       const oldIndex = filteredNotes.findIndex((n) => n.id === active.id);
       const newIndex = filteredNotes.findIndex((n) => n.id === over.id);
-
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = [...filteredNotes];
         const [moved] = newOrder.splice(oldIndex, 1);
@@ -362,226 +320,396 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
   );
 
   const handleDeleteCompleted = useCallback(async () => {
-    await deleteCompleted();
+    const count = await deleteCompleted();
+    if (count > 0) {
+      notifications.show({
+        message: `${count} tamamlanmis not silindi`,
+        color: 'orange',
+        autoClose: 2000,
+      });
+    }
   }, [deleteCompleted]);
+
+  const handleEditNote = useCallback((note: UnifiedNote) => {
+    setEditingNote(note);
+    // Load checklist from metadata
+    const meta = note.metadata as Record<string, unknown> | undefined;
+    const checklist = meta?.checklist;
+    setEditChecklist(Array.isArray(checklist) ? checklist : []);
+  }, []);
+
+  // ── Context label ──
+  const contextLabel = contextType
+    ? `${CONTEXT_LABELS[contextType] || contextType}${contextTitle ? `: ${contextTitle}` : ''}`
+    : '';
+
+  const borderSubtl = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const surfaceBg = isDark ? '#1a1a1e' : '#ffffff';
 
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={closeNotes}
       title={
-        <Group gap="xs">
-          <IconNotes size={20} />
-          <Text fw={600}>Notlar ve Ajanda</Text>
+        <Group gap="sm">
+          <Box
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)',
+              border: `1px solid ${isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)'}`,
+            }}
+          >
+            <IconNote size={20} color="var(--mantine-color-violet-5)" />
+          </Box>
+          <Box>
+            <Text fw={700} size="lg" style={{ letterSpacing: '-0.02em' }}>
+              Calisma Alanim
+            </Text>
+            <Text size="xs" c="dimmed" fw={500}>
+              {isContextMode ? contextLabel : 'Notlar, gorevler ve planlama'}
+            </Text>
+          </Box>
         </Group>
       }
-      size="lg"
-      centered
+      fullScreen
+      radius={0}
+      padding={0}
+      overlayProps={{ backgroundOpacity: 0.5, blur: 6 }}
       styles={{
-        body: { padding: 0 },
+        header: {
+          padding: '16px 24px',
+          borderBottom: `1px solid ${borderSubtl}`,
+          background: surfaceBg,
+        },
+        body: { padding: 0, background: surfaceBg, height: 'calc(100vh - 60px)' },
+        content: { background: surfaceBg },
       }}
     >
-      <Stack gap={0}>
-        {/* Stats bar */}
-        <Group px="md" py="xs" justify="space-between" bg={isDark ? 'dark.6' : 'gray.0'}>
-          <Group gap="md">
-            <Badge variant="light" color="blue">
-              Toplam: {stats.total}
-            </Badge>
-            <Badge variant="light" color="orange">
-              Bekleyen: {stats.pending}
-            </Badge>
-            <Badge variant="light" color="green">
-              Tamamlanan: {stats.completed}
-            </Badge>
-            <Badge variant="light" color="violet">
-              Sabitlenen: {stats.pinned}
-            </Badge>
-          </Group>
-          {stats.completed > 0 && (
-            <Button
-              variant="subtle"
-              color="red"
-              size="xs"
-              leftSection={<IconTrash size={14} />}
-              onClick={handleDeleteCompleted}
-            >
-              Tamamlananlari sil
-            </Button>
-          )}
-        </Group>
-
-        {/* Search bar */}
-        <Box px="md" py="xs">
-          <TextInput
-            placeholder="Notlarda ara..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.currentTarget.value)}
-            leftSection={<IconSearch size={16} />}
-            size="sm"
+      {/* ── Context Mode Switcher ── */}
+      {contextType && contextId != null && (
+        <Box px="lg" py="xs" style={{ borderBottom: `1px solid ${borderSubtl}` }}>
+          <SegmentedControl
+            value={noteMode}
+            onChange={(v) => setNoteMode(v as 'personal' | 'context')}
+            size="xs"
+            data={[
+              {
+                value: 'personal',
+                label: (
+                  <Group gap={6} justify="center">
+                    <IconUser size={14} />
+                    <Text size="xs" fw={500}>
+                      Kisisel Notlar
+                    </Text>
+                  </Group>
+                ),
+              },
+              {
+                value: 'context',
+                label: (
+                  <Group gap={6} justify="center">
+                    <IconNotes size={14} />
+                    <Text size="xs" fw={500}>
+                      {contextLabel}
+                    </Text>
+                  </Group>
+                ),
+              },
+            ]}
           />
         </Box>
+      )}
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List px="md">
-            <Tabs.Tab value="all" leftSection={<IconNotes size={14} />}>
-              Tumu
-            </Tabs.Tab>
-            <Tabs.Tab value="pinned" leftSection={<IconPin size={14} />}>
-              Sabitlenen
-            </Tabs.Tab>
-            <Tabs.Tab value="agenda" leftSection={<IconCalendar size={14} />}>
-              Ajanda
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
-
-        <Divider />
+      {/* ── Main Layout: Sidebar + Content ── */}
+      <Group align="stretch" gap={0} wrap="nowrap" style={{ height: '100%' }}>
+        {/* Sidebar */}
+        <NotesSidebar
+          notes={notes}
+          activeFilter={sidebarFilter}
+          onFilterChange={setSidebarFilter}
+          tags={allTags}
+        />
 
         {/* Content area */}
-        <Group align="flex-start" gap={0} wrap="nowrap" style={{ minHeight: 400 }}>
-          {/* Mini calendar (only for agenda tab) */}
-          {activeTab === 'agenda' && (
-            <Box
-              p="md"
-              style={{ borderRight: '1px solid var(--mantine-color-gray-3)', width: 240 }}
-            >
-              <MiniCalendar
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-                noteDates={noteDates}
-              />
-              {selectedDate && (
+        <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Stats + Search bar */}
+          <Box px="lg" py="sm" style={{ borderBottom: `1px solid ${borderSubtl}` }}>
+            <Group justify="space-between" mb="xs">
+              <Group gap="md">
+                <Badge variant="light" color="blue" size="sm">
+                  {stats.total} not
+                </Badge>
+                {stats.pending > 0 && (
+                  <Badge variant="light" color="orange" size="sm">
+                    {stats.pending} bekleyen
+                  </Badge>
+                )}
+                {stats.completed > 0 && (
+                  <Badge variant="light" color="green" size="sm">
+                    {stats.completed} tamamlanan
+                  </Badge>
+                )}
+              </Group>
+              {stats.completed > 0 && (
                 <Button
                   variant="subtle"
+                  color="red"
                   size="xs"
-                  mt="xs"
-                  fullWidth
-                  onClick={() => setSelectedDate(null)}
+                  leftSection={<IconTrash size={14} />}
+                  onClick={handleDeleteCompleted}
                 >
-                  Filtreyi temizle
+                  Tamamlananlari sil
                 </Button>
               )}
-            </Box>
-          )}
+            </Group>
+            <TextInput
+              placeholder="Notlarda ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              leftSection={<IconSearch size={16} />}
+              rightSection={
+                searchQuery ? (
+                  <ActionIcon variant="subtle" size="xs" onClick={() => setSearchQuery('')}>
+                    <IconX size={14} />
+                  </ActionIcon>
+                ) : null
+              }
+              size="sm"
+              radius="md"
+            />
+          </Box>
 
-          {/* Notes list */}
-          <Box style={{ flex: 1 }}>
-            {/* Add note button / composer */}
-            <Box px="md" py="sm">
+          {/* ── Composer ── */}
+          <Box px="lg" py="sm">
+            {!composerOpen ? (
               <Button
-                variant={composerOpen ? 'light' : 'outline'}
-                leftSection={composerOpen ? <IconChevronUp size={16} /> : <IconPlus size={16} />}
-                onClick={() => setComposerOpen(!composerOpen)}
+                variant="light"
+                leftSection={<IconPlus size={16} />}
+                onClick={() => {
+                  setEditingNote(null);
+                  setComposerOpen(true);
+                }}
                 fullWidth
+                radius="md"
+                styles={{
+                  root: {
+                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                    border: `1px dashed ${borderSubtl}`,
+                    color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                    fontWeight: 500,
+                  },
+                }}
               >
-                {composerOpen ? 'Kapat' : 'Yeni not ekle'}
+                {isTaskView ? 'Yeni gorev ekle...' : 'Yeni not ekle...'}
               </Button>
-
+            ) : (
               <Collapse in={composerOpen}>
-                <Paper p="md" mt="sm" withBorder>
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ borderColor: isTaskView ? 'var(--mantine-color-orange-3)' : 'var(--mantine-color-violet-3)' }}
+                >
+                  <Group justify="space-between" mb="sm">
+                    <Text size="sm" fw={600} c={isTaskView ? 'orange' : 'violet'}>
+                      {isTaskView ? 'Yeni Gorev' : 'Yeni Not'}
+                    </Text>
+                    <ActionIcon variant="subtle" size="sm" onClick={() => setComposerOpen(false)}>
+                      <IconX size={16} />
+                    </ActionIcon>
+                  </Group>
                   <NoteEditor
                     onSave={handleCreateNote}
                     onCancel={() => setComposerOpen(false)}
-                    placeholder="Not veya gorev ekle..."
+                    compact
+                    taskMode={isTaskView}
+                    showTaskToggle={!isTaskView}
+                    initialIsTask={isTaskView}
+                    initialColor={isTaskView ? 'orange' : 'blue'}
                   />
-                  <Group justify="flex-end" mt="md">
-                    <Button variant="subtle" onClick={() => setComposerOpen(false)}>
-                      Iptal
-                    </Button>
-                    <Button
-                      leftSection={<IconCheck size={16} />}
-                      onClick={() => {
-                        // Trigger save via form submission
-                        const form = document.querySelector('[data-note-editor]');
-                        if (form) {
-                          (form as HTMLFormElement).requestSubmit();
-                        }
-                      }}
-                    >
-                      Kaydet
-                    </Button>
-                  </Group>
                 </Paper>
               </Collapse>
-            </Box>
+            )}
+          </Box>
 
-            {/* Notes scroll area */}
-            <ScrollArea h={350} px="md" pb="md">
-              {isLoading ? (
-                <Center h={200}>
-                  <Loader />
-                </Center>
-              ) : filteredNotes.length === 0 ? (
-                <Center h={200}>
-                  <Stack align="center" gap="xs">
-                    <IconNotes size={48} color="gray" opacity={0.5} />
-                    <Text c="dimmed" size="sm">
-                      {searchQuery
-                        ? 'Aramanizla eslesen not bulunamadi'
-                        : activeTab === 'pinned'
-                          ? 'Sabitlenen not yok'
-                          : activeTab === 'agenda'
-                            ? selectedDate
-                              ? 'Bu tarihte not yok'
-                              : 'Tarihli not yok'
-                            : 'Henuz not eklenmemis'}
-                    </Text>
-                    {!searchQuery && activeTab === 'all' && (
-                      <Button
-                        variant="light"
-                        size="xs"
-                        leftSection={<IconPlus size={14} />}
-                        onClick={() => setComposerOpen(true)}
-                      >
-                        Ilk notunu ekle
-                      </Button>
-                    )}
-                  </Stack>
-                </Center>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={filteredNotes.map((n) => n.id)}
-                    strategy={verticalListSortingStrategy}
+          {/* ── Notes list ── */}
+          <ScrollArea style={{ flex: 1 }} px="lg" pb="md">
+            {isLoading ? (
+              <Center h={200}>
+                <Stack align="center" gap="xs">
+                  <Loader size="md" color="violet" />
+                  <Text size="sm" c="dimmed">
+                    Notlar yukleniyor...
+                  </Text>
+                </Stack>
+              </Center>
+            ) : filteredNotes.length === 0 ? (
+              <Center h={200}>
+                <Stack align="center" gap="xs">
+                  <Box
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                    }}
                   >
-                    <Stack gap="xs">
-                      {filteredNotes.map((note) => (
+                    <IconNotes size={32} color="gray" opacity={0.4} />
+                  </Box>
+                  <Text c="dimmed" size="sm" fw={500}>
+                    {searchQuery
+                      ? 'Aramanizla eslesen not bulunamadi'
+                      : sidebarFilter.type === 'pinned'
+                        ? 'Sabitlenen not yok'
+                        : sidebarFilter.type === 'tasks'
+                          ? 'Gorev yok'
+                          : sidebarFilter.type === 'tag'
+                            ? `"${sidebarFilter.tagName}" etiketi ile not yok`
+                            : 'Henuz not eklenmemis'}
+                  </Text>
+                  {!searchQuery && sidebarFilter.type === 'all' && !composerOpen && (
+                    <Button
+                      variant="light"
+                      size="xs"
+                      color="violet"
+                      leftSection={<IconPlus size={14} />}
+                      onClick={() => setComposerOpen(true)}
+                    >
+                      Ilk notunu ekle
+                    </Button>
+                  )}
+                </Stack>
+              </Center>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={filteredNotes.map((n) => n.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Stack gap="xs">
+                    {filteredNotes.map((note) => (
+                      <Stack key={note.id} gap={4}>
                         <SortableNoteCard
-                          key={note.id}
                           note={note}
                           onToggleComplete={handleToggleComplete}
                           onTogglePin={handleTogglePin}
                           onDelete={handleDeleteNote}
-                          onEdit={setEditingNote}
+                          onEdit={handleEditNote}
                           onColorChange={handleColorChange}
                         />
-                      ))}
-                    </Stack>
-                  </SortableContext>
-                </DndContext>
-              )}
-            </ScrollArea>
-          </Box>
-        </Group>
-      </Stack>
+                        {/* Inline attachments preview */}
+                        {note.attachments && note.attachments.length > 0 && (
+                          <Box ml={28}>
+                            <NoteAttachments
+                              noteId={note.id}
+                              attachments={note.attachments}
+                              onUpdate={refresh}
+                            />
+                          </Box>
+                        )}
+                        {/* Inline checklist preview */}
+                        {Array.isArray((note.metadata as Record<string, unknown>)?.checklist) &&
+                          ((note.metadata as Record<string, unknown>).checklist as ChecklistItem[])
+                            .length > 0 && (
+                            <Box ml={28}>
+                              <NoteChecklist
+                                items={
+                                  (note.metadata as Record<string, unknown>)
+                                    .checklist as ChecklistItem[]
+                                }
+                                onChange={() => {}}
+                                readonly
+                              />
+                            </Box>
+                          )}
+                      </Stack>
+                    ))}
+                  </Stack>
+                </SortableContext>
+              </DndContext>
+            )}
 
-      {/* Edit note modal */}
+            {/* ── Not Ici Gorevler (only in tasks view) ── */}
+            {isTaskView && inlineChecklist.length > 0 && (
+              <Box mt="lg">
+                <Divider
+                  label={
+                    <Text size="xs" fw={600} c="dimmed">
+                      Not Ici Gorevler ({inlineChecklist.filter((i) => i.done).length}/{inlineChecklist.length})
+                    </Text>
+                  }
+                  labelPosition="left"
+                  mb="sm"
+                />
+                <Stack gap={4}>
+                  {inlineChecklist.map((item) => (
+                    <Group key={`${item.noteId}-${item.id}`} gap="xs" wrap="nowrap">
+                      <Checkbox
+                        checked={item.done}
+                        size="xs"
+                        radius="xl"
+                        readOnly
+                        styles={{ input: { cursor: 'default' } }}
+                      />
+                      <Text
+                        size="xs"
+                        style={{
+                          flex: 1,
+                          textDecoration: item.done ? 'line-through' : 'none',
+                          opacity: item.done ? 0.5 : 1,
+                        }}
+                      >
+                        {item.text}
+                      </Text>
+                      <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                        {item.noteTitle}
+                      </Text>
+                    </Group>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </ScrollArea>
+        </Box>
+      </Group>
+
+      {/* ── Edit Note Modal ── */}
       <Modal
         opened={!!editingNote}
-        onClose={() => setEditingNote(null)}
-        title="Notu Duzenle"
-        size="md"
+        onClose={() => {
+          setEditingNote(null);
+          setEditChecklist([]);
+        }}
+        title={
+          <Group gap="xs">
+            <IconNote size={18} />
+            <Text fw={600} size="sm">
+              Notu Duzenle
+            </Text>
+          </Group>
+        }
+        size="lg"
+        radius="lg"
+        centered
       >
         {editingNote && (
           <Stack>
             <NoteEditor
+              initialTitle={editingNote.title || ''}
               initialContent={editingNote.content}
+              initialContentFormat={editingNote.content_format}
               initialColor={editingNote.color}
               initialPriority={editingNote.priority}
               initialTags={editingNote.tags?.map((t) => t.name) ?? []}
@@ -590,23 +718,28 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
                 editingNote.reminder_date ? new Date(editingNote.reminder_date) : null
               }
               initialIsTask={editingNote.is_task}
-              initialContentFormat={editingNote.content_format}
+              initialChecklist={editChecklist}
               onSave={handleUpdateNote}
-              onCancel={() => setEditingNote(null)}
+              onCancel={() => {
+                setEditingNote(null);
+                setEditChecklist([]);
+              }}
+              saveLabel="Guncelle"
             />
-            <Group justify="flex-end">
-              <Button variant="subtle" onClick={() => setEditingNote(null)}>
-                Iptal
-              </Button>
-              <Button
-                leftSection={<IconCheck size={16} />}
-                onClick={() => {
-                  // Will be handled by NoteEditor's internal save
-                }}
-              >
-                Kaydet
-              </Button>
-            </Group>
+
+            {/* Attachments (not editor icinde checklist zaten var) */}
+            {editingNote.attachments && editingNote.attachments.length > 0 && (
+              <Paper p="sm" withBorder radius="md">
+                <Text size="xs" fw={600} mb="xs">
+                  Dosya Ekleri
+                </Text>
+                <NoteAttachments
+                  noteId={editingNote.id}
+                  attachments={editingNote.attachments}
+                  onUpdate={refresh}
+                />
+              </Paper>
+            )}
           </Stack>
         )}
       </Modal>

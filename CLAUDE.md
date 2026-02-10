@@ -4,20 +4,16 @@ Bu dosya Claude Code'un projeyi anlaması için referans belgesidir.
 
 ## Proje Yapısı
 
+> Detaylı keşif rehberi: `.cursor/rules/project-discovery.mdc`
+
 ```
 /frontend     - Next.js 15 + Mantine UI
 /backend      - Express.js API
-/docs         - Tüm dokümantasyon
+/docs         - Genel dokümantasyon (deploy, API, modül rehberleri)
+/backend/docs - Backend-spesifik dokümantasyon (mimari, pipeline, scraper)
 /scripts      - Deploy ve yardımcı scriptler
 /supabase     - Migration dosyaları
 ```
-
-## Önemli Dosyalar
-
-- `docs/DEPLOYMENT.md` - Deploy rehberi
-- `docs/DIGITALOCEAN.md` - Sunucu yönetimi
-- `docs/00_INDEX.md` - Tüm dökümantasyon indeksi
-- `frontend/src/lib/config.ts` - API URL yapılandırması
 
 ## Deploy Komutları
 
@@ -97,21 +93,14 @@ frontend/src/hooks/usePermissions.ts    # Modül bazlı yetki kontrolü
 
 ## MUTLAK KURAL: Test Etmeden Degisiklik Yapma
 
-Projenin herhangi bir yerinde (backend, frontend, veritabani, dis servisler, altyapi, ML/egitim) degisiklik onermeden veya kod degistirmeden ONCE mevcut sistemin CALISIP CALISMADIGINI test et. Detaylar: `.cursor/rules/test-before-change.mdc`
+> Tam detaylar: `.cursor/rules/test-before-change.mdc` (alwaysApply)
 
-Zorunlu adimlar (her degisiklik oncesi):
-1. Env variable'lari kontrol et (var mi + dogru mu)
-2. Dis servislere baglanti testi yap
-3. Mevcut testleri calistir (`npx vitest run`)
-4. Gercek veriyle canli test yap (endpoint'e istek at, sayfayi ac, query calistir)
-5. Fallback/feature flag aktif mi anla
-6. Sonuclari raporla, SONRA plan olustur
-7. Sadece kod okuyarak varsayim yapma - calisan sistemi gercekten test et
+Kod degistirmeden ONCE mevcut sistemin calisip calismadigini test et. Canli test yap, sonuclari raporla, SONRA plan olustur.
 
 ## Commit Kuralları
 
 - UI değişiklikleri: `fix:` veya `feat:` prefix
-- Co-Author ekle: `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`
+- Co-Author ekle: `Co-Authored-By: Claude <noreply@anthropic.com>`
 - Pre-commit hook var, API URL ve hassas veri kontrolü yapar
 
 ## Sık Kullanılan Komutlar

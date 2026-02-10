@@ -15,6 +15,7 @@ import type {
   RemindersResponse,
   TagSuggestionsResponse,
   TagsResponse,
+  UnifiedNote,
   UpdateNoteDTO,
 } from '@/types/notes';
 
@@ -359,6 +360,52 @@ export const notesAPI = {
     noteId: string
   ): Promise<{ success: boolean; attachments: NoteAttachment[] }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/attachments/note/${noteId}`);
+    return response.json();
+  },
+
+  // ========== SHARING ==========
+
+  /**
+   * Share a note with another user
+   */
+  async shareNote(
+    noteId: string,
+    sharedWith: number,
+    permission: 'view' | 'edit' = 'view'
+  ): Promise<{ success: boolean; share: Record<string, unknown>; message: string }> {
+    const response = await authFetch(`${getApiBaseUrl()}/api/notes/sharing/${noteId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shared_with: sharedWith, permission }),
+    });
+    return response.json();
+  },
+
+  /**
+   * Get shares for a note
+   */
+  async getNoteShares(
+    noteId: string
+  ): Promise<{ success: boolean; shares: Array<{ id: string; shared_with: number; shared_with_name: string; shared_with_email: string; permission: string }> }> {
+    const response = await authFetch(`${getApiBaseUrl()}/api/notes/sharing/${noteId}`);
+    return response.json();
+  },
+
+  /**
+   * Remove a share
+   */
+  async removeShare(shareId: string): Promise<{ success: boolean; message: string }> {
+    const response = await authFetch(`${getApiBaseUrl()}/api/notes/sharing/${shareId}`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
+
+  /**
+   * Get notes shared with current user
+   */
+  async getSharedWithMe(): Promise<{ success: boolean; notes: UnifiedNote[]; total: number }> {
+    const response = await authFetch(`${getApiBaseUrl()}/api/notes/sharing`);
     return response.json();
   },
 };

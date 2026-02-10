@@ -206,6 +206,7 @@ export async function generateIstihbaratRaporu(yukleniciId) {
 // Prompt Builder
 // ═══════════════════════════════════════════════════════════════
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: karmaşık prompt builder, refactor planlanıyor
 function buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap, webIstihbarat, caprazKontrol) {
   const fmt = (val) => {
     if (!val) return '-';

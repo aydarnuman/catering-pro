@@ -117,7 +117,7 @@ export default function LoglarPage() {
       });
 
       if (data.success) {
-        setLogs(data.logs || []);
+        setLogs((data.logs || []) as unknown as AuditLog[]);
         setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (err) {

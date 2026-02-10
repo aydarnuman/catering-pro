@@ -647,7 +647,7 @@ export function YukleniciModal({
                 </div>
               )}
               {/* ─── Yapışkan Notlar (Sticker Notes) ─── */}
-              <YapiskanNotlar yukleniciId={yk.id} />
+              <YapiskanNotlar yukleniciId={yk.id} firmaAdi={firmaAdi} />
             </Stack>
           </Collapse>
         </Box>

@@ -153,8 +153,8 @@ const health = await checkPipelineHealth();
 | Env Variable | Default | Açıklama |
 |--------------|---------|----------|
 | `ANTHROPIC_API_KEY` | - | Claude API anahtarı (zorunlu) |
-| `CLAUDE_MODEL` | claude-sonnet-4-20250514 | Ana analiz modeli |
-| `CLAUDE_FAST_MODEL` | claude-haiku | Chunk analiz modeli |
+| `CLAUDE_MODEL` | claude-opus-4-6 | Ana analiz modeli |
+| `CLAUDE_FAST_MODEL` | claude-opus-4-6 | Chunk analiz modeli |
 | `AI_PDF_MAX_PAGES` | 100 | PDF max sayfa limiti |
 | `AI_PDF_PARALLEL_PAGES` | 12 | Paralel OCR sayfa sayısı |
 | `AI_PDF_DPI` | 120 | OCR için görüntü çözünürlüğü |

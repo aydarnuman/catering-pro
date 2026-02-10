@@ -7,6 +7,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { createBulkZip, sendMail } from '../services/export-service.js';
 import reportRegistry from '../services/report-registry.js';
+import logger from '../utils/logger.js';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get('/catalog/:module?', (req, res) => {
     const catalog = reportRegistry.getCatalog(module || null);
     res.json(catalog);
   } catch (error) {
-    console.error('[Reports] Catalog error:', error.message);
+    logger.error('[Reports] Catalog error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -49,7 +50,7 @@ router.post('/generate', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.filename)}"`);
     res.send(result.buffer);
   } catch (error) {
-    console.error('[Reports] Generate error:', error.message);
+    logger.error('[Reports] Generate error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -80,7 +81,7 @@ router.post('/preview', async (req, res) => {
       res.json(result.data);
     }
   } catch (error) {
-    console.error('[Reports] Preview error:', error.message);
+    logger.error('[Reports] Preview error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -136,7 +137,7 @@ router.post('/bulk', async (req, res) => {
 
     res.send(zipBuffer);
   } catch (error) {
-    console.error('[Reports] Bulk error:', error.message);
+    logger.error('[Reports] Bulk error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -206,7 +207,7 @@ router.post('/mail', async (req, res) => {
 
     res.json({ success: true, message: `${files.length} rapor mail olarak gönderildi` });
   } catch (error) {
-    console.error('[Reports] Mail error:', error.message);
+    logger.error('[Reports] Mail error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

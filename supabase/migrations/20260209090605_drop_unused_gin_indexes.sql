@@ -1,0 +1,3 @@
+-- Migration: drop_unused_gin_indexes
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

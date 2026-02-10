@@ -654,7 +654,7 @@ router.get('/status', async (_req, res) => {
 
     // Aktif modeli al
     const modelResult = await query(`SELECT setting_value FROM ai_settings WHERE setting_key = 'default_model'`);
-    const currentModel = modelResult.rows[0]?.setting_value || 'claude-sonnet-4-20250514';
+    const currentModel = modelResult.rows[0]?.setting_value || 'claude-opus-4-6';
 
     return res.json({
       success: true,
@@ -670,6 +670,30 @@ router.get('/status', async (_req, res) => {
       success: false,
       error: 'Durum kontrol edilemedi',
     });
+  }
+});
+
+// ==========================================
+// AUTO-DISCOVERY MODULE LİSTESİ
+// ==========================================
+
+/**
+ * GET /api/ai/modules
+ * Manifest'li modül listesini döner (frontend auto-discovery için)
+ * Hardcoded mapping'ler başarısız olduğunda frontend bu endpoint'i kullanır
+ */
+router.get('/modules', optionalAuth, async (_req, res) => {
+  try {
+    const modules = aiTools.getDiscoveredModules();
+    return res.json({
+      success: true,
+      modules,
+      count: modules.length,
+    });
+  } catch (err) {
+    // Hata durumunda boş array döner, frontend hardcoded'a düşer
+    logger.warn('[AI Modules] Endpoint hatası:', err.message);
+    return res.json({ success: true, modules: [], count: 0 });
   }
 });
 
@@ -1110,7 +1134,7 @@ router.get('/settings/models', async (_req, res) => {
     `);
 
     const models = modelsResult.rows[0]?.setting_value || [];
-    const defaultModel = defaultResult.rows[0]?.setting_value || 'claude-sonnet-4-20250514';
+    const defaultModel = defaultResult.rows[0]?.setting_value || 'claude-opus-4-6';
 
     return res.json({
       success: true,
@@ -1942,7 +1966,7 @@ router.get('/dashboard', async (_req, res) => {
         memoryCount: parseInt(memoryCount.rows[0]?.count || 0, 10),
         facts: factCount.rows[0],
         topTemplates: templateUsage.rows,
-        activeModel: modelResult.rows[0]?.setting_value || 'claude-sonnet-4-20250514',
+        activeModel: modelResult.rows[0]?.setting_value || 'claude-opus-4-6',
       },
     });
   } catch (error) {

@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * NoteCard - Gelismis not karti
+ * Baslik + icerik onizleme + checklist progress + etiketler/tarih/ek
+ */
+
 import {
   ActionIcon,
   Badge,
@@ -8,6 +13,7 @@ import {
   Group,
   Menu,
   Paper,
+  Progress,
   Stack,
   Text,
   Tooltip,
@@ -25,11 +31,13 @@ import {
   IconPinFilled,
   IconTrash,
 } from '@tabler/icons-react';
-import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
+import { formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import DOMPurify from 'dompurify';
+import { format } from 'date-fns';
 import { useState } from 'react';
+
 import { NOTE_COLORS, type NoteColor, PRIORITY_LABELS, type UnifiedNote } from '@/types/notes';
+import type { ChecklistItem } from './NoteChecklist';
 import { NoteColorPicker } from './NoteColorPicker';
 
 interface NoteCardProps {
@@ -49,39 +57,40 @@ interface NoteCardProps {
  */
 function formatDueDate(date: string | null): string | null {
   if (!date) return null;
-
   const d = new Date(date);
-
-  if (isToday(d)) {
-    return 'Bugun';
-  }
-  if (isTomorrow(d)) {
-    return 'Yarin';
-  }
-  if (isPast(d)) {
-    return `${formatDistanceToNow(d, { locale: tr })} once`;
-  }
-
+  if (isToday(d)) return 'Bugun';
+  if (isTomorrow(d)) return 'Yarin';
+  if (isPast(d)) return `${formatDistanceToNow(d, { locale: tr })} once`;
   return format(d, 'd MMM', { locale: tr });
 }
 
 /**
- * Render markdown-like content (simplified)
+ * Strip HTML tags and get plain text preview
  */
-function renderContent(content: string, format: string): React.ReactNode {
-  if (format !== 'markdown') {
-    return content;
-  }
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
-  // Simple markdown rendering
-  const rendered = content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/~~(.*?)~~/g, '<del>$1</del>')
-    .replace(/`(.*?)`/g, '<code>$1</code>');
+/**
+ * Get title from note (title field or first line of content)
+ */
+function getNoteTitle(note: UnifiedNote): string {
+  if (note.title) return note.title;
+  const plain = stripHtml(note.content);
+  const firstLine = plain.split('\n')[0] || plain;
+  return firstLine.length > 80 ? `${firstLine.slice(0, 80)}...` : firstLine;
+}
 
-  // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify
-  return <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rendered) }} />;
+/**
+ * Get content preview (excluding title-like first line)
+ */
+function getContentPreview(note: UnifiedNote): string {
+  const plain = stripHtml(note.content);
+  if (note.title) return plain.slice(0, 120);
+  // Skip first line (used as title), show rest
+  const lines = plain.split('\n');
+  const rest = lines.slice(1).join(' ').trim();
+  return rest.slice(0, 120);
 }
 
 export function NoteCard({
@@ -103,6 +112,19 @@ export function NoteCard({
   const hasReminder = note.reminders && note.reminders.length > 0;
   const hasAttachments = note.attachments && note.attachments.length > 0;
 
+  // Checklist from metadata
+  const checklist: ChecklistItem[] = (() => {
+    const meta = note.metadata as Record<string, unknown> | undefined;
+    const items = meta?.checklist;
+    return Array.isArray(items) ? items : [];
+  })();
+  const checklistDone = checklist.filter((i) => i.done).length;
+  const checklistTotal = checklist.length;
+  const checklistProgress = checklistTotal > 0 ? (checklistDone / checklistTotal) * 100 : 0;
+
+  const title = getNoteTitle(note);
+  const preview = getContentPreview(note);
+
   return (
     <Paper
       p={compact ? 'xs' : 'sm'}
@@ -110,15 +132,18 @@ export function NoteCard({
       style={{
         background: colorConfig.bg,
         borderLeft: `4px solid ${colorConfig.border}`,
-        opacity: note.is_completed ? 0.7 : 1,
+        opacity: note.is_completed ? 0.65 : 1,
         transition: 'all 0.2s ease',
+        cursor: onEdit ? 'pointer' : 'default',
       }}
+      onClick={() => onEdit?.(note)}
     >
       <Group gap="xs" align="flex-start" wrap="nowrap">
         {/* Drag handle */}
         {showDragHandle && (
           <Box
             {...dragHandleProps}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             style={{
               cursor: 'grab',
               color: 'var(--mantine-color-gray-5)',
@@ -133,37 +158,67 @@ export function NoteCard({
 
         {/* Completion checkbox (for tasks) */}
         {note.is_task && onToggleComplete && (
-          <Checkbox
-            checked={note.is_completed}
-            onChange={() => onToggleComplete(note.id)}
-            radius="xl"
-            size="sm"
-            styles={{
-              input: {
-                borderColor: colorConfig.accent,
-                '&:checked': {
-                  backgroundColor: colorConfig.accent,
+          <Box onClick={(e: React.MouseEvent) => e.stopPropagation()} pt={2}>
+            <Checkbox
+              checked={note.is_completed}
+              onChange={() => onToggleComplete(note.id)}
+              radius="xl"
+              size="sm"
+              styles={{
+                input: {
                   borderColor: colorConfig.accent,
                 },
-              },
-            }}
-          />
+              }}
+            />
+          </Box>
         )}
 
         {/* Content */}
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          {/* Main content */}
+          {/* Title */}
           <Text
-            size={compact ? 'xs' : 'sm'}
+            size={compact ? 'sm' : 'md'}
+            fw={700}
+            lineClamp={1}
             style={{
               textDecoration: note.is_completed ? 'line-through' : 'none',
-              color: note.is_completed ? 'var(--mantine-color-gray-6)' : 'inherit',
-              wordBreak: 'break-word',
+              color: note.is_completed ? 'var(--mantine-color-gray-6)' : colorConfig.accent,
+              letterSpacing: '-0.01em',
             }}
-            lineClamp={compact ? 2 : 4}
           >
-            {renderContent(note.content, note.content_format)}
+            {title}
           </Text>
+
+          {/* Content preview */}
+          {preview && (
+            <Text
+              size="xs"
+              c="dimmed"
+              lineClamp={2}
+              style={{
+                textDecoration: note.is_completed ? 'line-through' : 'none',
+                lineHeight: 1.4,
+              }}
+            >
+              {preview}
+            </Text>
+          )}
+
+          {/* Checklist progress */}
+          {checklistTotal > 0 && (
+            <Group gap="xs" align="center">
+              <Progress
+                value={checklistProgress}
+                size="xs"
+                color={checklistProgress === 100 ? 'green' : 'violet'}
+                style={{ flex: 1, maxWidth: 120 }}
+                radius="xl"
+              />
+              <Text size="xs" c="dimmed" fw={500}>
+                {checklistDone}/{checklistTotal}
+              </Text>
+            </Group>
+          )}
 
           {/* Metadata row */}
           <Group gap={6} wrap="wrap">
@@ -196,12 +251,7 @@ export function NoteCard({
             {/* Reminder indicator */}
             {hasReminder && (
               <Tooltip label="Hatirlatici var">
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color="violet"
-                  leftSection={<IconBell size={10} />}
-                >
+                <Badge size="xs" variant="light" color="violet" leftSection={<IconBell size={10} />}>
                   {note.reminders.length}
                 </Badge>
               </Tooltip>
@@ -210,12 +260,7 @@ export function NoteCard({
             {/* Attachment indicator */}
             {hasAttachments && (
               <Tooltip label={`${note.attachments.length} dosya`}>
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color="cyan"
-                  leftSection={<IconPaperclip size={10} />}
-                >
+                <Badge size="xs" variant="light" color="cyan" leftSection={<IconPaperclip size={10} />}>
                   {note.attachments.length}
                 </Badge>
               </Tooltip>
@@ -236,7 +281,7 @@ export function NoteCard({
         </Stack>
 
         {/* Actions */}
-        <Group gap={4}>
+        <Group gap={4} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           {/* Pin button */}
           {onTogglePin && (
             <Tooltip label={note.pinned ? 'Sabitlemeyi kaldir' : 'Sabitle'}>
@@ -267,15 +312,21 @@ export function NoteCard({
               )}
 
               {onColorChange && (
-                <Menu.Item leftSection={<IconPalette size={14} />} closeMenuOnClick={false}>
-                  <NoteColorPicker
-                    value={note.color}
-                    onChange={(color) => {
-                      onColorChange(note.id, color);
-                    }}
-                    size="sm"
-                  />
-                </Menu.Item>
+                <>
+                  <Menu.Label>
+                    <Group gap={4}>
+                      <IconPalette size={14} />
+                      <Text size="xs">Renk</Text>
+                    </Group>
+                  </Menu.Label>
+                  <Box px="xs" pb="xs">
+                    <NoteColorPicker
+                      value={note.color}
+                      onChange={(color) => onColorChange(note.id, color)}
+                      size="sm"
+                    />
+                  </Box>
+                </>
               )}
 
               {onDelete && (

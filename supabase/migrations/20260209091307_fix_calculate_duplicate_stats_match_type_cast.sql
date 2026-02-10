@@ -1,0 +1,3 @@
+-- Migration: fix_calculate_duplicate_stats_match_type_cast
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

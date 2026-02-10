@@ -18,7 +18,7 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconAlertCircle,
   IconArrowRight,
@@ -43,8 +43,8 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { LoadingState } from '@/components/common';
-import { UnifiedNotesModal } from '@/components/notes';
 import { useAuth } from '@/context/AuthContext';
+import { useNotesModal } from '@/context/NotesContext';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { useNotes } from '@/hooks/useNotes';
 import { apiClient } from '@/lib/api';
@@ -212,20 +212,13 @@ function HomePageContent() {
   const [_aiTipIndex, setAiTipIndex] = useState(0);
   const [aiTipOpacity, setAiTipOpacity] = useState(1);
   const aiTipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [notesModalOpened, { open: openNotesModal, close: closeNotesModal }] = useDisclosure(false);
+  const { openNotes } = useNotesModal();
   const searchParams = useSearchParams();
-
-  // Toolbar "Hızlı Not" tıklanınca notlar modalını aç
-  useEffect(() => {
-    const handler = () => openNotesModal();
-    window.addEventListener('open-notes-modal', handler);
-    return () => window.removeEventListener('open-notes-modal', handler);
-  }, [openNotesModal]);
 
   // Ana sayfaya ?openNotes=1 ile gelindiyse notlar modalını aç
   useEffect(() => {
-    if (searchParams?.get('openNotes') === '1') openNotesModal();
-  }, [searchParams, openNotesModal]);
+    if (searchParams?.get('openNotes') === '1') openNotes();
+  }, [searchParams, openNotes]);
 
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
@@ -468,13 +461,13 @@ function HomePageContent() {
                       background: 'rgba(255,255,255,0.15)',
                     }}
                   />
-                  <Tooltip label="Notlarım" position="bottom" withArrow>
+                  <Tooltip label="Calisma Alanim" position="bottom" withArrow>
                     <ActionIcon
                       variant="filled"
                       color="yellow"
                       size="xl"
                       radius="xl"
-                      onClick={openNotesModal}
+                      onClick={() => openNotes()}
                       style={{
                         backgroundColor: '#e6c530',
                         color: '#0a0a0a',
@@ -490,13 +483,13 @@ function HomePageContent() {
 
               {/* Mobile/Tablet: Notes Button */}
               {(isMobile || isTablet) && (
-                <Tooltip label="Notlarım" position="bottom" withArrow>
+                <Tooltip label="Calisma Alanim" position="bottom" withArrow>
                   <ActionIcon
                     variant="filled"
                     color="yellow"
                     size="lg"
                     radius="xl"
-                    onClick={openNotesModal}
+                    onClick={() => openNotes()}
                     style={{
                       backgroundColor: '#e6c530',
                       color: '#0a0a0a',
@@ -711,8 +704,7 @@ function HomePageContent() {
         </Stack>
       </Container>
 
-      {/* ========== UNIFIED NOTES MODAL (birleşik not sistemi) ========== */}
-      <UnifiedNotesModal opened={notesModalOpened} onClose={closeNotesModal} />
+      {/* Notes modal artık Providers.tsx'de global olarak render ediliyor */}
     </Box>
   );
 }

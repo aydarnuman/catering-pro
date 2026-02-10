@@ -285,7 +285,7 @@ async function generateAiSummary(kategoriBaslik, tavilyOzet, haberler) {
       .join('\n');
 
     const message = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-6',
       max_tokens: 300,
       messages: [
         {

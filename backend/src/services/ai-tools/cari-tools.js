@@ -355,3 +355,23 @@ const cariTools = {
 };
 
 export default cariTools;
+
+// ============================================================
+// AUTO-DISCOVERY MANIFEST (opsiyonel — mevcut kayıt yöntemini etkilemez)
+// ============================================================
+export const manifest = {
+  id: 'cari',
+  name: 'Cari Hesap Yönetimi',
+  department: 'CARİ',
+  aiRole: {
+    title: 'Cari Hesap Uzmanı',
+    icon: '🏢',
+    color: 'blue',
+  },
+  routes: ['/muhasebe/cariler'],
+  contextType: 'cari',
+  format: 'legacy',
+  module: cariTools,
+  version: '1.0.0',
+  enabled: true,
+};

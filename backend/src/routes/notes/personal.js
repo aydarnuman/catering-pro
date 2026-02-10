@@ -231,6 +231,7 @@ router.post('/', async (req, res) => {
   try {
     const userId = req.user.id;
     const {
+      title = null,
       content,
       content_format = 'plain',
       is_task = false,
@@ -240,6 +241,7 @@ router.post('/', async (req, res) => {
       due_date = null,
       reminder_date = null,
       tags = [],
+      metadata = null,
     } = req.body;
 
     if (!content || content.trim() === '') {
@@ -260,15 +262,16 @@ router.post('/', async (req, res) => {
     // Insert note
     const insertQuery = `
       INSERT INTO unified_notes (
-        user_id, content, content_format, is_task, priority, color,
-        pinned, due_date, reminder_date, sort_order
+        user_id, title, content, content_format, is_task, priority, color,
+        pinned, due_date, reminder_date, sort_order, metadata
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::jsonb, '{}'::jsonb))
       RETURNING *
     `;
 
     const noteResult = await client.query(insertQuery, [
       userId,
+      title?.trim() || null,
       content.trim(),
       content_format,
       is_task,
@@ -278,6 +281,7 @@ router.post('/', async (req, res) => {
       due_date,
       reminder_date,
       sortOrder,
+      metadata ? JSON.stringify(metadata) : null,
     ]);
 
     const note = noteResult.rows[0];
@@ -349,6 +353,7 @@ router.put('/:id', async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
     const {
+      title,
       content,
       content_format,
       is_task,
@@ -360,6 +365,7 @@ router.put('/:id', async (req, res) => {
       reminder_date,
       sort_order,
       tags,
+      metadata,
     } = req.body;
 
     await client.query('BEGIN');
@@ -376,6 +382,12 @@ router.put('/:id', async (req, res) => {
     const updates = [];
     const params = [];
     let paramIndex = 1;
+
+    if (title !== undefined) {
+      updates.push(`title = $${paramIndex}`);
+      params.push(title?.trim() || null);
+      paramIndex++;
+    }
 
     if (content !== undefined) {
       if (content.trim() === '') {
@@ -445,6 +457,12 @@ router.put('/:id', async (req, res) => {
     if (sort_order !== undefined) {
       updates.push(`sort_order = $${paramIndex}`);
       params.push(sort_order);
+      paramIndex++;
+    }
+
+    if (metadata !== undefined) {
+      updates.push(`metadata = $${paramIndex}::jsonb`);
+      params.push(JSON.stringify(metadata));
       paramIndex++;
     }
 

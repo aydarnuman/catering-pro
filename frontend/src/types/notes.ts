@@ -18,10 +18,14 @@ export type NoteColor =
 export type NotePriority = 'low' | 'normal' | 'high' | 'urgent';
 
 // Content format
-export type NoteContentFormat = 'plain' | 'markdown';
+export type NoteContentFormat = 'plain' | 'markdown' | 'html';
 
 // Context types - what entity the note is attached to
-export type NoteContextType = 'tender' | 'customer' | 'event' | 'project' | null;
+export type NoteContextType =
+  | 'tender' | 'customer' | 'event' | 'project' | 'contractor'
+  | 'invoice' | 'stock' | 'personnel' | 'purchasing' | 'asset'
+  | 'finance' | 'menu' | 'recipe'
+  | null;
 
 // Reminder types
 export type NoteReminderType = 'notification' | 'email' | 'both';
@@ -65,6 +69,7 @@ export interface UnifiedNote {
   user_id: number;
   context_type: NoteContextType;
   context_id: number | null;
+  title: string | null;
   content: string;
   content_format: NoteContentFormat;
   is_task: boolean;
@@ -88,8 +93,10 @@ export interface UnifiedNote {
  * DTO for creating a note
  */
 export interface CreateNoteDTO {
+  title?: string;
   content: string;
   content_format?: NoteContentFormat;
+  metadata?: Record<string, unknown>;
   is_task?: boolean;
   priority?: NotePriority;
   color?: NoteColor;

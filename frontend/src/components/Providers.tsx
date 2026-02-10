@@ -3,7 +3,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { AuthModalProvider } from '@/components/auth';
+import { UnifiedNotesModal } from '@/components/notes';
+import { ReminderPoller } from '@/components/notes/ReminderPoller';
 import { AuthProvider } from '@/context/AuthContext';
+import { NotesProvider } from '@/context/NotesContext';
 import { RealtimeProvider } from '@/context/RealtimeContext';
 import { initializeErrorCollector } from '@/lib/error-handling';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -43,7 +46,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <AuthModalProvider>
-            <RealtimeProvider>{children}</RealtimeProvider>
+            <RealtimeProvider>
+              <NotesProvider>
+                {children}
+                <UnifiedNotesModal />
+                <ReminderPoller />
+              </NotesProvider>
+            </RealtimeProvider>
           </AuthModalProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Group, Tooltip, UnstyledButton } from '@mantine/core';
+import { Box, Group, Tooltip } from '@mantine/core';
 import { NOTE_COLORS, type NoteColor } from '@/types/notes';
 
 interface NoteColorPickerProps {
@@ -33,14 +33,13 @@ export function NoteColorPicker({
 
         return (
           <Tooltip key={color} label={config.name} position="top" withArrow>
-            <UnstyledButton
+            <Box
               onClick={() => !disabled && onChange(color)}
-              disabled={disabled}
               style={{
                 width: dotSize + 4,
                 height: dotSize + 4,
                 borderRadius: '50%',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: isSelected ? `2px solid ${config.accent}` : '2px solid transparent',
@@ -48,12 +47,12 @@ export function NoteColorPicker({
                 opacity: disabled ? 0.5 : 1,
                 transition: 'transform 0.15s ease',
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
                 if (!disabled) {
                   e.currentTarget.style.transform = 'scale(1.1)';
                 }
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
@@ -66,7 +65,7 @@ export function NoteColorPicker({
                   border: `1px solid ${config.border}`,
                 }}
               />
-            </UnstyledButton>
+            </Box>
           </Tooltip>
         );
       })}

@@ -14,7 +14,7 @@ import pdfParse from 'pdf-parse';
 import xlsx from 'xlsx';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-6';
 
 // Belge tiplerine göre çıkarılacak alanlar
 const BELGE_TIPLERI = {

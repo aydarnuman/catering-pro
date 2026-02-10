@@ -1,0 +1,3 @@
+-- Migration: deprecate_kidem_tavan_table
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

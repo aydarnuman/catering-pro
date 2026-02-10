@@ -4,6 +4,7 @@ import aiAgent from '../services/ai-agent.js';
 import { parseWithRegex, smartParse } from '../services/ambalajParser.js';
 import { savePiyasaFiyatlar } from '../services/piyasa-fiyat-writer.js';
 import piyasaSyncScheduler from '../services/piyasa-sync-scheduler.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -1502,7 +1503,7 @@ router.get('/stok-karti/ambalaj-ozet', async (_req, res) => {
 // =============================================
 
 // Piyasa sync durumunu getir
-router.get('/piyasa/sync/durum', async (req, res) => {
+router.get('/piyasa/sync/durum', async (_req, res) => {
   try {
     // Son sync loglarını da getir
     const logs = await query(`
@@ -1526,7 +1527,7 @@ router.get('/piyasa/sync/durum', async (req, res) => {
 });
 
 // Piyasa sync'i manuel tetikle
-router.post('/piyasa/sync/tetikle', async (req, res) => {
+router.post('/piyasa/sync/tetikle', async (_req, res) => {
   try {
     if (piyasaSyncScheduler.isRunning) {
       return res.json({ success: false, message: 'Senkronizasyon zaten çalışıyor' });
@@ -1551,9 +1552,9 @@ router.post('/piyasa/terim-optimize', async (_req, res) => {
 
     // Async başlat, hemen cevap dön
     optimizeAllSearchTerms({ limit: 30 }).then((result) => {
-      console.log(`[TerimOptimize] ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
+      logger.info(`[TerimOptimize] ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
     }).catch((err) => {
-      console.error(`[TerimOptimize] Hata: ${err.message}`);
+      logger.error(`[TerimOptimize] Hata: ${err.message}`);
     });
 
     res.json({

@@ -82,6 +82,10 @@ interface KasaBankaOzetData {
   toplam_bakiye?: number;
   hesap_sayisi?: number;
   hesaplar?: Array<{ hesap_adi?: string; bakiye?: number; tip?: string }>;
+  kasaBakiye?: number;
+  kasa_bakiye?: number;
+  bankaBakiye?: number;
+  banka_bakiye?: number;
 }
 
 const AY_ISIMLERI = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];

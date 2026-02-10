@@ -8,6 +8,7 @@ import attachmentsRoutes from './attachments.js';
 import contextualRoutes from './contextual.js';
 import personalRoutes from './personal.js';
 import remindersRoutes from './reminders.js';
+import sharingRoutes from './sharing.js';
 import tagsRoutes from './tags.js';
 
 const router = express.Router();
@@ -26,5 +27,8 @@ router.use('/reminders', remindersRoutes);
 
 // Attachments: /api/notes/attachments
 router.use('/attachments', attachmentsRoutes);
+
+// Sharing: /api/notes/sharing
+router.use('/sharing', sharingRoutes);
 
 export default router;

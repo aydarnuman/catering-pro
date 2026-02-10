@@ -1,0 +1,3 @@
+-- Migration: remove_duplicate_documents_trigger
+-- Applied directly to production via Supabase CLI/Dashboard
+-- This file is a placeholder to keep local migration history in sync

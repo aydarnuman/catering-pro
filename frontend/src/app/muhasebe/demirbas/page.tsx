@@ -135,6 +135,45 @@ interface Istatistik {
   toplam_amortisman: number;
 }
 
+interface GarantiItem {
+  id: number | string;
+  ad: string;
+  marka?: string;
+  model?: string;
+  kalan_gun: number;
+}
+
+interface BakimItem {
+  id: number | string;
+  ad: string;
+  servis_firma?: string;
+  gecen_gun: number;
+}
+
+interface DemirbasDetay {
+  kod: string;
+  ad: string;
+  marka?: string;
+  model?: string;
+  seri_no?: string;
+  durum?: string;
+  alis_fiyati?: number | string;
+  birikimis_amortisman?: number | string;
+  net_defter_degeri?: number | string;
+  zimmetli_personel?: string;
+  zimmetli_departman?: string;
+  lokasyon_ad?: string;
+  lokasyon_detay?: string;
+  hareketler?: Array<{
+    tarih: string;
+    hareket_tipi: string;
+    aciklama?: string;
+    yeni_personel?: string;
+    yeni_lokasyon?: string;
+  }>;
+  [key: string]: unknown;
+}
+
 export default function DemirbasPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -148,8 +187,8 @@ export default function DemirbasPage() {
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [istatistik, setIstatistik] = useState<Istatistik | null>(null);
   const [_kategoriDagilimi, setKategoriDagilimi] = useState<Record<string, unknown>[]>([]);
-  const [garantiYaklasan, setGarantiYaklasan] = useState<Record<string, unknown>[]>([]);
-  const [bakimdakiler, setBakimdakiler] = useState<Record<string, unknown>[]>([]);
+  const [garantiYaklasan, setGarantiYaklasan] = useState<GarantiItem[]>([]);
+  const [bakimdakiler, setBakimdakiler] = useState<BakimItem[]>([]);
 
   // Filter states
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
@@ -187,7 +226,7 @@ export default function DemirbasPage() {
 
   // Selected item for operations
   const [selectedDemirbas, setSelectedDemirbas] = useState<Demirbas | null>(null);
-  const [detayData, setDetayData] = useState<Record<string, unknown> | null>(null);
+  const [detayData, setDetayData] = useState<DemirbasDetay | null>(null);
 
   // Envanter Form (Yatay Kart Seçimi)
   const [envanterStep, setEnvanterStep] = useState(1);
@@ -318,7 +357,7 @@ export default function DemirbasPage() {
       }
 
       if (personelRes.status === 'fulfilled' && personelRes.value.success) {
-        setPersoneller((personelRes.value.data as Personel[]) || []);
+        setPersoneller((personelRes.value.data as unknown as Personel[]) || []);
       } else {
         // Daha detaylı hata mesajı
         const errorMessage =
@@ -341,8 +380,8 @@ export default function DemirbasPage() {
       ) {
         setIstatistik(istatistikRes.value.data.ozet);
         setKategoriDagilimi(istatistikRes.value.data.kategoriDagilimi || []);
-        setGarantiYaklasan(istatistikRes.value.data.garantiYaklasan || []);
-        setBakimdakiler(istatistikRes.value.data.bakimdakiler || []);
+        setGarantiYaklasan((istatistikRes.value.data.garantiYaklasan || []) as GarantiItem[]);
+        setBakimdakiler((istatistikRes.value.data.bakimdakiler || []) as BakimItem[]);
       } else {
         console.error(
           'İstatistik yükleme hatası:',
@@ -374,7 +413,7 @@ export default function DemirbasPage() {
       setBakimdakiler([]);
 
       // 401 hatası ise login sayfasına yönlendir
-      if (err?.response?.status === 401) {
+      if (axiosErr?.response?.status === 401) {
         setTimeout(() => {
           window.location.href = '/giris';
         }, 2000);
@@ -876,7 +915,7 @@ export default function DemirbasPage() {
     try {
       const result = await demirbasAPI.getDemirbas(demirbasId);
       if (result.success) {
-        setDetayData(result.data);
+        setDetayData(result.data as DemirbasDetay);
         openDetayModal();
       }
     } catch (err) {
@@ -2279,7 +2318,7 @@ export default function DemirbasPage() {
                   </Text>
                   {detayData.seri_no && <Text size="sm">Seri No: {detayData.seri_no}</Text>}
                 </div>
-                <Badge color={getDurumColor(detayData.durum)} size="lg">
+                <Badge color={getDurumColor(detayData.durum || '')} size="lg">
                   {detayData.durum?.toUpperCase()}
                 </Badge>
               </Group>
@@ -2367,26 +2406,26 @@ export default function DemirbasPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {(detayData.hareketler as Array<Record<string, unknown>>).map((h) => (
+                    {detayData.hareketler.map((h) => (
                       <Table.Tr
-                        key={`${String(h.tarih)}-${String(h.hareket_tipi)}-${String(h.aciklama || '')}`}
+                        key={`${h.tarih}-${h.hareket_tipi}-${h.aciklama || ''}`}
                       >
-                        <Table.Td>{formatDate(h.tarih as string)}</Table.Td>
+                        <Table.Td>{formatDate(h.tarih)}</Table.Td>
                         <Table.Td>
                           <Badge variant="light" size="sm">
-                            {String(h.hareket_tipi)}
+                            {h.hareket_tipi}
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm">{(h.aciklama as string) || '-'}</Text>
+                          <Text size="sm">{h.aciklama || '-'}</Text>
                           {h.yeni_personel && (
                             <Text size="xs" c="dimmed">
-                              → {String(h.yeni_personel)}
+                              → {h.yeni_personel}
                             </Text>
                           )}
                           {h.yeni_lokasyon && (
                             <Text size="xs" c="dimmed">
-                              → {String(h.yeni_lokasyon)}
+                              → {h.yeni_lokasyon}
                             </Text>
                           )}
                         </Table.Td>

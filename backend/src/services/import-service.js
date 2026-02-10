@@ -23,7 +23,7 @@ if (!fs.existsSync(TEMP_DIR)) {
 
 // Claude AI
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-6';
 
 /**
  * Desteklenen dosya formatları

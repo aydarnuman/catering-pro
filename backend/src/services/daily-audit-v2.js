@@ -541,7 +541,7 @@ class DailyAuditServiceV2 {
       try {
         const response = await anthropic.messages.create(
           {
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-opus-4-6',
             max_tokens: 3000,
             system: DENETIM_PROMPT,
             messages: [{ role: 'user', content: userContent }],

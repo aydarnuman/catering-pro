@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconCheck,
   IconCheckbox,
   IconChevronDown,
   IconChevronRight,
@@ -39,6 +40,7 @@ import {
   type ReportCatalog,
   type ReportDefinition,
   type ReportModule,
+  type ReportRequest,
   reportsAPI,
 } from '@/lib/api/services/reports';
 

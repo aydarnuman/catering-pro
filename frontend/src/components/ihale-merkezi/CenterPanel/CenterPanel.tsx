@@ -30,8 +30,8 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
-import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
+import { useNotesModal } from '@/context/NotesContext';
 import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
 import { formatDate } from '@/lib/formatters';
 import type { Tender } from '@/types/api';
@@ -82,6 +82,7 @@ export function CenterPanel({
   const [tamMetinModalOpen, setTamMetinModalOpen] = useState(false);
   const [sartnameGramajModalOpen, setSartnameGramajModalOpen] = useState(false);
   const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
+  const { openContextNotes } = useNotesModal();
 
   // HITL: Analiz düzeltme sistemi (hooks MUST be before early returns)
   const isSaved = selectedTender ? isSavedTender(selectedTender) : false;
@@ -466,18 +467,30 @@ export function CenterPanel({
             {/* Dökümanlar panel kaldırıldı - ayarlar modalından erişilebilir */}
 
             <Tabs.Panel value="notlar" pt="md">
-              {/* Notlar sekmesi */}
+              {/* Notlar sekmesi — tek modal'a yonlendirir */}
               {isSaved ? (
-                <ContextualNotesSection
-                  contextType="tender"
-                  contextId={savedTender?.tender_id ?? 0}
-                  title=""
-                  compact={false}
-                  showAddButton
-                />
+                <Stack align="center" gap="md" py="xl">
+                  <ThemeIcon size={48} radius="xl" variant="light" color="violet">
+                    <IconNote size={24} />
+                  </ThemeIcon>
+                  <Text size="sm" c="dimmed" ta="center">
+                    Bu ihaleye ait notlari goruntulemek ve duzenlemek icin asagidaki butona
+                    tiklayin.
+                  </Text>
+                  <Button
+                    variant="light"
+                    color="violet"
+                    leftSection={<IconNote size={16} />}
+                    onClick={() =>
+                      openContextNotes('tender', savedTender?.tender_id ?? 0, title || 'Ihale')
+                    }
+                  >
+                    Ihale Notlarini Ac
+                  </Button>
+                </Stack>
               ) : (
                 <Text size="sm" c="dimmed">
-                  Takip edilen ihaleler için kullanılabilir.
+                  Takip edilen ihaleler icin kullanilabilir.
                 </Text>
               )}
             </Tabs.Panel>
