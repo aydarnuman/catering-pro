@@ -5,7 +5,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import archiver from 'archiver';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import xlsx from 'xlsx';
@@ -260,7 +262,7 @@ function truncateText(text, maxWidth, fontSize = 8) {
   const avgCharWidth = fontSize * 0.5; // Yaklaşık karakter genişliği
   const maxChars = Math.floor(maxWidth / avgCharWidth);
   if (text.length > maxChars) {
-    return text.substring(0, maxChars - 2) + '..';
+    return `${text.substring(0, maxChars - 2)}..`;
   }
   return text;
 }
@@ -548,9 +550,230 @@ export function createDilekcePDF(dilekce) {
   });
 }
 
+/**
+ * Çok sekmeli Excel dosyası oluştur
+ * @param {Array<{name: string, data: Array, columns?: Object}>} sheets - Sekme dizisi
+ * @returns {Buffer} - Excel dosyası buffer'ı
+ */
+export function createMultiSheetExcel(sheets) {
+  const wb = xlsx.utils.book_new();
+
+  for (const sheet of sheets) {
+    let processedData = sheet.data || [];
+    if (sheet.columns) {
+      processedData = processedData.map((row) => {
+        const newRow = {};
+        Object.entries(sheet.columns).forEach(([key, header]) => {
+          newRow[header] = row[key] ?? '';
+        });
+        return newRow;
+      });
+    }
+
+    const ws = xlsx.utils.json_to_sheet(processedData);
+
+    // Kolon genişlikleri
+    if (processedData.length > 0) {
+      const colWidths = [];
+      Object.keys(processedData[0]).forEach((key) => {
+        const maxLen = Math.max(key.length, ...processedData.map((row) => String(row[key] || '').length));
+        colWidths.push({ wch: Math.min(maxLen + 2, 50) });
+      });
+      ws['!cols'] = colWidths;
+    }
+
+    xlsx.utils.book_append_sheet(wb, ws, (sheet.name || 'Sayfa').substring(0, 31));
+  }
+
+  return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+/**
+ * Birden fazla dosyayı ZIP olarak paketle
+ * @param {Array<{filename: string, buffer: Buffer}>} files - Dosya dizisi
+ * @returns {Promise<Buffer>} - ZIP dosyası buffer'ı
+ */
+export function createBulkZip(files) {
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    const passthrough = new PassThrough();
+    const chunks = [];
+
+    passthrough.on('data', (chunk) => chunks.push(chunk));
+    passthrough.on('end', () => resolve(Buffer.concat(chunks)));
+    passthrough.on('error', reject);
+    archive.on('error', reject);
+
+    archive.pipe(passthrough);
+
+    for (const file of files) {
+      archive.append(file.buffer, { name: file.filename });
+    }
+
+    archive.finalize();
+  });
+}
+
+/**
+ * Çok bölümlü PDF oluştur (birden fazla tablo + metin bölümü)
+ * @param {Object} content - İçerik
+ * @returns {Promise<Buffer>} - PDF buffer'ı
+ */
+export function createSectionedPDF(content) {
+  return new Promise((resolve, reject) => {
+    const {
+      title = 'Rapor',
+      subtitle = null,
+      sections = [],
+      footer = null,
+      orientation = 'portrait',
+    } = content;
+
+    const doc = new PDFDocument({
+      margin: 40,
+      size: 'A4',
+      layout: orientation,
+      bufferPages: true,
+    });
+
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    try {
+      let fontLoaded = false;
+      if (fs.existsSync(FONT_REGULAR) && fs.existsSync(FONT_BOLD)) {
+        doc.registerFont('Roboto', FONT_REGULAR);
+        doc.registerFont('Roboto-Bold', FONT_BOLD);
+        doc.font('Roboto');
+        fontLoaded = true;
+      }
+
+      const pageWidth = doc.page.width - 80;
+      const startX = 40;
+
+      // Başlık
+      if (fontLoaded) doc.font('Roboto-Bold');
+      doc.fontSize(16).text(title, { align: 'center' });
+      if (subtitle) {
+        if (fontLoaded) doc.font('Roboto');
+        doc.fontSize(10).fillColor('#666').text(subtitle, { align: 'center' });
+      }
+      doc.moveDown(0.5);
+      doc.fillColor('black');
+      if (fontLoaded) doc.font('Roboto');
+      doc.fontSize(8).text(
+        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`,
+        { align: 'right' }
+      );
+      doc.moveDown(1);
+
+      // Bölümler
+      for (const section of sections) {
+        // Sayfa kontrolü - yeni bölüm için yeterli yer yoksa yeni sayfa
+        if (doc.y > doc.page.height - 120) {
+          doc.addPage();
+        }
+
+        // Bölüm başlığı
+        if (section.title) {
+          if (fontLoaded) doc.font('Roboto-Bold');
+          doc.fontSize(12).fillColor('#333').text(section.title);
+          doc.moveDown(0.3);
+          doc.strokeColor('#ddd').lineWidth(0.5).moveTo(startX, doc.y).lineTo(startX + pageWidth, doc.y).stroke();
+          doc.moveDown(0.5);
+          doc.fillColor('black');
+        }
+
+        // Metin bölümü
+        if (section.text) {
+          if (fontLoaded) doc.font('Roboto');
+          doc.fontSize(9).text(section.text, { width: pageWidth, lineGap: 3 });
+          doc.moveDown(0.8);
+        }
+
+        // Anahtar-değer çiftleri
+        if (section.keyValues && section.keyValues.length > 0) {
+          if (fontLoaded) doc.font('Roboto');
+          for (const kv of section.keyValues) {
+            const kvY = doc.y;
+            if (kvY > doc.page.height - 50) { doc.addPage(); }
+            if (fontLoaded) doc.font('Roboto-Bold');
+            doc.fontSize(9).text(`${kv.key}: `, startX, doc.y, { continued: true });
+            if (fontLoaded) doc.font('Roboto');
+            doc.text(String(kv.value ?? '-'));
+          }
+          doc.moveDown(0.8);
+        }
+
+        // Tablo bölümü
+        if (section.headers && section.data && section.data.length > 0) {
+          const colCount = section.headers.length;
+          const colWidth = pageWidth / colCount;
+          const rowHeight = 18;
+          let currentY = doc.y;
+
+          // Header
+          doc.rect(startX, currentY - 3, pageWidth, rowHeight).fill('#f0f0f0');
+          doc.fillColor('black');
+          if (fontLoaded) doc.font('Roboto-Bold');
+          doc.fontSize(8);
+          section.headers.forEach((h, i) => {
+            doc.text(truncateText(h, colWidth - 6), startX + i * colWidth + 3, currentY, {
+              width: colWidth - 6, height: rowHeight, lineBreak: false,
+            });
+          });
+          currentY += rowHeight;
+          doc.strokeColor('#333').lineWidth(0.5).moveTo(startX, currentY).lineTo(startX + pageWidth, currentY).stroke();
+          currentY += 2;
+
+          // Data
+          if (fontLoaded) doc.font('Roboto');
+          doc.fontSize(7.5);
+          section.data.forEach((row, ri) => {
+            if (currentY > doc.page.height - 50) {
+              doc.addPage();
+              currentY = 40;
+            }
+            if (ri % 2 === 1) {
+              doc.rect(startX, currentY - 1, pageWidth, rowHeight - 2).fill('#fafafa');
+              doc.fillColor('black');
+            }
+            section.headers.forEach((h, i) => {
+              const val = row[h] ?? row[Object.keys(row)[i]] ?? '';
+              doc.text(truncateText(String(val), colWidth - 6), startX + i * colWidth + 3, currentY, {
+                width: colWidth - 6, height: rowHeight - 2, lineBreak: false,
+              });
+            });
+            currentY += rowHeight - 2;
+          });
+          doc.y = currentY;
+          doc.moveDown(0.8);
+        }
+      }
+
+      // Footer
+      if (footer) {
+        if (doc.y > doc.page.height - 40) doc.addPage();
+        doc.moveDown(1);
+        if (fontLoaded) doc.font('Roboto');
+        doc.fontSize(8).fillColor('#888').text(footer, { align: 'center' });
+      }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export default {
   createExcel,
   createPDF,
+  createSectionedPDF,
+  createMultiSheetExcel,
+  createBulkZip,
   sendMail,
   createPersonelExcel,
   createPersonelPDF,
