@@ -899,7 +899,7 @@ export function PersonelCard({
 
   const displayItems = expanded || isEditing ? realPersonel : realPersonel.slice(0, 5);
   const hasMore = realPersonel.length > 5;
-  const toplamPersonel = realPersonel.reduce((sum, p) => sum + (p.adet || 0), 0);
+  const toplamPersonel = realPersonel.reduce((sum, p) => sum + (Number(p.adet) || 0), 0);
 
   const handleSave = () => {
     if (onSave) {
@@ -1149,6 +1149,7 @@ export function OgunBilgileriCard({
                         <Table.Tr>
                           {headers.map((h, hIdx) => (
                             <Table.Th
+                              // biome-ignore lint/suspicious/noArrayIndexKey: Tablo başlıkları tekrar edebilir
                               key={`th-${tIdx}-${hIdx}`}
                               style={hIdx === 0 ? { minWidth: 120 } : { textAlign: 'right', minWidth: 60 }}
                             >
@@ -1162,9 +1163,14 @@ export function OgunBilgileriCard({
                           const firstCol = String(row[0] || '').trim();
                           const isToplam = firstCol.toUpperCase() === 'TOPLAM';
                           return (
-                            <Table.Tr key={`tr-${tIdx}-${rIdx}`} fw={isToplam ? 700 : undefined}>
+                            <Table.Tr
+                              // biome-ignore lint/suspicious/noArrayIndexKey: Tablo satırları benzersiz ID içermez
+                              key={`tr-${tIdx}-${rIdx}`}
+                              fw={isToplam ? 700 : undefined}
+                            >
                               {row.map((cell, cIdx) => (
                                 <Table.Td
+                                  // biome-ignore lint/suspicious/noArrayIndexKey: Tablo hücreleri benzersiz ID içermez
                                   key={`td-${tIdx}-${rIdx}-${cIdx}`}
                                   style={cIdx === 0 ? undefined : { textAlign: 'right' }}
                                   fw={isToplam ? 700 : undefined}

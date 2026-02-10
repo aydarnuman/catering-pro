@@ -55,6 +55,7 @@ import {
   TeknikSartlarCard,
   TeminatOranlariCard,
 } from './OzetCards';
+import { RakipAnalizi } from './RakipAnalizi';
 
 // ─── Category Types ────────────────────────────────────────────
 type CategoryTab = 'tumu' | 'operasyonel' | 'mali' | 'teknik' | 'belgeler';
@@ -565,6 +566,17 @@ export function OzetTabPanel({
             )}
           </Group>
         )}
+
+      {/* Potansiyel Rakip Analizi */}
+      <RakipAnalizi
+        tenderId={
+          isSaved
+            ? savedTender?.tender_id ?? null
+            : (selectedTender as Tender)?.id
+              ? Number((selectedTender as Tender).id)
+              : null
+        }
+      />
 
       {/* HITL: Düzeltme ve Onay Bar */}
       {analysisSummary && isSaved && (

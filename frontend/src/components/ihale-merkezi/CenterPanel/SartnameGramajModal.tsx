@@ -60,44 +60,108 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                 <Text size="sm" fw={600}>
                   Öğün Bilgileri
                 </Text>
-                <Badge size="xs" variant="light" color="orange">
-                  {analysisData.ogun_bilgileri.length} öğün
-                </Badge>
+                {analysisData.toplam_ogun_sayisi && (
+                  <Badge size="xs" variant="light" color="orange">
+                    Toplam: {Number(analysisData.toplam_ogun_sayisi).toLocaleString('tr-TR')} öğün
+                  </Badge>
+                )}
               </Group>
-              <Table striped highlightOnHover withTableBorder withColumnBorders>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Öğün Türü</Table.Th>
-                    <Table.Th style={{ textAlign: 'right' }}>Miktar</Table.Th>
-                    <Table.Th>Birim</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {analysisData.ogun_bilgileri.map((ogun) => (
-                    <Table.Tr key={`modal-ogun-${ogun.tur}-${ogun.miktar}`}>
-                      <Table.Td>
-                        <Text fw={500}>{ogun.tur}</Text>
-                      </Table.Td>
-                      <Table.Td style={{ textAlign: 'right' }}>
-                        <Text fw={600} c="orange">
-                          {ogun.miktar?.toLocaleString('tr-TR') || '-'}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text c="dimmed">{ogun.birim || 'adet'}</Text>
-                      </Table.Td>
+              {/* Tablo formatı: Azure'dan gelen rows/headers yapısı */}
+              {analysisData.ogun_bilgileri.some((o) => o.rows && o.headers) ? (
+                <ScrollArea>
+                  {analysisData.ogun_bilgileri
+                    .filter((tablo) => tablo.rows && tablo.headers)
+                    .map((tablo, tabloIdx) => (
+                      <Table
+                        // biome-ignore lint/suspicious/noArrayIndexKey: Tablo nesnelerinin benzersiz ID'si yok
+                        key={`modal-ogun-tablo-${tabloIdx}`}
+                        striped
+                        highlightOnHover
+                        withTableBorder
+                        withColumnBorders
+                        mb="md"
+                        style={{ fontSize: '0.8rem' }}
+                      >
+                        <Table.Thead>
+                          <Table.Tr>
+                            {(tablo.headers ?? []).map((header, hIdx) => (
+                              <Table.Th
+                                // biome-ignore lint/suspicious/noArrayIndexKey: Tablo başlıkları tekrar edebilir
+                                key={`modal-ogun-h-${tabloIdx}-${hIdx}`}
+                                style={hIdx > 0 ? { textAlign: 'right', whiteSpace: 'nowrap' } : undefined}
+                              >
+                                {header}
+                              </Table.Th>
+                            ))}
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {(tablo.rows ?? []).map((row, rIdx) => {
+                            const firstCol = String(row[0] || '').toLowerCase().trim();
+                            const isToplam = firstCol === 'toplam';
+                            return (
+                              <Table.Tr
+                                // biome-ignore lint/suspicious/noArrayIndexKey: Tablo satırları benzersiz ID içermez
+                                key={`modal-ogun-r-${tabloIdx}-${rIdx}`}
+                                style={isToplam ? { fontWeight: 700, backgroundColor: 'var(--mantine-color-orange-0)' } : undefined}
+                              >
+                                {row.map((cell, cIdx) => (
+                                  <Table.Td
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: Tablo hücreleri benzersiz ID içermez
+                                    key={`modal-ogun-c-${tabloIdx}-${rIdx}-${cIdx}`}
+                                    style={cIdx > 0 ? { textAlign: 'right' } : undefined}
+                                  >
+                                    <Text size="xs" fw={isToplam ? 700 : cIdx === 0 ? 500 : undefined} c={cIdx > 0 && !isToplam ? 'orange' : undefined}>
+                                      {cell}
+                                    </Text>
+                                  </Table.Td>
+                                ))}
+                              </Table.Tr>
+                            );
+                          })}
+                        </Table.Tbody>
+                      </Table>
+                    ))}
+                </ScrollArea>
+              ) : (
+                /* Basit format: tur/miktar/birim */
+                <Table striped highlightOnHover withTableBorder withColumnBorders>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Öğün Türü</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Miktar</Table.Th>
+                      <Table.Th>Birim</Table.Th>
                     </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {analysisData.ogun_bilgileri.map((ogun) => (
+                      <Table.Tr key={`modal-ogun-${ogun.tur}-${ogun.miktar}`}>
+                        <Table.Td>
+                          <Text fw={500}>{ogun.tur}</Text>
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          <Text fw={600} c="orange">
+                            {ogun.miktar?.toLocaleString('tr-TR') || '-'}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text c="dimmed">{ogun.birim || 'adet'}</Text>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              )}
               {(analysisData.gunluk_ogun_sayisi || analysisData.kisi_sayisi) && (
                 <Group gap="md" mt="md">
-                  {analysisData.gunluk_ogun_sayisi && (
+                  {analysisData.gunluk_ogun_sayisi &&
+                    analysisData.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
                     <Badge variant="outline" color="orange" size="md">
                       Günlük: {analysisData.gunluk_ogun_sayisi} öğün
                     </Badge>
                   )}
-                  {analysisData.kisi_sayisi && (
+                  {analysisData.kisi_sayisi &&
+                    analysisData.kisi_sayisi !== 'Belirtilmemiş' && (
                     <Badge variant="outline" color="blue" size="md">
                       Kişi: {analysisData.kisi_sayisi}
                     </Badge>
@@ -169,7 +233,7 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                       Personel Gereksinimleri
                     </Text>
                     <Badge size="xs" variant="light" color="indigo">
-                      {realPersonel.reduce((sum, p) => sum + (p.adet || 0), 0)} kişi
+                      {realPersonel.reduce((sum, p) => sum + (Number(p.adet) || 0), 0)} kişi
                     </Badge>
                   </Group>
                   <Table striped highlightOnHover withTableBorder withColumnBorders>

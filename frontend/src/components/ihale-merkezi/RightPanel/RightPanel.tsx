@@ -90,6 +90,34 @@ export function RightPanel({
                 value="teklif"
                 leftSection={<IconSparkles size={13} />}
                 disabled={!isSavedTender}
+                styles={{
+                  tab: {
+                    position: 'relative',
+                    fontWeight: 600,
+                    color: activeRightTab === 'teklif' ? '#fff' : 'rgba(255,255,255,0.85)',
+                    background:
+                      activeRightTab === 'teklif'
+                        ? 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)'
+                        : 'rgba(255,255,255,0.05)',
+                    border: activeRightTab === 'teklif'
+                      ? '1px solid rgba(255,255,255,0.25)'
+                      : '1px solid rgba(255,255,255,0.08)',
+                    boxShadow:
+                      activeRightTab === 'teklif'
+                        ? '0 0 12px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2)'
+                        : '0 0 6px rgba(255,255,255,0.04)',
+                    backdropFilter: 'blur(4px)',
+                    transition: 'all 0.25s ease',
+                    '&:hover': {
+                      background:
+                        activeRightTab === 'teklif'
+                          ? 'linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.12) 100%)'
+                          : 'rgba(255,255,255,0.1)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      boxShadow: '0 0 16px rgba(255,255,255,0.18)',
+                    },
+                  },
+                }}
               >
                 Teklif
               </Tabs.Tab>

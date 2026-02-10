@@ -1,13 +1,70 @@
 /**
  * Tenders API Servisleri
  * İhale yönetimi için merkezi API servisleri
+ *
+ * NOT: Bu dosyadaki `any` kullanımları bilinçlidir.
+ * Backend API response'ları dinamik yapıda olduğundan, her endpoint için
+ * ayrı interface tanımlamak yerine `any` kullanılmaktadır.
+ * İleride response type'ları tanımlandığında kaldırılabilir.
  */
+
+/* biome-ignore-all lint/suspicious/noExplicitAny: API response tipleri henüz tanımlanmadı */
 
 import { api } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { Tender, TendersResponse } from '@/types/api';
 import type { TeklifResponse, TenderNote } from '@/types/domain';
 import type { ApiResponse } from '../types';
+
+// ─── Rakip Analizi Types ────────────────────────────────────
+export interface RakipGecmis {
+  ihale_basligi: string;
+  kurum_adi: string;
+  sehir: string;
+  sozlesme_bedeli: number | null;
+  indirim_orani: number | null;
+  sozlesme_tarihi: string | null;
+  rol: string;
+  durum: string;
+}
+
+export interface Rakip {
+  yuklenici_id: number | null;
+  unvan: string;
+  katildigi_ihale_sayisi: number | null;
+  kazanma_orani: number | null;
+  ortalama_indirim_orani: number | null;
+  aktif_sehirler: string[] | null;
+  devam_eden_is?: number | null;
+  son_ihale_tarihi?: string | null;
+  takipte: boolean;
+  istihbarat_takibi?: boolean;
+  puan?: number | null;
+  ihalebul_url?: string | null;
+  katman: 'kesin' | 'kuvvetli' | 'sehir' | 'web_kesfedildi' | 'web_yeni';
+  neden: string;
+  gecmis: RakipGecmis[];
+}
+
+export interface RakipAnaliziResponse {
+  success: boolean;
+  ihale: {
+    id: number;
+    kurum: string;
+    sehir: string;
+    tahmini_bedel: number | null;
+  };
+  katmanlar: {
+    kesin_rakipler: Rakip[];
+    kuvvetli_adaylar: Rakip[];
+    sehir_aktif: Rakip[];
+    web_kesfedilen: Rakip[];
+  };
+  toplam_rakip: number;
+  kaynak: 'ic_veri' | 'tavily' | 'yok';
+  tavily_ozet: string | null;
+  cached?: boolean;
+}
 
 // Tenders API
 export const tendersAPI = {
@@ -382,6 +439,19 @@ export const tendersAPI = {
   async analyzeDocuments(tenderId: string): Promise<ApiResponse<any>> {
     const response = await api.post('/api/tender-content/analyze-batch', {
       tenderId: parseInt(tenderId, 10),
+    });
+    return response.data;
+  },
+
+  // ========== RAKİP ANALİZİ ==========
+
+  /**
+   * İhale için potansiyel rakip analizi
+   * Hibrit: iç veritabanı + Tavily web araması
+   */
+  async getRakipAnalizi(tenderId: number, force = false): Promise<ApiResponse<RakipAnaliziResponse>> {
+    const response = await api.get(`/api/tender-tracking/${tenderId}/rakip-analizi`, {
+      params: force ? { force: 'true' } : undefined,
     });
     return response.data;
   },

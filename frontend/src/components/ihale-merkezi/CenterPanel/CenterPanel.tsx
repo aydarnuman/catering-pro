@@ -11,6 +11,7 @@ import {
   ScrollArea,
   Select,
   SimpleGrid,
+  Stack,
   Tabs,
   Text,
   ThemeIcon,
@@ -20,16 +21,17 @@ import {
 import {
   IconBuilding,
   IconCalendar,
-  IconDownload,
   IconExternalLink,
   IconFileText,
   IconMapPin,
   IconNote,
+  IconReport,
   IconSettings,
   IconSparkles,
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
 import { formatDate } from '@/lib/formatters';
 import type { Tender } from '@/types/api';
@@ -37,6 +39,7 @@ import { DocumentWizardModal } from '../DocumentWizardModal';
 import type { AnalysisData, IhaleMerkeziState, SavedTender, TenderStatus } from '../types';
 import { statusConfig } from '../types';
 import { BirimFiyatlarModal, TamMetinModal, TeknikSartlarModal } from './DetailModals';
+import { IhaleSektorGundemi } from './IhaleSektorGundemi';
 import { OzetTabPanel } from './OzetTabPanel';
 import { SartnameGramajModal } from './SartnameGramajModal';
 import { SettingsModal } from './SettingsModal';
@@ -78,6 +81,7 @@ export function CenterPanel({
   const [birimModalOpen, setBirimModalOpen] = useState(false);
   const [tamMetinModalOpen, setTamMetinModalOpen] = useState(false);
   const [sartnameGramajModalOpen, setSartnameGramajModalOpen] = useState(false);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
 
   // HITL: Analiz düzeltme sistemi (hooks MUST be before early returns)
   const isSaved = selectedTender ? isSavedTender(selectedTender) : false;
@@ -111,7 +115,7 @@ export function CenterPanel({
     });
   }, []);
 
-  // No tender selected
+  // No tender selected — Sektör Gündemi göster
   if (!selectedTender) {
     return (
       <Box
@@ -120,20 +124,28 @@ export function CenterPanel({
           minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
           overflow: 'hidden',
           background: 'transparent',
           borderRight: isMobile ? 'none' : '1px solid var(--mantine-color-default-border)',
         }}
       >
-        <IconFileText size={64} color="var(--mantine-color-gray-4)" />
-        <Text size="lg" c="dimmed" mt="md">
-          Sol panelden bir ihale seçin
-        </Text>
-        <Text size="sm" c="dimmed" mt="xs">
-          İhale detayları ve AI asistan burada görünecek
-        </Text>
+        <ScrollArea style={{ flex: 1 }} p="md" offsetScrollbars>
+          <Stack gap="md">
+            {/* Hoşgeldin mesajı */}
+            <Box ta="center" py="lg">
+              <IconFileText size={48} color="var(--mantine-color-gray-5)" />
+              <Text size="md" c="dimmed" mt="sm">
+                Sol panelden bir ihale seçin
+              </Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                veya aşağıdaki sektör gündemini inceleyin
+              </Text>
+            </Box>
+
+            {/* Sektör Gündemi */}
+            <IhaleSektorGundemi />
+          </Stack>
+        </ScrollArea>
       </Box>
     );
   }
@@ -216,44 +228,14 @@ export function CenterPanel({
                       <IconSettings size={16} />
                     </ActionIcon>
                   </Tooltip>
-                  <Tooltip label="JSON olarak indir">
+                  <Tooltip label="Raporlar & Dışa Aktarım">
                     <ActionIcon
                       variant="light"
+                      color="blue"
                       size="md"
-                      onClick={() => {
-                        if (!savedTender) return;
-                        const st = savedTender;
-                        const data = {
-                          ihale: {
-                            baslik: st.ihale_basligi,
-                            kurum: st.kurum,
-                            tarih: st.tarih,
-                            sehir: st.city,
-                            bedel: st.bedel,
-                            external_id: st.external_id,
-                            url: st.url,
-                          },
-                          hesaplamalar: {
-                            yaklasik_maliyet: st.yaklasik_maliyet,
-                            sinir_deger: st.sinir_deger,
-                            bizim_teklif: st.bizim_teklif,
-                          },
-                          analiz: st.analysis_summary,
-                          durum: st.status,
-                          olusturulma: st.created_at,
-                        };
-                        const blob = new Blob([JSON.stringify(data, null, 2)], {
-                          type: 'application/json',
-                        });
-                        const urlObj = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = urlObj;
-                        a.download = `ihale_${st.external_id || st.id}_${Date.now()}.json`;
-                        a.click();
-                        URL.revokeObjectURL(urlObj);
-                      }}
+                      onClick={() => setRaporMerkeziOpen(true)}
                     >
-                      <IconDownload size={16} />
+                      <IconReport size={16} />
                     </ActionIcon>
                   </Tooltip>
                 </>
@@ -550,6 +532,14 @@ export function CenterPanel({
         opened={sartnameGramajModalOpen}
         onClose={() => setSartnameGramajModalOpen(false)}
         analysisData={analysisSummary}
+      />
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+        module="ihale"
+        context={{ tenderId: savedTender?.id }}
       />
     </Box>
   );

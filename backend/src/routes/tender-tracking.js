@@ -87,6 +87,15 @@ router.post('/', async (req, res) => {
       [tender_id, userIdValue]
     );
 
+    // Yaklaşık maliyeti tenders tablosundan çek
+    const tenderDataForCost = await query(
+      `SELECT estimated_cost FROM tenders WHERE id = $1`,
+      [tender_id]
+    );
+    const estimatedCostFromTender = tenderDataForCost.rows[0]?.estimated_cost
+      ? Number(tenderDataForCost.rows[0].estimated_cost)
+      : null;
+
     let result;
     if (existingCheck.rows.length > 0) {
       // Mevcut kaydı güncelle
@@ -110,11 +119,11 @@ router.post('/', async (req, res) => {
         ]
       );
     } else {
-      // Yeni kayıt oluştur
+      // Yeni kayıt oluştur - yaklaşık maliyeti de ekle
       result = await query(
         `
-        INSERT INTO tender_tracking (tender_id, user_id, status, notes, priority, analysis_summary)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO tender_tracking (tender_id, user_id, status, notes, priority, analysis_summary, yaklasik_maliyet)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `,
         [
@@ -124,6 +133,7 @@ router.post('/', async (req, res) => {
           notes || null,
           priority || 0,
           analysis_summary ? JSON.stringify(analysis_summary) : null,
+          estimatedCostFromTender,
         ]
       );
     }
@@ -652,13 +662,11 @@ router.post('/add-from-analysis', async (req, res) => {
         // SUMMARY MAPPING (v9.0: analysis.summary → flat alanlar)
         // ═══════════════════════════════════════════════════════════════
 
-        // Özet (ilk bulunanı kullan, sonrakileri birleştir)
+        // Özet (en uzun/kapsamlı olanı kullan - birleştirme tutarsız sayılara yol açıyor)
         const ozet = analysis.ozet || analysis.summary?.description;
         if (ozet) {
-          if (!analysisSummary.ozet) {
+          if (!analysisSummary.ozet || ozet.length > analysisSummary.ozet.length) {
             analysisSummary.ozet = ozet;
-          } else if (!analysisSummary.ozet.includes(ozet)) {
-            analysisSummary.ozet += ` | ${ozet}`;
           }
         }
 
@@ -1146,6 +1154,40 @@ router.post('/add-from-analysis', async (req, res) => {
     // Ham veri tablolarda zaten var → doğru yapısal alanlara yönlendir
     // ═══════════════════════════════════════════════════════════════
 
+    // 0. OCR ARTEFAKT TEMİZLİĞİ (Azure Document Intelligence artıkları)
+    function cleanOcrArtifacts(value) {
+      if (typeof value === 'string') {
+        return value
+          .replace(/:unselected:/g, '')
+          .replace(/:selected:/g, '')
+          .replace(/\n+/g, ' ')
+          .replace(/^\.\s+/g, '') // Başta gereksiz nokta: ". 35.000" → "35.000"
+          .trim();
+      }
+      if (Array.isArray(value)) {
+        return value.map(cleanOcrArtifacts);
+      }
+      if (value && typeof value === 'object') {
+        const cleaned = {};
+        for (const [k, v] of Object.entries(value)) {
+          cleaned[k] = cleanOcrArtifacts(v);
+        }
+        return cleaned;
+      }
+      return value;
+    }
+
+    // Tablo verileri içindeki OCR artefaktlarını temizle
+    if (analysisSummary.ogun_bilgileri) {
+      analysisSummary.ogun_bilgileri = cleanOcrArtifacts(analysisSummary.ogun_bilgileri);
+    }
+    if (analysisSummary.teknik_sartlar) {
+      analysisSummary.teknik_sartlar = cleanOcrArtifacts(analysisSummary.teknik_sartlar);
+    }
+    if (analysisSummary.onemli_notlar) {
+      analysisSummary.onemli_notlar = cleanOcrArtifacts(analysisSummary.onemli_notlar);
+    }
+
     // 1. ÖĞÜN TABLOLARINDAN LOKASYON + TOPLAM ÖĞÜN ÇIKARMA
     if (analysisSummary.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0) {
       for (const tablo of analysisSummary.ogun_bilgileri) {
@@ -1486,9 +1528,18 @@ router.post('/add-from-analysis', async (req, res) => {
       return true; // Gerçekten eksik
     });
 
+    // Yaklaşık maliyeti tenders tablosundan çek (scraper'ın topladığı veri)
+    const tenderDataResult = await query(
+      `SELECT estimated_cost FROM tenders WHERE id = $1`,
+      [tender_id]
+    );
+    const estimatedCost = tenderDataResult.rows[0]?.estimated_cost
+      ? Number(tenderDataResult.rows[0].estimated_cost)
+      : null;
+
     // Önce mevcut kayıt var mı kontrol et (NULL user_id için ON CONFLICT çalışmıyor)
     const existingCheck = await query(
-      `SELECT id FROM tender_tracking WHERE tender_id = $1 AND (user_id = $2 OR (user_id IS NULL AND $2 IS NULL))`,
+      `SELECT id, yaklasik_maliyet FROM tender_tracking WHERE tender_id = $1 AND (user_id = $2 OR (user_id IS NULL AND $2 IS NULL))`,
       [tender_id, user_id || null]
     );
 
@@ -1498,7 +1549,7 @@ router.post('/add-from-analysis', async (req, res) => {
 
     let result;
     if (existingCheck.rows.length > 0) {
-      // Mevcut kaydı güncelle
+      // Mevcut kaydı güncelle (yaklasik_maliyet sadece henüz set edilmemişse veya placeholder ise güncelle)
       result = await query(
         `
         UPDATE tender_tracking SET
@@ -1506,6 +1557,7 @@ router.post('/add-from-analysis', async (req, res) => {
           documents_analyzed = $3,
           teknik_sart_sayisi = $4,
           birim_fiyat_sayisi = $5,
+          yaklasik_maliyet = CASE WHEN yaklasik_maliyet IS NULL OR yaklasik_maliyet = 999999999 THEN $6 ELSE yaklasik_maliyet END,
           last_analysis_at = NOW(),
           updated_at = NOW()
         WHERE id = $1
@@ -1517,17 +1569,19 @@ router.post('/add-from-analysis', async (req, res) => {
           analysisResult.rows.length,
           teknikSartSayisi,
           birimFiyatSayisi,
+          estimatedCost,
         ]
       );
     } else {
-      // Yeni kayıt oluştur
+      // Yeni kayıt oluştur - yaklaşık maliyeti de dahil et
       result = await query(
         `
         INSERT INTO tender_tracking (
           tender_id, user_id, status, analysis_summary, 
-          documents_analyzed, teknik_sart_sayisi, birim_fiyat_sayisi, last_analysis_at
+          documents_analyzed, teknik_sart_sayisi, birim_fiyat_sayisi, 
+          yaklasik_maliyet, last_analysis_at
         )
-        VALUES ($1, $2, 'bekliyor', $3, $4, $5, $6, NOW())
+        VALUES ($1, $2, 'bekliyor', $3, $4, $5, $6, $7, NOW())
         RETURNING *
       `,
         [
@@ -1537,6 +1591,7 @@ router.post('/add-from-analysis', async (req, res) => {
           analysisResult.rows.length,
           teknikSartSayisi,
           birimFiyatSayisi,
+          estimatedCost,
         ]
       );
     }
@@ -1941,5 +1996,352 @@ router.get('/:tenderId/hidden-notes', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ════════════════════════════════════════════════════════════════
+// RAKİP ANALİZİ - Hibrit (İç Veri + Tavily)
+// ════════════════════════════════════════════════════════════════
+
+// Basit in-memory cache (24 saat TTL)
+const rakipCache = new Map();
+const RAKIP_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 saat
+
+/**
+ * Potansiyel rakip analizi
+ * GET /api/tender-tracking/:tenderId/rakip-analizi
+ *
+ * İki katmanlı yaklaşım:
+ * 1. İç veritabanı: yuklenici_ihaleleri tablosundan kurum/şehir bazlı eşleştirme
+ * 2. Tavily web araması: İç veride bulunamazsa web'den keşif
+ */
+router.get('/:tenderId/rakip-analizi', async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+    const { force } = req.query; // ?force=true → cache bypass
+
+    // 1. İhale bilgilerini al
+    const tenderResult = await query(
+      `SELECT id, title, organization_name, city, estimated_cost, tender_date
+       FROM tenders WHERE id = $1`,
+      [tenderId]
+    );
+
+    if (!tenderResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
+    }
+
+    const tender = tenderResult.rows[0];
+    const kurumAdi = tender.organization_name;
+    const sehir = tender.city;
+
+    if (!kurumAdi) {
+      return res.json({
+        success: true,
+        kaynak: 'yok',
+        mesaj: 'İhale için kurum adı belirtilmemiş',
+        rakipler: [],
+      });
+    }
+
+    // Cache kontrolü
+    const cacheKey = `${tenderId}_${kurumAdi}`;
+    if (!force && rakipCache.has(cacheKey)) {
+      const cached = rakipCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < RAKIP_CACHE_TTL) {
+        return res.json({ ...cached.data, cached: true });
+      }
+      rakipCache.delete(cacheKey);
+    }
+
+    // ── KATMAN 1: İç Veritabanı ──────────────────────────────────
+    // Kurum adı bazlı eşleştirme (fuzzy matching)
+    let kurumKelimeler = kurumAdi
+      .replace(/[^\w\sçğıöşüÇĞİÖŞÜ]/gi, '')
+      .split(/\s+/)
+      .filter((k) => k.length > 2)
+      .slice(0, 5);
+
+    // Kelime bulunamazsa kurum adının kendisini kullan (kısa isimler için)
+    if (kurumKelimeler.length === 0) {
+      kurumKelimeler = [kurumAdi.trim()].filter((k) => k.length > 0);
+    }
+
+    // Hâlâ boşsa iç veri sorgulamasını atla
+    let icVeriResult = { rows: [] };
+
+    // Minimum eşleşme eşiği: 1 kelime → 1, 2+ kelime → 2
+    const minEslesme = Math.min(2, kurumKelimeler.length);
+
+    if (kurumKelimeler.length > 0) {
+    // Kurum adı eşleşmesi
+    icVeriResult = await query(
+      `
+      WITH kurum_eslesen AS (
+        SELECT
+          yi.yuklenici_id,
+          yi.kurum_adi,
+          yi.sehir,
+          yi.sozlesme_bedeli,
+          yi.indirim_orani,
+          yi.sozlesme_tarihi,
+          yi.ihale_basligi,
+          yi.rol,
+          yi.durum,
+          -- Kurum adı benzerlik skoru: kaç anahtar kelime eşleşiyor
+          (
+            ${kurumKelimeler.map((_, i) => `CASE WHEN LOWER(yi.kurum_adi) LIKE LOWER($${i + 2}) THEN 1 ELSE 0 END`).join(' + ')}
+          ) as kelime_eslesme
+        FROM yuklenici_ihaleleri yi
+        WHERE (
+          ${kurumKelimeler.map((_, i) => `LOWER(yi.kurum_adi) LIKE LOWER($${i + 2})`).join(' OR ')}
+        )
+      )
+      SELECT
+        y.id as yuklenici_id,
+        y.unvan,
+        y.katildigi_ihale_sayisi,
+        y.kazanma_orani,
+        y.ortalama_indirim_orani,
+        y.aktif_sehirler,
+        y.devam_eden_is_sayisi,
+        y.son_ihale_tarihi,
+        y.takipte,
+        y.istihbarat_takibi,
+        y.puan,
+        y.ihalebul_url,
+        -- Bu kurumla ilgili geçmiş
+        COUNT(ke.yuklenici_id) FILTER (WHERE ke.kelime_eslesme >= ${minEslesme}) as kurum_esleme_sayisi,
+        COUNT(ke.yuklenici_id) FILTER (WHERE ke.kelime_eslesme >= ${minEslesme} AND ke.rol = 'yuklenici') as kurum_kazanim_sayisi,
+        -- Bu şehirdeki geçmiş
+        COUNT(ke.yuklenici_id) FILTER (WHERE LOWER(ke.sehir) = LOWER($1)) as sehir_esleme_sayisi,
+        -- Son teklifler (kurum bazlı)
+        json_agg(
+          json_build_object(
+            'ihale_basligi', ke.ihale_basligi,
+            'kurum_adi', ke.kurum_adi,
+            'sehir', ke.sehir,
+            'sozlesme_bedeli', ke.sozlesme_bedeli,
+            'indirim_orani', ke.indirim_orani,
+            'sozlesme_tarihi', ke.sozlesme_tarihi,
+            'rol', ke.rol,
+            'durum', ke.durum,
+            'kelime_eslesme', ke.kelime_eslesme
+          ) ORDER BY ke.sozlesme_tarihi DESC NULLS LAST
+        ) FILTER (WHERE ke.kelime_eslesme >= ${minEslesme}) as gecmis_ihaleler
+      FROM kurum_eslesen ke
+      JOIN yukleniciler y ON y.id = ke.yuklenici_id
+      WHERE ke.kelime_eslesme >= ${minEslesme}
+      GROUP BY y.id, y.unvan, y.katildigi_ihale_sayisi, y.kazanma_orani,
+               y.ortalama_indirim_orani, y.aktif_sehirler, y.devam_eden_is_sayisi,
+               y.son_ihale_tarihi, y.takipte, y.istihbarat_takibi, y.puan, y.ihalebul_url
+      ORDER BY kurum_esleme_sayisi DESC, kurum_kazanim_sayisi DESC
+      LIMIT 10
+    `,
+      [sehir || '', ...kurumKelimeler.map((k) => `%${k}%`)]
+    );
+    } // kurumKelimeler.length > 0
+
+    // Şehir bazlı ek rakipler (kurumda eşleşmeyenler ama şehirde aktif olanlar)
+    let sehirRakipleri = [];
+    if (sehir) {
+      const sehirResult = await query(
+        `
+        SELECT
+          y.id as yuklenici_id,
+          y.unvan,
+          y.katildigi_ihale_sayisi,
+          y.kazanma_orani,
+          y.ortalama_indirim_orani,
+          y.aktif_sehirler,
+          y.devam_eden_is_sayisi,
+          y.son_ihale_tarihi,
+          y.takipte,
+          y.istihbarat_takibi,
+          y.puan,
+          y.ihalebul_url,
+          COUNT(yi.id) as sehir_ihale_sayisi,
+          COUNT(yi.id) FILTER (WHERE yi.rol = 'yuklenici') as sehir_kazanim_sayisi,
+          AVG(yi.indirim_orani) FILTER (WHERE yi.indirim_orani IS NOT NULL) as sehir_ort_indirim
+        FROM yukleniciler y
+        JOIN yuklenici_ihaleleri yi ON yi.yuklenici_id = y.id
+        WHERE LOWER(yi.sehir) = LOWER($1)
+          AND y.id NOT IN (${icVeriResult.rows.map((r) => r.yuklenici_id).join(',') || '0'})
+        GROUP BY y.id
+        HAVING COUNT(yi.id) >= 2
+        ORDER BY sehir_ihale_sayisi DESC
+        LIMIT 5
+      `,
+        [sehir]
+      );
+      sehirRakipleri = sehirResult.rows;
+    }
+
+    // Sonuçları katmanlara ayır
+    // "Kesin rakip" = bu kuruma 2+ kez girmiş (veya tek kelime eşleşmede 1+ kez)
+    const kesinEsik = Math.max(2, minEslesme + 1); // 2+ kez girmiş = kesin rakip
+    const kesinRakipler = icVeriResult.rows
+      .filter((r) => Number(r.kurum_esleme_sayisi) >= kesinEsik)
+      .map((r) => ({
+        ...formatRakip(r),
+        katman: 'kesin',
+        neden: `Bu kuruma ${r.kurum_esleme_sayisi} kez girmiş${Number(r.kurum_kazanim_sayisi) > 0 ? `, ${r.kurum_kazanim_sayisi} kez kazanmış` : ''}`,
+        gecmis: (r.gecmis_ihaleler || []).slice(0, 5),
+      }));
+
+    const kuvvetliAdaylar = icVeriResult.rows
+      .filter((r) => Number(r.kurum_esleme_sayisi) >= 1 && Number(r.kurum_esleme_sayisi) < kesinEsik)
+      .map((r) => ({
+        ...formatRakip(r),
+        katman: 'kuvvetli',
+        neden: `Bu kuruma ${r.kurum_esleme_sayisi} kez girmiş`,
+        gecmis: (r.gecmis_ihaleler || []).slice(0, 3),
+      }));
+
+    const sehirAktif = sehirRakipleri.map((r) => ({
+      ...formatRakip(r),
+      katman: 'sehir',
+      neden: `${sehir} ilinde ${r.sehir_ihale_sayisi} ihaleye girmiş (${r.sehir_kazanim_sayisi} kazanım)`,
+      gecmis: [],
+    }));
+
+    const icVeriToplam = [...kesinRakipler, ...kuvvetliAdaylar, ...sehirAktif];
+
+    // ── KATMAN 2: Tavily Web Araması (iç veri yetersizse) ─────────
+    const tavilyRakipler = [];
+    let tavilyOzet = null;
+
+    if (icVeriToplam.length < 2) {
+      try {
+        const { tavilySearch } = await import('../services/tavily-service.js');
+
+        const searchQuery = `"${kurumAdi}" yemek hizmeti ihale sonucu yüklenici kazanan firma`;
+        const searchResult = await tavilySearch(searchQuery, {
+          searchDepth: 'basic',
+          maxResults: 5,
+          includeAnswer: true,
+          includeDomains: ['ihalebul.com'],
+        });
+
+        if (searchResult.success && searchResult.answer) {
+          tavilyOzet = searchResult.answer;
+
+          // Sonuçlardan firma adlarını çıkar (basit regex - ünvan pattern)
+          const firmaPattern =
+            /(?:([A-ZÇĞİÖŞÜa-zçğıöşü\s]+(?:(?:A\.Ş\.|Ltd\. Şti\.|Anonim Şirketi|Limited Şirketi|Tic\.|San\.)[.\s]*))+)/g;
+          const bulunanFirmalar = new Set();
+
+          const fullText = `${searchResult.answer} ${searchResult.results?.map((r) => r.content).join(' ')}`;
+          const matches = fullText.match(firmaPattern) || [];
+
+          for (const m of matches) {
+            const temiz = m.trim();
+            if (temiz.length > 10 && temiz.length < 150) {
+              bulunanFirmalar.add(temiz);
+            }
+          }
+
+          // Bulunan firmaları iç veritabanıyla eşleştir
+          for (const firma of bulunanFirmalar) {
+            // Önce yukleniciler tablosunda ara
+            const eslesen = await query(
+              `SELECT id, unvan, katildigi_ihale_sayisi, kazanma_orani,
+                      ortalama_indirim_orani, aktif_sehirler, takipte, ihalebul_url
+               FROM yukleniciler
+               WHERE LOWER(unvan) LIKE LOWER($1) OR LOWER($1) LIKE '%' || LOWER(unvan) || '%'
+               LIMIT 1`,
+              [`%${firma.substring(0, 30)}%`]
+            );
+
+            if (eslesen.rows.length > 0) {
+              const y = eslesen.rows[0];
+              // Zaten iç veride bulunmuş mu kontrol
+              if (!icVeriToplam.some((r) => r.yuklenici_id === y.id)) {
+                tavilyRakipler.push({
+                  yuklenici_id: y.id,
+                  unvan: y.unvan,
+                  katildigi_ihale_sayisi: y.katildigi_ihale_sayisi,
+                  kazanma_orani: y.kazanma_orani,
+                  ortalama_indirim_orani: y.ortalama_indirim_orani,
+                  aktif_sehirler: y.aktif_sehirler,
+                  takipte: y.takipte,
+                  ihalebul_url: y.ihalebul_url,
+                  katman: 'web_kesfedildi',
+                  neden: 'Web aramasından tespit edildi (veritabanında mevcut)',
+                  gecmis: [],
+                });
+              }
+            } else {
+              // Veritabanında yok - yeni keşif
+              tavilyRakipler.push({
+                yuklenici_id: null,
+                unvan: firma,
+                katildigi_ihale_sayisi: null,
+                kazanma_orani: null,
+                ortalama_indirim_orani: null,
+                aktif_sehirler: null,
+                takipte: false,
+                ihalebul_url: null,
+                katman: 'web_yeni',
+                neden: 'Web aramasından yeni keşfedildi — takibe alınabilir',
+                gecmis: [],
+              });
+            }
+          }
+        }
+      } catch (tavilyErr) {
+        console.warn('Tavily rakip araması başarısız:', tavilyErr.message);
+      }
+    }
+
+    // Sonuç
+    const responseData = {
+      success: true,
+      ihale: {
+        id: tender.id,
+        kurum: kurumAdi,
+        sehir,
+        tahmini_bedel: tender.estimated_cost,
+      },
+      katmanlar: {
+        kesin_rakipler: kesinRakipler.slice(0, 3),
+        kuvvetli_adaylar: kuvvetliAdaylar.slice(0, 3),
+        sehir_aktif: sehirAktif.slice(0, 3),
+        web_kesfedilen: tavilyRakipler.slice(0, 5),
+      },
+      toplam_rakip: icVeriToplam.length + tavilyRakipler.length,
+      kaynak: icVeriToplam.length > 0 ? 'ic_veri' : tavilyRakipler.length > 0 ? 'tavily' : 'yok',
+      tavily_ozet: tavilyOzet,
+    };
+
+    // Cache'e yaz
+    rakipCache.set(cacheKey, { timestamp: Date.now(), data: responseData });
+
+    res.json(responseData);
+  } catch (error) {
+    console.error('Rakip analizi hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/** Rakip verisini formatla */
+function formatRakip(row) {
+  return {
+    yuklenici_id: row.yuklenici_id,
+    unvan: row.unvan,
+    katildigi_ihale_sayisi: row.katildigi_ihale_sayisi,
+    kazanma_orani: row.kazanma_orani ? parseFloat(row.kazanma_orani) : null,
+    ortalama_indirim_orani: row.ortalama_indirim_orani
+      ? parseFloat(row.ortalama_indirim_orani)
+      : row.sehir_ort_indirim
+        ? parseFloat(row.sehir_ort_indirim)
+        : null,
+    aktif_sehirler: row.aktif_sehirler,
+    devam_eden_is: row.devam_eden_is_sayisi,
+    son_ihale_tarihi: row.son_ihale_tarihi,
+    takipte: row.takipte,
+    istihbarat_takibi: row.istihbarat_takibi,
+    puan: row.puan,
+    ihalebul_url: row.ihalebul_url,
+  };
+}
 
 export default router;
