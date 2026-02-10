@@ -3,6 +3,8 @@
  * Admin paneli için merkezi API servisleri
  */
 
+/* biome-ignore-all lint/suspicious/noExplicitAny: API response tipleri henüz tanımlanmadı */
+
 import { api } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { AuditLog } from '@/types/domain';
@@ -140,7 +142,7 @@ export const adminAPI = {
     search?: string;
     start_date?: string;
     end_date?: string;
-  }): Promise<ApiResponse<{ logs: AuditLog[]; pagination: { totalPages: number } }>> {
+  }): Promise<{ success: boolean; logs: AuditLog[]; pagination: { totalPages: number } }> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
@@ -184,7 +186,10 @@ export const adminAPI = {
   /**
    * Profil güncelle
    */
-  async updateProfile(data: { name?: string; email?: string }): Promise<ApiResponse<any>> {
+  async updateProfile(data: {
+    name?: string;
+    email?: string;
+  }): Promise<ApiResponse<any>> {
     const response = await api.put('/api/auth/profile', data);
     return response.data;
   },
@@ -258,7 +263,9 @@ export const adminAPI = {
    * Tüm bildirimleri okundu işaretle
    * @param source - Opsiyonel: sadece belirli kaynaktaki bildirimleri işaretle
    */
-  async markAllNotificationsRead(source?: 'user' | 'admin' | 'system'): Promise<ApiResponse<any>> {
+  async markAllNotificationsRead(
+    source?: 'user' | 'admin' | 'system'
+  ): Promise<ApiResponse<any>> {
     const url = source
       ? `/api/notifications/read-all?source=${source}`
       : '/api/notifications/read-all';
@@ -348,7 +355,7 @@ export const adminAPI = {
       limit: params?.limit,
       source: 'admin',
       category: params?.type,
-      severity: params?.severity as any,
+      severity: params?.severity as 'info' | 'warning' | 'error' | 'critical',
       unread_only: params?.read === false,
     });
     return { ...response, data: { notifications: response.data || [] } };

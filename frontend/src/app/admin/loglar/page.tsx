@@ -45,6 +45,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { adminAPI } from '@/lib/api/services/admin';
 import { formatDate } from '@/lib/formatters';
@@ -59,7 +60,7 @@ interface AuditLog {
   entity_type: string;
   entity_id: number;
   entity_name: string;
-  changes: any;
+  changes: Record<string, { old: unknown; new: unknown }> | null;
   ip_address: string;
   description: string;
   created_at: string;
@@ -99,6 +100,7 @@ export default function LoglarPage() {
   const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] =
     useDisclosure(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -115,8 +117,8 @@ export default function LoglarPage() {
       });
 
       if (data.success) {
-        setLogs((data as any).logs || []);
-        setTotalPages((data as any).pagination?.totalPages || 1);
+        setLogs(data.logs || []);
+        setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (err) {
       console.error('Loglar alınamadı:', err);
@@ -304,6 +306,16 @@ export default function LoglarPage() {
           </div>
 
           <Group>
+            <Tooltip label="Dışa Aktar">
+              <ActionIcon
+                variant="light"
+                color="indigo"
+                size="lg"
+                onClick={() => setRaporMerkeziOpen(true)}
+              >
+                <IconDownload size={18} />
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="Yenile">
               <ActionIcon
                 variant="light"
@@ -639,7 +651,7 @@ export default function LoglarPage() {
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {Object.entries(selectedLog.changes).map(([key, value]: [string, any]) => (
+                      {Object.entries(selectedLog.changes).map(([key, value]) => (
                         <Table.Tr key={key}>
                           <Table.Td>
                             <Text size="sm" fw={500}>
@@ -662,6 +674,13 @@ export default function LoglarPage() {
           </Stack>
         )}
       </Modal>
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+        module="admin"
+      />
     </Container>
   );
 }

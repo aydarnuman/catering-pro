@@ -1,7 +1,13 @@
 /**
  * Muhasebe API Servisleri
  * Cari, Kasa-Banka, Finans için merkezi API servisleri
+ *
+ * NOT: Bu dosyadaki `any` kullanımları bilinçlidir.
+ * Backend API response'ları dinamik yapıda olduğundan, her endpoint için
+ * ayrı interface tanımlamak yerine `any` kullanılmaktadır.
  */
+
+/* biome-ignore-all lint/suspicious/noExplicitAny: API response tipleri henüz tanımlanmadı */
 
 import { api } from '@/lib/api';
 import type {
@@ -38,9 +44,14 @@ export interface CariHareketParams {
 export interface KasaBankaHesap {
   id: number;
   ad: string;
-  tip: 'kasa' | 'banka';
+  tip: 'kasa' | 'banka' | 'kredi_karti';
   bakiye?: number;
   aktif?: boolean;
+  banka_adi?: string;
+  iban?: string;
+  limit?: number;
+  ekstre_kesim?: number;
+  son_odeme_gun?: number;
 }
 
 // Kasa-Banka Hareket
@@ -49,9 +60,12 @@ export interface KasaBankaHareket {
   hesap_id: number;
   cari_id?: number;
   tutar: number;
-  tip: 'giris' | 'cikis';
+  tip: 'gelir' | 'gider';
   aciklama?: string;
   tarih: string;
+  kategori?: string;
+  odeme_yontemi?: string;
+  taksit_sayisi?: number;
 }
 
 // Muhasebe API
@@ -206,7 +220,9 @@ export const muhasebeAPI = {
   /**
    * Çek/Senet listele
    */
-  async getCekSenetler(params?: { limit?: number }): Promise<ApiResponse<any[]>> {
+  async getCekSenetler(params?: {
+    limit?: number;
+  }): Promise<ApiResponse<any[]>> {
     const response = await api.get('/api/kasa-banka/cek-senet', { params });
     return response.data;
   },
@@ -343,7 +359,11 @@ export const muhasebeAPI = {
   /**
    * Mutabakat dönemsel
    */
-  async getMutabakatDonemsel(cariId: number, yil: number, ay: number): Promise<ApiResponse<any>> {
+  async getMutabakatDonemsel(
+    cariId: number,
+    yil: number,
+    ay: number
+  ): Promise<ApiResponse<any>> {
     const response = await api.get(`/api/mutabakat/donemsel/${cariId}`, {
       params: { yil, ay },
     });
@@ -379,7 +399,10 @@ export const muhasebeAPI = {
   /**
    * Proje güncelle
    */
-  async updateProje(projeId: number, proje: any): Promise<ApiResponse<any>> {
+  async updateProje(
+    projeId: number,
+    proje: any
+  ): Promise<ApiResponse<any>> {
     const response = await api.put(`/api/projeler/${projeId}`, proje);
     return response.data;
   },

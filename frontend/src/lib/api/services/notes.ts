@@ -23,7 +23,7 @@ const getApiBaseUrl = () => getApiBaseUrlDynamic() || '';
 /**
  * Build query string from filter object
  */
-function buildQueryString(filter?: Record<string, unknown>): string {
+function buildQueryString(filter?: any): string {
   if (!filter) return '';
 
   const params = new URLSearchParams();
@@ -50,7 +50,7 @@ export const notesAPI = {
    * Get personal notes with optional filtering
    */
   async getNotes(filter?: NotesFilter): Promise<NotesListResponse> {
-    const queryString = buildQueryString(filter as Record<string, unknown>);
+    const queryString = buildQueryString(filter as any);
     const response = await authFetch(`${getApiBaseUrl()}/api/notes${queryString}`);
     return response.json();
   },
@@ -149,7 +149,7 @@ export const notesAPI = {
     contextId: number,
     filter?: Omit<NotesFilter, 'context_type' | 'context_id'>
   ): Promise<NotesListResponse> {
-    const queryString = buildQueryString(filter as Record<string, unknown>);
+    const queryString = buildQueryString(filter as any);
     const response = await authFetch(
       `${getApiBaseUrl()}/api/notes/context/${contextType}/${contextId}${queryString}`
     );

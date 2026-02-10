@@ -89,7 +89,7 @@ export interface RafFiyatSonuc {
   piyasa_fiyat_max: number | null;
   piyasa_fiyat_ort: number | null;
   birim_fiyat: number | null;
-  kaynaklar: Record<string, unknown> | null;
+  kaynaklar: any | null;
   arastirma_tarihi: string | null;
   market_adi: string | null;
   marka: string | null;
@@ -246,19 +246,19 @@ export const faturaKalemleriAPI = {
 
   /** Fatura kalemlerini getir */
   async getKalemler(ettn: string): Promise<{
-    fatura: Record<string, unknown> | null;
+    fatura: any | null;
     kalemler: FaturaKalem[];
     kaynak: 'cache' | 'uyumsoft';
   }> {
     const res = await api.get<{
       success: boolean;
-      data: { fatura: Record<string, unknown> | null; kalemler: FaturaKalem[] };
+      data: { fatura: any | null; kalemler: FaturaKalem[] };
       kaynak?: 'cache' | 'uyumsoft';
       error?: string;
     }>(`${BASE_URL}/faturalar/${encodeURIComponent(ettn)}/kalemler`);
     const body = res.data as {
       success: boolean;
-      data: { fatura: Record<string, unknown> | null; kalemler: FaturaKalem[] };
+      data: { fatura: any | null; kalemler: FaturaKalem[] };
       kaynak?: 'cache' | 'uyumsoft';
       error?: string;
     };
