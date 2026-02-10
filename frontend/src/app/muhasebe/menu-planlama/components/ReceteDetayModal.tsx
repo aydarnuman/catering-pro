@@ -2,6 +2,8 @@
 
 import {
   ActionIcon,
+  Alert,
+  Badge,
   Center,
   Group,
   Loader,
@@ -15,7 +17,12 @@ import {
   TextInput,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconPlus, IconScale, IconX } from '@tabler/icons-react';
+import {
+  IconInfoCircle,
+  IconPlus,
+  IconScale,
+  IconX,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -139,7 +146,7 @@ export function ReceteDetayModal({
         setNewSartnameName('');
         notifications.show({ title: 'Başarılı', message: 'Şartname eklendi', color: 'green' });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Şartname eklenemedi', color: 'red' });
     }
   };
@@ -269,6 +276,9 @@ export function ReceteDetayModal({
           sistem_fiyat: m.sistem_fiyat,
           piyasa_fiyat: m.piyasa_fiyat,
           stok_birim: null,
+          fiyat_kaynagi: m.fiyat_kaynagi || null,
+          varyant_kaynak_adi: m.varyant_kaynak_adi || null,
+          varyant_sayisi: m.varyant_sayisi || 0,
         })),
       };
     },
@@ -424,6 +434,31 @@ export function ReceteDetayModal({
                 </ActionIcon>
               </Group>
             </Group>
+
+            {/* Varyant fiyat bilgisi */}
+            {receteDetay.malzemeler.some((m) => m.fiyat_kaynagi === 'VARYANT') && (
+              <Alert
+                variant="light"
+                color="violet"
+                icon={<IconInfoCircle size={16} />}
+                radius="md"
+                py="xs"
+              >
+                <Group gap="xs" wrap="wrap">
+                  <Text size="xs">
+                    Bazı malzemelerin fiyatı varyantlardan alınıyor:
+                  </Text>
+                  {receteDetay.malzemeler
+                    .filter((m) => m.fiyat_kaynagi === 'VARYANT')
+                    .map((m) => (
+                      <Badge key={m.id} size="xs" variant="light" color="violet" radius="sm">
+                        {m.malzeme_adi}
+                        {m.varyant_kaynak_adi ? ` → ${m.varyant_kaynak_adi}` : ''}
+                      </Badge>
+                    ))}
+                </Group>
+              </Alert>
+            )}
 
             {/* Gramaj Tablosu - Aktif tab'ın içeriği */}
             {(() => {

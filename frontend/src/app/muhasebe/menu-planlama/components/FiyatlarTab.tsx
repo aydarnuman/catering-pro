@@ -625,7 +625,10 @@ export function FiyatlarTab({
                 const isSelected = seciliFiyatUrunId === urun.id;
                 const fiyat = Number(urun.guncel_fiyat) || 0;
                 const piyasaFiyat = Number(urun.piyasa_fiyati) || 0;
-                const birim = urun.varsayilan_birim || 'adet';
+                const rawBirim = (urun.varsayilan_birim || 'adet').toLowerCase();
+                const birim = ['lt', 'litre', 'l'].includes(rawBirim) ? 'L'
+                  : ['kg', 'kilo'].includes(rawBirim) ? 'kg'
+                  : ['adet', 'ad'].includes(rawBirim) ? 'adet' : rawBirim;
                 const kaynak = getFiyatKaynagi(urun);
                 const receteSayisi = Number(urun.recete_sayisi) || 0;
 

@@ -754,39 +754,86 @@ export const piyasaToolImplementations = {
       const targetUnit = normalized.defaultUnit === 'lt' ? 'L' : normalized.defaultUnit === 'kg' ? 'kg' : null;
 
       // ─── 3 KATMANLI FİYAT ARAMA ─────────────────────────
-      // Katman 1: Tavily + Referans Siteler (birincil - geniş kapsam)
-      // Katman 2: Camgöz (fallback - bedava, güvenilir)
-      // Katman 3: hal.gov.tr (taze ürün için paralel/fallback)
+      // Katman 1: CAMGÖZ (birincil - yapısal, güvenilir, doğrudan fiyat karşılaştırma)
+      // Katman 2: Tavily AI Answer (tamamlayıcı - Camgöz yoksa veya zenginleştirme)
+      // Katman 3: hal.gov.tr (taze ürün fallback)
 
       let piyasaData = { success: false, fiyatlar: [] };
       let kaynakTip = 'market';
 
-      // Katman 1: Tavily referans sitelerle ara (birincil)
+      // ── Katman 1: CAMGÖZ (BİRİNCİL — yapısal veri, güvenilir) ──
+      try {
+        const camgozResult = await searchMarketPrices(normalized.searchTerms, { targetUnit });
+        if (camgozResult.success && camgozResult.fiyatlar?.length > 0) {
+          piyasaData = camgozResult;
+          kaynakTip = 'market';
+          console.info(`[Piyasa] Camgöz birincil: ${camgozResult.fiyatlar.length} fiyat bulundu (${urun_adi})`);
+        }
+      } catch (camgozErr) {
+        console.warn(`[Piyasa] Camgöz arama hatası: ${camgozErr.message}`);
+      }
+
+      // ── Katman 2: Tavily AI Answer (TAMAMLAYICI) ──
+      // Camgöz sonucu varsa → sadece AI answer al (snippet parsing yok, ucuz)
+      // Camgöz sonucu yoksa → full arama yap (snippet + extract dahil)
       if (isTavilyConfigured()) {
+        const camgozVar = piyasaData.success && piyasaData.fiyatlar?.length > 0;
+        const tavilyMode = camgozVar ? 'ai_only' : 'full';
+
         try {
           const searchName = cachedSearchTerm || urun_adi;
           const tavilyResult = await tavilyPiyasaAra(searchName, {
             targetUnit,
             stokBilgi,
+            mode: tavilyMode,
           });
+
           if (tavilyResult.success && tavilyResult.fiyatlar?.length > 0) {
-            piyasaData = tavilyResult;
-            kaynakTip = 'tavily_referans';
+            if (camgozVar) {
+              // Camgöz zaten var → Tavily AI fiyatlarını UYUM FİLTRESİ ile ekle
+              // Camgöz ortalamasından %60'tan fazla sapan AI fiyatlarını ekleme
+              const camgozPrices = piyasaData.fiyatlar.map(f => f.birimFiyat || f.fiyat).filter(p => p > 0);
+              const camgozOrt = camgozPrices.length > 0
+                ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length
+                : 0;
+
+              const existingKeys = new Set(piyasaData.fiyatlar.map(f => `${f.market}-${Math.round(f.fiyat)}`));
+              const newItems = tavilyResult.fiyatlar.filter(f => {
+                if (existingKeys.has(`${f.market}-${Math.round(f.fiyat)}`)) return false;
+                // Uyum filtresi: Camgöz ortalamasından %60'tan fazla sapıyorsa ekleme
+                if (camgozOrt > 0) {
+                  const aiFiyat = f.birimFiyat || f.fiyat;
+                  const sapmaOrani = Math.abs(aiFiyat - camgozOrt) / camgozOrt;
+                  if (sapmaOrani > 0.60) {
+                    console.info(`[Piyasa] Tavily AI fiyat elendi (sapma %${Math.round(sapmaOrani * 100)}): ${aiFiyat} vs Camgöz ort ${camgozOrt.toFixed(0)}`);
+                    return false;
+                  }
+                }
+                return true;
+              });
+              if (newItems.length > 0) {
+                piyasaData.fiyatlar = [...piyasaData.fiyatlar, ...newItems];
+                piyasaData.toplam_sonuc = piyasaData.fiyatlar.length;
+                kaynakTip = 'market+tavily_ai';
+                console.info(`[Piyasa] Tavily AI tamamlayıcı: +${newItems.length} fiyat eklendi (uyum filtresi geçti)`);
+              }
+              // Tavily AI answer'ı da sakla (rapor/gösterim için)
+              if (tavilyResult.aiAnswer) {
+                piyasaData.aiAnswer = tavilyResult.aiAnswer;
+              }
+            } else {
+              // Camgöz boştu → Tavily full sonuçları birincil ol
+              piyasaData = tavilyResult;
+              kaynakTip = 'tavily_referans';
+              console.info(`[Piyasa] Camgöz boş, Tavily full: ${tavilyResult.fiyatlar.length} fiyat (${urun_adi})`);
+            }
           }
         } catch (tavilyErr) {
-          console.warn(`[Piyasa] Tavily referans arama hatası: ${tavilyErr.message}`);
+          console.warn(`[Piyasa] Tavily arama hatası: ${tavilyErr.message}`);
         }
       }
 
-      // Katman 2: Tavily başarısızsa Camgöz'de ara (fallback)
-      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
-        piyasaData = await searchMarketPrices(normalized.searchTerms, { targetUnit });
-        if (piyasaData.success) {
-          kaynakTip = 'market';
-        }
-      }
-
-      // Katman 3: Hala bulunamadıysa hal.gov.tr'de ara (taze ürün fallback)
+      // ── Katman 3: Hala bulunamadıysa hal.gov.tr'de ara (taze ürün fallback) ──
       if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
         try {
           const halResult = await searchHalPrices(urun_adi);

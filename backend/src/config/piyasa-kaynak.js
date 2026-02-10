@@ -156,8 +156,8 @@ export function urunIcinSiteler(urunAdi, stokBilgi = null) {
 // ─── KREDİ YÖNETİMİ AYARLARI ───────────────────────────
 
 export const KREDI_AYARLARI = {
-  // Ürün başına max kredi harcaması
-  maxKrediPerUrun: 5,
+  // Ürün başına max kredi harcaması (fallback dahil: search 1 + fallback 1 + extract 3 = 5)
+  maxKrediPerUrun: 6,
 
   // Search: basic (1 kredi) veya advanced (2 kredi)
   varsayilanSearchDepth: 'basic',
@@ -166,7 +166,7 @@ export const KREDI_AYARLARI = {
   maxExtractUrl: 3,
 
   // Extract çalıştırma eşiği: search'ten gelen sonuç sayısı bundan azsa extract yap
-  extractEsik: 3,
+  extractEsik: 5,
 
   // Cache TTL: aynı ürün bu süre içinde tekrar aranmaz (saat)
   cacheTtlSaat: 12,

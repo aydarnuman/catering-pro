@@ -60,6 +60,9 @@ export interface Malzeme {
   sistem_fiyat: number | null;
   piyasa_fiyat: number | null;
   stok_birim: string | null;
+  fiyat_kaynagi?: string | null;
+  varyant_kaynak_adi?: string | null;
+  varyant_sayisi?: number;
 }
 
 export interface ReceteDetay {
@@ -125,6 +128,9 @@ export interface BackendMaliyetAnaliziResponse {
       ort: number;
       tarih: string;
     } | null;
+    fiyat_kaynagi?: string | null;
+    varyant_kaynak_adi?: string | null;
+    varyant_sayisi?: number;
   }>;
   maliyet: {
     sistem: number;

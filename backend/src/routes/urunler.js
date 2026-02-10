@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate } from '../middleware/auth.js';
 import logger from '../utils/logger.js';
+import { hesaplaReceteMaliyet } from './menu-planlama.js';
 
 const router = express.Router();
 
@@ -830,6 +831,20 @@ router.patch('/:id/aktif-fiyat-sec', async (req, res) => {
        VALUES ($1, $2, $3, $4, NOW())`,
       [id, yeniFiyat, tipi.toLowerCase(), `Aktif fiyat kaynağı ${tipi} olarak değiştirildi`]
     );
+
+    // Etkilenen reçetelerin maliyetini yeniden hesapla (trigger toplam_fiyat'ı günceller,
+    // ama fiyat_kaynagi ve detaylı hesaplama için backend fonksiyonunu da çalıştır)
+    try {
+      const etkilenenReceteler = await query(
+        `SELECT DISTINCT recete_id FROM recete_malzemeler WHERE urun_kart_id = $1`,
+        [id]
+      );
+      for (const row of etkilenenReceteler.rows) {
+        await hesaplaReceteMaliyet(row.recete_id);
+      }
+    } catch (receteErr) {
+      logger.warn('Reçete maliyet güncelleme uyarısı', { error: receteErr.message });
+    }
 
     logger.info(`Aktif fiyat kaynağı değişti: ${urun.ad} | ${tipi} → ₺${yeniFiyat}`, {
       urunId: id,

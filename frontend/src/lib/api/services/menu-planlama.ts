@@ -105,6 +105,46 @@ export interface UrunKartiFiyat {
   piyasa_fiyat_tarihi: string | null;
   aktif: boolean;
   recete_sayisi: number;
+  // Varyant bilgileri
+  ana_urun_id: number | null;
+  varyant_sayisi: number;
+  varyant_en_ucuz: number | null;
+  varyant_en_ucuz_adi: string | null;
+}
+
+// Varyant detay bilgisi
+export interface UrunVaryant {
+  id: number;
+  ad: string;
+  kod: string | null;
+  varyant_tipi: string | null;
+  varyant_aciklama: string | null;
+  tedarikci_urun_adi: string | null;
+  birim: string | null;
+  aktif_fiyat: number | null;
+  aktif_fiyat_tipi: string | null;
+  son_alis_fiyati: number | null;
+  manuel_fiyat: number | null;
+  son_fiyat_guncelleme: string | null;
+  aktif: boolean;
+  guncel_fiyat: number | null;
+  fiyat_kaynagi: string;
+}
+
+// Varyant özet bilgisi
+export interface VaryantOzet {
+  varyant_sayisi: number;
+  fiyatli_varyant_sayisi: number;
+  en_ucuz_fiyat: number | null;
+  en_ucuz_varyant_adi: string | null;
+  en_pahali_fiyat: number | null;
+  ortalama_fiyat: number | null;
+}
+
+// Varyant listesi response
+export interface VaryantListeData {
+  varyantlar: UrunVaryant[];
+  ozet: VaryantOzet;
 }
 
 // Piyasa Sync Durumu
@@ -273,6 +313,14 @@ export const menuPlanlamaAPI = {
     fiyat_birimi?: string;
   }): Promise<ApiResponse<CreatedUrunKarti>> {
     const response = await api.post('/api/menu-planlama/urun-kartlari', data);
+    return response.data;
+  },
+
+  /**
+   * Ürün kartı varyantlarını listele
+   */
+  async getUrunVaryantlari(urunKartId: number): Promise<ApiResponse<VaryantListeData>> {
+    const response = await api.get(`/api/menu-planlama/urun-kartlari/${urunKartId}/varyantlar`);
     return response.data;
   },
 

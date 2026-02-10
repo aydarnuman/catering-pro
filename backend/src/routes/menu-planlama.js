@@ -535,7 +535,7 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
     // 2. Ürün kartı seçilmişse oradan çek (stok kartı bağlantısı varsa)
     // 3. Stok kartı seçilmişse oradan çek
     let finalFiyat = birim_fiyat || null;
-    let fiyatKaynagi = 'manuel';
+    let fiyatKaynagi = birim_fiyat ? 'MANUEL' : null;
     let finalStokKartId = stok_kart_id;
 
     // Ürün kartından fiyat ve stok kartı ID'si al
@@ -544,7 +544,8 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
         `
         SELECT 
           uk.stok_kart_id,
-          COALESCE(uk.manuel_fiyat, uk.aktif_fiyat, uk.son_alis_fiyati) as fiyat
+          uk.aktif_fiyat_tipi,
+          COALESCE(uk.aktif_fiyat, uk.son_alis_fiyati, uk.manuel_fiyat) as fiyat
         FROM urun_kartlari uk
         WHERE uk.id = $1
       `,
@@ -554,7 +555,7 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
       if (urunResult.rows.length > 0) {
         if (urunResult.rows[0].fiyat) {
           finalFiyat = urunResult.rows[0].fiyat;
-          fiyatKaynagi = 'urun_kart';
+          fiyatKaynagi = urunResult.rows[0].aktif_fiyat_tipi || 'VARSAYILAN';
         }
         if (urunResult.rows[0].stok_kart_id) {
           finalStokKartId = urunResult.rows[0].stok_kart_id;
@@ -573,7 +574,7 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
 
       if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
         finalFiyat = urunResult.rows[0].son_alis_fiyati;
-        fiyatKaynagi = 'urun_kart';
+        fiyatKaynagi = 'FATURA';
       }
     }
 
@@ -614,22 +615,28 @@ router.put('/malzemeler/:id', async (req, res) => {
     const { id } = req.params;
     const { stok_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
 
-    // Fiyat belirleme
+    // Fiyat belirleme (standart enum: FATURA/PIYASA/MANUEL/VARSAYILAN/SOZLESME)
     let finalFiyat = birim_fiyat;
-    let fiyatKaynagi = birim_fiyat ? 'manuel' : null;
+    let fiyatKaynagi = birim_fiyat ? 'MANUEL' : null;
 
-    // Eğer stok kartı seçilmişse ve fiyat verilmemişse, ürün kartından çek - YENİ SİSTEM
+    // Eğer stok kartı seçilmişse ve fiyat verilmemişse, ürün kartından çek
     if (stok_kart_id && !birim_fiyat) {
       const urunResult = await query(
         `
-        SELECT son_alis_fiyati FROM urun_kartlari WHERE id = $1
+        SELECT son_alis_fiyati, aktif_fiyat, aktif_fiyat_tipi FROM urun_kartlari WHERE id = $1
       `,
         [stok_kart_id]
       );
 
-      if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
-        finalFiyat = urunResult.rows[0].son_alis_fiyati;
-        fiyatKaynagi = 'urun_kart';
+      if (urunResult.rows.length > 0) {
+        const uk = urunResult.rows[0];
+        if (uk.aktif_fiyat) {
+          finalFiyat = uk.aktif_fiyat;
+          fiyatKaynagi = uk.aktif_fiyat_tipi || 'VARSAYILAN';
+        } else if (uk.son_alis_fiyati) {
+          finalFiyat = uk.son_alis_fiyati;
+          fiyatKaynagi = 'FATURA';
+        }
       }
     }
 
@@ -696,17 +703,19 @@ router.delete('/malzemeler/:id', async (req, res) => {
 // Reçete maliyetini hesapla
 async function hesaplaReceteMaliyet(receteId) {
   try {
-    // Malzemeleri al (ürün kartı fiyatları + piyasa fiyatları)
+    // Malzemeleri al (ürün kartı fiyatları + piyasa fiyatları + VARYANT FALLBACK)
     const malzemeler = await query(
       `
       SELECT 
         rm.*,
         urk.manuel_fiyat as urun_manuel_fiyat,
         urk.aktif_fiyat as urun_aktif_fiyat,
+        urk.aktif_fiyat_tipi as urun_aktif_fiyat_tipi,
         urk.son_alis_fiyati as urun_son_alis,
         urk.varsayilan_birim as urun_birim,
         urk.fiyat_birimi as urun_fiyat_birimi,
-        COALESCE(urk.manuel_fiyat, urk.aktif_fiyat, urk.son_alis_fiyati, 0) as sistem_fiyat,
+        urk.ana_urun_id as urun_ana_urun_id,
+        -- Piyasa fiyatı (doğrudan veya varyantlardan)
         (
           SELECT piyasa_fiyat_ort 
           FROM piyasa_fiyat_gecmisi 
@@ -714,7 +723,12 @@ async function hesaplaReceteMaliyet(receteId) {
             OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
           ORDER BY arastirma_tarihi DESC 
           LIMIT 1
-        ) as piyasa_fiyat
+        ) as piyasa_fiyat,
+        -- VARYANT FALLBACK: Ana ürünün fiyatı yoksa varyantlardan al
+        get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat,
+        -- Varyant bilgisi (hangi varyanttan geldiğini göstermek için)
+        (SELECT vo.en_ucuz_varyant_adi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_kaynak_adi,
+        (SELECT vo.varyant_sayisi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_sayisi
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
@@ -725,36 +739,28 @@ async function hesaplaReceteMaliyet(receteId) {
     let toplamMaliyet = 0;
 
     for (const m of malzemeler.rows) {
-      // Fiyat önceliği: manuel > aktif > son_alış > piyasa
-      const birimFiyat = Number(m.sistem_fiyat) || Number(m.piyasa_fiyat) || 0;
+      // Fiyat önceliği: aktif_fiyat > son_alış > manuel > piyasa > VARYANT FALLBACK > 0
+      const birimFiyat =
+        Number(m.urun_aktif_fiyat) ||
+        Number(m.urun_son_alis) ||
+        Number(m.urun_manuel_fiyat) ||
+        Number(m.piyasa_fiyat) ||
+        Number(m.varyant_fiyat) ||  // ← YENİ: Varyant fiyat fallback
+        0;
 
-      // Birim dönüşümü: küçük birim (g/ml) ile büyük birim (kg/lt) fiyatı eşleştirme
-      const fiyatBirimi = (m.urun_fiyat_birimi || '').toLowerCase();
-      const urunBirimi = (m.urun_birim || '').toLowerCase();
+      // Birim dönüşümü: küçük birim (g/gr/ml) ise 0.001, değilse 1
       const malzemeBirimi = (m.birim || '').toLowerCase();
+      const carpan = ['g', 'gr', 'gram', 'ml'].includes(malzemeBirimi) ? 0.001 : 1;
+      const maliyet = m.miktar * carpan * birimFiyat;
 
-      let maliyet = 0;
-
-      // Fiyat kg veya lt bazlı mı?
-      const fiyatBuyukBirim = fiyatBirimi.includes('kg') || fiyatBirimi.includes('lt') || 
-                               fiyatBirimi.includes('litre') || urunBirimi === 'kg' || urunBirimi === 'lt';
-      // Malzeme küçük birimde mi? (g, gr, ml)
-      const malzemeKucukBirim = ['g', 'gr', 'ml'].includes(malzemeBirimi);
-
-      if (malzemeKucukBirim && fiyatBuyukBirim) {
-        // Küçük birimden büyük birime dönüşüm (g→kg, ml→lt, ml→kg yaklaşık)
-        maliyet = (m.miktar / 1000) * birimFiyat;
-      } else {
-        // Aynı birimde veya dönüşüm gerekmez → direkt çarp
-        maliyet = m.miktar * birimFiyat;
-      }
-
-      // Fiyat kaynağı belirleme
+      // Fiyat kaynağı belirleme (aktif_fiyat_tipi varsa onu kullan)
       let fiyatKaynagi = 'yok';
-      if (Number(m.urun_manuel_fiyat) > 0) fiyatKaynagi = 'MANUEL';
-      else if (Number(m.urun_aktif_fiyat) > 0) fiyatKaynagi = 'FATURA';
-      else if (Number(m.urun_son_alis) > 0) fiyatKaynagi = 'SON_ALIS';
+      if (Number(m.urun_aktif_fiyat) > 0 && m.urun_aktif_fiyat_tipi) {
+        fiyatKaynagi = m.urun_aktif_fiyat_tipi;
+      } else if (Number(m.urun_son_alis) > 0) fiyatKaynagi = 'FATURA';
+      else if (Number(m.urun_manuel_fiyat) > 0) fiyatKaynagi = 'MANUEL';
       else if (Number(m.piyasa_fiyat) > 0) fiyatKaynagi = 'PIYASA';
+      else if (Number(m.varyant_fiyat) > 0) fiyatKaynagi = 'VARYANT';  // ← YENİ
 
       // Malzeme fiyatını güncelle
       await query(
@@ -806,7 +812,7 @@ router.post('/receteler/:id/maliyet-hesapla', async (req, res) => {
 });
 
 // Toplu maliyet hesaplama endpoint'i
-router.post('/receteler/toplu-maliyet-hesapla', async (req, res) => {
+router.post('/receteler/toplu-maliyet-hesapla', async (_req, res) => {
   try {
     const receteler = await query('SELECT id, ad FROM receteler WHERE aktif = true ORDER BY id');
     const sonuclar = [];
@@ -1406,11 +1412,11 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
     const ogunTipiId = ogunTipResult.rows[0].id;
 
     // Menü planını bul veya oluştur
-    const ayBaslangic = tarih.substring(0, 7) + '-01';
+    const ayBaslangic = `${tarih.substring(0, 7)}-01`;
     const ay = parseInt(tarih.substring(5, 7), 10);
     const yil = parseInt(tarih.substring(0, 4), 10);
     const sonGun = new Date(yil, ay, 0).getDate();
-    const ayBitis = tarih.substring(0, 7) + '-' + sonGun;
+    const ayBitis = `${tarih.substring(0, 7)}-${sonGun}`;
 
     const planResult = await query(
       `
@@ -1619,7 +1625,7 @@ router.get('/sartname/liste', async (req, res) => {
       paramIndex++;
     }
 
-    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     const result = await query(
       `
@@ -2225,7 +2231,7 @@ router.post('/import/save', async (req, res) => {
     for (const gun of menuData) {
       const tarih = gun.tarih;
       const ogun = gun.ogun || varsayilan_ogun || 'aksam';
-      const ogunTipiId = ogunMap[ogun] || ogunMap['aksam'];
+      const ogunTipiId = ogunMap[ogun] || ogunMap.aksam;
 
       // Öğün al veya oluştur
       const ogunResult = await query(
@@ -2275,7 +2281,7 @@ router.post('/import/save', async (req, res) => {
               ? kahvaltiKategori.rows[0]?.id || defaultKategori.rows[0]?.id || 1
               : defaultKategori.rows[0]?.id || 1;
 
-          const kod = 'IMP-' + Date.now().toString().slice(-8) + '-' + sira;
+          const kod = `IMP-${Date.now().toString().slice(-8)}-${sira}`;
           const newRecete = await query(
             `INSERT INTO receteler (kod, ad, kategori_id, proje_id, porsiyon_miktar) 
              VALUES ($1, $2, $3, $4, 1) RETURNING id`,
@@ -2668,13 +2674,15 @@ router.get('/urun-kartlari', async (req, res) => {
         uk.aktif_fiyat, uk.aktif_fiyat_tipi,
         uk.son_alis_fiyati, uk.manuel_fiyat,
         uk.son_fiyat_guncelleme, uk.aktif,
+        uk.ana_urun_id,
         COALESCE(
           NULLIF(uk.aktif_fiyat, 0),
           (SELECT NULLIF(pfg.piyasa_fiyat_ort, 0) FROM piyasa_fiyat_gecmisi pfg 
            WHERE pfg.urun_kart_id = uk.id 
            ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1),
           NULLIF(uk.son_alis_fiyati, 0),
-          NULLIF(uk.manuel_fiyat, 0)
+          NULLIF(uk.manuel_fiyat, 0),
+          get_en_iyi_varyant_fiyat(uk.id)
         ) as guncel_fiyat,
         kat.ad as kategori_adi,
         kat.ikon as kategori_ikon,
@@ -2684,7 +2692,11 @@ router.get('/urun-kartlari', async (req, res) => {
          ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1) as piyasa_fiyati,
         (SELECT pfg.arastirma_tarihi FROM piyasa_fiyat_gecmisi pfg 
          WHERE pfg.urun_kart_id = uk.id 
-         ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1) as piyasa_fiyat_tarihi
+         ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1) as piyasa_fiyat_tarihi,
+        -- Varyant bilgileri
+        (SELECT COUNT(*) FROM urun_kartlari v WHERE v.ana_urun_id = uk.id AND v.aktif = TRUE) as varyant_sayisi,
+        (SELECT vo.en_ucuz_fiyat FROM get_varyant_fiyat_ozet(uk.id) vo) as varyant_en_ucuz,
+        (SELECT vo.en_ucuz_varyant_adi FROM get_varyant_fiyat_ozet(uk.id) vo) as varyant_en_ucuz_adi
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
       WHERE 1=1
@@ -2867,6 +2879,68 @@ router.delete('/urun-kartlari/:id', async (req, res) => {
 
     res.json({ success: true, message: 'Ürün kartı silindi' });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── VARYANT ENDPOINTLERİ ──
+
+// Bir ürünün varyantlarını listele (fiyat ve detay bilgileriyle)
+router.get('/urun-kartlari/:id/varyantlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Varyant listesi
+    const varyantlar = await query(
+      `
+      SELECT 
+        v.id, v.ad, v.kod, v.varyant_tipi, v.varyant_aciklama,
+        v.tedarikci_urun_adi, v.birim,
+        v.aktif_fiyat, v.aktif_fiyat_tipi,
+        v.son_alis_fiyati, v.manuel_fiyat,
+        v.son_fiyat_guncelleme, v.aktif,
+        COALESCE(
+          NULLIF(v.aktif_fiyat, 0),
+          NULLIF(v.son_alis_fiyati, 0),
+          NULLIF(v.manuel_fiyat, 0),
+          (SELECT NULLIF(pfg.piyasa_fiyat_ort, 0) FROM piyasa_fiyat_gecmisi pfg
+           WHERE pfg.urun_kart_id = v.id
+           ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1)
+        ) as guncel_fiyat,
+        CASE 
+          WHEN NULLIF(v.aktif_fiyat, 0) IS NOT NULL THEN COALESCE(v.aktif_fiyat_tipi, 'AKTIF')
+          WHEN NULLIF(v.son_alis_fiyati, 0) IS NOT NULL THEN 'FATURA'
+          WHEN NULLIF(v.manuel_fiyat, 0) IS NOT NULL THEN 'MANUEL'
+          WHEN EXISTS(SELECT 1 FROM piyasa_fiyat_gecmisi pfg WHERE pfg.urun_kart_id = v.id AND pfg.piyasa_fiyat_ort > 0) THEN 'PIYASA'
+          ELSE 'YOK'
+        END as fiyat_kaynagi
+      FROM urun_kartlari v
+      WHERE v.ana_urun_id = $1 AND v.aktif = TRUE
+      ORDER BY v.son_fiyat_guncelleme DESC NULLS LAST, v.ad
+    `,
+      [id]
+    );
+
+    // Özet bilgi
+    const ozetResult = await query(`SELECT * FROM get_varyant_fiyat_ozet($1)`, [id]);
+    const ozet = ozetResult.rows[0] || {};
+
+    res.json({
+      success: true,
+      data: {
+        varyantlar: varyantlar.rows,
+        ozet: {
+          varyant_sayisi: Number(ozet.varyant_sayisi) || 0,
+          fiyatli_varyant_sayisi: Number(ozet.fiyatli_varyant_sayisi) || 0,
+          en_ucuz_fiyat: Number(ozet.en_ucuz_fiyat) || null,
+          en_ucuz_varyant_adi: ozet.en_ucuz_varyant_adi || null,
+          en_pahali_fiyat: Number(ozet.en_pahali_fiyat) || null,
+          ortalama_fiyat: Number(ozet.ortalama_fiyat) || null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Varyant listesi hatası:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });

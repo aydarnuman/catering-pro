@@ -1026,6 +1026,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         rm.birim,
         rm.birim_fiyat as sistem_birim_fiyat,
         rm.toplam_fiyat as sistem_toplam,
+        rm.fiyat_kaynagi,
         uk.son_alis_fiyati,
         (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
          WHERE urun_kart_id = rm.urun_kart_id 
@@ -1037,7 +1038,10 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
           'tarih', arastirma_tarihi
         ) FROM piyasa_fiyat_gecmisi 
          WHERE urun_kart_id = rm.urun_kart_id 
-         ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_detay
+         ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_detay,
+        -- Varyant bilgisi (fiyat_kaynagi VARYANT ise)
+        (SELECT vo.en_ucuz_varyant_adi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_kaynak_adi,
+        (SELECT vo.varyant_sayisi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_sayisi
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
@@ -1053,13 +1057,14 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
     const malzemeler = malzemelerResult.rows.map((m) => {
       const miktar = parseFloat(m.miktar) || 0;
       const birim = (m.birim || '').toLowerCase();
-      const sistemFiyat = parseFloat(m.sistem_birim_fiyat) || parseFloat(m.son_alis_fiyat) || 0;
+      const sistemFiyat = parseFloat(m.sistem_birim_fiyat) || parseFloat(m.son_alis_fiyati) || 0;
       const piyasaFiyat = parseFloat(m.piyasa_fiyat) || sistemFiyat;
 
-      // Birim dönüşümü (g, ml -> kg, L)
-      const carpan = birim === 'g' || birim === 'gr' || birim === 'ml' ? 0.001 : 1;
+      // Birim dönüşümü (g, gr, gram, ml -> kg, L)
+      const carpan = ['g', 'gr', 'gram', 'ml'].includes(birim) ? 0.001 : 1;
 
-      const sistemToplam = miktar * carpan * sistemFiyat;
+      // DB'deki toplam_fiyat varsa onu kullan (trigger/hesaplaReceteMaliyet tarafından hesaplandı)
+      const sistemToplam = parseFloat(m.sistem_toplam) || (miktar * carpan * sistemFiyat);
       const piyasaToplam = miktar * carpan * piyasaFiyat;
 
       toplamSistem += sistemToplam;
@@ -1075,6 +1080,9 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         sistem_toplam: sistemToplam,
         piyasa_toplam: piyasaToplam,
         piyasa_detay: m.piyasa_detay,
+        fiyat_kaynagi: m.fiyat_kaynagi || null,
+        varyant_kaynak_adi: m.varyant_kaynak_adi || null,
+        varyant_sayisi: Number(m.varyant_sayisi) || 0,
       };
     });
 

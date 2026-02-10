@@ -28,6 +28,7 @@ import {
   IconDownload,
   IconHistory,
   IconMinus,
+  IconPackages,
   IconRefresh,
   IconShoppingCart,
   IconTrendingDown,
@@ -44,6 +45,7 @@ import {
   type PriceHistoryData,
   type RafFiyatSonuc,
 } from '@/lib/api/services/fatura-kalemleri';
+import { menuPlanlamaAPI, type UrunVaryant, type VaryantOzet } from '@/lib/api/services/menu-planlama';
 import { urunlerAPI } from '@/lib/api/services/urunler';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { PiyasaFiyatlariSection } from './PiyasaFiyatlariSection';
@@ -181,6 +183,26 @@ export function UrunDetayModal({
     staleTime: 5 * 60 * 1000,
   });
 
+  // Varyant verileri
+  const { data: varyantData, isLoading: varyantLoading } = useQuery<{
+    varyantlar: UrunVaryant[];
+    ozet: VaryantOzet;
+  }>({
+    queryKey: ['urun-varyantlar', urun?.urun_id],
+    queryFn: async () => {
+      const urunId = urun?.urun_id;
+      if (!urunId) return { varyantlar: [], ozet: { varyant_sayisi: 0, fiyatli_varyant_sayisi: 0, en_ucuz_fiyat: null, en_ucuz_varyant_adi: null, en_pahali_fiyat: null, ortalama_fiyat: null } };
+      const res = await menuPlanlamaAPI.getUrunVaryantlari(urunId);
+      if (!res.success || !res.data) return { varyantlar: [], ozet: { varyant_sayisi: 0, fiyatli_varyant_sayisi: 0, en_ucuz_fiyat: null, en_ucuz_varyant_adi: null, en_pahali_fiyat: null, ortalama_fiyat: null } };
+      return res.data;
+    },
+    enabled: !!urun?.urun_id && opened,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const varyantlar = varyantData?.varyantlar || [];
+  const varyantOzet = varyantData?.ozet;
+
   // ─── Memos ──────────────────────────────────────────────────────
 
   const miniChartData = useMemo(() => {
@@ -245,21 +267,27 @@ export function UrunDetayModal({
     if (tipi === 'FATURA') {
       kaynak = 'Fatura';
       kaynakRenk = 'blue';
-    } else if (tipi === 'MANUEL' || tipi === 'VARSAYILAN') {
+    } else if (tipi === 'MANUEL') {
       kaynak = 'Manuel';
       kaynakRenk = 'violet';
+    } else if (tipi === 'VARSAYILAN') {
+      kaynak = 'Varsayilan';
+      kaynakRenk = 'gray';
     } else if (tipi === 'PIYASA') {
       kaynak = 'Piyasa';
       kaynakRenk = 'orange';
+    } else if (tipi === 'SOZLESME') {
+      kaynak = 'Sozlesme';
+      kaynakRenk = 'teal';
     } else if (faturaFiyat > 0) {
-      // tipi yoksa fallback: fatura/piyasa fiyatına bak
-      kaynak = rafOrt > 0 && faturaFiyat === rafOrt ? 'Piyasa' : 'Sistem';
-      kaynakRenk = 'gray';
+      // tipi yoksa fallback: fatura fiyatına bak
+      kaynak = 'Fatura';
+      kaynakRenk = 'blue';
     } else if (rafOrt > 0) {
       kaynak = 'Piyasa';
       kaynakRenk = 'orange';
     } else {
-      kaynak = 'Belirsiz';
+      kaynak = 'Fiyat Yok';
       kaynakRenk = 'gray';
     }
 
@@ -489,7 +517,14 @@ export function UrunDetayModal({
                         ₺{fiyatBilgi.aktifFiyat.toFixed(2)}
                       </Text>
                       <Text size="sm" c="dimmed">
-                        /{d.standard_unit?.toLowerCase() || 'kg'}
+                        /
+                        {(() => {
+                          const u = (d.standard_unit || 'kg').toLowerCase();
+                          if (['lt', 'litre', 'l'].includes(u)) return 'L';
+                          if (['kg', 'kilo'].includes(u)) return 'kg';
+                          if (['adet', 'ad'].includes(u)) return 'adet';
+                          return u;
+                        })()}
                       </Text>
                       <Badge size="xs" variant="light" color={fiyatBilgi.kaynakRenk} radius="sm">
                         {fiyatBilgi.kaynak}
@@ -748,6 +783,23 @@ export function UrunDetayModal({
                     </Text>
                   </Box>
                 </Group>
+
+                {/* ── Aktif fiyat seçim mantığı açıklaması ── */}
+                {fiyatBilgi.aktifFiyat > 0 && (
+                  <Text size="xs" c="dimmed" mt={4} ta="center" style={{ lineHeight: 1.3 }}>
+                    {fiyatBilgi.aktifTipi === 'FATURA'
+                      ? 'Son fatura birim fiyatı aktif. Tıklayarak piyasa veya manuel fiyata geçebilirsiniz.'
+                      : fiyatBilgi.aktifTipi === 'PIYASA'
+                        ? 'Piyasa ortalaması aktif. Market fiyatlarından hesaplanır.'
+                        : fiyatBilgi.aktifTipi === 'MANUEL'
+                          ? 'Manuel girilen fiyat aktif.'
+                          : fiyatBilgi.aktifTipi === 'VARSAYILAN'
+                            ? 'Varsayılan fiyat aktif. Fatura veya piyasa fiyatı gelince otomatik güncellenir.'
+                            : fiyatBilgi.aktifTipi === 'SOZLESME'
+                              ? 'Sözleşme fiyatı aktif.'
+                              : 'Fiyat kaynağı: otomatik seçim (fatura > piyasa > varsayılan).'}
+                  </Text>
+                )}
               </Box>
             </Box>
           </Box>
@@ -782,6 +834,16 @@ export function UrunDetayModal({
               <Tabs.Tab value="piyasa" leftSection={<IconShoppingCart size={14} />}>
                 Piyasa
               </Tabs.Tab>
+              {(varyantlar.length > 0 || varyantLoading) && (
+                <Tabs.Tab value="varyantlar" leftSection={<IconPackages size={14} />}>
+                  Varyantlar
+                  {varyantOzet && varyantOzet.varyant_sayisi > 0 && (
+                    <Badge size="xs" variant="filled" color="violet" ml={6} radius="xl">
+                      {varyantOzet.varyant_sayisi}
+                    </Badge>
+                  )}
+                </Tabs.Tab>
+              )}
             </Tabs.List>
 
             <ScrollArea h={isMobile ? 'calc(100vh - 320px)' : 400} offsetScrollbars>
@@ -1148,6 +1210,148 @@ export function UrunDetayModal({
                     modalOpened={opened}
                   />
                 </Box>
+              </Tabs.Panel>
+
+              {/* ── Varyantlar Tab ────────────────────────── */}
+              <Tabs.Panel value="varyantlar">
+                <Stack gap="md" p="lg">
+                  {varyantLoading ? (
+                    <Stack gap="sm">
+                      <Skeleton height={60} radius="md" />
+                      <Skeleton height={60} radius="md" />
+                      <Skeleton height={60} radius="md" />
+                    </Stack>
+                  ) : varyantlar.length > 0 ? (
+                    <>
+                      {/* Varyant Özet */}
+                      {varyantOzet && varyantOzet.varyant_sayisi > 0 && (
+                        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+                          <StatCard
+                            label="Toplam Varyant"
+                            value={String(varyantOzet.varyant_sayisi)}
+                            color="violet"
+                          />
+                          <StatCard
+                            label="Fiyatlı"
+                            value={String(varyantOzet.fiyatli_varyant_sayisi)}
+                            color="green"
+                          />
+                          <StatCard
+                            label="En Ucuz"
+                            value={varyantOzet.en_ucuz_fiyat ? `₺${Number(varyantOzet.en_ucuz_fiyat).toFixed(2)}` : '—'}
+                            color="teal"
+                            subtitle={varyantOzet.en_ucuz_varyant_adi || undefined}
+                          />
+                          <StatCard
+                            label="Ortalama"
+                            value={varyantOzet.ortalama_fiyat ? `₺${Number(varyantOzet.ortalama_fiyat).toFixed(2)}` : '—'}
+                            color="blue"
+                          />
+                        </SimpleGrid>
+                      )}
+
+                      {/* Varyant Listesi */}
+                      <Stack gap="xs">
+                        {varyantlar.map((v, _idx) => {
+                          const isEnUcuz = varyantOzet?.en_ucuz_varyant_adi === v.ad;
+                          const vFiyat = Number(v.guncel_fiyat) || 0;
+                          return (
+                            <Box
+                              key={v.id}
+                              p="sm"
+                              style={{
+                                borderRadius: 'var(--mantine-radius-md)',
+                                background: isEnUcuz ? 'var(--mantine-color-dark-6)' : 'transparent',
+                                border: isEnUcuz
+                                  ? '1px solid var(--mantine-color-teal-8)'
+                                  : '1px solid var(--mantine-color-dark-5)',
+                              }}
+                            >
+                              <Group justify="space-between" wrap="nowrap">
+                                <Box style={{ flex: 1, minWidth: 0 }}>
+                                  <Group gap="xs" mb={2}>
+                                    <Text size="sm" fw={500} lineClamp={1}>
+                                      {v.ad}
+                                    </Text>
+                                    {isEnUcuz && (
+                                      <Badge size="xs" color="teal" variant="light">
+                                        En Uygun
+                                      </Badge>
+                                    )}
+                                  </Group>
+                                  <Group gap={6}>
+                                    {v.varyant_tipi && (
+                                      <Badge size="xs" variant="outline" color="gray" radius="sm">
+                                        {v.varyant_tipi}
+                                      </Badge>
+                                    )}
+                                    <Badge
+                                      size="xs"
+                                      variant="dot"
+                                      color={
+                                        v.fiyat_kaynagi === 'FATURA'
+                                          ? 'blue'
+                                          : v.fiyat_kaynagi === 'PIYASA'
+                                            ? 'orange'
+                                            : v.fiyat_kaynagi === 'MANUEL'
+                                              ? 'violet'
+                                              : 'gray'
+                                      }
+                                    >
+                                      {v.fiyat_kaynagi === 'YOK' ? 'Fiyat Yok' : v.fiyat_kaynagi}
+                                    </Badge>
+                                    {v.birim && (
+                                      <Text size="xs" c="dimmed">
+                                        {v.birim}
+                                      </Text>
+                                    )}
+                                  </Group>
+                                  {v.tedarikci_urun_adi && v.tedarikci_urun_adi !== v.ad && (
+                                    <Text size="xs" c="dimmed" mt={2} lineClamp={1}>
+                                      Fatura: {v.tedarikci_urun_adi}
+                                    </Text>
+                                  )}
+                                </Box>
+                                <Box ta="right" style={{ flexShrink: 0 }}>
+                                  {vFiyat > 0 ? (
+                                    <Text
+                                      size="lg"
+                                      fw={700}
+                                      c={isEnUcuz ? 'teal' : 'white'}
+                                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                                    >
+                                      ₺{vFiyat.toFixed(2)}
+                                    </Text>
+                                  ) : (
+                                    <Text size="sm" c="red.5" fw={500}>
+                                      Fiyat yok
+                                    </Text>
+                                  )}
+                                  {v.son_fiyat_guncelleme && (
+                                    <Text size="xs" c="dimmed">
+                                      {formatDate(v.son_fiyat_guncelleme, 'short')}
+                                    </Text>
+                                  )}
+                                </Box>
+                              </Group>
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                    </>
+                  ) : (
+                    <Center py="xl">
+                      <Stack align="center" gap="sm">
+                        <ThemeIcon size="xl" variant="light" color="gray" radius="xl">
+                          <IconPackages size={24} />
+                        </ThemeIcon>
+                        <Text size="sm" c="dimmed">
+                          Bu ürünün varyantı bulunmuyor
+                        </Text>
+                      </Stack>
+                    </Center>
+                  )}
+                </Stack>
               </Tabs.Panel>
             </ScrollArea>
           </Tabs>

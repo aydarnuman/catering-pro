@@ -73,8 +73,8 @@ const CONFIG = {
   // Cron: 08:00, 13:00, 18:00 her gün
   cronExpressions: ['0 8 * * *', '0 13 * * *', '0 18 * * *'],
 
-  // Rate limiting: Tavily birincil (1s), Camgöz fallback (3s orijinal)
-  delayBetweenRequests: 1500, // ms (1.5 saniye - Tavily daha toleranslı)
+  // Rate limiting: Camgöz birincil (3s), Tavily AI tamamlayıcı (1s)
+  delayBetweenRequests: 2000, // ms (2 saniye - Camgöz rate limit'e uygun)
 
   // Batch boyutu - tek seferde max kaç ürün işlenir
   maxProductsPerRun: 100,
@@ -202,23 +202,57 @@ class PiyasaSyncScheduler {
       let result = { success: false, fiyatlar: [] };
       let kaynakTip = 'unknown';
 
-      // Katman 1: Tavily referans sitelerle ara (birincil)
-      if (isTavilyConfigured()) {
-        try {
-          const searchName = searchTerms[0]; // En iyi arama terimi
-          result = await tavilyPiyasaAra(searchName, { targetUnit });
-          if (result.success && result.fiyatlar?.length > 0) {
-            kaynakTip = 'tavily_referans';
-          }
-        } catch (tavilyErr) {
-          logger.warn('[PiyasaSync] Tavily referans hatası', { urun: ad, error: tavilyErr.message });
+      // ── Katman 1: CAMGÖZ (BİRİNCİL — yapısal veri, güvenilir) ──
+      try {
+        const camgoz = await searchMarketPrices(searchTerms, { targetUnit });
+        if (camgoz.success && camgoz.fiyatlar?.length > 0) {
+          result = camgoz;
+          kaynakTip = 'market';
         }
+      } catch (camgozErr) {
+        logger.warn('[PiyasaSync] Camgöz hatası', { urun: ad, error: camgozErr.message });
       }
 
-      // Katman 2: Tavily başarısızsa Camgöz'de ara (fallback)
-      if (!result.success || result.fiyatlar.length === 0) {
-        result = await searchMarketPrices(searchTerms, { targetUnit });
-        if (result.success) kaynakTip = 'market';
+      // ── Katman 2: Tavily AI Answer (TAMAMLAYICI) ──
+      // Camgöz varsa → sadece AI answer, yoksa → full arama
+      if (isTavilyConfigured()) {
+        const camgozVar = result.success && result.fiyatlar?.length > 0;
+        const tavilyMode = camgozVar ? 'ai_only' : 'full';
+
+        try {
+          const searchName = searchTerms[0];
+          const tavilyResult = await tavilyPiyasaAra(searchName, { targetUnit, mode: tavilyMode });
+
+          if (tavilyResult.success && tavilyResult.fiyatlar?.length > 0) {
+            if (camgozVar) {
+              // Camgöz var → Tavily AI fiyatlarını UYUM FİLTRESİ ile ekle
+              const camgozPrices = result.fiyatlar.map(f => f.birimFiyat || f.fiyat).filter(p => p > 0);
+              const camgozOrt = camgozPrices.length > 0
+                ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length : 0;
+
+              const existing = new Set(result.fiyatlar.map(f => `${f.market}-${Math.round(f.fiyat)}`));
+              const extra = tavilyResult.fiyatlar.filter(f => {
+                if (existing.has(`${f.market}-${Math.round(f.fiyat)}`)) return false;
+                if (camgozOrt > 0) {
+                  const aiFiyat = f.birimFiyat || f.fiyat;
+                  const sapma = Math.abs(aiFiyat - camgozOrt) / camgozOrt;
+                  if (sapma > 0.60) return false; // %60'tan fazla sapma → ekleme
+                }
+                return true;
+              });
+              if (extra.length > 0) {
+                result.fiyatlar = [...result.fiyatlar, ...extra];
+                kaynakTip = 'market+tavily_ai';
+              }
+            } else {
+              // Camgöz boştu → Tavily full birincil
+              result = tavilyResult;
+              kaynakTip = 'tavily_referans';
+            }
+          }
+        } catch (tavilyErr) {
+          logger.warn('[PiyasaSync] Tavily hatası', { urun: ad, error: tavilyErr.message });
+        }
       }
 
       if (!result.success || !result.fiyatlar || result.fiyatlar.length === 0) {
@@ -250,9 +284,35 @@ class PiyasaSyncScheduler {
 
       // Yeni sonuçları kaydet
       let savedCount = 0;
+      let skippedCount = 0;
+
+      // Birim fiyat üst limitleri (TL/birim) — bu eşiklerin üstü anomali kabul edilir
+      const BIRIM_FIYAT_MAX = {
+        kg: 5000,   // 5.000 TL/kg üstü → çam fıstığı, safran hariç anomali
+        L: 2000,    // 2.000 TL/L üstü → anomali
+        adet: 1000, // 1.000 TL/adet üstü → anomali (yumurta, ekmek vb.)
+      };
+
       for (const fiyat of fiyatlar) {
         try {
           const parsed = parseProductName(fiyat.urun || '');
+          const birimFiyat = fiyat.birimFiyat || fiyat.fiyat || 0;
+          const birimTipi = fiyat.birimTipi || 'adet';
+
+          // ── Sanity check: aşırı yüksek birim_fiyat'ları filtrele ──
+          const maxAllowed = BIRIM_FIYAT_MAX[birimTipi] || BIRIM_FIYAT_MAX.adet;
+          if (birimFiyat > maxAllowed) {
+            skippedCount++;
+            logger.debug('[PiyasaSync] Anomali birim_fiyat atlandı', {
+              urun: fiyat.urun,
+              birimFiyat,
+              birimTipi,
+              maxAllowed,
+              market: fiyat.market,
+            });
+            continue;
+          }
+
           await query(
             `
             INSERT INTO piyasa_fiyat_gecmisi 
@@ -266,11 +326,11 @@ class PiyasaSyncScheduler {
               fiyat.market || 'Piyasa',
               parsed.marka || fiyat.marka || null,
               fiyat.fiyat || 0,
-              fiyat.birimFiyat || fiyat.fiyat || 0,
+              birimFiyat,
               parsed.ambalajMiktar || null,
               JSON.stringify({
                 barkod: fiyat.barkod || null,
-                birimTipi: fiyat.birimTipi || null,
+                birimTipi: birimTipi,
                 kaynak: kaynakTip,
               }),
               now,
@@ -283,6 +343,10 @@ class PiyasaSyncScheduler {
           // Tekil insert hatası loglayıp devam et
           logger.debug('[PiyasaSync] Insert hatası', { urun: ad, error: insertErr.message });
         }
+      }
+
+      if (skippedCount > 0) {
+        logger.info('[PiyasaSync] Anomali fiyatlar filtrelendi', { urun: ad, skippedCount });
       }
 
       // Piyasa takip listesini güncelle (varsa)

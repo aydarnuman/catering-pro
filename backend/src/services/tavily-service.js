@@ -266,9 +266,15 @@ export async function tavilyResearch(topic, options = {}) {
   }
 }
 
-// ─── FİYAT ÇIKARMA (Ortak Yardımcılar) ─────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TAVILY ULTRA-CURRENT CATERING PRICE ENGINE (2026)
+// Fiyat doğrulama motoru — yıl bazlı fiyat YASAK,
+// gün/hafta bazlı güncel fiyat hedeflenir.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// Türkçe + İngilizce fiyat regex: "155 TL", "159,90 TL", "105.000,00 TL", "1.050,00 TL"
+// ─── ORTAK REGEX & PARSE ─────────────────────────────────
+
+// Türkçe fiyat regex: "155 TL", "159,90 TL", "1.050,00 TL", "420₺"
 const PRICE_REGEX = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*(TL|₺|lira)/gi;
 
 function parseTurkishPriceTavily(matchStr) {
@@ -289,54 +295,284 @@ function parseTurkishPriceTavily(matchStr) {
   return parseFloat(numStr);
 }
 
+// ─── 1. TARİH TESPİT MOTORU ─────────────────────────────
+
+const BUGUN = () => new Date();
+
+// Türkçe ay isimleri
+const TR_AYLAR = {
+  ocak: 0, şubat: 1, mart: 2, nisan: 3, mayıs: 4, haziran: 5,
+  temmuz: 6, ağustos: 7, eylül: 8, ekim: 9, kasım: 10, aralık: 11,
+};
+
 /**
- * Arama sonuçlarından TL fiyatlarını çıkarır
- * Hem AI özetinden hem snippet'lardan ayrıştırır
+ * Metin içinden tarih bilgisi çıkar ve gün farkını hesaplar
+ * @returns {{ detectedDate: Date|null, gunFark: number, tip: string }}
  */
-function extractPricesFromSearchResult(searchResult) {
+function _detectDateInText(text) {
+  if (!text) return { detectedDate: null, gunFark: Infinity, tip: 'yok' };
+  const lower = text.toLowerCase();
+  const now = BUGUN();
+
+  // ── Günlük sinyaller (timeScore = 1.0) ──
+  if (/\bbugün\b|\bbu ?gün\b|\bgüncel fiyat\b|\bson güncelleme\b/i.test(lower)) {
+    return { detectedDate: now, gunFark: 0, tip: 'gun' };
+  }
+
+  // ── Haftalık sinyaller (timeScore = 0.85) ──
+  if (/\bbu hafta\b|\bbu haftaki\b|\bhaftalık\b|\bson 7 gün\b/i.test(lower)) {
+    return { detectedDate: now, gunFark: 3, tip: 'hafta' };
+  }
+
+  // ── Açık tarih: "5 Şubat 2026", "05.02.2026", "2026-02-05" ──
+  // Pattern A: 5 Şubat 2026 / 5 şubat 2026
+  const trDateRegex = /(\d{1,2})\s+(ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)\s+(20\d{2})/gi;
+  const trMatch = trDateRegex.exec(lower);
+  if (trMatch) {
+    const gun = parseInt(trMatch[1], 10);
+    const ay = TR_AYLAR[trMatch[2]];
+    const yil = parseInt(trMatch[3], 10);
+    if (ay !== undefined) {
+      const d = new Date(yil, ay, gun);
+      const fark = Math.floor((now - d) / 86400000);
+      return { detectedDate: d, gunFark: Math.max(0, fark), tip: fark <= 1 ? 'gun' : fark <= 7 ? 'hafta' : fark <= 30 ? 'ay' : 'eski' };
+    }
+  }
+
+  // Pattern B: 05.02.2026 veya 05/02/2026
+  const dotDateRegex = /(\d{2})[./](\d{2})[./](20\d{2})/;
+  const dotMatch = dotDateRegex.exec(text);
+  if (dotMatch) {
+    const d = new Date(parseInt(dotMatch[3], 10), parseInt(dotMatch[2], 10) - 1, parseInt(dotMatch[1], 10));
+    const fark = Math.floor((now - d) / 86400000);
+    return { detectedDate: d, gunFark: Math.max(0, fark), tip: fark <= 1 ? 'gun' : fark <= 7 ? 'hafta' : fark <= 30 ? 'ay' : 'eski' };
+  }
+
+  // Pattern C: 2026-02-05 (ISO)
+  const isoDateRegex = /(20\d{2})-(\d{2})-(\d{2})/;
+  const isoMatch = isoDateRegex.exec(text);
+  if (isoMatch) {
+    const d = new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10));
+    const fark = Math.floor((now - d) / 86400000);
+    return { detectedDate: d, gunFark: Math.max(0, fark), tip: fark <= 1 ? 'gun' : fark <= 7 ? 'hafta' : fark <= 30 ? 'ay' : 'eski' };
+  }
+
+  // ── Yıl referansı: "2026" var mı? ──
+  if (/\b2026\b/.test(text)) {
+    return { detectedDate: null, gunFark: 15, tip: 'ay' };
+  }
+
+  // ── Eski/geçersiz sinyaller ──
+  if (/\b202[0-4]\b/.test(text) || /\b2025 fiyat/i.test(lower)) {
+    return { detectedDate: null, gunFark: 365, tip: 'eski' };
+  }
+
+  // Hiçbir tarih sinyali yok
+  return { detectedDate: null, gunFark: Infinity, tip: 'yok' };
+}
+
+/**
+ * Time Freshness Score
+ * gün bazlı → 1.0, hafta bazlı → 0.85, ay bazlı → 0.4, diğer → 0
+ */
+function _calculateTimeScore(dateInfo) {
+  switch (dateInfo.tip) {
+    case 'gun': return 1.0;
+    case 'hafta': return 0.85;
+    case 'ay': return 0.4;
+    default: return 0;
+  }
+}
+
+// ─── 2. ZAMAN ODAKLI ARAMA SORGUSU ──────────────────────
+
+/**
+ * Güncellik sinyali içeren arama sorguları üret
+ * Her kategori için 2 sorgu: birincil + yedek
+ */
+function _buildTimeAwareQueries(urunAdi, kategori, targetUnit) {
+  const birimEki = targetUnit === 'kg' ? 'kg fiyatı' : targetUnit === 'L' ? 'litre fiyatı' : 'fiyat';
+
+  // Birincil sorgu: güncellik vurgusu
+  const queries = [];
+
+  switch (kategori) {
+    case 'taze':
+      queries.push(`${urunAdi} güncel ${birimEki} bugün`);
+      queries.push(`${urunAdi} bu hafta toptan ${birimEki}`);
+      break;
+    case 'et_sut':
+      queries.push(`${urunAdi} güncel ${birimEki} market`);
+      queries.push(`${urunAdi} son fiyat TL`);
+      break;
+    case 'toptan_buyuk':
+      queries.push(`${urunAdi} toptan güncel fiyat`);
+      queries.push(`${urunAdi} bu hafta toptan fiyat listesi`);
+      break;
+    case 'temizlik':
+      queries.push(`${urunAdi} güncel fiyat karşılaştırma`);
+      break;
+    default:
+      queries.push(`${urunAdi} güncel ${birimEki}`);
+      queries.push(`${urunAdi} son fiyat TL`);
+  }
+
+  return queries;
+}
+
+// ─── 3. SNIPPET + EXTRACT FİYAT ÇIKARIMI (TIME-AWARE) ───
+
+// Toptan kaynaklar (catering için öncelikli)
+const TOPTAN_DOMAINS = new Set([
+  'tarimziraat.com', 'hal.gov.tr', 'bizimtoptan.com.tr', 'toptanburada.com',
+  'gidamarket.com', 'toptanperakende.com',
+]);
+
+function _kaynakTipi(url) {
+  if (!url || url === 'ai_ozet') return 'bilinmiyor';
+  try {
+    const host = new URL(url).hostname.replace('www.', '');
+    if (TOPTAN_DOMAINS.has(host)) return 'toptan';
+    return 'perakende';
+  } catch { return 'bilinmiyor'; }
+}
+
+/**
+ * Fiyatın etrafındaki metinden ürün bilgisini çıkar
+ * "Tavuk Göğsü Kg 199 TL" → "Tavuk Göğsü Kg"
+ * "Et ve Tavuk Çeşitleri... Pirzola 249 TL Göğsü 199 TL" → "Göğsü"
+ */
+function _extractPriceContext(fullText, priceMatch) {
+  if (!fullText || !priceMatch) return null;
+
+  const priceIdx = fullText.indexOf(priceMatch[0]);
+  if (priceIdx < 0) return null;
+
+  // Fiyattan önceki 80 karakteri al, son cümle/satır sınırına kadar
+  const before = fullText.substring(Math.max(0, priceIdx - 80), priceIdx);
+  // Son satır sonu veya noktalama sonrası kısmı al
+  const lastBreak = Math.max(
+    before.lastIndexOf('\n'),
+    before.lastIndexOf('.'),
+    before.lastIndexOf('|'),
+    before.lastIndexOf('·'),
+    before.lastIndexOf('—'),
+    before.lastIndexOf('-'),
+    0
+  );
+  const beforeContext = before.substring(lastBreak > 0 ? lastBreak + 1 : 0).trim();
+
+  // Fiyattan sonraki 30 karakteri de al (birim bilgisi: "/kg", "TL/lt" vb.)
+  const afterStart = priceIdx + priceMatch[0].length;
+  const after = fullText.substring(afterStart, afterStart + 30).split(/[\n.|]/)[0].trim();
+
+  const context = `${beforeContext} ${priceMatch[0]} ${after}`.trim();
+  return context.length >= 3 ? context : null;
+}
+
+/**
+ * Arama sonuçlarından TL fiyatlarını çıkarır (tarih + context zenginleştirilmiş)
+ */
+function _extractPricesWithTime(searchResult) {
   const fiyatlar = [];
 
   // Answer'dan fiyat parse et
   if (searchResult.answer) {
+    const answerDateInfo = _detectDateInText(searchResult.answer);
     const matches = [...searchResult.answer.matchAll(PRICE_REGEX)];
     for (const m of matches) {
       const price = parseTurkishPriceTavily(m[0]);
       if (price > 0 && price < 50000) {
-        fiyatlar.push({ fiyat: price, kaynak: 'ai_ozet' });
+        fiyatlar.push({
+          fiyat: price,
+          kaynak: 'ai_ozet',
+          baslik: null,
+          priceContext: _extractPriceContext(searchResult.answer, m),
+          dateInfo: answerDateInfo,
+          timeScore: _calculateTimeScore(answerDateInfo),
+          fullText: searchResult.answer,
+        });
       }
     }
   }
 
-  // Snippet'lardan fiyat parse et
+  // Snippet'lardan fiyat parse et — her URL'den max 2 fiyat
   for (const r of searchResult.results || []) {
     const text = `${r.title || ''} ${r.content || ''}`;
+    const dateInfo = _detectDateInText(text);
+
+    // publishedDate varsa Tavily meta'sından da yararlan
+    if (r.publishedDate && dateInfo.tip === 'yok') {
+      try {
+        const pd = new Date(r.publishedDate);
+        const fark = Math.floor((BUGUN() - pd) / 86400000);
+        dateInfo.detectedDate = pd;
+        dateInfo.gunFark = Math.max(0, fark);
+        dateInfo.tip = fark <= 1 ? 'gun' : fark <= 7 ? 'hafta' : fark <= 30 ? 'ay' : 'eski';
+      } catch { /* ignore parse error */ }
+    }
+
+    // Tarih tespit edilemezse Tavily score'una göre varsayımsal skor
+    if (dateInfo.tip === 'yok' && r.score) {
+      if (r.score >= 0.7) { dateInfo.tip = 'hafta'; dateInfo.gunFark = 5; }
+      else if (r.score >= 0.5) { dateInfo.tip = 'ay'; dateInfo.gunFark = 20; }
+    }
+
     const matches = [...text.matchAll(PRICE_REGEX)];
+    const snippetPrices = [];
+
     for (const m of matches) {
       const price = parseTurkishPriceTavily(m[0]);
       if (price > 0 && price < 50000) {
-        fiyatlar.push({ fiyat: price, kaynak: r.url, baslik: r.title });
+        snippetPrices.push({
+          fiyat: price,
+          kaynak: r.url,
+          baslik: r.title,
+          priceContext: _extractPriceContext(text, m),
+          dateInfo,
+          timeScore: _calculateTimeScore(dateInfo),
+          tavilyScore: r.score || 0,
+          fullText: text,
+          kaynakTipi: _kaynakTipi(r.url),
+        });
       }
     }
+
+    // Aynı snippet'ten max 2 fiyat
+    // Birim fiyat ifadesi içerenleri (TL/kg, TL/lt) öncelikle seç
+    const unitPriceRegex = /(?:tl\s*\/\s*(?:kg|lt|l|kilo|litre))|(?:\/\s*(?:kg|lt|l))/i;
+    const withUnit = snippetPrices.filter(p => p.priceContext && unitPriceRegex.test(p.priceContext));
+    const withoutUnit = snippetPrices.filter(p => !p.priceContext || !unitPriceRegex.test(p.priceContext));
+
+    // Birim fiyat olanlar önce, geri kalanlar sonra → max 2
+    const prioritized = [...withUnit, ...withoutUnit].slice(0, 2);
+    fiyatlar.push(...prioritized);
   }
 
   return fiyatlar;
 }
 
 /**
- * Tavily extract sonuçlarından ürün satırlarını çıkarır
- * Referans site içeriklerinden fiyat+ürün ayrıştırma
+ * Tavily extract sonuçlarından ürün satırlarını çıkarır (time-aware)
  */
-function parseExtractedContent(rawContent, aramaTermi, targetUnit = null) {
+function _parseExtractedContentWithTime(rawContent, aramaTermi, targetUnit, sourceUrl) {
   const results = [];
   if (!rawContent) return results;
 
-  // Satır satır tara, fiyat içeren satırları bul
+  // Sayfa genelinde tarih tespiti (en güçlü sinyal)
+  const pageDate = _detectDateInText(rawContent.substring(0, 2000)); // İlk 2K'da tarih ara
+
+  // Tarih bulunamazsa: extract zaten yüksek score'lu URL'lerden geldi → haftalık varsay
+  if (pageDate.tip === 'yok') {
+    pageDate.tip = 'hafta';
+    pageDate.gunFark = 5;
+  }
+
   const lines = rawContent.split('\n');
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.length < 5 || trimmed.length > 500) continue;
 
-    // Fiyat içeren satır mı?
     const priceMatches = [...trimmed.matchAll(PRICE_REGEX)];
     if (priceMatches.length === 0) continue;
 
@@ -344,19 +580,24 @@ function parseExtractedContent(rawContent, aramaTermi, targetUnit = null) {
       const fiyat = parseTurkishPriceTavily(pm[0]);
       if (!fiyat || fiyat <= 0 || fiyat >= 50000) continue;
 
-      // Ürün adı olarak satırın fiyat öncesi kısmını al
       const priceIdx = trimmed.indexOf(pm[0]);
       let urunMetni = trimmed.substring(0, priceIdx).trim();
       if (urunMetni.length < 3) urunMetni = trimmed;
 
-      // Alaka kontrolü (market-scraper'ın isRelevantProduct'ı)
-      const skor = calculateRelevanceScore(aramaTermi, urunMetni);
-      if (skor < 30) continue;
+      // Alaka kontrolü
+      const relevanceScore = calculateRelevanceScore(aramaTermi, urunMetni);
+      if (relevanceScore < 40) continue;
 
-      // Ürün adı parse (marka, ambalaj bilgisi çıkar)
+      // Satır bazlı tarih (varsa satırdan, yoksa sayfa genelinden)
+      const lineDate = _detectDateInText(trimmed);
+      const dateInfo = lineDate.tip !== 'yok' ? lineDate : pageDate;
+      const timeScore = _calculateTimeScore(dateInfo);
+
+      // finalScore hesapla: relevance * 0.6 + timeScore * 40
+      const finalScore = relevanceScore * 0.6 + timeScore * 40;
+      if (finalScore < 70) continue; // ELENİR
+
       const parsed = parseProductName(urunMetni);
-
-      // Birim fiyat hesapla
       const { unitPrice, perUnit, ambalajMiktar } = calculateUnitPrice(fiyat, urunMetni, targetUnit);
 
       results.push({
@@ -369,7 +610,11 @@ function parseExtractedContent(rawContent, aramaTermi, targetUnit = null) {
         urunAdiTemiz: parsed.urunAdi,
         ambalajMiktar: ambalajMiktar || parsed.ambalajMiktar,
         aramaTermi,
-        alakaSkor: skor,
+        relevanceScore,
+        timeScore,
+        finalScore,
+        detectedDate: dateInfo.detectedDate,
+        kaynak: sourceUrl,
       });
     }
   }
@@ -377,29 +622,162 @@ function parseExtractedContent(rawContent, aramaTermi, targetUnit = null) {
   return results;
 }
 
-// ─── PİYASA FİYAT ARAMA (Referans Sitelerle) ────────────
+// ─── 4. AI ANSWER PARSE (TARİH ŞARTLI) ──────────────────
+
 /**
- * Catering sektörüne özel referans sitelerden piyasa fiyatı arama
- * Tavily Search + Extract + mevcut parse altyapısı
+ * Tavily AI answer'dan yapısal fiyat çıkar
+ * AI answer = Tavily'nin güncel aramadan ürettiği özet → genellikle güvenilir
+ * Tarih yoksa bile timeScore=0.85 ile kabul et (Tavily zaten güncel kaynaklardan üretir)
+ */
+function _extractAnswerPricesWithTime(answer, urunAdi, targetUnit) {
+  if (!answer) return [];
+
+  const answerDate = _detectDateInText(answer);
+  // Eski tarihli cevabı reddet (2024 vs), ama tarihsiz cevabı KABUL ET
+  if (answerDate.tip === 'eski') return [];
+
+  // Tarih yoksa bile Tavily AI answer güvenilir → 0.85 ata
+  const timeScore = answerDate.tip === 'yok' ? 0.85 : _calculateTimeScore(answerDate);
+  const results = [];
+
+  // Pattern 1: "X TL ile Y TL arasında" veya "X-Y TL" veya "X–Y TL"
+  const rangeRegex = /(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:TL|₺)?\s*(?:ile|[-–—])\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:TL|₺)/gi;
+  for (const rm of answer.matchAll(rangeRegex)) {
+    const low = parseTurkishPriceTavily(`${rm[1]} TL`);
+    const high = parseTurkishPriceTavily(`${rm[2]} TL`);
+    if (low > 0 && high > 0 && low < 50000 && high < 50000) {
+      const avg = Math.round(((low + high) / 2) * 100) / 100;
+      const { unitPrice, perUnit, ambalajMiktar } = calculateUnitPrice(avg, urunAdi, targetUnit);
+      results.push({
+        market: 'AI Özet',
+        urun: `${urunAdi} (aralık)`,
+        fiyat: avg,
+        birimFiyat: unitPrice,
+        birimTipi: perUnit,
+        marka: null,
+        urunAdiTemiz: urunAdi,
+        ambalajMiktar,
+        aramaTermi: urunAdi,
+        relevanceScore: 75,
+        timeScore,
+        finalScore: 75 * 0.6 + timeScore * 40,
+        detectedDate: answerDate.detectedDate,
+        kaynak: 'ai_ozet_range',
+      });
+    }
+  }
+
+  // Pattern 2: "ortalama X TL" / "yaklaşık X TL" / "genellikle X TL"
+  const avgRegex = /(?:ortalama|yaklaşık|genellikle|civarında)\s+(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:TL|₺)/gi;
+  for (const am of answer.matchAll(avgRegex)) {
+    const price = parseTurkishPriceTavily(`${am[1]} TL`);
+    if (price > 0 && price < 50000) {
+      const { unitPrice, perUnit, ambalajMiktar } = calculateUnitPrice(price, urunAdi, targetUnit);
+      results.push({
+        market: 'AI Özet',
+        urun: `${urunAdi} (yaklaşık)`,
+        fiyat: price,
+        birimFiyat: unitPrice,
+        birimTipi: perUnit,
+        marka: null,
+        urunAdiTemiz: urunAdi,
+        ambalajMiktar,
+        aramaTermi: urunAdi,
+        relevanceScore: 70,
+        timeScore,
+        finalScore: 70 * 0.6 + timeScore * 40,
+        detectedDate: answerDate.detectedDate,
+        kaynak: 'ai_ozet_avg',
+      });
+    }
+  }
+
+  return results;
+}
+
+// ─── 5. CONFIDENCE & SELF-SUFFICIENCY ────────────────────
+
+/**
+ * Tavily sonuçlarının kendi başına yeterli olup olmadığını belirle
+ * @returns {{ confidence: number, yeterli: boolean, sebep: string }}
+ */
+function _calculateConfidence(results) {
+  if (!results.length) return { confidence: 0, yeterli: false, sebep: 'Sonuç yok' };
+
+  // Ortalama finalScore
+  const avgFinalScore = results.reduce((s, r) => s + (r.finalScore || 0), 0) / results.length;
+
+  // Farklı kaynak sayısı (unique domain)
+  const kaynaklar = new Set();
+  for (const r of results) {
+    if (r.kaynak && r.kaynak !== 'ai_ozet' && !r.kaynak.startsWith('ai_ozet')) {
+      try { kaynaklar.add(new URL(r.kaynak).hostname); } catch { /* ignore */ }
+    }
+  }
+  const kaynakSayisi = kaynaklar.size;
+
+  // Fiyat tutarlılığı (düşük varyans = yüksek tutarlılık)
+  const fiyatlar = results.map((r) => r.birimFiyat).filter(Boolean);
+  let fiyatTutarliligi = 0;
+  if (fiyatlar.length >= 2) {
+    const avg = fiyatlar.reduce((s, p) => s + p, 0) / fiyatlar.length;
+    const maxFark = Math.max(...fiyatlar.map((p) => Math.abs(p - avg) / avg));
+    fiyatTutarliligi = maxFark <= 0.2 ? 1.0 : maxFark <= 0.4 ? 0.6 : 0.3;
+  }
+
+  // Son 7 gün içinde olan sonuç sayısı
+  const recentCount = results.filter((r) => r.timeScore >= 0.85).length;
+
+  const confidence =
+    (avgFinalScore / 100) * 0.5 +
+    Math.min(kaynakSayisi, 5) * 0.04 + // max 0.2
+    fiyatTutarliligi * 0.3;
+
+  // Yeterlilik kriterleri (SERT)
+  // 1. En az 2 farklı kaynak
+  // 2. En az 2'si son 7 gün
+  // 3. Fiyat farkı %20'den küçük
+  // 4. relevanceScore ortalaması ≥ 75
+  const avgRelevance = results.reduce((s, r) => s + (r.relevanceScore || 0), 0) / results.length;
+
+  let yeterli = true;
+  let sebep = 'Tavily yeterli';
+
+  if (kaynakSayisi < 2) { yeterli = false; sebep = `Kaynak yetersiz (${kaynakSayisi} < 2)`; }
+  else if (recentCount < 2) { yeterli = false; sebep = `Güncel kaynak yetersiz (${recentCount} < 2)`; }
+  else if (fiyatTutarliligi < 0.6) { yeterli = false; sebep = 'Fiyat tutarsızlığı yüksek (>%20)'; }
+  else if (avgRelevance < 75) { yeterli = false; sebep = `Alaka düşük (${Math.round(avgRelevance)} < 75)`; }
+  else if (confidence < 0.75) { yeterli = false; sebep = `Confidence düşük (${confidence.toFixed(2)} < 0.75)`; }
+
+  return { confidence: Math.round(confidence * 100) / 100, yeterli, sebep };
+}
+
+// ─── 6. ANA FONKSİYON: tavilyPiyasaAra ──────────────────
+/**
+ * Tavily Ultra-Current Catering Price Engine
+ *
+ * Fiyat doğrulama motoru — SADECE güncel (gün/hafta bazlı) fiyatları kabul eder.
+ * Yıl bazlı fiyat YASAK. Tarihsiz fiyat ÇÖP.
  *
  * Akış:
- *  1. Ürün kategorisi tespit → uygun referans siteleri seç
- *  2. tavilySearch (basic, 1 kredi) → snippet'lerden fiyat çıkar
- *  3. Yetersizse tavilyExtract (2-3 kredi) → ham içerikten fiyat parse et
- *  4. Mevcut altyapı: parseProductName + calculateUnitPrice + isRelevantProduct
+ *  1. Güncellik odaklı sorgular üret
+ *  2. Referans sitelerde ara → bulamazsa açık web'de ara
+ *  3. Her sonuca: relevanceScore + timeScore → finalScore
+ *  4. finalScore < 70 → ELEN
+ *  5. Confidence hesapla → yeterli değilse fallback flag
  *
  * @param {string} urunAdi - Ürün adı
  * @param {object} [options]
  * @param {string} [options.targetUnit] - Hedef birim (kg/L/adet)
- * @param {string[]} [options.siteler] - Özel site listesi (opsiyonel, yoksa otomatik)
- * @param {string} [options.searchDepth] - Arama derinliği (basic/advanced)
- * @param {object} [options.stokBilgi] - Stok kartı bilgisi (kategori tespiti için)
- * @returns {Object} Camgöz uyumlu sonuç formatı
+ * @param {string[]} [options.siteler] - Özel site listesi
+ * @param {string} [options.searchDepth] - basic/advanced
+ * @param {object} [options.stokBilgi] - Stok kartı bilgisi
+ * @returns {Object} Fiyat sonuçları + confidence + fallback flag
  */
 export async function tavilyPiyasaAra(urunAdi, options = {}) {
   const apiKey = TAVILY_API_KEY();
   if (!apiKey) {
-    return { success: false, error: 'TAVILY_API_KEY ayarlanmamış', fiyatlar: [] };
+    return { success: false, error: 'TAVILY_API_KEY ayarlanmamış', fiyatlar: [], fallback: true };
   }
 
   const {
@@ -407,56 +785,237 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
     siteler = null,
     searchDepth = KREDI_AYARLARI.varsayilanSearchDepth,
     stokBilgi = null,
+    mode = 'full', // 'ai_only' = sadece AI answer, 'full' = AI + snippet + extract
   } = options;
 
   try {
-    // 1. Kategori tespit ve site seçimi
+    // ── 1. Kategori tespit & sorgu üret ──
     const { kategori, siteler: otomatikSiteler } = urunIcinSiteler(urunAdi, stokBilgi);
     const includeDomains = siteler || otomatikSiteler;
+    const queries = _buildTimeAwareQueries(urunAdi, kategori, targetUnit);
 
-    // 2. Tavily Search - referans sitelerde ara
-    const searchQuery = `${urunAdi} fiyat TL`;
-    const searchResult = await tavilySearch(searchQuery, {
+    // ── 2. Tavily Search: referans sitelerde ara ──
+    let searchResult = await tavilySearch(queries[0], {
       searchDepth,
-      maxResults: 10,
+      maxResults: 15,
       includeAnswer: true,
       includeDomains,
     });
 
-    const krediSearch = searchDepth === 'advanced' ? 2 : 1;
+    let krediSearch = searchDepth === 'advanced' ? 2 : 1;
     krediKullanımıLogla(`piyasa_search:${urunAdi}`, krediSearch);
 
-    if (!searchResult.success) {
-      return { success: false, error: searchResult.error, fiyatlar: [], kategori };
+    // 2b. Domain kısıtlı arama yetersizse → açık web'de ikinci sorgu
+    const hasUsefulResults = searchResult.success &&
+      searchResult.results?.some((r) => r.score > 0.4);
+
+    if (!hasUsefulResults && queries.length > 1) {
+      const fallbackResult = await tavilySearch(queries[1], {
+        searchDepth: 'basic',
+        maxResults: 15,
+        includeAnswer: true,
+        // includeDomains YOK → tüm web
+      });
+      krediSearch += 1;
+      krediKullanımıLogla(`piyasa_search_open:${urunAdi}`, 1);
+
+      if (fallbackResult.success) {
+        const existingUrls = new Set((searchResult.results || []).map((r) => r.url));
+        const newResults = (fallbackResult.results || []).filter((r) => !existingUrls.has(r.url));
+        searchResult = {
+          ...searchResult,
+          success: true,
+          answer: searchResult.answer || fallbackResult.answer,
+          results: [...(searchResult.results || []), ...newResults],
+        };
+      }
     }
 
-    // 3. Snippet'lerden fiyat çıkar (mevcut extractPricesFromSearchResult)
-    const snippetFiyatlar = extractPricesFromSearchResult(searchResult);
+    if (!searchResult.success) {
+      return { success: false, error: searchResult.error, fiyatlar: [], kategori, fallback: true };
+    }
 
-    // Snippet'lerdeki URL'lerden ürün bilgisi zenginleştir
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // AI-FIRST MİMARİ:
+    // 1. AI answer = BİRİNCİL KAYNAK (zaten anlamlı, bağlamlı)
+    // 2. Snippet regex = DOĞRULAMA (AI fiyatını teyit eder)
+    // 3. Extract = SON ÇARE (sadece hiç sonuç yoksa)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     const allResults = [];
+    let krediExtract = 0;
 
-    // Snippet fiyatlarını işle
-    for (const sf of snippetFiyatlar) {
-      const parsed = parseProductName(sf.baslik || urunAdi);
-      const { unitPrice, perUnit, ambalajMiktar } = calculateUnitPrice(sf.fiyat, sf.baslik || urunAdi, targetUnit);
+    // ── ADIM 1: AI ANSWER (BİRİNCİL) ──
+    // Tavily AI zaten doğru bağlamda, doğru birimde fiyat veriyor
+    // Regex hatası riski yok, çift bölme yok, yanlış ürün eşleşmesi yok
+    let aiFiyatlar = [];
+    if (searchResult.answer) {
+      aiFiyatlar = _extractAnswerPricesWithTime(searchResult.answer, urunAdi, targetUnit);
+      for (const ap of aiFiyatlar) {
+        allResults.push(ap);
+      }
+    }
 
-      // Kaynak URL'den market adı çıkar
+    // AI answer'daki ham fiyatları da al (range/ortalama pattern'e uymayan tekil fiyatlar)
+    if (searchResult.answer) {
+      const answerDateInfo = _detectDateInText(searchResult.answer);
+      // Tarihli cevaplardaki tekil fiyatlar
+      if (answerDateInfo.tip !== 'yok' && answerDateInfo.tip !== 'eski') {
+        const timeScore = _calculateTimeScore(answerDateInfo);
+        const answerMatches = [...searchResult.answer.matchAll(PRICE_REGEX)];
+        for (const m of answerMatches) {
+          const price = parseTurkishPriceTavily(m[0]);
+          if (price > 0 && price < 50000) {
+            // AI answer'daki fiyatı birim dönüşümü YAPMADAN al
+            // Çünkü AI zaten "kg fiyatı 280 TL" diyorsa 280 = birim fiyat
+            const isDup = allResults.some((r) => Math.abs(r.fiyat - price) < 1);
+            if (!isDup) {
+              allResults.push({
+                market: 'AI Özet',
+                urun: urunAdi,
+                fiyat: price,
+                birimFiyat: price, // AI fiyatı = birim fiyat (sorgu zaten birim bazlı)
+                birimTipi: targetUnit || 'kg',
+                marka: null,
+                urunAdiTemiz: urunAdi,
+                ambalajMiktar: null,
+                aramaTermi: urunAdi,
+                relevanceScore: 80,
+                timeScore,
+                finalScore: 80 * 0.6 + timeScore * 40,
+                detectedDate: answerDateInfo.detectedDate,
+                kaynak: 'ai_ozet',
+                kaynakTipi: 'ai',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // ── AI_ONLY MOD: Sadece AI answer ile dön (Camgöz birincil olduğunda) ──
+    if (mode === 'ai_only') {
+      if (allResults.length === 0) {
+        return {
+          success: false,
+          error: `"${urunAdi}" için Tavily AI answer bulunamadı`,
+          fiyatlar: [],
+          kategori,
+          krediKullanimi: krediSearch,
+          fallback: true,
+          confidence: 0,
+          yeterli: false,
+        };
+      }
+
+      // AI answer sonuçlarıyla hızlı dön — snippet parsing yok
+      const prices = allResults.map(f => f.birimFiyat).sort((a, b) => a - b);
+      const ekonomikOrt = prices.slice(0, Math.min(5, prices.length)).reduce((s, p) => s + p, 0) / Math.min(5, prices.length);
+
+      return {
+        success: true,
+        urun: urunAdi,
+        aramaTermleri: queries,
+        birim: targetUnit || 'kg',
+        fiyatlar: allResults,
+        toplam_sonuc: allResults.length,
+        ekonomik_ortalama: Math.round(ekonomikOrt * 100) / 100,
+        kategori,
+        krediKullanimi: krediSearch,
+        confidence: 0.7, // AI answer = güvenilir ama tek kaynak
+        yeterli: false,  // Camgöz birincil olduğunda Tavily hiçbir zaman "yeterli" deme
+        fallback: true,   // Her zaman Camgöz ile birleştirilsin
+        confidenceSebep: 'AI-only mod (Camgöz tamamlayıcısı)',
+        aiAnswer: searchResult.answer || null,
+      };
+    }
+
+    // AI anchor fiyat — snippet doğrulaması için referans nokta
+    const aiAnchor = allResults.length > 0
+      ? allResults.reduce((s, r) => s + r.birimFiyat, 0) / allResults.length
+      : null;
+
+    // ── ADIM 2: SNIPPET FİYATLARI (DOĞRULAMA ROLÜ) ──
+    // AI fiyatıyla tutarlı snippet'ler = güçlendirici
+    // AI fiyatından çok sapan snippet'ler = muhtemelen hatalı → ELEN
+    const rawPrices = _extractPricesWithTime(searchResult);
+
+    for (const sf of rawPrices) {
+      if (sf.kaynak === 'ai_ozet') continue; // AI answer zaten işlendi
+
+      const snippetText = sf.baslik || '';
+      if (sf.timeScore < 0.8) continue;
+
+      // Alaka kontrolü
+      let relevanceScore = 0;
+      let urunMetni = snippetText;
+      const contextScore = sf.priceContext ? calculateRelevanceScore(urunAdi, sf.priceContext) : 0;
+      const titleScore = snippetText ? calculateRelevanceScore(urunAdi, snippetText) : 0;
+
+      if (contextScore >= titleScore && contextScore > 0) {
+        relevanceScore = contextScore;
+        urunMetni = sf.priceContext;
+      } else {
+        relevanceScore = titleScore;
+      }
+
+      const finalScore = relevanceScore * 0.6 + sf.timeScore * 40;
+      if (finalScore < 70) continue;
+
+      // Birim fiyat hesapla — ÇİFT BÖLME KORUMASI
+      // Fiyat zaten "TL/kg", "TL/lt" gibi birim fiyat ifadesiyle geliyorsa
+      // calculateUnitPrice'a gönderme (tekrar böler, 1618 TL/kg hatası yapar)
+      const parseSource = urunMetni || urunAdi;
+      const parsed = parseProductName(parseSource);
+      let unitPrice, perUnit, ambalajMiktar;
+
+      const fullContext = (sf.priceContext || snippetText || '').toLowerCase();
+      // Fiyat zaten birim fiyat mı? (context veya snippet'te "/kg", "kg fiyat", "Kg:" vb var mı)
+      const alreadyUnitPrice = /(?:tl\s*\/\s*(?:kg|lt|l|kilo|litre))|(?:\/\s*(?:kg|lt|l))|(?:kg\s*fiyat)|(?:birim\s*fiyat)|(?:kg[:\s])|(?:\bkg\b.*\btl\b)|(?:\btl\b.*\/\s*kg)/.test(fullContext);
+
+      // Ek kontrol: Snippet'te hem paket miktarı (400g) hem de fiyat (647.50) varsa
+      // ve fiyat > 300 ise (paket fiyatı genellikle düşüktür), muhtemelen zaten birim fiyat
+      const hasPackageInTitle = /\d+\s*(gr|gram|g|ml)\b/i.test(snippetText);
+      const likelyAlreadyUnitPrice = hasPackageInTitle && sf.fiyat > 300 && targetUnit;
+
+      // alreadyUnitPrice bypass: sadece kg/L için geçerli
+      // adet biriminde bypass yapma — koli fiyatı adet fiyatı sanılır (yumurta 144 TL/adet hatası)
+      const bypassCalc = (alreadyUnitPrice || likelyAlreadyUnitPrice) 
+        && targetUnit 
+        && (targetUnit === 'kg' || targetUnit === 'L');
+
+      if (bypassCalc) {
+        // Fiyat zaten birim fiyat → olduğu gibi kullan (çift bölme engeli)
+        unitPrice = sf.fiyat;
+        perUnit = targetUnit;
+        ambalajMiktar = null;
+      } else {
+        const calc = calculateUnitPrice(sf.fiyat, parseSource, targetUnit);
+        unitPrice = calc.unitPrice;
+        perUnit = calc.perUnit;
+        ambalajMiktar = calc.ambalajMiktar;
+      }
+
+      // ── AI ANCHOR DOĞRULAMASI ──
+      // AI fiyatı varsa, snippet fiyatı AI'dan ±%60'tan fazla sapıyorsa → ÇÖP
+      // Bu 1618 TL/kg kıyma, 9.4 TL/kg pirinç gibi hataları temizler
+      if (aiAnchor && aiAnchor > 0) {
+        const sapma = Math.abs(unitPrice - aiAnchor) / aiAnchor;
+        if (sapma > 0.6) continue; // AI'dan %60'tan fazla sapan snippet = güvenilmez
+      }
+
       let marketAdi = 'Web';
-      if (sf.kaynak && sf.kaynak !== 'ai_ozet') {
+      if (sf.kaynak) {
         try {
           const urlObj = new URL(sf.kaynak);
           marketAdi = urlObj.hostname.replace('www.', '').split('.')[0];
-          // İlk harfi büyük yap
           marketAdi = marketAdi.charAt(0).toUpperCase() + marketAdi.slice(1);
-        } catch { /* URL parse hatası, varsayılan kullan */ }
-      } else if (sf.kaynak === 'ai_ozet') {
-        marketAdi = 'AI Özet';
+        } catch { /* ignore */ }
       }
 
       allResults.push({
         market: marketAdi,
-        urun: sf.baslik || `${urunAdi} (web)`,
+        urun: (sf.priceContext || snippetText || urunAdi).substring(0, 200),
         fiyat: sf.fiyat,
         birimFiyat: unitPrice,
         birimTipi: perUnit,
@@ -464,15 +1023,17 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
         urunAdiTemiz: parsed.urunAdi,
         ambalajMiktar: ambalajMiktar || parsed.ambalajMiktar,
         aramaTermi: urunAdi,
-        alakaSkor: 70,
+        relevanceScore,
+        timeScore: sf.timeScore,
+        finalScore,
+        detectedDate: sf.dateInfo?.detectedDate || null,
         kaynak: sf.kaynak,
+        kaynakTipi: sf.kaynakTipi || _kaynakTipi(sf.kaynak),
       });
     }
 
-    // 4. Yetersiz sonuç varsa Extract ile zenginleştir
-    let krediExtract = 0;
-    if (allResults.length < KREDI_AYARLARI.extractEsik && searchResult.results?.length > 0) {
-      // En alakalı URL'leri seç (score'a göre)
+    // ── ADIM 3: EXTRACT (SON ÇARE — sadece hiç sonuç yoksa) ──
+    if (allResults.length < 2 && searchResult.results?.length > 0) {
       const topUrls = searchResult.results
         .filter((r) => r.url && r.score > 0.3)
         .sort((a, b) => (b.score || 0) - (a.score || 0))
@@ -486,8 +1047,10 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
 
         if (extractResult.success) {
           for (const er of extractResult.results || []) {
-            const parsedItems = parseExtractedContent(er.rawContent, urunAdi, targetUnit);
-            // Kaynak URL'den market adı
+            const parsedItems = _parseExtractedContentWithTime(
+              er.rawContent, urunAdi, targetUnit, er.url
+            );
+
             let extractMarket = 'Web';
             try {
               const urlObj = new URL(er.url);
@@ -496,8 +1059,14 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
             } catch { /* ignore */ }
 
             for (const item of parsedItems) {
+              if (item.timeScore < 0.8) continue;
+              // Extract sonuçlarına da AI anchor doğrulaması
+              if (aiAnchor && aiAnchor > 0) {
+                const sapma = Math.abs(item.birimFiyat - aiAnchor) / aiAnchor;
+                if (sapma > 0.6) continue;
+              }
               item.market = extractMarket;
-              item.kaynak = er.url;
+              item.kaynakTipi = _kaynakTipi(er.url);
               allResults.push(item);
             }
           }
@@ -505,18 +1074,36 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
       }
     }
 
-    // 5. Sonuç yok mu?
+    // ── 5b. AI ANCHOR YOKSA → MEDYAN BAZLI SELF-VALIDATION ──
+    // AI answer gelmemişse (kıyma gibi), snippet'ler kendi aralarında tutarlılık kontrolü yapar
+    // Medyan hesapla, medyandan ±%80 sapanları ele
+    if (!aiAnchor && allResults.length >= 3) {
+      const selfPrices = allResults.map(r => r.birimFiyat).sort((a, b) => a - b);
+      const selfMedian = selfPrices[Math.floor(selfPrices.length / 2)];
+      // Medyandan %80'den fazla sapan = muhtemelen hatalı birim fiyat hesaplaması
+      const validated = allResults.filter(r => {
+        const sapma = Math.abs(r.birimFiyat - selfMedian) / selfMedian;
+        return sapma <= 0.8;
+      });
+      if (validated.length >= 2) {
+        allResults.length = 0;
+        allResults.push(...validated);
+      }
+    }
+
+    // ── 6. Sonuç yoksa → fallback ──
     if (allResults.length === 0) {
       return {
         success: false,
-        error: `"${urunAdi}" referans sitelerde bulunamadı`,
+        error: `"${urunAdi}" için güncel (son 7 gün) fiyat bulunamadı`,
         fiyatlar: [],
         kategori,
         krediKullanimi: krediSearch + krediExtract,
+        fallback: true,
       };
     }
 
-    // 6. Deduplikasyon (aynı fiyat + aynı market)
+    // ── 7. Deduplikasyon ──
     const seen = new Set();
     const uniqueResults = allResults.filter((r) => {
       const key = `${r.market}-${r.fiyat}`;
@@ -525,29 +1112,43 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
       return true;
     });
 
-    // 7. Birim fiyata göre sırala
-    uniqueResults.sort((a, b) => a.birimFiyat - b.birimFiyat);
+    // ── 8. finalScore'a göre sırala (en güvenilir önce) ──
+    uniqueResults.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
 
-    // 8. Outlier temizleme (medyan bazlı)
+    // ── 9. IQR Outlier temizleme ──
+    // Q1 - 1.5*IQR ile Q3 + 1.5*IQR aralığı dışındakileri ele
     const sortedPrices = uniqueResults.map((f) => f.birimFiyat).sort((a, b) => a - b);
-    const median = sortedPrices[Math.floor(sortedPrices.length / 2)];
-    const cleanResults = uniqueResults.filter(
-      (f) => f.birimFiyat >= median * 0.2 && f.birimFiyat <= median * 3.0
-    );
-
+    let cleanResults;
+    if (sortedPrices.length >= 4) {
+      const q1 = sortedPrices[Math.floor(sortedPrices.length * 0.25)];
+      const q3 = sortedPrices[Math.floor(sortedPrices.length * 0.75)];
+      const iqr = q3 - q1;
+      const lowerBound = q1 - 1.5 * iqr;
+      const upperBound = q3 + 1.5 * iqr;
+      cleanResults = uniqueResults.filter(
+        (f) => f.birimFiyat >= lowerBound && f.birimFiyat <= upperBound
+      );
+    } else {
+      // 4'ten az sonuç: medyan bazlı yumuşak filtre
+      const median = sortedPrices[Math.floor(sortedPrices.length / 2)];
+      cleanResults = uniqueResults.filter(
+        (f) => f.birimFiyat >= median * 0.3 && f.birimFiyat <= median * 2.5
+      );
+    }
     const finalResults = cleanResults.length >= 2 ? cleanResults : uniqueResults;
 
-    // 9. İstatistikler
+    // ── 10. Confidence & self-sufficiency ──
+    const { confidence, yeterli, sebep } = _calculateConfidence(finalResults);
+
+    // ── 11. İstatistikler ──
     const prices = finalResults.map((f) => f.birimFiyat).sort((a, b) => a - b);
-    const ekonomikOrtalama =
+    const ekonomikOrt =
       prices.slice(0, Math.min(5, prices.length)).reduce((s, p) => s + p, 0) /
       Math.min(5, prices.length);
 
-    // En yaygın birim tipini bul
+    // Dominant birim
     const unitCounts = {};
-    finalResults.forEach((f) => {
-      unitCounts[f.birimTipi] = (unitCounts[f.birimTipi] || 0) + 1;
-    });
+    finalResults.forEach((f) => { unitCounts[f.birimTipi] = (unitCounts[f.birimTipi] || 0) + 1; });
     let dominantUnit = targetUnit || 'adet';
     if (!targetUnit) {
       if (unitCounts.kg >= 2) dominantUnit = 'kg';
@@ -565,24 +1166,28 @@ export async function tavilyPiyasaAra(urunAdi, options = {}) {
     return {
       success: true,
       urun: urunAdi,
-      aramaTermleri: [urunAdi],
+      aramaTermleri: queries,
       birim: dominantUnit,
       fiyatlar: finalResults.slice(0, 30),
       min: prices[0],
       max: prices[prices.length - 1],
-      ortalama: Math.round(ekonomikOrtalama * 100) / 100,
+      ortalama: Math.round(ekonomikOrt * 100) / 100,
       medyan: prices[Math.floor(prices.length / 2)],
       kaynak: 'tavily_referans',
       toplam_sonuc: finalResults.length,
       markalar: Object.keys(markaGruplari).filter((m) => m !== 'Diğer'),
       marka_gruplari: markaGruplari,
-      // Ek meta bilgi
+      // Ultra-Current meta
+      confidence,
+      yeterli,           // true = Tavily tek başına yeterli, false = Camgöz fallback
+      fallback: !yeterli, // Geriye uyumlu flag
+      confidenceSebep: sebep,
       kategori,
       kullanılanSiteler: includeDomains,
       krediKullanimi: krediSearch + krediExtract,
     };
   } catch (err) {
-    return { success: false, error: `Tavily piyasa arama hatası: ${err.message}`, fiyatlar: [] };
+    return { success: false, error: `Tavily piyasa arama hatası: ${err.message}`, fiyatlar: [], fallback: true };
   }
 }
 

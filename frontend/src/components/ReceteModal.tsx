@@ -152,6 +152,8 @@ interface Malzeme {
   birim_fiyat: number | null; // Stok kartından gelen birim fiyat
   sistem_fiyat: number | null;
   piyasa_fiyat: number | null;
+  sistem_toplam?: number | null; // Backend'den gelen birim dönüşümlü toplam (sistem)
+  piyasa_toplam?: number | null; // Backend'den gelen birim dönüşümlü toplam (piyasa)
   piyasa_detay?: {
     min: number;
     max: number;
@@ -420,28 +422,11 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       )) as ApiResponse<MaliyetAnaliziData>;
 
       if (result.success) {
-        // Malzeme maliyetlerini hesapla
-        // Son fiyat = (fatura + piyasa) / 2 veya mevcut olan
+        // Backend zaten birim dönüşümlü sistem_toplam ve piyasa_toplam hesaplıyor
         const malzemelerWithCost =
           (result.data?.malzemeler || []).map((m: Malzeme) => {
-            const faturaFiyat = m.sistem_fiyat || 0;
-            const piyasaFiyat = m.piyasa_fiyat || 0;
-            // Son fiyat: her ikisi varsa ortalama, yoksa mevcut olan
-            const sonFiyat =
-              faturaFiyat && piyasaFiyat
-                ? (faturaFiyat + piyasaFiyat) / 2
-                : piyasaFiyat || faturaFiyat || 0;
-            const fiyat = sonFiyat;
-            const birim = (m.birim || '').toLowerCase();
-            let maliyet = 0;
-
-            // Birim dönüşümü: gram/ml için kg/lt fiyatını kullan
-            if (['g', 'gr', 'ml'].includes(birim)) {
-              maliyet = (m.miktar / 1000) * fiyat;
-            } else {
-              maliyet = m.miktar * fiyat;
-            }
-
+            // Backend'den gelen toplam maliyetleri kullan (birim dönüşüm dahil)
+            const maliyet = m.sistem_toplam || m.piyasa_toplam || 0;
             return { ...m, maliyet };
           }) || [];
 

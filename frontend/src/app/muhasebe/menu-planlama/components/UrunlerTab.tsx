@@ -95,6 +95,7 @@ function getFiyatKaynagi(urun: UrunKartiFiyat): {
   if (tipi === 'MANUEL') return { label: 'Manuel', color: 'blue', icon: IconCoin };
   if (tipi === 'VARSAYILAN') return { label: 'Manuel', color: 'blue', icon: IconCoin };
   if (tipi === 'SOZLESME') return { label: 'Sözleşme', color: 'cyan', icon: IconReceipt };
+  if (tipi === 'VARYANT') return { label: 'Varyant', color: 'violet', icon: IconPackages };
   // Fallback: tipi yok ama fiyat varsa kaynağı otomatik belirle
   if (urun.aktif_fiyat && Number(urun.aktif_fiyat) > 0)
     return { label: 'Varsayılan', color: 'grape', icon: IconCoin };
@@ -104,6 +105,9 @@ function getFiyatKaynagi(urun: UrunKartiFiyat): {
     return { label: 'Fatura', color: 'green', icon: IconFileInvoice };
   if (urun.manuel_fiyat && Number(urun.manuel_fiyat) > 0)
     return { label: 'Manuel', color: 'blue', icon: IconCoin };
+  // Varyant fallback: kendi fiyatı yok ama varyantlardan gelen fiyat var
+  if (Number(urun.varyant_en_ucuz) > 0)
+    return { label: 'Varyant', color: 'violet', icon: IconPackages };
   return { label: 'Fiyat Yok', color: 'red', icon: IconCoinOff };
 }
 
@@ -520,16 +524,25 @@ export function UrunlerTab({ isActive, isMobile = false, isMounted = true }: Uru
           e.currentTarget.style.transform = 'translateY(0)';
         }}
       >
-        {/* Üst: Kod & Kaynak */}
+        {/* Üst: Kod & Kaynak & Varyant */}
         <Group justify="space-between" mb="xs" w="100%">
           {urun.kod && (
             <Text size="xs" c="dimmed" fw={500} style={{ fontFamily: 'monospace' }}>
               {urun.kod}
             </Text>
           )}
-          <Badge size="xs" variant="light" color={kaynak.color} radius="sm" ml="auto">
-            {kaynak.label}
-          </Badge>
+          <Group gap={4} ml="auto">
+            {Number(urun.varyant_sayisi) > 0 && (
+              <Tooltip label={`${urun.varyant_sayisi} varyant${urun.varyant_en_ucuz_adi ? ` · En ucuz: ${urun.varyant_en_ucuz_adi}` : ''}`}>
+                <Badge size="xs" variant="dot" color="violet" radius="sm">
+                  {urun.varyant_sayisi}V
+                </Badge>
+              </Tooltip>
+            )}
+            <Badge size="xs" variant="light" color={kaynak.color} radius="sm">
+              {kaynak.label}
+            </Badge>
+          </Group>
         </Group>
 
         {/* Ad */}
@@ -620,6 +633,16 @@ export function UrunlerTab({ isActive, isMobile = false, isMounted = true }: Uru
                 <Text size="xs" c="dimmed">
                   {receteSayisi} reçete
                 </Text>
+              </>
+            )}
+            {Number(urun.varyant_sayisi) > 0 && (
+              <>
+                <Text size="xs" c="dimmed">
+                  ·
+                </Text>
+                <Badge size="xs" variant="dot" color="violet" radius="sm">
+                  {urun.varyant_sayisi} varyant
+                </Badge>
               </>
             )}
           </Group>

@@ -246,6 +246,14 @@ const NON_FOOD_KEYWORDS = new Set([
   'mandal', 'askı', 'paspas', 'fırça', 'sünger', 'bez', 'eldiven',
   // Kişisel bakım
   'sabun', 'el kremi', 'diş macunu', 'diş fırçası', 'ağız bakım',
+  // Tohum / Fide (sebze değil, ekim malzemesi)
+  'tohum', 'fide', 'çim', 'gübre', 'toprak',
+  // Hayvan ürünleri
+  'köpek', 'kedi', 'akvaryum', 'kuş yemi', 'balık yemi', 'karides yemi',
+  'köpek ödülü', 'kedi ödülü',
+  // Mobilya / Ev eşyası (yanlış eşleşme önleme)
+  'koltuk', 'sandalye', 'masa', 'sehpa', 'mobilya', 'dolap', 'raf', 'yatak',
+  'oyuncu koltuğu', 'bilgisayar',
 ]);
 
 /**
@@ -276,9 +284,21 @@ function wordMatchScore(product, word) {
       const suffix = pw.slice(word.length);
       // Türetme ekleri (sütlü, yağlı vb.) → düşük skor (farklı ürün)
       if (/^l[ıiuü]/i.test(suffix)) return 0.25;
-      // Gramer ekleri (yağı, peyniri, unu) → yüksek skor (aynı ürün)
-      if (suffix.length <= 2) return 0.9;
-      if (suffix.length <= 4) return 0.7;
+
+      // Türkçe gramer ekleri: sadece bilinen kalıplar yüksek skor alsın
+      // İsim hal ekleri: ı/i/u/ü, ın/in/un/ün, a/e, da/de/ta/te, dan/den/tan/ten
+      // İyelik ekleri: ım/im/um/üm, ın/in/un/ün, ı/i/u/ü, sı/si/su/sü
+      // Çoğul eki: lar/ler, ları/leri
+      // bal→balı ✓ (ı = hal eki)    bal→balon ✗ (on = farklı kelime)
+      // yağ→yağın ✓ (ın = hal eki)  süt→sütün ✓ (ün = hal eki)
+      const TURKISH_SUFFIXES = /^([ıiuüaeğ]|[ıiuü]n|[dt][ae]|[dt][ae]n|l[ae]r|n[ıiuü]n|s[ıiuü]|[ıiuü]m|n[dt][ae]|lar[ıiuü]|ler[ıiuü])$/i;
+      if (TURKISH_SUFFIXES.test(suffix)) return 0.9;
+
+      // Biraz daha uzun ama tanınabilir ekler (peyniri, unu vb.)
+      if (suffix.length <= 3 && /^[ıiuüaenrdsmtlşğ]+$/i.test(suffix)) return 0.7;
+
+      // Tanınmayan kısa suffix → düşük skor (balon, kalem vb. farklı kelime olabilir)
+      if (suffix.length <= 4) return 0.3;
     }
   }
 
@@ -513,8 +533,8 @@ export async function searchMarketPrices(searchTermInput, options = {}) {
   // Hedef birim varsa onu kullan
   let dominantUnit = targetUnit || 'adet';
   if (!targetUnit) {
-    if (unitCounts['kg'] >= 2) dominantUnit = 'kg';
-    else if (unitCounts['L'] >= 2) dominantUnit = 'L';
+    if (unitCounts.kg >= 2) dominantUnit = 'kg';
+    else if (unitCounts.L >= 2) dominantUnit = 'L';
     else {
       const nonAdetUnits = Object.entries(unitCounts).filter(([k]) => k !== 'adet');
       if (nonAdetUnits.length > 0) {

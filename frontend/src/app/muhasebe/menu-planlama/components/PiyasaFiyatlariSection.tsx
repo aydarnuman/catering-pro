@@ -48,7 +48,7 @@ function relativeDate(tarih: string | null | undefined): string {
   return `${Math.floor(gun / 365)} yıl önce`;
 }
 
-/** birimTipi'ni kaynaklar JSON'dan parse et */
+/** birimTipi'ni kaynaklar JSON'dan parse et ve normalize et */
 function parseBirimTipi(rf: RafFiyatSonuc): string {
   try {
     const k = rf.kaynaklar as unknown;
@@ -58,7 +58,12 @@ function parseBirimTipi(rf: RafFiyatSonuc): string {
       !Array.isArray(k) &&
       'birimTipi' in (k as Record<string, unknown>)
     ) {
-      return (k as Record<string, string>).birimTipi || 'kg';
+      const raw = ((k as Record<string, string>).birimTipi || 'kg').toLowerCase();
+      // Normalize: lt/litre → L, kg/kilo → kg, adet/ad → adet
+      if (['lt', 'litre', 'l'].includes(raw)) return 'L';
+      if (['kg', 'kilo'].includes(raw)) return 'kg';
+      if (['adet', 'ad'].includes(raw)) return 'adet';
+      return raw;
     }
   } catch {
     /* ignore */
