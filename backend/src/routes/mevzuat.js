@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { query } from '../database.js';
-import { tavilySearch, isTavilyConfigured } from '../services/tavily-service.js';
 
 const router = express.Router();
 
@@ -170,123 +168,67 @@ router.get('/rehber', async (_req, res) => {
 });
 
 /**
- * Sektör gündemi - Canlı mevzuat ve ihale haberleri
+ * Sektör gündemi - Backward compatibility redirect
  * GET /api/mevzuat/gundem
- * Query: ?cache=1 (varsayılan: önce DB cache'e bak, 6 saatten eskiyse yenile)
+ * DEPRECATED: Yeni endpoint → /api/sektor-gundem/ihale
+ *
+ * Eski frontend component'lar bu endpoint'i kullanabilir, yeni aggregator'a yönlendirir.
  */
 router.get('/gundem', async (req, res) => {
   try {
-    // Önce cache kontrol et (sync_logs tablosundan son mevzuat_takip kaydı)
+    // Yeni aggregator üzerinden ihale gündemini getir
+    const { readCache, writeCache, fetchIhaleGundem } = await import('../services/sektor-gundem-aggregator.js');
+
     const forceRefresh = req.query.refresh === '1';
-    const cacheHours = 6;
+    const syncType = 'sektor_gundem_ihale';
 
+    // Cache kontrol
     if (!forceRefresh) {
-      try {
-        const cached = await query(
-          `SELECT details, finished_at FROM sync_logs
-           WHERE sync_type = 'mevzuat_takip' AND status = 'success'
-           AND finished_at > NOW() - INTERVAL '${cacheHours} hours'
-           ORDER BY finished_at DESC LIMIT 1`
-        );
-
-        if (cached.rows.length > 0) {
-          const details = typeof cached.rows[0].details === 'string'
-            ? JSON.parse(cached.rows[0].details)
-            : cached.rows[0].details;
-
-          return res.json({
-            success: true,
-            kaynak: 'cache',
-            guncelleme: cached.rows[0].finished_at,
-            sonraki_guncelleme: new Date(new Date(cached.rows[0].finished_at).getTime() + cacheHours * 3600000),
-            konular: details.konular || [],
-          });
-        }
-      } catch (_dbErr) {
-        // DB hatası olursa canlı çek
-      }
-    }
-
-    // Tavily yoksa statik bilgi dön
-    if (!isTavilyConfigured()) {
-      return res.json({
-        success: true,
-        kaynak: 'statik',
-        uyari: 'Canlı haber takibi aktif değil (TAVILY_API_KEY gerekli)',
-        konular: [],
-      });
-    }
-
-    // Canlı çek
-    const konular = [
-      {
-        id: 'gida_mevzuat',
-        baslik: 'Gıda Mevzuatı',
-        sorgu: 'gıda mevzuatı değişiklik tebliğ yönetmelik 2026',
-        domainler: ['mevzuat.gov.tr', 'resmigazete.gov.tr', 'tarimorman.gov.tr'],
-      },
-      {
-        id: 'kik_ihale',
-        baslik: 'KİK İhale Duyuruları',
-        sorgu: 'kamu ihale kurumu yemek hizmeti catering ihale duyurusu 2026',
-        domainler: ['kik.gov.tr', 'ekap.kik.gov.tr'],
-      },
-      {
-        id: 'gida_fiyat_trend',
-        baslik: 'Gıda Fiyat Trendleri',
-        sorgu: 'gıda fiyatları enflasyon artış catering maliyet 2026',
-        domainler: [],
-      },
-    ];
-
-    const sonuclar = [];
-    for (const konu of konular) {
-      try {
-        const result = await tavilySearch(konu.sorgu, {
-          searchDepth: 'basic',
-          maxResults: 5,
-          includeAnswer: true,
-          includeDomains: konu.domainler.length > 0 ? konu.domainler : undefined,
-          days: 14,
+      const cached = await readCache(syncType, 4);
+      if (cached.hit) {
+        // Eski formata dönüştür (backward compat)
+        const konular = (cached.data.konular || []).map((k) => ({
+          konu: k.konu,
+          baslik: k.baslik,
+          ozet: k.ai_ozet || null,
+          haberler: (k.haberler || []).map((h) => ({
+            baslik: h.baslik,
+            url: h.url,
+            ozet: h.ozet,
+            tarih: h.tarih,
+          })),
+        }));
+        return res.json({
+          success: true,
+          kaynak: 'cache',
+          guncelleme: cached.guncelleme,
+          konular,
         });
-
-        if (result.success) {
-          sonuclar.push({
-            konu: konu.id,
-            baslik: konu.baslik,
-            ozet: result.answer,
-            haberler: result.results?.slice(0, 5).map((r) => ({
-              baslik: r.title,
-              url: r.url,
-              ozet: r.content?.substring(0, 200),
-              tarih: r.publishedDate,
-            })) || [],
-          });
-        }
-
-        // Rate limit
-        await new Promise((r) => setTimeout(r, 500));
-      } catch (_err) {
-        // Tekil hata, diğerlerine devam
       }
     }
 
-    // Cache'e kaydet
-    try {
-      await query(
-        `INSERT INTO sync_logs (sync_type, status, started_at, finished_at, details)
-         VALUES ('mevzuat_takip', 'success', NOW() - INTERVAL '10 seconds', NOW(), $1)`,
-        [JSON.stringify({ konular: sonuclar })]
-      );
-    } catch (_logErr) {
-      // Log hatası önemli değil
-    }
+    // Canlı çek (yeni aggregator)
+    const yeniKonular = await fetchIhaleGundem();
+    await writeCache(syncType, { konular: yeniKonular });
+
+    // Eski formata dönüştür
+    const konular = yeniKonular.map((k) => ({
+      konu: k.konu,
+      baslik: k.baslik,
+      ozet: k.ai_ozet || null,
+      haberler: (k.haberler || []).map((h) => ({
+        baslik: h.baslik,
+        url: h.url,
+        ozet: h.ozet,
+        tarih: h.tarih,
+      })),
+    }));
 
     res.json({
       success: true,
       kaynak: 'canli',
       guncelleme: new Date(),
-      konular: sonuclar,
+      konular,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

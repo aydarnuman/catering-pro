@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * Sektör Gündem Paneli
- * ──────────────────────
- * Tavily API ile çekilen canlı sektör haberlerini gösterir.
- * KIK duyuruları, gıda mevzuatı, fiyat trendleri.
+ * Sektör Gündem Paneli (İstihbarat)
+ * ──────────────────────────────────
+ * Yüklenici Kütüphanesi'ndeki istihbarat odaklı sektör gündemi.
+ * Yeni hibrit pipeline: Tavily + DB + Claude AI
+ *
+ * 5 kategori: Sektör Trendleri, Fiyat İstihbaratı, Şirket Haberleri, SGK/Hukuk, Gıda Güvenliği
  *
  * Kullanım:
  *   <SektorGundemiPanel />               — tam panel (yüklenici kütüphanesi)
@@ -28,47 +30,26 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+  IconAlertTriangle,
+  IconBriefcase,
   IconChevronDown,
   IconChevronUp,
   IconExternalLink,
-  IconGavel,
-  IconLeaf,
+  IconHeartRateMonitor,
   IconRefresh,
+  IconScale,
   IconTrendingUp,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
-import { getApiUrl } from '@/lib/config';
-
-// ─── Types ──────────────────────────────────────────────
-
-interface Haber {
-  baslik: string;
-  url: string;
-  ozet?: string;
-  tarih?: string;
-}
-
-interface GundemKonu {
-  konu: string;
-  baslik: string;
-  ozet?: string;
-  haberler: Haber[];
-}
-
-interface GundemData {
-  success: boolean;
-  kaynak: string;
-  guncelleme?: string;
-  konular: GundemKonu[];
-  uyari?: string;
-}
+import { type GundemKonu, useSektorGundem } from '@/hooks/useSektorGundem';
 
 // ─── Konu meta ──────────────────────────────────────────
 
 const KONU_META: Record<string, { icon: React.ReactNode; color: string }> = {
-  kik_ihale: { icon: <IconGavel size={16} />, color: 'orange' },
-  gida_mevzuat: { icon: <IconLeaf size={16} />, color: 'green' },
-  gida_fiyat_trend: { icon: <IconTrendingUp size={16} />, color: 'blue' },
+  sektor_trend: { icon: <IconTrendingUp size={16} />, color: 'blue' },
+  fiyat_istihbarat: { icon: <IconAlertTriangle size={16} />, color: 'orange' },
+  sirket_haber: { icon: <IconBriefcase size={16} />, color: 'cyan' },
+  sgk_hukuk: { icon: <IconScale size={16} />, color: 'violet' },
+  gida_guvenlik: { icon: <IconHeartRateMonitor size={16} />, color: 'green' },
 };
 
 // ─── Component ──────────────────────────────────────────
@@ -78,32 +59,9 @@ interface SektorGundemiPanelProps {
   maxHaber?: number;
 }
 
-export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGundemiPanelProps) {
-  const [data, setData] = useState<GundemData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function SektorGundemiPanel({ compact = false, maxHaber = 4 }: SektorGundemiPanelProps) {
+  const { data, isLoading, refetch, isFetching } = useSektorGundem('istihbarat');
   const [expanded, { toggle }] = useDisclosure(!compact);
-
-  const fetchGundem = useCallback(async (refresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const url = getApiUrl(`/api/mevzuat/gundem${refresh ? '?refresh=1' : ''}`);
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json: GundemData = await res.json();
-      if (!json.success) throw new Error(json.uyari || 'Veri alınamadı');
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bağlantı hatası');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchGundem();
-  }, [fetchGundem]);
 
   // Güncelleme zamanını "X saat önce" formatına çevir
   const timeAgo = (dateStr?: string) => {
@@ -116,9 +74,11 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
     return `${Math.floor(hours / 24)} gün önce`;
   };
 
+  const toplamHaber = data?.konular?.reduce((sum, k) => sum + (k.haberler?.length || 0), 0) || 0;
+
   // ─── Loading skeleton ─────────────────────────────────
 
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <Paper p="md" withBorder radius="md">
         <Group justify="space-between" mb="sm">
@@ -134,16 +94,21 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
     );
   }
 
-  // ─── Error state ──────────────────────────────────────
+  // ─── Error / empty state ──────────────────────────────
 
-  if (error && !data) {
+  if (!data || !data.konular?.length) {
     return (
-      <Paper p="sm" withBorder radius="md" bg="rgba(255, 107, 107, 0.05)">
+      <Paper p="sm" withBorder radius="md" bg="rgba(255, 255, 255, 0.02)">
         <Group justify="space-between">
-          <Text size="xs" c="red.5">
-            Sektör gündemi yüklenemedi: {error}
-          </Text>
-          <ActionIcon size="xs" variant="subtle" onClick={() => fetchGundem()}>
+          <Group gap="xs">
+            <ThemeIcon size="sm" variant="light" color="blue" radius="xl">
+              <IconTrendingUp size={14} />
+            </ThemeIcon>
+            <Text size="xs" c="dimmed">
+              {isLoading ? 'İstihbarat yükleniyor...' : 'Sektör istihbaratı mevcut değil'}
+            </Text>
+          </Group>
+          <ActionIcon size="xs" variant="subtle" onClick={() => refetch()} loading={isFetching}>
             <IconRefresh size={14} />
           </ActionIcon>
         </Group>
@@ -151,24 +116,18 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
     );
   }
 
-  if (!data || data.konular.length === 0) return null;
-
   // ─── Render ───────────────────────────────────────────
 
   return (
     <Paper p="md" withBorder radius="md" bg="rgba(59, 130, 246, 0.02)">
       {/* Header */}
       <Group justify="space-between" mb={expanded ? 'sm' : 0}>
-        <Group
-          gap="xs"
-          style={{ cursor: 'pointer' }}
-          onClick={toggle}
-        >
+        <Group gap="xs" style={{ cursor: 'pointer' }} onClick={toggle}>
           <Text size="sm" fw={600}>
-            Sektör Gündemi
+            Sektör İstihbaratı
           </Text>
           <Badge size="xs" variant="light" color="blue">
-            {data.konular.reduce((sum, k) => sum + k.haberler.length, 0)} haber
+            {toplamHaber} haber
           </Badge>
           {data.kaynak === 'cache' && data.guncelleme && (
             <Text size="xs" c="dimmed">
@@ -179,13 +138,13 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
         </Group>
 
         <Group gap={4}>
+          {data.kaynak && (
+            <Badge size="xs" variant="dot" color={data.kaynak === 'canli' ? 'green' : 'gray'}>
+              {data.kaynak === 'canli' ? 'Canlı' : 'Önbellek'}
+            </Badge>
+          )}
           <Tooltip label="Yenile">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              loading={loading}
-              onClick={() => fetchGundem(true)}
-            >
+            <ActionIcon size="xs" variant="subtle" loading={isFetching} onClick={() => refetch()}>
               <IconRefresh size={14} />
             </ActionIcon>
           </Tooltip>
@@ -195,8 +154,13 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
       {/* Content */}
       <Collapse in={expanded}>
         <SimpleGrid cols={compact ? 1 : { base: 1, sm: 2, md: 3 }} spacing="sm">
-          {data.konular.map((konu) => {
-            const meta = KONU_META[konu.konu] || { icon: <IconTrendingUp size={16} />, color: 'gray' };
+          {data.konular.map((konu: GundemKonu) => {
+            const meta = KONU_META[konu.konu] || {
+              icon: <IconTrendingUp size={16} />,
+              color: 'gray',
+            };
+            const ozet = konu.ai_ozet || konu.ozet;
+
             return (
               <Paper
                 key={konu.konu}
@@ -209,43 +173,71 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 3 }: SektorGund
                   <ThemeIcon size="sm" variant="light" color={meta.color} radius="xl">
                     {meta.icon}
                   </ThemeIcon>
-                  <Text size="xs" fw={600}>
+                  <Text size="xs" fw={600} style={{ flex: 1 }}>
                     {konu.baslik}
                   </Text>
-                  <Badge size="xs" variant="dot" color={meta.color}>
-                    {konu.haberler.length}
-                  </Badge>
+                  <Group gap={4}>
+                    <Badge size="xs" variant="dot" color={meta.color}>
+                      {konu.haberler?.length || 0}
+                    </Badge>
+                    {konu.kaynaklar && konu.kaynaklar.db > 0 && (
+                      <Badge size="xs" variant="outline" color="teal">
+                        +{konu.kaynaklar.db} DB
+                      </Badge>
+                    )}
+                  </Group>
                 </Group>
 
                 {/* AI Özet */}
-                {konu.ozet && !compact && (
-                  <Text size="xs" c="dimmed" mb="xs" lineClamp={2}>
-                    {konu.ozet}
+                {ozet && !compact && (
+                  <Text size="xs" c="dimmed" mb="xs" lineClamp={3}>
+                    {ozet}
                   </Text>
                 )}
 
                 {/* Haber listesi */}
                 <Stack gap={4}>
-                  {konu.haberler.slice(0, maxHaber).map((haber, idx) => (
-                    <Anchor
+                  {konu.haberler?.slice(0, maxHaber).map((haber, idx) => (
+                    <Box
                       key={`${konu.konu}-${idx}`}
-                      href={haber.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      underline="hover"
-                      size="xs"
                       style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}
                     >
-                      <IconExternalLink
-                        size={12}
-                        style={{ flexShrink: 0, marginTop: 2 }}
-                      />
-                      <Box style={{ flex: 1 }}>
-                        <Text size="xs" lineClamp={2} inherit>
+                      {haber.kaynak_tipi && (
+                        <Badge
+                          size="xs"
+                          variant="outline"
+                          color={haber.kaynak_tipi === 'db' ? 'teal' : 'blue'}
+                          style={{ flexShrink: 0, fontSize: 9, padding: '0 4px' }}
+                        >
+                          {haber.kaynak_tipi === 'db' ? 'DB' : 'Web'}
+                        </Badge>
+                      )}
+                      {haber.url ? (
+                        <Anchor
+                          href={haber.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          underline="hover"
+                          size="xs"
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 4, flex: 1 }}
+                        >
+                          <IconExternalLink size={12} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <Text size="xs" lineClamp={2} inherit>
+                            {haber.baslik}
+                          </Text>
+                        </Anchor>
+                      ) : (
+                        <Text size="xs" lineClamp={2} style={{ flex: 1 }}>
                           {haber.baslik}
+                          {haber.ozet && (
+                            <Text span size="xs" c="dimmed">
+                              {' '}
+                              — {haber.ozet}
+                            </Text>
+                          )}
                         </Text>
-                      </Box>
-                    </Anchor>
+                      )}
+                    </Box>
                   ))}
                 </Stack>
               </Paper>

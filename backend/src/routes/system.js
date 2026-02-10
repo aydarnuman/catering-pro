@@ -3,8 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import express from 'express';
+import { KATEGORI_SITELERI, KREDI_AYARLARI, REFERANS_SITELERI } from '../config/piyasa-kaynak.js';
 import { query } from '../database.js';
 import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
+import { getKrediKullanimi, isTavilyConfigured } from '../services/tavily-service.js';
 import systemMonitor from '../services/system-monitor.js';
 import logger from '../utils/logger.js';
 
@@ -695,6 +697,45 @@ router.get('/system/info', async (_req, res) => {
   try {
     const info = systemMonitor.getSystemInfo();
     res.json({ success: true, ...info });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// 📊 TAVILY KREDİ TAKİP
+// ==========================================
+
+// Tavily kredi kullanım istatistikleri
+router.get('/tavily/kredi', authenticate, async (_req, res) => {
+  try {
+    const kredi = getKrediKullanimi();
+    res.json({
+      success: true,
+      tavilyYapilandirildi: isTavilyConfigured(),
+      kredi: {
+        gunluk: kredi.gunluk,
+        aylik: kredi.aylik,
+        sonSifirlama: kredi.sonSifirlama,
+        sonIslemler: kredi.detay.slice(-20), // Son 20 işlem
+      },
+      ayarlar: KREDI_AYARLARI,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Tavily referans site konfigürasyonu
+router.get('/tavily/config', authenticate, async (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      tavilyYapilandirildi: isTavilyConfigured(),
+      referansSiteleri: REFERANS_SITELERI,
+      kategoriSiteleri: KATEGORI_SITELERI,
+      krediAyarlari: KREDI_AYARLARI,
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

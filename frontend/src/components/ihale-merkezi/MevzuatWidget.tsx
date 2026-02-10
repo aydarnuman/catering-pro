@@ -37,7 +37,7 @@ import {
   IconTrendingUp,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { getApiUrl } from '@/lib/config';
+import { type GundemKonu, useSektorGundem } from '@/hooks/useSektorGundem';
 
 interface GuncelDegerler {
   asgari_ucret?: {
@@ -68,28 +68,13 @@ interface Formula {
   ornek?: string;
 }
 
-// ─── Gündem types ───────────────────────────────────────
-
-interface GundemHaber {
-  baslik: string;
-  url: string;
-}
-
-interface GundemKonu {
-  konu: string;
-  baslik: string;
-  ozet?: string;
-  haberler: GundemHaber[];
-}
-
-interface GundemResponse {
-  success: boolean;
-  konular: GundemKonu[];
-  guncelleme?: string;
-  kaynak?: string;
-}
-
 const KONU_META: Record<string, { icon: React.ReactNode; color: string }> = {
+  ihale_duyuru: { icon: <IconGavel size={14} />, color: 'cyan' },
+  kik_karar: { icon: <IconGavel size={14} />, color: 'orange' },
+  zeyilname: { icon: <IconLeaf size={14} />, color: 'yellow' },
+  mevzuat: { icon: <IconLeaf size={14} />, color: 'green' },
+  sektor_haber: { icon: <IconTrendingUp size={14} />, color: 'blue' },
+  // Eski kategori isimleri (backward compat)
   kik_ihale: { icon: <IconGavel size={14} />, color: 'orange' },
   gida_mevzuat: { icon: <IconLeaf size={14} />, color: 'green' },
   gida_fiyat_trend: { icon: <IconTrendingUp size={14} />, color: 'blue' },
@@ -101,9 +86,28 @@ export function MevzuatWidget() {
   const [guncelDegerler, setGuncelDegerler] = useState<GuncelDegerler | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Canlı gündem state
-  const [gundem, setGundem] = useState<GundemResponse | null>(null);
-  const [gundemLoading, setGundemLoading] = useState(false);
+  // Yeni hook tabanlı gündem (ihale odaklı)
+  const {
+    data: gundemData,
+    isLoading: gundemLoading,
+    refetch: refetchGundem,
+    isFetching: gundemFetching,
+  } = useSektorGundem('ihale', opened);
+
+  // Gündem verisini eski formata map et
+  const gundem = gundemData
+    ? {
+        success: gundemData.success,
+        konular: (gundemData.konular || []).map((k: GundemKonu) => ({
+          konu: k.konu,
+          baslik: k.baslik,
+          ozet: k.ai_ozet || k.ozet,
+          haberler: (k.haberler || []).map((h) => ({ baslik: h.baslik, url: h.url })),
+        })),
+        guncelleme: gundemData.guncelleme,
+        kaynak: gundemData.kaynak,
+      }
+    : null;
 
   // Mevzuat verilerini yükle
   const fetchMevzuatData = useCallback(async () => {
@@ -145,30 +149,11 @@ export function MevzuatWidget() {
     }
   }, []);
 
-  // Canlı gündem fetch
-  const fetchGundem = useCallback(async (refresh = false) => {
-    setGundemLoading(true);
-    try {
-      const url = getApiUrl(`/api/mevzuat/gundem${refresh ? '?refresh=1' : ''}`);
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) return;
-      const json: GundemResponse = await res.json();
-      if (json.success) setGundem(json);
-    } catch {
-      // sessizce devam
-    } finally {
-      setGundemLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (opened && !guncelDegerler) {
       fetchMevzuatData();
     }
-    if (opened && !gundem) {
-      fetchGundem();
-    }
-  }, [opened, guncelDegerler, fetchMevzuatData, gundem, fetchGundem]);
+  }, [opened, guncelDegerler, fetchMevzuatData]);
 
   // Formüller
   const formuller: Formula[] = [
@@ -302,7 +287,7 @@ export function MevzuatWidget() {
                     </Group>
                   </Accordion.Control>
                   <Accordion.Panel>
-                    {gundemLoading && !gundem ? (
+                    {(gundemLoading || gundemFetching) && !gundem ? (
                       <Stack gap="xs">
                         <Skeleton height={50} radius="sm" />
                         <Skeleton height={50} radius="sm" />
@@ -367,11 +352,8 @@ export function MevzuatWidget() {
                             <ActionIcon
                               size="xs"
                               variant="subtle"
-                              loading={gundemLoading}
-                              onClick={() => {
-                                setGundem(null);
-                                fetchGundem(true);
-                              }}
+                              loading={gundemFetching}
+                              onClick={() => refetchGundem()}
                             >
                               <IconRefresh size={14} />
                             </ActionIcon>
