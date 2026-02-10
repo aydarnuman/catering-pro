@@ -445,6 +445,30 @@ http://localhost:3001/api-docs
 
 ---
 
+## AI ile Calisma
+
+### Local Degisiklikleri AI'ya Gosterme
+
+GitHub'a push etmeden local degisikliklerinizi AI'ya gosterebilirsiniz:
+
+```bash
+# Yontem 1: Direkt sorun (AI otomatik git diff yapar)
+"Local degisikliklerimi incele"
+"Ne degistirdim?"
+"Bu kod dogru mu?"
+
+# Yontem 2: Manuel git komutlari
+git status              # Degisen dosyalar
+git diff                # Tam farklar
+git diff <dosya>        # Tek dosya
+git diff HEAD           # Staged + unstaged
+```
+
+**Ornekler:**
+- "frontend/src/app/page.tsx dosyasindaki degisikliklerimi kontrol et"
+- "Bu degisikliklerde hata var mi?"
+- "Bu kodu review edebilir misin?"
+
 ## Troubleshooting
 
 ### Database Baglanti Hatasi

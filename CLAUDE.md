@@ -97,6 +97,60 @@ frontend/src/hooks/usePermissions.ts    # Modül bazlı yetki kontrolü
 
 Kod degistirmeden ONCE mevcut sistemin calisip calismadigini test et. Canli test yap, sonuclari raporla, SONRA plan olustur.
 
+## Local Değişiklikleri AI'ya Gösterme
+
+GitHub'a push etmeden, localdeki değişikliklerinizi AI'ya gösterebilirsiniz:
+
+### Yöntem 1: AI'ya Direkt Söyle (Önerilen)
+Sadece şunu söyleyin:
+- "Değişikliklerimi gör"
+- "Local değişiklikleri incele"
+- "Ne değiştirdim?"
+
+AI otomatik olarak `git status` ve `git diff` çalıştırır.
+
+### Yöntem 2: Helper Script Kullan
+```bash
+# Tüm değişiklikleri göster
+./scripts/show-local-changes.sh
+
+# Sadece özet
+./scripts/show-local-changes.sh --summary
+
+# Tek dosya
+./scripts/show-local-changes.sh frontend/src/app/page.tsx
+```
+
+### Yöntem 3: Manuel Git Komutları
+```bash
+# Hangi dosyalar değişti?
+git status
+
+# Tam farklar (tüm dosyalar)
+git diff
+
+# Belirli bir dosya
+git diff src/components/MyComponent.tsx
+
+# Staged + unstaged tüm değişiklikler
+git diff HEAD
+```
+
+### Kullanım Örnekleri
+```bash
+# Örnek 1: Tüm değişiklikleri göster
+"Localdeki tüm değişikliklerimi incele"
+
+# Örnek 2: Sadece bir dosya
+"frontend/src/app/page.tsx dosyasındaki değişikliklerimi kontrol et"
+
+# Örnek 3: Hata kontrolü
+"Bu değişikliklerde hata var mı?"
+
+# Örnek 4: Review iste
+"Bu kodu review edebilir misin?"
+```
+
 ## Commit Kuralları
 
 - UI değişiklikleri: `fix:` veya `feat:` prefix
