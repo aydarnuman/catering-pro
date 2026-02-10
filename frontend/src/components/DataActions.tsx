@@ -18,6 +18,7 @@ import {
   IconFileSpreadsheet,
   IconFileTypePdf,
   IconMail,
+  IconReport,
   IconSettings,
   IconUpload,
   IconX,
@@ -26,6 +27,7 @@ import { useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 import { ExportModal } from './ExportModal';
 import { ImportModal } from './ImportModal';
+import RaporMerkeziModal from './rapor-merkezi/RaporMerkeziModal';
 
 interface DataActionsProps {
   type: 'personel' | 'fatura' | 'cari' | 'stok' | 'bordro';
@@ -58,6 +60,7 @@ export function DataActions({
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [format, setFormat] = useState<string>('excel');
   const [loading, setLoading] = useState(false);
@@ -112,12 +115,13 @@ export function DataActions({
         icon:
           format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Dosya indirilemedi';
       console.error('Download error:', error);
       notifications.update({
         id: `download-${format}`,
         title: 'İndirme Hatası',
-        message: error.message || 'Dosya indirilemedi',
+        message: errorMessage,
         color: 'red',
         loading: false,
         autoClose: 5000,
@@ -169,10 +173,11 @@ export function DataActions({
       } else {
         throw new Error(data.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Mail gönderilemedi';
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Mail gönderilemedi',
+        message: errorMessage,
         color: 'red',
         icon: <IconX size={18} />,
       });
@@ -227,6 +232,13 @@ export function DataActions({
             onClick={() => setExportModalOpen(true)}
           >
             Detaylı Rapor Seçenekleri
+          </Menu.Item>
+
+          <Menu.Item
+            leftSection={<IconReport size={16} color="indigo" />}
+            onClick={() => setRaporMerkeziOpen(true)}
+          >
+            Rapor Merkezi
           </Menu.Item>
 
           <Menu.Divider />
@@ -304,6 +316,14 @@ export function DataActions({
         projeler={projeler}
         departmanlar={departmanlar}
         kategoriler={kategoriler}
+      />
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+        module={type === 'fatura' || type === 'cari' ? 'finans' : type === 'personel' || type === 'stok' || type === 'bordro' ? 'operasyon' : undefined}
+        context={{ filters }}
       />
     </>
   );

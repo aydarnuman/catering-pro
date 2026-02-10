@@ -53,9 +53,14 @@ import {
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import {
+  type KasaBankaHareket,
+  type KasaBankaHesap,
+  muhasebeAPI,
+} from '@/lib/api/services/muhasebe';
 import { personelAPI } from '@/lib/api/services/personel';
 import { formatMoney } from '@/lib/formatters';
 import type { Cari } from '@/types/domain';
@@ -179,6 +184,7 @@ export default function FinansMerkeziPage() {
 
   // Modal States
   const [notesModalOpened, setNotesModalOpened] = useState(false);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
   const [hesapModalOpen, setHesapModalOpen] = useState(false);
   const [hareketModalOpen, setHareketModalOpen] = useState(false);
   const [_cekSenetModalOpen, setCekSenetModalOpen] = useState(false);
@@ -305,7 +311,7 @@ export default function FinansMerkeziPage() {
 
   const handleSaveHesap = async () => {
     try {
-      const result = await muhasebeAPI.createKasaBankaHesap(hesapForm as any);
+      const result = await muhasebeAPI.createKasaBankaHesap(hesapForm);
       if (result.success) {
         notifications.show({ message: '✓ Hesap eklendi', color: 'green' });
         setHesapModalOpen(false);
@@ -331,7 +337,7 @@ export default function FinansMerkeziPage() {
         ...hareketForm,
         tarih: hareketForm.tarih.toISOString().split('T')[0],
         cari_id: hareketForm.cari_id ?? undefined,
-      } as any);
+      });
       if (result.success) {
         notifications.show({ message: '✓ Hareket kaydedildi', color: 'green' });
         setHareketModalOpen(false);
@@ -391,6 +397,14 @@ export default function FinansMerkeziPage() {
           </Text>
         </div>
         <Group>
+          <Button
+            variant="light"
+            color="indigo"
+            leftSection={<IconReportMoney size={18} />}
+            onClick={() => setRaporMerkeziOpen(true)}
+          >
+            Raporlar
+          </Button>
           <Button
             variant="gradient"
             gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
@@ -1629,7 +1643,9 @@ export default function FinansMerkeziPage() {
               { value: 'kredi_karti', label: '💳 Kredi Kartı' },
             ]}
             value={hesapForm.tip}
-            onChange={(v) => setHesapForm({ ...hesapForm, tip: v as any })}
+            onChange={(v) =>
+              setHesapForm({ ...hesapForm, tip: (v ?? 'kasa') as KasaBankaHesap['tip'] })
+            }
           />
           <TextInput
             label="Hesap Adı"
@@ -1705,7 +1721,9 @@ export default function FinansMerkeziPage() {
               { value: 'gider', label: '📤 Gider (Ödeme)' },
             ]}
             value={hareketForm.tip}
-            onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}
+            onChange={(v) =>
+              setHareketForm({ ...hareketForm, tip: (v ?? 'gider') as KasaBankaHareket['tip'] })
+            }
           />
           <Select
             label="Ödeme Yöntemi"
@@ -1810,7 +1828,9 @@ export default function FinansMerkeziPage() {
               { value: 'gider', label: '📉 Gider' },
             ]}
             value={hareketForm.tip}
-            onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}
+            onChange={(v) =>
+              setHareketForm({ ...hareketForm, tip: (v ?? 'gider') as KasaBankaHareket['tip'] })
+            }
           />
           <Select
             label="Kategori"
@@ -2256,6 +2276,13 @@ export default function FinansMerkeziPage() {
 
       {/* Notlar & Ajanda Modal */}
       <UnifiedNotesModal opened={notesModalOpened} onClose={() => setNotesModalOpened(false)} />
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+        module="finans"
+      />
     </Container>
   );
 }

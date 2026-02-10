@@ -5,8 +5,10 @@ import {
   Box,
   Button,
   Card,
+  Center,
   Container,
   Group,
+  Loader,
   Paper,
   Progress,
   SegmentedControl,
@@ -19,22 +21,19 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import {
-  IconArrowUpRight,
   IconCash,
   IconChartPie,
-  IconDownload,
   IconPackage,
-  IconPrinter,
+  IconRefresh,
+  IconReportMoney,
   IconTrendingDown,
   IconTrendingUp,
   IconUsers,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -47,71 +46,190 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import 'dayjs/locale/tr';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { stokAPI } from '@/lib/api/services/stok';
 import { formatMoney } from '@/lib/formatters';
 
-// Demo veriler - Gerçek uygulamada localStorage'dan gelecek
-const aylikGelirGider = [
-  { ay: 'Oca', gelir: 125000, gider: 98000 },
-  { ay: 'Şub', gelir: 118000, gider: 92000 },
-  { ay: 'Mar', gelir: 145000, gider: 105000 },
-  { ay: 'Nis', gelir: 138000, gider: 98000 },
-  { ay: 'May', gelir: 152000, gider: 112000 },
-  { ay: 'Haz', gelir: 168000, gider: 125000 },
-  { ay: 'Tem', gelir: 175000, gider: 128000 },
-  { ay: 'Ağu', gelir: 182000, gider: 135000 },
-  { ay: 'Eyl', gelir: 165000, gider: 122000 },
-  { ay: 'Eki', gelir: 158000, gider: 118000 },
-  { ay: 'Kas', gelir: 172000, gider: 128000 },
-  { ay: 'Ara', gelir: 195000, gider: 145000 },
-];
+interface KasaBankaHareket {
+  tarih?: string;
+  created_at?: string;
+  tip?: string;
+  yon?: string;
+  tutar?: number | string;
+  kategori?: string;
+  aciklama?: string;
+  hesap_adi?: string;
+}
 
-const giderDagilimi = [
-  { name: 'Personel', value: 450000, color: '#4dabf7' },
-  { name: 'Malzeme', value: 280000, color: '#51cf66' },
-  { name: 'Kira', value: 120000, color: '#ff922b' },
-  { name: 'Faturalar', value: 85000, color: '#ff6b6b' },
-  { name: 'Ulaşım', value: 65000, color: '#845ef7' },
-  { name: 'Diğer', value: 100000, color: '#20c997' },
-];
+interface CariItem {
+  bakiye?: number | string;
+  unvan?: string;
+  tip?: string;
+}
 
-const departmanMaliyet = [
-  { departman: 'Mutfak', maas: 185000, malzeme: 120000, diger: 25000 },
-  { departman: 'Servis', maas: 95000, malzeme: 15000, diger: 8000 },
-  { departman: 'Temizlik', maas: 45000, malzeme: 35000, diger: 5000 },
-  { departman: 'Yönetim', maas: 85000, malzeme: 5000, diger: 12000 },
-  { departman: 'Lojistik', maas: 40000, malzeme: 8000, diger: 25000 },
-];
+interface StokKart {
+  kategori?: string;
+  grup?: string;
+  birim_fiyat?: number | string;
+  miktar?: number | string;
+  stok_miktari?: number | string;
+  kritik_stok?: number | string;
+  ad?: string;
+}
 
-const stokDurumu = [
-  { kategori: 'Gıda', deger: 45000, kalem: 25, kritik: 2 },
-  { kategori: 'İçecek', deger: 12000, kalem: 8, kritik: 0 },
-  { kategori: 'Temizlik', deger: 8500, kalem: 12, kritik: 1 },
-  { kategori: 'Ambalaj', deger: 15000, kalem: 15, kritik: 0 },
-  { kategori: 'Ekipman', deger: 5000, kalem: 10, kritik: 0 },
-];
+interface KasaBankaOzetData {
+  toplam_bakiye?: number;
+  hesap_sayisi?: number;
+  hesaplar?: Array<{ hesap_adi?: string; bakiye?: number; tip?: string }>;
+}
 
-const cariOzet = [
-  { tip: 'Alacak', toplam: 285000, adet: 12 },
-  { tip: 'Borç', toplam: 125000, adet: 8 },
-];
+const AY_ISIMLERI = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+
+const GIDER_RENKLERI: Record<string, string> = {
+  Personel: '#4dabf7',
+  Malzeme: '#51cf66',
+  Kira: '#ff922b',
+  Faturalar: '#ff6b6b',
+  Ulaşım: '#845ef7',
+  Diğer: '#20c997',
+};
 
 export default function RaporlarPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [donem, setDonem] = useState('yillik');
-  const [_raporTipi, _setRaporTipi] = useState('genel');
+  const [loading, setLoading] = useState(true);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
+
+  // Gerçek veri state'leri
+  const [hareketler, setHareketler] = useState<KasaBankaHareket[]>([]);
+  const [cariler, setCariler] = useState<CariItem[]>([]);
+  const [stokKartlar, setStokKartlar] = useState<StokKart[]>([]);
+  const [kasaBankaOzet, setKasaBankaOzet] = useState<KasaBankaOzetData | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [hareketRes, cariRes, stokRes, ozetRes] = await Promise.all([
+        muhasebeAPI.getKasaBankaHareketler({ limit: 500 }),
+        muhasebeAPI.getCariler(),
+        stokAPI.getKartlar({ limit: 500 }),
+        muhasebeAPI.getKasaBankaOzet(),
+      ]);
+      if (hareketRes.success) setHareketler(hareketRes.data || []);
+      if (cariRes.success) setCariler(cariRes.data || []);
+      if (stokRes.success) setStokKartlar(stokRes.data || []);
+      if (ozetRes.success) setKasaBankaOzet(ozetRes.data);
+    } catch (error) {
+      console.error('Rapor verileri yüklenirken hata:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ==================== HESAPLAMALAR ====================
+
+  // Aylık gelir/gider hesaplama (kasa-banka hareketlerinden)
+  const aylikGelirGider = useMemo(() => {
+    const yil = new Date().getFullYear();
+    const aylikData = AY_ISIMLERI.map((ay) => ({ ay, gelir: 0, gider: 0 }));
+
+    for (const h of hareketler) {
+      if (!h.tarih) continue;
+      const d = new Date(h.tarih);
+      if (d.getFullYear() !== yil) continue;
+      const ayIndex = d.getMonth();
+      if (h.tip === 'gelir' || h.yon === 'gelir') {
+        aylikData[ayIndex].gelir += Math.abs(Number(h.tutar) || 0);
+      } else if (h.tip === 'gider' || h.yon === 'gider') {
+        aylikData[ayIndex].gider += Math.abs(Number(h.tutar) || 0);
+      }
+    }
+
+    return aylikData;
+  }, [hareketler]);
+
+  // Gider dağılımı (hareketlerden kategori bazlı)
+  const giderDagilimi = useMemo(() => {
+    const kategoriler: Record<string, number> = {};
+    for (const h of hareketler) {
+      if (h.tip === 'gider' || h.yon === 'gider') {
+        const kat = h.kategori || h.aciklama?.split(' ')[0] || 'Diğer';
+        kategoriler[kat] = (kategoriler[kat] || 0) + Math.abs(Number(h.tutar) || 0);
+      }
+    }
+
+    const renkler = ['#4dabf7', '#51cf66', '#ff922b', '#ff6b6b', '#845ef7', '#20c997', '#fcc419', '#e599f7'];
+    return Object.entries(kategoriler)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, value], i) => ({
+        name,
+        value,
+        color: GIDER_RENKLERI[name] || renkler[i % renkler.length],
+      }));
+  }, [hareketler]);
+
+  // Stok durumu özeti (stok kartlarından kategori bazlı)
+  const stokDurumu = useMemo(() => {
+    const kategoriler: Record<string, { deger: number; kalem: number; kritik: number }> = {};
+    for (const k of stokKartlar) {
+      const kat = k.kategori || k.grup || 'Diğer';
+      if (!kategoriler[kat]) kategoriler[kat] = { deger: 0, kalem: 0, kritik: 0 };
+      kategoriler[kat].kalem += 1;
+      kategoriler[kat].deger += Number(k.birim_fiyat || 0) * Number(k.miktar || k.stok_miktari || 0);
+      if (k.kritik_stok && Number(k.miktar || k.stok_miktari || 0) <= Number(k.kritik_stok)) {
+        kategoriler[kat].kritik += 1;
+      }
+    }
+    return Object.entries(kategoriler).map(([kategori, data]) => ({ kategori, ...data }));
+  }, [stokKartlar]);
+
+  // Cari özet hesaplama
+  const cariOzet = useMemo(() => {
+    let alacakToplam = 0;
+    let alacakAdet = 0;
+    let borcToplam = 0;
+    let borcAdet = 0;
+
+    for (const c of cariler) {
+      const bakiye = Number(c.bakiye || 0);
+      if (bakiye > 0) {
+        alacakToplam += bakiye;
+        alacakAdet += 1;
+      } else if (bakiye < 0) {
+        borcToplam += Math.abs(bakiye);
+        borcAdet += 1;
+      }
+    }
+
+    return [
+      { tip: 'Alacak', toplam: alacakToplam, adet: alacakAdet },
+      { tip: 'Borç', toplam: borcToplam, adet: borcAdet },
+    ];
+  }, [cariler]);
 
   // Özet hesaplamalar
   const toplamGelir = aylikGelirGider.reduce((acc, d) => acc + d.gelir, 0);
   const toplamGider = aylikGelirGider.reduce((acc, d) => acc + d.gider, 0);
   const netKar = toplamGelir - toplamGider;
-  const karMarji = ((netKar / toplamGelir) * 100).toFixed(1);
+  const karMarji = toplamGelir > 0 ? ((netKar / toplamGelir) * 100).toFixed(1) : '0.0';
 
-  // Önceki yıla göre değişim (demo)
-  const gelirDegisim = 12.5;
-  const giderDegisim = 8.2;
-  const karDegisim = 18.3;
+  if (loading) {
+    return (
+      <Center h="80vh">
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Rapor verileri yükleniyor...</Text>
+        </Stack>
+      </Center>
+    );
+  }
 
   return (
     <Box
@@ -143,10 +261,17 @@ export default function RaporlarPage() {
                   { label: 'Yıllık', value: 'yillik' },
                 ]}
               />
-              <Button variant="light" leftSection={<IconPrinter size={16} />}>
-                Yazdır
+              <Button
+                variant="light"
+                color="indigo"
+                leftSection={<IconReportMoney size={16} />}
+                onClick={() => setRaporMerkeziOpen(true)}
+              >
+                Rapor Merkezi
               </Button>
-              <Button leftSection={<IconDownload size={16} />}>Excel İndir</Button>
+              <Button variant="subtle" leftSection={<IconRefresh size={16} />} onClick={loadData}>
+                Yenile
+              </Button>
             </Group>
           </Group>
 
@@ -164,19 +289,9 @@ export default function RaporlarPage() {
               <Text fw={700} size="xl" mt="md" c="green">
                 {formatMoney(toplamGelir)}
               </Text>
-              <Group gap="xs" mt={4}>
-                <Badge
-                  color="green"
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconArrowUpRight size={10} />}
-                >
-                  +{gelirDegisim}%
-                </Badge>
-                <Text size="xs" c="dimmed">
-                  önceki yıla göre
-                </Text>
-              </Group>
+              <Text size="xs" c="dimmed" mt={4}>
+                {new Date().getFullYear()} yılı toplamı
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
@@ -190,19 +305,9 @@ export default function RaporlarPage() {
               <Text fw={700} size="xl" mt="md" c="red">
                 {formatMoney(toplamGider)}
               </Text>
-              <Group gap="xs" mt={4}>
-                <Badge
-                  color="orange"
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconArrowUpRight size={10} />}
-                >
-                  +{giderDegisim}%
-                </Badge>
-                <Text size="xs" c="dimmed">
-                  önceki yıla göre
-                </Text>
-              </Group>
+              <Text size="xs" c="dimmed" mt={4}>
+                {new Date().getFullYear()} yılı toplamı
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
@@ -213,22 +318,12 @@ export default function RaporlarPage() {
                   <IconCash size={20} />
                 </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" mt="md" c="teal">
+              <Text fw={700} size="xl" mt="md" c={netKar >= 0 ? 'teal' : 'red'}>
                 {formatMoney(netKar)}
               </Text>
-              <Group gap="xs" mt={4}>
-                <Badge
-                  color="teal"
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconArrowUpRight size={10} />}
-                >
-                  +{karDegisim}%
-                </Badge>
-                <Text size="xs" c="dimmed">
-                  önceki yıla göre
-                </Text>
-              </Group>
+              <Text size="xs" c="dimmed" mt={4}>
+                Gelir - Gider farkı
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
@@ -254,7 +349,7 @@ export default function RaporlarPage() {
                 <Text fw={600} size="lg">
                   Gelir/Gider Trendi
                 </Text>
-                <Badge variant="light">2025</Badge>
+                <Badge variant="light">{new Date().getFullYear()}</Badge>
               </Group>
               <Box h={300}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -325,8 +420,8 @@ export default function RaporlarPage() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {giderDagilimi.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {giderDagilimi.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(value: number) => formatMoney(value)} />
@@ -339,61 +434,55 @@ export default function RaporlarPage() {
 
           {/* Grafikler - Satır 2 */}
           <SimpleGrid cols={{ base: 1, lg: 2 }}>
-            {/* Departman Maliyetleri */}
+            {/* Kasa & Banka Özeti */}
             <Card withBorder shadow="sm" p="lg" radius="md">
-              <Text fw={600} size="lg" mb="md">
-                Departman Bazlı Maliyet
-              </Text>
-              <Box h={280}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={departmanMaliyet} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#333' : '#eee'} />
-                    <XAxis
-                      type="number"
-                      stroke={isDark ? '#888' : '#666'}
-                      fontSize={12}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-                    />
-                    <YAxis
-                      dataKey="departman"
-                      type="category"
-                      stroke={isDark ? '#888' : '#666'}
-                      fontSize={12}
-                      width={80}
-                    />
-                    <RechartsTooltip
-                      formatter={(value: number) => formatMoney(value)}
-                      contentStyle={{
-                        backgroundColor: isDark ? '#1a1b1e' : '#fff',
-                        border: `1px solid ${isDark ? '#333' : '#ddd'}`,
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="maas"
-                      stackId="a"
-                      fill="#4dabf7"
-                      name="Maaş"
-                      radius={[0, 4, 4, 0]}
-                    />
-                    <Bar
-                      dataKey="malzeme"
-                      stackId="a"
-                      fill="#51cf66"
-                      name="Malzeme"
-                      radius={[0, 4, 4, 0]}
-                    />
-                    <Bar
-                      dataKey="diger"
-                      stackId="a"
-                      fill="#ff922b"
-                      name="Diğer"
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
+              <Group justify="space-between" mb="md">
+                <Text fw={600} size="lg">
+                  Kasa & Banka Özeti
+                </Text>
+                <ThemeIcon color="blue" variant="light">
+                  <IconCash size={18} />
+                </ThemeIcon>
+              </Group>
+              {kasaBankaOzet ? (
+                <Stack gap="md">
+                  <SimpleGrid cols={2}>
+                    <Paper withBorder p="md" radius="md">
+                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        Kasa Bakiye
+                      </Text>
+                      <Text fw={700} size="lg" c="teal" mt="xs">
+                        {formatMoney(kasaBankaOzet.kasaBakiye || kasaBankaOzet.kasa_bakiye || 0)}
+                      </Text>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        Banka Bakiye
+                      </Text>
+                      <Text fw={700} size="lg" c="blue" mt="xs">
+                        {formatMoney(kasaBankaOzet.bankaBakiye || kasaBankaOzet.banka_bakiye || 0)}
+                      </Text>
+                    </Paper>
+                  </SimpleGrid>
+                  <Paper withBorder p="md" radius="md">
+                    <Group justify="space-between">
+                      <Text size="sm" fw={600}>
+                        Toplam Varlık:
+                      </Text>
+                      <Text size="xl" fw={700} c="teal">
+                        {formatMoney(
+                          (kasaBankaOzet.kasaBakiye || kasaBankaOzet.kasa_bakiye || 0) +
+                            (kasaBankaOzet.bankaBakiye || kasaBankaOzet.banka_bakiye || 0)
+                        )}
+                      </Text>
+                    </Group>
+                  </Paper>
+                </Stack>
+              ) : (
+                <Text c="dimmed" ta="center" py="xl">
+                  Kasa-Banka verisi bulunamadı
+                </Text>
+              )}
             </Card>
 
             {/* Kâr Trendi */}
@@ -573,8 +662,14 @@ export default function RaporlarPage() {
               <Text fw={600} size="lg">
                 Aylık Gelir/Gider Detayı
               </Text>
-              <Button variant="light" size="xs" leftSection={<IconDownload size={14} />}>
-                Excel
+              <Button
+                variant="light"
+                size="xs"
+                color="indigo"
+                leftSection={<IconReportMoney size={14} />}
+                onClick={() => setRaporMerkeziOpen(true)}
+              >
+                Dışa Aktar
               </Button>
             </Group>
             <Table.ScrollContainer minWidth={600}>
@@ -658,6 +753,12 @@ export default function RaporlarPage() {
           </Card>
         </Stack>
       </Container>
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+      />
     </Box>
   );
 }

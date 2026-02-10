@@ -52,6 +52,7 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { formatDate } from '@/lib/formatters';
@@ -83,6 +84,7 @@ export default function SatinAlmaPage() {
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
   const [formModalOpened, { open: openFormModal, close: closeFormModal }] = useDisclosure(false);
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
   const [formSiparis, setFormSiparis] = useState<Siparis | null>(null);
 
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
@@ -140,7 +142,9 @@ export default function SatinAlmaPage() {
       if (projeResult.success && Array.isArray(projeResult.data)) setProjeler(projeResult.data);
       if (ozetResult.success) setOzet(ozetResult.data);
       if (tedarikciResult.success && Array.isArray(tedarikciResult.data))
-        setTedarikciler(tedarikciResult.data as any);
+        setTedarikciler(
+          tedarikciResult.data.map((c) => ({ id: c.id, unvan: c.unvan, vkn: c.vergi_no ?? '' })),
+        );
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
@@ -189,7 +193,7 @@ export default function SatinAlmaPage() {
     if (kalemler.length > 1) setKalemler(kalemler.filter((_, i) => i !== index));
   };
 
-  const updateKalem = (index: number, field: string, value: any) => {
+  const updateKalem = (index: number, field: string, value: string | number) => {
     setKalemler(kalemler.map((k, i) => (i === index ? { ...k, [field]: value } : k)));
   };
 
@@ -560,6 +564,9 @@ export default function SatinAlmaPage() {
               </Text>
             </Box>
             <Group>
+              <Button variant="light" color="indigo" leftSection={<IconClipboardList size={18} />} onClick={() => setRaporMerkeziOpen(true)}>
+                Raporlar
+              </Button>
               <Button variant="light" leftSection={<IconRefresh size={18} />} onClick={loadData}>
                 Yenile
               </Button>
@@ -1019,7 +1026,7 @@ export default function SatinAlmaPage() {
               </Table.Thead>
               <Table.Tbody>
                 {kalemler.map((kalem, index) => (
-                  <Table.Tr key={index}>
+                  <Table.Tr key={`kalem-${index}-${kalem.urun_adi}`}>
                     <Table.Td>
                       <TextInput
                         size="xs"
@@ -1208,8 +1215,8 @@ export default function SatinAlmaPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {selectedSiparis.kalemler?.map((k, i) => (
-                      <Table.Tr key={i}>
+                    {selectedSiparis.kalemler?.map((k) => (
+                      <Table.Tr key={k.id}>
                         <Table.Td>{k.urun_adi}</Table.Td>
                         <Table.Td>
                           {k.miktar} {k.birim}
@@ -1316,7 +1323,7 @@ export default function SatinAlmaPage() {
                     </Table.Thead>
                     <Table.Tbody>
                       {formSiparis.kalemler?.map((k, i) => (
-                        <Table.Tr key={i}>
+                        <Table.Tr key={k.id ?? `form-kalem-${i}`}>
                           <Table.Td>{i + 1}</Table.Td>
                           <Table.Td>{k.urun_adi}</Table.Td>
                           <Table.Td>
@@ -1469,6 +1476,13 @@ export default function SatinAlmaPage() {
             </Group>
           </Stack>
         </Modal>
+
+        {/* Rapor Merkezi Modal */}
+        <RaporMerkeziModal
+          opened={raporMerkeziOpen}
+          onClose={() => setRaporMerkeziOpen(false)}
+          module="operasyon"
+        />
       </Container>
     </Box>
   );

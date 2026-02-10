@@ -55,6 +55,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
+import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
@@ -146,9 +147,9 @@ export default function DemirbasPage() {
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [istatistik, setIstatistik] = useState<Istatistik | null>(null);
-  const [_kategoriDagilimi, setKategoriDagilimi] = useState<any[]>([]);
-  const [garantiYaklasan, setGarantiYaklasan] = useState<any[]>([]);
-  const [bakimdakiler, setBakimdakiler] = useState<any[]>([]);
+  const [_kategoriDagilimi, setKategoriDagilimi] = useState<Record<string, unknown>[]>([]);
+  const [garantiYaklasan, setGarantiYaklasan] = useState<Record<string, unknown>[]>([]);
+  const [bakimdakiler, setBakimdakiler] = useState<Record<string, unknown>[]>([]);
 
   // Filter states
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
@@ -181,9 +182,12 @@ export default function DemirbasPage() {
     aciklama: '',
   });
 
+  // Rapor Merkezi
+  const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
+
   // Selected item for operations
   const [selectedDemirbas, setSelectedDemirbas] = useState<Demirbas | null>(null);
-  const [detayData, setDetayData] = useState<any>(null);
+  const [detayData, setDetayData] = useState<Record<string, unknown> | null>(null);
 
   // Envanter Form (Yatay Kart Seçimi)
   const [envanterStep, setEnvanterStep] = useState(1);
@@ -274,7 +278,7 @@ export default function DemirbasPage() {
 
       // Her bir sonucu kontrol et
       if (demirbasRes.status === 'fulfilled' && demirbasRes.value.success) {
-        setDemirbaslar((demirbasRes.value.data as any) || []);
+        setDemirbaslar((demirbasRes.value.data as Demirbas[]) || []);
       } else {
         console.error(
           'Demirbaş yükleme hatası:',
@@ -284,7 +288,7 @@ export default function DemirbasPage() {
       }
 
       if (kategoriRes.status === 'fulfilled' && kategoriRes.value.success) {
-        setKategoriler((kategoriRes.value.data as any) || []);
+        setKategoriler((kategoriRes.value.data as Kategori[]) || []);
       } else {
         console.error(
           'Kategori yükleme hatası:',
@@ -294,7 +298,7 @@ export default function DemirbasPage() {
       }
 
       if (lokasyonRes.status === 'fulfilled' && lokasyonRes.value.success) {
-        setLokasyonlar((lokasyonRes.value.data as any) || []);
+        setLokasyonlar((lokasyonRes.value.data as Lokasyon[]) || []);
       } else {
         console.error(
           'Lokasyon yükleme hatası:',
@@ -314,7 +318,7 @@ export default function DemirbasPage() {
       }
 
       if (personelRes.status === 'fulfilled' && personelRes.value.success) {
-        setPersoneller((personelRes.value.data as any) || []);
+        setPersoneller((personelRes.value.data as Personel[]) || []);
       } else {
         // Daha detaylı hata mesajı
         const errorMessage =
@@ -349,12 +353,13 @@ export default function DemirbasPage() {
         setGarantiYaklasan([]);
         setBakimdakiler([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Veri yükleme hatası:', err);
+      const axiosErr = err as { response?: { status?: number }; message?: string };
       const errorMessage =
-        err?.response?.status === 401
+        axiosErr?.response?.status === 401
           ? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
-          : err?.message || 'Veriler yüklenirken hata oluştu';
+          : axiosErr?.message || 'Veriler yüklenirken hata oluştu';
       setError(errorMessage);
 
       // Hata durumunda state'leri boş array olarak set et
@@ -446,7 +451,7 @@ export default function DemirbasPage() {
         lokasyon_id: demirbasForm.lokasyon_id ? parseInt(demirbasForm.lokasyon_id, 10) : null,
         proje_id: demirbasForm.proje_id ? parseInt(demirbasForm.proje_id, 10) : null,
         alis_tarihi: demirbasForm.alis_tarihi?.toISOString().split('T')[0],
-      } as any);
+      } as Record<string, unknown>);
 
       if (result.success) {
         notifications.show({
@@ -461,10 +466,10 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message,
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
         color: 'red',
       });
     } finally {
@@ -521,7 +526,7 @@ export default function DemirbasPage() {
         lokasyon_id: aracForm.lokasyon_id ? parseInt(aracForm.lokasyon_id, 10) : null,
         aciklama: aracForm.aciklama,
         teknik_ozellik: teknikOzellik,
-      } as any);
+      } as Record<string, unknown>);
 
       if (result.success) {
         notifications.show({
@@ -536,10 +541,10 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message,
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
         color: 'red',
       });
     } finally {
@@ -611,8 +616,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -634,8 +643,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -676,8 +689,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -709,8 +726,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -729,8 +750,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -755,8 +780,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -774,8 +803,8 @@ export default function DemirbasPage() {
       ad: lokasyon.ad || '',
       kod: lokasyon.kod || '',
       tip: lokasyon.tip || 'depo',
-      adres: (lokasyon as any).adres || '',
-      aciklama: (lokasyon as any).aciklama || '',
+      adres: (lokasyon as Lokasyon & { adres?: string }).adres || '',
+      aciklama: (lokasyon as Lokasyon & { aciklama?: string }).aciklama || '',
     });
     openLokasyonModal();
   };
@@ -789,8 +818,11 @@ export default function DemirbasPage() {
     setLoading(true);
     try {
       const result = editingLokasyon
-        ? await demirbasAPI.updateLokasyon(editingLokasyon.id, lokasyonForm as any)
-        : await demirbasAPI.createLokasyon(lokasyonForm as any);
+        ? await demirbasAPI.updateLokasyon(
+            editingLokasyon.id,
+            lokasyonForm as Record<string, unknown>
+          )
+        : await demirbasAPI.createLokasyon(lokasyonForm as Record<string, unknown>);
 
       if (result.success) {
         notifications.show({
@@ -804,8 +836,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -823,8 +859,12 @@ export default function DemirbasPage() {
       } else {
         throw new Error(result.error);
       }
-    } catch (err: any) {
-      notifications.show({ title: 'Hata', message: err.message, color: 'red' });
+    } catch (err: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: err instanceof Error ? err.message : 'Bilinmeyen hata',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -923,9 +963,22 @@ export default function DemirbasPage() {
             </Text>
           </Box>
         </Group>
-        <ActionIcon variant="light" size="lg" radius="xl" onClick={loadData} title="Yenile">
-          <IconRefresh size={18} />
-        </ActionIcon>
+        <Group gap="xs">
+          <Tooltip label="Raporlar">
+            <ActionIcon
+              variant="light"
+              color="indigo"
+              size="lg"
+              radius="xl"
+              onClick={() => setRaporMerkeziOpen(true)}
+            >
+              <IconClipboardList size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <ActionIcon variant="light" size="lg" radius="xl" onClick={loadData} title="Yenile">
+            <IconRefresh size={18} />
+          </ActionIcon>
+        </Group>
       </Group>
 
       {/* İstatistik Kartları */}
@@ -2314,24 +2367,26 @@ export default function DemirbasPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {detayData.hareketler.map((h: any, i: number) => (
-                      <Table.Tr key={i}>
-                        <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                    {(detayData.hareketler as Array<Record<string, unknown>>).map((h) => (
+                      <Table.Tr
+                        key={`${String(h.tarih)}-${String(h.hareket_tipi)}-${String(h.aciklama || '')}`}
+                      >
+                        <Table.Td>{formatDate(h.tarih as string)}</Table.Td>
                         <Table.Td>
                           <Badge variant="light" size="sm">
-                            {h.hareket_tipi}
+                            {String(h.hareket_tipi)}
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm">{h.aciklama || '-'}</Text>
+                          <Text size="sm">{(h.aciklama as string) || '-'}</Text>
                           {h.yeni_personel && (
                             <Text size="xs" c="dimmed">
-                              → {h.yeni_personel}
+                              → {String(h.yeni_personel)}
                             </Text>
                           )}
                           {h.yeni_lokasyon && (
                             <Text size="xs" c="dimmed">
-                              → {h.yeni_lokasyon}
+                              → {String(h.yeni_lokasyon)}
                             </Text>
                           )}
                         </Table.Td>
@@ -2418,6 +2473,13 @@ export default function DemirbasPage() {
           </Button>
         </Group>
       </Modal>
+
+      {/* Rapor Merkezi Modal */}
+      <RaporMerkeziModal
+        opened={raporMerkeziOpen}
+        onClose={() => setRaporMerkeziOpen(false)}
+        module="operasyon"
+      />
     </Container>
   );
 }
