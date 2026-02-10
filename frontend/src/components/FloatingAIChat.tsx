@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { getApiUrl } from '@/lib/config';
 import { AIChat } from './AIChat';
 
 // Path'e göre department mapping
@@ -114,7 +115,7 @@ export function FloatingAIChat() {
 
   // Backend'den manifest'li modül listesini çek (bir kez)
   useEffect(() => {
-    fetch('/api/ai/modules', { credentials: 'include' })
+    fetch(getApiUrl('/api/ai/modules'), { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.modules)) {
