@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isTavilyConfigured, tavilyExtract, tavilyResearch } from '../tavily-service.js';
+import { isTavilyConfigured, tavilyExtract, tavilyResearch, tavilyCrawl, tavilyMap } from '../tavily-service.js';
 
 // Tavily API Key (ücretsiz: https://tavily.com)
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
@@ -166,6 +166,67 @@ export const webToolDefinitions = [
         },
       },
       required: ['konu'],
+    },
+  },
+  {
+    name: 'site_tara',
+    description:
+      'Bir web sitesini komple tarar ve tüm sayfalarının içeriğini çeker. Rakip catering firma siteleri, ihale portalları, mevzuat siteleri gibi tek bir kaynağı derinlemesine incelemek için kullanılır. web_arama\'dan farklıdır: web_arama birçok sitede arar, site_tara TEK bir sitenin alt sayfalarını tarar. Örn: Rakip firmanın menü sayfalarını taramak, KİK kararlarını taramak, bir toptancının ürün kataloğunu çekmek.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: "Taranacak web sitesinin root URL'si. Tam URL olmalı (https://...)",
+        },
+        talimat: {
+          type: 'string',
+          description:
+            'Doğal dil talimatı - crawler\'a ne aramasını söyler. Örn: "Sadece menü ve fiyat sayfalarını bul", "İhale sonuç duyurularını tara", "Ürün kataloğu sayfalarını getir"',
+        },
+        derinlik: {
+          type: 'number',
+          description: 'Tarama derinliği (1-5). 1=sadece ana sayfa, 2=bir alt seviye linkler, 3+=derin tarama. Varsayılan: 2',
+        },
+        max_sayfa: {
+          type: 'number',
+          description: 'Taranacak maksimum sayfa sayısı (varsayılan: 20). Kredi tasarrufu için düşük tutun.',
+        },
+        path_filtre: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Sadece bu path kalıplarını tara (regex). Örn: ["/menu/.*", "/fiyat/.*", "/ihale/.*"]',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'site_haritasi',
+    description:
+      'Bir web sitesinin URL haritasını çıkarır (içerik ÇEKMEZ, sadece linkleri listeler). site_tara\'dan çok daha hızlı ve ucuzdur. Önce site_haritasi ile yapıyı keşfedin, sonra önemli sayfaları sayfa_oku veya site_tara ile çekin. Örn: ihalebul.com\'un yapısını keşfetmek, bir firmanın tüm sayfalarını listelemek.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: "Haritası çıkarılacak web sitesinin URL'si. Tam URL olmalı (https://...)",
+        },
+        talimat: {
+          type: 'string',
+          description:
+            'Doğal dil talimatı - hangi sayfaları bulsun. Örn: "Sadece ihale ilanı sayfalarını bul", "Menü ve fiyat sayfalarını listele"',
+        },
+        derinlik: {
+          type: 'number',
+          description: 'Keşif derinliği (1-5). Varsayılan: 1',
+        },
+        max_link: {
+          type: 'number',
+          description: 'Keşfedilecek maksimum URL sayısı (varsayılan: 50)',
+        },
+      },
+      required: ['url'],
     },
   },
 ];
@@ -494,6 +555,143 @@ export const webToolImplementations = {
       return {
         success: false,
         error: `Derin araştırma hatası: ${error.message}`,
+      };
+    }
+  },
+
+  // ─── SİTE TARA (Tavily Crawl) ──────────────────────────
+  site_tara: async ({ url, talimat, derinlik, max_sayfa, path_filtre }) => {
+    try {
+      if (!isTavilyConfigured()) {
+        return {
+          success: false,
+          error: 'Tavily API key ayarlanmamış. TAVILY_API_KEY environment variable ekleyin.',
+        };
+      }
+
+      if (!url || !url.startsWith('http')) {
+        return {
+          success: false,
+          error: 'Geçerli bir URL giriniz (https://... ile başlamalı)',
+        };
+      }
+
+      const result = await tavilyCrawl(url, {
+        maxDepth: derinlik || 2,
+        maxBreadth: 20,
+        limit: max_sayfa || 20,
+        instructions: talimat,
+        selectPaths: path_filtre,
+        extractDepth: 'basic',
+      });
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      if (!result.results || result.results.length === 0) {
+        return {
+          success: false,
+          error: `Site taranamadı veya hiç sayfa bulunamadı: ${url}`,
+        };
+      }
+
+      // Her sayfanın içeriğini kısalt (context limiti)
+      const maxContentLen = 4000;
+      const sayfalar = result.results.map((r) => {
+        const truncated = r.rawContent?.length > maxContentLen;
+        return {
+          url: r.url,
+          icerik: truncated
+            ? `${r.rawContent.substring(0, maxContentLen)}\n\n... [${r.contentLength} karakter, kısaltıldı]`
+            : r.rawContent,
+          uzunluk: r.contentLength,
+          kisaltildi: truncated,
+        };
+      });
+
+      return {
+        success: true,
+        kaynak: 'tavily_crawl',
+        base_url: result.baseUrl,
+        toplam_sayfa: result.totalPages,
+        sayfalar,
+        ...(talimat && { kullanilan_talimat: talimat }),
+        uyari: `${result.totalPages} sayfa tarandı. Tüm içerik web'den çekilmiştir.`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Site tarama hatası: ${error.message}`,
+      };
+    }
+  },
+
+  // ─── SİTE HARİTASI (Tavily Map) ────────────────────────
+  site_haritasi: async ({ url, talimat, derinlik, max_link }) => {
+    try {
+      if (!isTavilyConfigured()) {
+        return {
+          success: false,
+          error: 'Tavily API key ayarlanmamış. TAVILY_API_KEY environment variable ekleyin.',
+        };
+      }
+
+      if (!url || !url.startsWith('http')) {
+        return {
+          success: false,
+          error: 'Geçerli bir URL giriniz (https://... ile başlamalı)',
+        };
+      }
+
+      const result = await tavilyMap(url, {
+        maxDepth: derinlik || 1,
+        maxBreadth: 20,
+        limit: max_link || 50,
+        instructions: talimat,
+      });
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      if (!result.urls || result.urls.length === 0) {
+        return {
+          success: false,
+          error: `Site haritası çıkarılamadı: ${url}`,
+        };
+      }
+
+      // URL'leri grupla (path bazlı)
+      const gruplar = {};
+      for (const u of result.urls) {
+        try {
+          const parsed = new URL(u);
+          const pathParts = parsed.pathname.split('/').filter(Boolean);
+          const grup = pathParts.length > 0 ? `/${pathParts[0]}` : '/';
+          if (!gruplar[grup]) gruplar[grup] = [];
+          gruplar[grup].push(u);
+        } catch {
+          if (!gruplar['/diger']) gruplar['/diger'] = [];
+          gruplar['/diger'].push(u);
+        }
+      }
+
+      return {
+        success: true,
+        kaynak: 'tavily_map',
+        base_url: result.baseUrl,
+        toplam_url: result.totalUrls,
+        url_listesi: result.urls,
+        url_gruplari: gruplar,
+        ...(talimat && { kullanilan_talimat: talimat }),
+        ipucu:
+          'İlginç sayfaların içeriğini görmek için sayfa_oku veya site_tara tool\'unu kullanın.',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Site haritası hatası: ${error.message}`,
       };
     }
   },

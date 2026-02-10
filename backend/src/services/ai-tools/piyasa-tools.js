@@ -7,7 +7,7 @@ import { query } from '../../database.js';
 import claudeAI from '../claude-ai.js';
 import { searchHalPrices } from '../hal-scraper.js';
 import { parseProductName, searchMarketPrices } from '../market-scraper.js';
-import { toptanFiyatAra } from '../tavily-service.js';
+import { isTavilyConfigured, tavilyPiyasaAra } from '../tavily-service.js';
 
 // ─── ÜRÜN KATEGORİLERİ (SADECE ÖNERİ İÇİN) ────────────
 
@@ -754,14 +754,39 @@ export const piyasaToolImplementations = {
       const targetUnit = normalized.defaultUnit === 'lt' ? 'L' : normalized.defaultUnit === 'kg' ? 'kg' : null;
 
       // ─── 3 KATMANLI FİYAT ARAMA ─────────────────────────
-      // Katman 1: Camgöz (paketli market ürünleri)
-      // Katman 2: hal.gov.tr (taze meyve-sebze toptancı hal fiyatları)
-      // Katman 3: Tavily web arama (son çare)
+      // Katman 1: Tavily + Referans Siteler (birincil - geniş kapsam)
+      // Katman 2: Camgöz (fallback - bedava, güvenilir)
+      // Katman 3: hal.gov.tr (taze ürün için paralel/fallback)
 
-      let piyasaData = await searchMarketPrices(normalized.searchTerms, { targetUnit });
-      let kaynakTip = 'market'; // camgoz
+      let piyasaData = { success: false, fiyatlar: [] };
+      let kaynakTip = 'market';
 
-      // Katman 2: Camgöz'de bulunamadıysa hal.gov.tr'de ara
+      // Katman 1: Tavily referans sitelerle ara (birincil)
+      if (isTavilyConfigured()) {
+        try {
+          const searchName = cachedSearchTerm || urun_adi;
+          const tavilyResult = await tavilyPiyasaAra(searchName, {
+            targetUnit,
+            stokBilgi,
+          });
+          if (tavilyResult.success && tavilyResult.fiyatlar?.length > 0) {
+            piyasaData = tavilyResult;
+            kaynakTip = 'tavily_referans';
+          }
+        } catch (tavilyErr) {
+          console.warn(`[Piyasa] Tavily referans arama hatası: ${tavilyErr.message}`);
+        }
+      }
+
+      // Katman 2: Tavily başarısızsa Camgöz'de ara (fallback)
+      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
+        piyasaData = await searchMarketPrices(normalized.searchTerms, { targetUnit });
+        if (piyasaData.success) {
+          kaynakTip = 'market';
+        }
+      }
+
+      // Katman 3: Hala bulunamadıysa hal.gov.tr'de ara (taze ürün fallback)
       if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
         try {
           const halResult = await searchHalPrices(urun_adi);
@@ -785,111 +810,6 @@ export const piyasaToolImplementations = {
           }
         } catch (halErr) {
           console.warn(`[Piyasa] Hal fallback hatası: ${halErr.message}`);
-        }
-      }
-
-      // Katman 3: Toptan site araması (toptangida, trendyol, migros vb.)
-      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
-        try {
-          const searchName = cachedSearchTerm || urun_adi;
-          const toptanResult = await toptanFiyatAra(searchName);
-          if (toptanResult.success && toptanResult.fiyatlar?.length > 0) {
-            piyasaData = {
-              success: true,
-              urun: urun_adi,
-              aramaTermleri: [searchName],
-              birim: 'kg',
-              fiyatlar: toptanResult.fiyatlar.map((f, i) => ({
-                market: f.baslik || `Toptan #${i + 1}`,
-                urun: `${urun_adi} (toptan site)`,
-                fiyat: f.fiyat,
-                birimFiyat: f.fiyat,
-                birimTipi: 'kg',
-                marka: '',
-                urunAdiTemiz: urun_adi,
-                ambalajMiktar: 1,
-                aramaTermi: searchName,
-                alakaSkor: 75,
-              })),
-              min: toptanResult.min,
-              max: toptanResult.max,
-              ortalama: toptanResult.ortalama,
-              medyan: toptanResult.ortalama,
-              kaynak: 'toptan_site',
-              toplam_sonuc: toptanResult.kaynakSayisi,
-              markalar: [],
-              marka_gruplari: {},
-            };
-            kaynakTip = 'toptan_site';
-          }
-        } catch (toptanErr) {
-          console.warn(`[Piyasa] Toptan site fallback hatası: ${toptanErr.message}`);
-        }
-      }
-
-      // Katman 4: Genel web araması (son çare)
-      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
-        try {
-          const tavilyKey = process.env.TAVILY_API_KEY;
-          if (tavilyKey) {
-            const webQuery = `${urun_adi} güncel fiyat TL kg 2026`;
-            const webRes = await fetch('https://api.tavily.com/search', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                api_key: tavilyKey,
-                query: webQuery,
-                search_depth: 'basic',
-                include_answer: true,
-                max_results: 5,
-              }),
-              signal: AbortSignal.timeout(10000),
-            });
-
-            if (webRes.ok) {
-              const webData = await webRes.json();
-              const aiAnswer = webData.answer || '';
-              const priceMatches = aiAnswer.match(/(\d+[.,]?\d*)\s*(TL|₺|lira)/gi) || [];
-              const prices = priceMatches
-                .map((m) => parseFloat(m.replace(/[^\d.,]/g, '').replace(',', '.')))
-                .filter((p) => p > 0 && p < 50000);
-
-              if (prices.length > 0) {
-                prices.sort((a, b) => a - b);
-                const avg = Math.round((prices.reduce((s, p) => s + p, 0) / prices.length) * 100) / 100;
-
-                piyasaData = {
-                  success: true,
-                  urun: urun_adi,
-                  aramaTermleri: [webQuery],
-                  birim: 'kg',
-                  fiyatlar: prices.map((p, i) => ({
-                    market: `Web Arama #${i + 1}`,
-                    urun: `${urun_adi} (web araması)`,
-                    fiyat: p,
-                    birimFiyat: p,
-                    birimTipi: 'kg',
-                    marka: '',
-                    urunAdiTemiz: urun_adi,
-                    ambalajMiktar: 1,
-                    aramaTermi: webQuery,
-                    alakaSkor: 70,
-                  })),
-                  min: prices[0],
-                  max: prices[prices.length - 1],
-                  ortalama: avg,
-                  medyan: prices[Math.floor(prices.length / 2)],
-                  kaynak: 'tavily_web',
-                  toplam_sonuc: prices.length,
-                  markalar: [],
-                  marka_gruplari: {},
-                };
-                kaynakTip = 'web_arama';
-              }
-            }
-          }
-        } catch (webErr) {
-          console.warn(`[Piyasa] Web arama fallback hatası: ${webErr.message}`);
         }
       }
 
