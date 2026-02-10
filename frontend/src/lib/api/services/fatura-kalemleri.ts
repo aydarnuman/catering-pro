@@ -89,6 +89,7 @@ export interface RafFiyatSonuc {
   piyasa_fiyat_max: number | null;
   piyasa_fiyat_ort: number | null;
   birim_fiyat: number | null;
+  birim_tipi: string | null;
   kaynaklar: any | null;
   arastirma_tarihi: string | null;
   market_adi: string | null;
@@ -96,6 +97,21 @@ export interface RafFiyatSonuc {
   ambalaj_miktar: string | null;
   eslestirme_skoru: number | null;
   arama_terimi: string | null;
+}
+
+/** IQR temizli fiyat özeti (urun_fiyat_ozet tablosu) */
+export interface FiyatOzet {
+  urun_kart_id: number;
+  birim_fiyat_ekonomik: number | null;
+  birim_fiyat_min: number | null;
+  birim_fiyat_max: number | null;
+  birim_fiyat_medyan: number | null;
+  birim_tipi: string | null;
+  confidence: number | null;
+  kaynak_sayisi: number | null;
+  kaynak_tip: string | null;
+  varyant_fiyat_dahil: boolean;
+  son_guncelleme: string | null;
 }
 
 export interface FiyatGecmisi {
@@ -498,12 +514,15 @@ export const faturaKalemleriAPI = {
     return { success: true, data };
   },
 
-  /** Raf fiyatı (piyasa) araştırma sonuçları */
-  async getRafFiyat(urunId: number | string): Promise<RafFiyatSonuc[]> {
-    const res = await api.get<{ success: boolean; data: RafFiyatSonuc[]; error?: string }>(
+  /** Raf fiyatı (piyasa) araştırma sonuçları + IQR temizli özet */
+  async getRafFiyat(urunId: number | string): Promise<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }> {
+    const res = await api.get<{ success: boolean; data: RafFiyatSonuc[]; ozet?: FiyatOzet | null; error?: string }>(
       `${BASE_URL}/fiyatlar/${urunId}/raf-fiyat`
     );
-    return unwrap(res);
+    if (res.data?.success) {
+      return { data: res.data.data || [], ozet: res.data.ozet || null };
+    }
+    return { data: [], ozet: null };
   },
 
   /** Raf fiyatı araştır (Camgöz.net'ten canlı arama tetikle) */

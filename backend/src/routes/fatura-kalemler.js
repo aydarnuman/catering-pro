@@ -914,8 +914,7 @@ router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
   try {
     const { urunId } = req.params;
 
-    // Aynı isimli farklı urun_kartlari kayıtları olabiliyor (ör: id=71 ve id=4778 ikisi de "Ayçiçek Yağı")
-    // piyasa_fiyat_gecmisi eski id'ye bağlı olabilir, bu yüzden isim eşleşmesi de yapıyoruz
+    // Detay satırları (market bazlı fiyatlar)
     const result = await query(
       `
       SELECT 
@@ -927,6 +926,7 @@ router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
         pfg.piyasa_fiyat_max,
         pfg.piyasa_fiyat_ort,
         pfg.birim_fiyat,
+        pfg.birim_tipi,
         pfg.kaynaklar,
         pfg.arastirma_tarihi,
         pfg.market_adi,
@@ -947,7 +947,17 @@ router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
       [urunId]
     );
 
-    res.json({ success: true, data: result.rows });
+    // Özet bilgisi (IQR temizli tek satır)
+    const ozetResult = await query(
+      `SELECT * FROM urun_fiyat_ozet WHERE urun_kart_id = $1`,
+      [urunId]
+    ).catch(() => ({ rows: [] }));
+
+    res.json({
+      success: true,
+      data: result.rows,
+      ozet: ozetResult.rows[0] || null,
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

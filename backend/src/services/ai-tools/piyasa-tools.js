@@ -7,6 +7,7 @@ import { query } from '../../database.js';
 import claudeAI from '../claude-ai.js';
 import { searchHalPrices } from '../hal-scraper.js';
 import { parseProductName, searchMarketPrices } from '../market-scraper.js';
+import { savePiyasaFiyatlar } from '../piyasa-fiyat-writer.js';
 import { isTavilyConfigured, tavilyPiyasaAra } from '../tavily-service.js';
 
 // ─── ÜRÜN KATEGORİLERİ (SADECE ÖNERİ İÇİN) ────────────
@@ -884,64 +885,25 @@ export const piyasaToolImplementations = {
         oneri = 'Fiyatınız piyasa ortalamasında.';
       }
 
-      // Eski kayıtları temizle (aynı ürün için yeni veriler gelecek)
-      // urun_kart_id VEYA stok_kart_id ile eşleşen eski kayıtları sil
-      if (urunKartId || realStokKartId) {
-        const delConditions = [];
-        const delParams = [];
-        if (urunKartId) {
-          delParams.push(urunKartId);
-          delConditions.push(`urun_kart_id = $${delParams.length}`);
-        }
-        if (realStokKartId) {
-          delParams.push(realStokKartId);
-          delConditions.push(`stok_kart_id = $${delParams.length}`);
-        }
-        await query(`DELETE FROM piyasa_fiyat_gecmisi WHERE ${delConditions.join(' OR ')}`, delParams).catch(() => {});
-      }
-
-      // Geçmişe kaydet - outlier'ları hariç tut, gelişmiş marka ayrıştırma ile
-      const now = new Date().toISOString();
+      // ── Merkezi yazım servisi ile kaydet ──
+      // Outlier'ları filtrele, birim düzelt, özet hesapla, varyant cascade
       const cleanMin = piyasaData.min || 0;
       const cleanMax = piyasaData.max || Infinity;
-      const topKaynaklar = piyasaData.fiyatlar
-        .filter((f) => f.birimFiyat >= cleanMin * 0.8 && f.birimFiyat <= cleanMax * 1.2)
-        .slice(0, 20);
-      let savedCount = 0;
-      for (const kaynak of topKaynaklar) {
-        // parseProductName ile gelişmiş ayrıştırma
-        const parsed = parseProductName(kaynak.urun || urun_adi);
+      const cleanFiyatlar = piyasaData.fiyatlar
+        .filter((f) => f.birimFiyat >= cleanMin * 0.8 && f.birimFiyat <= cleanMax * 1.2);
 
-        try {
-          await query(
-            `INSERT INTO piyasa_fiyat_gecmisi 
-             (urun_kart_id, stok_kart_id, urun_adi, market_adi, marka, piyasa_fiyat_ort, birim_fiyat, ambalaj_miktar, kaynaklar, ai_oneri, arastirma_tarihi, eslestirme_skoru, arama_terimi)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-            [
-              urunKartId || null,
-              realStokKartId || null,
-              kaynak.urun || urun_adi,
-              kaynak.market || 'Piyasa',
-              parsed.marka || kaynak.marka,
-              kaynak.fiyat || 0,
-              kaynak.birimFiyat || kaynak.fiyat || 0,
-              parsed.ambalajMiktar || kaynak.ambalajMiktar,
-              JSON.stringify({
-                barkod: kaynak.barkod,
-                birimTipi: kaynak.birimTipi,
-                kaynakTip: kaynakTip,
-              }),
-              oneri,
-              now,
-              kaynak.alakaSkor || null,
-              kaynak.aramaTermi || null,
-            ]
-          );
-          savedCount++;
-        } catch (saveErr) {
-          console.warn(`[Piyasa] Kayıt hatası: ${saveErr.message}`);
-        }
-      }
+      const dominantBirim = stokBilgi.birim === 'lt' ? 'L' : stokBilgi.birim === 'kg' ? 'kg' : piyasaData.birim || null;
+
+      const { savedCount } = await savePiyasaFiyatlar({
+        urunKartId: urunKartId || null,
+        stokKartId: realStokKartId || null,
+        urunAdi: urun_adi,
+        fiyatlar: cleanFiyatlar,
+        kaynakTip,
+        dominantBirim,
+        aiOneri: oneri,
+        eskiKayitlariTemizle: true,
+      });
 
       // Başarılı araştırmayı cache'le (gelecek aramalarda kullanılsın)
       if (realStokKartId && !cachedSearchTerm && piyasaData.toplam_sonuc >= 3) {

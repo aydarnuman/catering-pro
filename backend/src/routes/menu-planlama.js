@@ -3,6 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
+import { optimizeSingleProduct } from '../services/arama-terimi-optimizer.js';
 import { parseExcelMenu, parseImageMenu, parsePdfMenu } from '../services/menu-import.js';
 
 const router = express.Router();
@@ -202,9 +203,10 @@ router.get('/receteler/:id', async (req, res) => {
           uk.son_alis_fiyati
         ) as fatura_fiyat,
 
-        -- PİYASA FİYATI (AI araştırmasından veya fiyat geçmişi)
+        -- PİYASA FİYATI (özet tablo > AI araştırması > fiyat geçmişi)
         COALESCE(
           rm.piyasa_fiyat,
+          (SELECT birim_fiyat_ekonomik FROM urun_fiyat_ozet WHERE urun_kart_id = uk.id),
           uk.manuel_fiyat,
           (
             SELECT fiyat
@@ -715,14 +717,17 @@ async function hesaplaReceteMaliyet(receteId) {
         urk.varsayilan_birim as urun_birim,
         urk.fiyat_birimi as urun_fiyat_birimi,
         urk.ana_urun_id as urun_ana_urun_id,
-        -- Piyasa fiyatı (doğrudan veya varyantlardan)
-        (
-          SELECT piyasa_fiyat_ort 
-          FROM piyasa_fiyat_gecmisi 
-          WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
-            OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
-          ORDER BY arastirma_tarihi DESC 
-          LIMIT 1
+        -- Piyasa fiyatı: önce özet tablodan (IQR temizli), yoksa eski yöntem
+        COALESCE(
+          (SELECT birim_fiyat_ekonomik FROM urun_fiyat_ozet WHERE urun_kart_id = rm.urun_kart_id),
+          (
+            SELECT piyasa_fiyat_ort 
+            FROM piyasa_fiyat_gecmisi 
+            WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
+              OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
+            ORDER BY arastirma_tarihi DESC 
+            LIMIT 1
+          )
         ) as piyasa_fiyat,
         -- VARYANT FALLBACK: Ana ürünün fiyatı yoksa varyantlardan al
         get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat,
@@ -2677,9 +2682,7 @@ router.get('/urun-kartlari', async (req, res) => {
         uk.ana_urun_id,
         COALESCE(
           NULLIF(uk.aktif_fiyat, 0),
-          (SELECT NULLIF(pfg.piyasa_fiyat_ort, 0) FROM piyasa_fiyat_gecmisi pfg 
-           WHERE pfg.urun_kart_id = uk.id 
-           ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1),
+          (SELECT NULLIF(ufo.birim_fiyat_ekonomik, 0) FROM urun_fiyat_ozet ufo WHERE ufo.urun_kart_id = uk.id),
           NULLIF(uk.son_alis_fiyati, 0),
           NULLIF(uk.manuel_fiyat, 0),
           get_en_iyi_varyant_fiyat(uk.id)
@@ -2687,12 +2690,18 @@ router.get('/urun-kartlari', async (req, res) => {
         kat.ad as kategori_adi,
         kat.ikon as kategori_ikon,
         (SELECT COUNT(*) FROM recete_malzemeler rm WHERE rm.urun_kart_id = uk.id) as recete_sayisi,
-        (SELECT pfg.piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi pfg 
-         WHERE pfg.urun_kart_id = uk.id 
-         ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1) as piyasa_fiyati,
-        (SELECT pfg.arastirma_tarihi FROM piyasa_fiyat_gecmisi pfg 
-         WHERE pfg.urun_kart_id = uk.id 
-         ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1) as piyasa_fiyat_tarihi,
+        COALESCE(
+          (SELECT ufo.birim_fiyat_ekonomik FROM urun_fiyat_ozet ufo WHERE ufo.urun_kart_id = uk.id),
+          (SELECT pfg.piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi pfg 
+           WHERE pfg.urun_kart_id = uk.id 
+           ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1)
+        ) as piyasa_fiyati,
+        COALESCE(
+          (SELECT ufo.son_guncelleme FROM urun_fiyat_ozet ufo WHERE ufo.urun_kart_id = uk.id),
+          (SELECT pfg.arastirma_tarihi FROM piyasa_fiyat_gecmisi pfg 
+           WHERE pfg.urun_kart_id = uk.id 
+           ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1)
+        ) as piyasa_fiyat_tarihi,
         -- Varyant bilgileri
         (SELECT COUNT(*) FROM urun_kartlari v WHERE v.ana_urun_id = uk.id AND v.aktif = TRUE) as varyant_sayisi,
         (SELECT vo.en_ucuz_fiyat FROM get_varyant_fiyat_ozet(uk.id) vo) as varyant_en_ucuz,
@@ -2745,15 +2754,25 @@ router.get('/urun-kartlari/:id', async (req, res) => {
         b.kisa_ad as stok_birim,
         COALESCE(
           NULLIF(uk.aktif_fiyat, 0),
-          (SELECT NULLIF(pfg.piyasa_fiyat_ort, 0) FROM piyasa_fiyat_gecmisi pfg 
-           WHERE pfg.urun_kart_id = uk.id 
-           ORDER BY pfg.arastirma_tarihi DESC NULLS LAST LIMIT 1),
+          (SELECT NULLIF(ufo.birim_fiyat_ekonomik, 0) FROM urun_fiyat_ozet ufo WHERE ufo.urun_kart_id = uk.id),
           NULLIF(uk.son_alis_fiyati, 0),
           NULLIF(uk.manuel_fiyat, 0)
-        ) as guncel_fiyat
+        ) as guncel_fiyat,
+        -- Piyasa özet bilgileri
+        ufo2.birim_fiyat_ekonomik as piyasa_ekonomik_fiyat,
+        ufo2.birim_fiyat_min as piyasa_min,
+        ufo2.birim_fiyat_max as piyasa_max,
+        ufo2.birim_fiyat_medyan as piyasa_medyan,
+        ufo2.birim_tipi as piyasa_birim_tipi,
+        ufo2.confidence as piyasa_confidence,
+        ufo2.kaynak_sayisi as piyasa_kaynak_sayisi,
+        ufo2.kaynak_tip as piyasa_kaynak_tip,
+        ufo2.varyant_fiyat_dahil as piyasa_varyant_dahil,
+        ufo2.son_guncelleme as piyasa_son_guncelleme
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      LEFT JOIN urun_fiyat_ozet ufo2 ON ufo2.urun_kart_id = uk.id
       WHERE uk.id = $1
     `,
       [id]
@@ -2802,7 +2821,15 @@ router.post('/urun-kartlari', async (req, res) => {
       [ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon]
     );
 
-    res.json({ success: true, data: result.rows[0] });
+    const newProduct = result.rows[0];
+
+    // Arka planda: en iyi arama terimini bul ve sabitle
+    // Yanıtı bekletmemek için async fire-and-forget
+    optimizeSingleProduct(newProduct.id).catch((err) => {
+      console.warn(`[UrunKart] Arama terimi optimizasyonu hatası: ${err.message}`);
+    });
+
+    res.json({ success: true, data: newProduct });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

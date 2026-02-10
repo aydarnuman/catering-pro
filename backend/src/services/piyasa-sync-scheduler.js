@@ -14,8 +14,10 @@ import cron from 'node-cron';
 import { KREDI_AYARLARI } from '../config/piyasa-kaynak.js';
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
+import { optimizeAllSearchTerms } from './arama-terimi-optimizer.js';
 import { syncHalFiyatlari } from './hal-scraper.js';
-import { parseProductName, searchMarketPrices } from './market-scraper.js';
+import { searchMarketPrices } from './market-scraper.js';
+import { savePiyasaFiyatlar, detectAndFixPriceAnomalies } from './piyasa-fiyat-writer.js';
 import { isTavilyConfigured, tavilyPiyasaAra, tavilySearch } from './tavily-service.js';
 
 // ─── ARAMA TERİMİ OPTİMİZASYONU ──────────────────────────
@@ -259,91 +261,26 @@ class PiyasaSyncScheduler {
         return { success: false, urun: ad, reason: 'no_results' };
       }
 
-      const now = new Date().toISOString();
-      const fiyatlar = result.fiyatlar.slice(0, CONFIG.maxResultsPerProduct);
-
-      // Eski kayıtları temizle (bu ürün için)
+      // Eski kayıtları temizle (retention period)
       await query(
-        `
-        DELETE FROM piyasa_fiyat_gecmisi 
-        WHERE urun_kart_id = $1 
-          AND arastirma_tarihi < NOW() - INTERVAL '${CONFIG.historyRetentionDays} days'
-      `,
+        `DELETE FROM piyasa_fiyat_gecmisi 
+         WHERE urun_kart_id = $1 
+           AND arastirma_tarihi < NOW() - INTERVAL '${CONFIG.historyRetentionDays} days'`,
         [urunKartId]
-      );
+      ).catch(() => {});
 
-      // Bugünkü kayıtları da temizle (tekrar ekleme yapılacak)
-      await query(
-        `
-        DELETE FROM piyasa_fiyat_gecmisi 
-        WHERE urun_kart_id = $1 
-          AND arastirma_tarihi::date = CURRENT_DATE
-      `,
-        [urunKartId]
-      );
-
-      // Yeni sonuçları kaydet
-      let savedCount = 0;
-      let skippedCount = 0;
-
-      // Birim fiyat üst limitleri (TL/birim) — bu eşiklerin üstü anomali kabul edilir
-      const BIRIM_FIYAT_MAX = {
-        kg: 5000,   // 5.000 TL/kg üstü → çam fıstığı, safran hariç anomali
-        L: 2000,    // 2.000 TL/L üstü → anomali
-        adet: 1000, // 1.000 TL/adet üstü → anomali (yumurta, ekmek vb.)
-      };
-
-      for (const fiyat of fiyatlar) {
-        try {
-          const parsed = parseProductName(fiyat.urun || '');
-          const birimFiyat = fiyat.birimFiyat || fiyat.fiyat || 0;
-          const birimTipi = fiyat.birimTipi || 'adet';
-
-          // ── Sanity check: aşırı yüksek birim_fiyat'ları filtrele ──
-          const maxAllowed = BIRIM_FIYAT_MAX[birimTipi] || BIRIM_FIYAT_MAX.adet;
-          if (birimFiyat > maxAllowed) {
-            skippedCount++;
-            logger.debug('[PiyasaSync] Anomali birim_fiyat atlandı', {
-              urun: fiyat.urun,
-              birimFiyat,
-              birimTipi,
-              maxAllowed,
-              market: fiyat.market,
-            });
-            continue;
-          }
-
-          await query(
-            `
-            INSERT INTO piyasa_fiyat_gecmisi 
-            (urun_kart_id, urun_adi, market_adi, marka, piyasa_fiyat_ort, birim_fiyat, 
-             ambalaj_miktar, kaynaklar, arastirma_tarihi, eslestirme_skoru, arama_terimi)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          `,
-            [
-              urunKartId,
-              fiyat.urun || ad,
-              fiyat.market || 'Piyasa',
-              parsed.marka || fiyat.marka || null,
-              fiyat.fiyat || 0,
-              birimFiyat,
-              parsed.ambalajMiktar || null,
-              JSON.stringify({
-                barkod: fiyat.barkod || null,
-                birimTipi: birimTipi,
-                kaynak: kaynakTip,
-              }),
-              now,
-              fiyat.alakaSkor || fiyat.alaka || 0,
-              arama_terimi,
-            ]
-          );
-          savedCount++;
-        } catch (insertErr) {
-          // Tekil insert hatası loglayıp devam et
-          logger.debug('[PiyasaSync] Insert hatası', { urun: ad, error: insertErr.message });
-        }
-      }
+      // ── Merkezi yazım servisi ile kaydet ──
+      const dominantBirim = targetUnit || result.birim || null;
+      const { savedCount, skippedCount } = await savePiyasaFiyatlar({
+        urunKartId,
+        stokKartId: stok_kart_id,
+        urunAdi: ad,
+        fiyatlar: result.fiyatlar,
+        kaynakTip,
+        dominantBirim,
+        aramaTermi: arama_terimi,
+        maxKayit: CONFIG.maxResultsPerProduct,
+      });
 
       if (skippedCount > 0) {
         logger.info('[PiyasaSync] Anomali fiyatlar filtrelendi', { urun: ad, skippedCount });
@@ -469,13 +406,20 @@ class PiyasaSyncScheduler {
         noResults: results.noResults,
       });
 
+      // Fatura anomali tespiti (piyasa > 3x fatura farkı olanları düzelt)
+      const anomaliSonuc = await detectAndFixPriceAnomalies().catch(() => ({ duzeltilen: 0 }));
+      if (anomaliSonuc.duzeltilen > 0) {
+        logger.info(`[PiyasaSync] ${anomaliSonuc.duzeltilen} fatura anomalisi düzeltildi`);
+      }
+
       // Sync log kaydet
       await this.logSync('success', {
         duration: elapsed,
         ...results,
+        anomaliDuzeltilen: anomaliSonuc.duzeltilen,
       });
 
-      return { success: true, ...results, elapsed };
+      return { success: true, ...results, elapsed, anomaliDuzeltilen: anomaliSonuc.duzeltilen };
     } catch (error) {
       this.stats.failedRuns++;
       this.stats.lastError = error.message;
@@ -719,8 +663,25 @@ class PiyasaSyncScheduler {
       this.jobs.push(istJob);
     }
 
+    // Arama terimi optimizasyonu: Pazar gecesi 03:00 (haftalık)
+    // Düşük confidence'lı ürünlerin arama terimlerini yeniden optimize eder
+    const termOptJob = cron.schedule(
+      '0 3 * * 0',
+      async () => {
+        logger.info('[PiyasaSync] Arama terimi optimizasyonu başlıyor (haftalık)...');
+        try {
+          const result = await optimizeAllSearchTerms({ limit: 30 });
+          logger.info(`[PiyasaSync] Terim optimizasyonu tamamlandı: ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
+        } catch (err) {
+          logger.error(`[PiyasaSync] Terim optimizasyonu hatası: ${err.message}`);
+        }
+      },
+      { timezone: 'Europe/Istanbul' }
+    );
+    this.jobs.push(termOptJob);
+
     logger.info(
-      `[PiyasaSync] Scheduler başlatıldı (Camgöz: 08:00/13:00/18:00, Hal: 09:00, Mevzuat: Pazartesi 10:00, SektorGundem-İhale: 08:30/13:30/18:30, SektorGundem-İstihbarat: 09:30/15:30)`
+      `[PiyasaSync] Scheduler başlatıldı (Camgöz: 08:00/13:00/18:00, Hal: 09:00, Mevzuat: Pzt 10:00, Terim-Opt: Pzr 03:00)`
     );
   }
 

@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
 import { parseWithRegex, smartParse } from '../services/ambalajParser.js';
+import { savePiyasaFiyatlar } from '../services/piyasa-fiyat-writer.js';
 import piyasaSyncScheduler from '../services/piyasa-sync-scheduler.js';
 
 const router = express.Router();
@@ -418,55 +419,45 @@ router.post('/piyasa/detayli-arastir', async (req, res) => {
 // Seçilen AI sonuçlarını kaydet
 router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
   try {
-    const { stok_kart_id, ana_urun_id, sonuclar } = req.body;
+    const { stok_kart_id, sonuclar } = req.body;
 
     if (!sonuclar || sonuclar.length === 0) {
       return res.status(400).json({ success: false, error: 'En az bir sonuç gerekli' });
     }
 
-    let kaydedilen = 0;
+    // Merkezi yazım servisi ile kaydet
+    const fiyatVerileri = sonuclar.map(s => ({
+      urun: s.urunAdi,
+      market: s.market,
+      marka: s.marka || null,
+      fiyat: s.fiyat,
+      birimFiyat: s.birimFiyat || s.fiyat,
+      birimTipi: s.birimTipi || 'kg',
+      ambalajMiktar: s.ambalajMiktar || null,
+    }));
 
-    for (const sonuc of sonuclar) {
-      await query(
-        `
-        INSERT INTO piyasa_fiyat_gecmisi 
-        (stok_kart_id, ana_urun_id, urun_adi, market_adi, marka, 
-         piyasa_fiyat_ort, ambalaj_miktar, bm_fiyat, arastirma_tarihi)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      `,
-        [
-          stok_kart_id || null,
-          ana_urun_id || null,
-          sonuc.urunAdi,
-          sonuc.market,
-          sonuc.marka || null,
-          sonuc.fiyat,
-          sonuc.ambalajMiktar || 1,
-          sonuc.birimFiyat,
-        ]
-      );
-      kaydedilen++;
-    }
+    const { savedCount } = await savePiyasaFiyatlar({
+      urunKartId: stok_kart_id || null,
+      urunAdi: sonuclar[0]?.urunAdi || '',
+      fiyatlar: fiyatVerileri,
+      kaynakTip: 'market',
+      eskiKayitlariTemizle: false,
+    });
 
     // Ortalama birim fiyatı hesapla
     const ortBirimFiyat = sonuclar.reduce((a, b) => a + b.birimFiyat, 0) / sonuclar.length;
 
-    // Ürün kartını güncelle (varsa) - YENİ SİSTEM: urun_kartlari
+    // Ürün kartını güncelle (varsa)
     if (stok_kart_id) {
       await query(
-        `
-        UPDATE urun_kartlari SET
-          son_piyasa_fiyat = $1,
-          updated_at = NOW()
-        WHERE id = $2
-      `,
+        `UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`,
         [ortBirimFiyat, stok_kart_id]
-      );
+      ).catch(() => {});
     }
 
     res.json({
       success: true,
-      message: `${kaydedilen} sonuç kaydedildi`,
+      message: `${savedCount} sonuç kaydedildi`,
       ortalamaBirimFiyat: ortBirimFiyat.toFixed(2),
     });
   } catch (error) {
@@ -477,38 +468,32 @@ router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
 // Piyasa fiyatı kaydet (stok kartına bağla)
 router.post('/piyasa/fiyat-kaydet', async (req, res) => {
   try {
-    const { stok_kart_id, piyasa_fiyat_ort, piyasa_fiyat_min, piyasa_fiyat_max, urun_adi } = req.body;
+    const { stok_kart_id, piyasa_fiyat_ort, urun_adi } = req.body;
 
     if (!stok_kart_id || !piyasa_fiyat_ort) {
       return res.status(400).json({ success: false, error: 'stok_kart_id ve piyasa_fiyat_ort zorunludur' });
     }
 
-    // piyasa_fiyat_gecmisi tablosuna kaydet
-    await query(
-      `
-      INSERT INTO piyasa_fiyat_gecmisi 
-      (stok_kart_id, urun_adi, piyasa_fiyat_min, piyasa_fiyat_max, piyasa_fiyat_ort, arastirma_tarihi)
-      VALUES ($1, $2, $3, $4, $5, NOW())
-    `,
-      [
-        stok_kart_id,
-        urun_adi || '',
-        piyasa_fiyat_min || piyasa_fiyat_ort,
-        piyasa_fiyat_max || piyasa_fiyat_ort,
-        piyasa_fiyat_ort,
-      ]
-    );
+    // Merkezi yazım servisi ile kaydet
+    await savePiyasaFiyatlar({
+      urunKartId: stok_kart_id,
+      urunAdi: urun_adi || '',
+      fiyatlar: [{
+        urun: urun_adi || '',
+        market: 'Manuel',
+        fiyat: piyasa_fiyat_ort,
+        birimFiyat: piyasa_fiyat_ort,
+        birimTipi: 'kg',
+      }],
+      kaynakTip: 'manuel',
+      eskiKayitlariTemizle: false,
+    });
 
-    // Ürün kartındaki son fiyatı da güncelle - YENİ SİSTEM: urun_kartlari
+    // Ürün kartındaki son fiyatı da güncelle
     await query(
-      `
-      UPDATE urun_kartlari SET
-        son_piyasa_fiyat = $1,
-        updated_at = NOW()
-      WHERE id = $2
-    `,
+      `UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`,
       [piyasa_fiyat_ort, stok_kart_id]
-    );
+    ).catch(() => {});
 
     res.json({ success: true, message: 'Fiyat kaydedildi' });
   } catch (error) {
@@ -924,14 +909,14 @@ router.get('/ana-urunler', async (req, res) => {
     // YENİ SİSTEM: urun_kartlari
     const result = await query(
       `
-      WITH piyasa_son AS (
-        SELECT DISTINCT ON (uk.ana_urun_id)
+      WITH piyasa_ozet AS (
+        SELECT
           uk.ana_urun_id,
-          pfg.piyasa_fiyat_ort
+          ROUND(AVG(ufo.birim_fiyat_ekonomik)::numeric, 2) as piyasa_fiyat_ekonomik
         FROM urun_kartlari uk
-        JOIN piyasa_fiyat_gecmisi pfg ON pfg.stok_kart_id = uk.id
-        WHERE uk.ana_urun_id IS NOT NULL
-        ORDER BY uk.ana_urun_id, pfg.arastirma_tarihi DESC
+        JOIN urun_fiyat_ozet ufo ON ufo.urun_kart_id = uk.id
+        WHERE uk.ana_urun_id IS NOT NULL AND ufo.birim_fiyat_ekonomik > 0
+        GROUP BY uk.ana_urun_id
       )
       SELECT
         au.id,
@@ -948,16 +933,16 @@ router.get('/ana-urunler', async (req, res) => {
         -- Ortalama fatura fiyatı
         ROUND(AVG(uk.son_alis_fiyati)::numeric, 2) as ortalama_fatura_fiyat,
 
-        -- Piyasa fiyatı (en güncel)
-        ROUND(ps.piyasa_fiyat_ort::numeric, 2) as piyasa_fiyat,
+        -- Piyasa fiyatı (IQR temizli ekonomik ortalama)
+        ROUND(po.piyasa_fiyat_ekonomik::numeric, 2) as piyasa_fiyat,
 
         -- Son fiyat: fatura ve piyasa ortalaması veya mevcut olan
         ROUND(
           COALESCE(
             CASE
-              WHEN AVG(uk.son_alis_fiyati) IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL
-              THEN (AVG(uk.son_alis_fiyati) + ps.piyasa_fiyat_ort) / 2
-              ELSE COALESCE(AVG(uk.son_alis_fiyati), ps.piyasa_fiyat_ort)
+              WHEN AVG(uk.son_alis_fiyati) IS NOT NULL AND po.piyasa_fiyat_ekonomik IS NOT NULL
+              THEN (AVG(uk.son_alis_fiyati) + po.piyasa_fiyat_ekonomik) / 2
+              ELSE COALESCE(AVG(uk.son_alis_fiyati), po.piyasa_fiyat_ekonomik)
             END,
             0
           )::numeric, 2
@@ -975,10 +960,10 @@ router.get('/ana-urunler', async (req, res) => {
         ) as birim
 
       FROM ana_urunler au
-      LEFT JOIN piyasa_son ps ON ps.ana_urun_id = au.id
+      LEFT JOIN piyasa_ozet po ON po.ana_urun_id = au.id
       LEFT JOIN urun_kartlari uk ON uk.ana_urun_id = au.id AND uk.aktif = true
       WHERE ${whereConditions.join(' AND ')}
-      GROUP BY au.id, au.kod, au.ad, au.ikon, au.kategori, au.sira, ps.piyasa_fiyat_ort
+      GROUP BY au.id, au.kod, au.ad, au.ikon, au.kategori, au.sira, po.piyasa_fiyat_ekonomik
       ORDER BY au.kategori, au.sira, au.ad
     `,
       params
@@ -1553,6 +1538,27 @@ router.post('/piyasa/sync/tetikle', async (req, res) => {
     res.json({
       success: true,
       message: 'Piyasa fiyat senkronizasyonu başlatıldı',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Arama terimi optimizasyonunu manuel tetikle
+router.post('/piyasa/terim-optimize', async (_req, res) => {
+  try {
+    const { optimizeAllSearchTerms } = await import('../services/arama-terimi-optimizer.js');
+
+    // Async başlat, hemen cevap dön
+    optimizeAllSearchTerms({ limit: 30 }).then((result) => {
+      console.log(`[TerimOptimize] ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
+    }).catch((err) => {
+      console.error(`[TerimOptimize] Hata: ${err.message}`);
+    });
+
+    res.json({
+      success: true,
+      message: 'Arama terimi optimizasyonu başlatıldı (arka planda devam ediyor)',
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

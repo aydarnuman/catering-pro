@@ -41,6 +41,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
   type FiyatGecmisiItem,
+  type FiyatOzet,
   faturaKalemleriAPI,
   type PriceHistoryData,
   type RafFiyatSonuc,
@@ -171,17 +172,18 @@ export function UrunDetayModal({
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: rafFiyatlar = [], isLoading: rafFiyatLoading } = useQuery<RafFiyatSonuc[]>({
+  const { data: rafFiyatData, isLoading: rafFiyatLoading } = useQuery<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }>({
     queryKey: ['raf-fiyat', urun?.urun_id],
-    queryFn: async (): Promise<RafFiyatSonuc[]> => {
+    queryFn: async () => {
       const urunId = urun?.urun_id;
-      if (!urunId) return [];
-      const res = await faturaKalemleriAPI.getRafFiyat(urunId);
-      return Array.isArray(res) ? res : [];
+      if (!urunId) return { data: [], ozet: null };
+      return faturaKalemleriAPI.getRafFiyat(urunId);
     },
     enabled: !!urun?.urun_id && opened,
     staleTime: 5 * 60 * 1000,
   });
+  const rafFiyatlar = rafFiyatData?.data ?? [];
+  const fiyatOzet = rafFiyatData?.ozet ?? null;
 
   // Varyant verileri
   const { data: varyantData, isLoading: varyantLoading } = useQuery<{
@@ -1208,6 +1210,7 @@ export function UrunDetayModal({
                     urunId={d.urun_id}
                     faturaFiyat={d.price_per_unit || d.avg_unit_price || 0}
                     modalOpened={opened}
+                    fiyatOzet={fiyatOzet}
                   />
                 </Box>
               </Tabs.Panel>

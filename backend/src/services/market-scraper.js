@@ -245,7 +245,8 @@ const NON_FOOD_KEYWORDS = new Set([
   'aparat', 'önleyici', 'kaynatma', 'taşırmaz', 'cam', 'termos', 'matara',
   'mandal', 'askı', 'paspas', 'fırça', 'sünger', 'bez', 'eldiven',
   // Kişisel bakım
-  'sabun', 'el kremi', 'diş macunu', 'diş fırçası', 'ağız bakım',
+  'sabun', 'el kremi', 'diş macunu', 'diş macun', 'diş fırçası', 'ağız bakım',
+  'eyüp sabri', 'tuncer',
   // Tohum / Fide (sebze değil, ekim malzemesi)
   'tohum', 'fide', 'çim', 'gübre', 'toprak',
   // Hayvan ürünleri
@@ -254,6 +255,13 @@ const NON_FOOD_KEYWORDS = new Set([
   // Mobilya / Ev eşyası (yanlış eşleşme önleme)
   'koltuk', 'sandalye', 'masa', 'sehpa', 'mobilya', 'dolap', 'raf', 'yatak',
   'oyuncu koltuğu', 'bilgisayar',
+  // Kozmetik / Saç boyası (tarçın, karamel gibi renk adları karışır)
+  'palette', 'saç boyası', 'boya', 'koleston', 'garnier', 'loreal',
+  'saç bakım', 'saç spreyi', 'saç köpüğü', 'saç maskesi',
+  'oje', 'ruj', 'fondöten', 'maskara', 'göz kalemi', 'pudra',
+  // Bitki çayları (maydanoz çayı, tarçın çayı vb. gıda ile karışır)
+  // NOT: "çay" kelimesi gıda, ama "bitki çayı" + gıda aramada karışıyor
+  'poşet çay', 'süzen poşet', 'çay bardak',
 ]);
 
 /**
@@ -325,6 +333,31 @@ function calculateRelevanceScore(searchTerm, productName) {
   // Özel durumlar
   if (product.includes('havlu') && !search.includes('havlu')) return 0;
   if (product.includes('kokulu') && !search.includes('kokulu')) return 0;
+
+  // ── Kategori çapraz bulaşma koruması ──
+  // Baharat aramasında kozmetik (tarçın bakır = saç boyası rengi)
+  if (/renk|bakır|kumral|sarışın|kahve\s*rengi|platin|açık|koyu/i.test(product) &&
+      !search.includes('renk')) return 0;
+  // Yeşillik aramasında bitki çayı (maydanoz çayı, nane çayı)
+  // "çay" aramasında değilsek ve üründe "çay" + "poşet/süzen/bardak" varsa
+  if (!search.includes('çay') && /çay/i.test(product) &&
+      /poşet|süzen|demleme|limonlu|bardak/i.test(product)) return 0;
+  // Gıda aramasında evcil hayvan ürünü (marka adları: Felix, Whiskas, Purina, Pedigree)
+  if (/kedi|köpek|kuş|balık\s*yem|felix|whiskas|purina|pedigree|reflex|proplan|pouch/i.test(product) &&
+      !/kedi|köpek|felix|whiskas/i.test(search)) return 0;
+
+  // ── Ürün karışım koruması (dolgulu, soslu, aromalı = farklı kategori) ──
+  // "biber" aramasında "biber dolgulu zeytin" veya "biber sos" gelmesin
+  // AMA "biber" aramasında "sivri biber", "dolma biber" gelebilsin
+  const COMPOSITE_MARKERS = ['dolgulu', 'aromalı', 'çeşnili', 'soslu', 'kaplamalı', 'kaplı', 'biberli', 'soğanlı', 'sarımsaklı', 'limonlu', 'sütlü', 'ballı', 'peynirli', 'etli'];
+  for (const marker of COMPOSITE_MARKERS) {
+    if (product.includes(marker) && !search.includes(marker)) {
+      // Ürün adında composite marker var ama arama teriminde yok
+      // Asıl ürün arama terimiyle farklıysa elele
+      // "biber dolgulu zeytin" → asıl ürün "zeytin", aranan "biber"
+      return Math.min(15, 0); // Çok düşük skor
+    }
+  }
 
   // 2. Arama kelimelerini çıkar
   const searchWords = search.split(/\s+/).filter((w) => w.length >= 2);
@@ -429,6 +462,11 @@ function calculateUnitPrice(price, productName, targetUnit = null) {
     return { unitPrice: price, perUnit: targetUnit, ambalajMiktar: null };
   }
 
+  // Fiyat aralığı sezgisel kontrolü: catering gıda ürünlerinde
+  // "adet" fiyatı genellikle düşüktür (ekmek 15 TL, yumurta 5 TL).
+  // 50 TL üstü "adet" fiyat muhtemelen aslında paket fiyatıdır ve
+  // birim tespiti başarısız olmuştur. targetUnit yoksa bile,
+  // fonksiyon çağıranın birim kararına bırakmak için 'adet' döneriz.
   return { unitPrice: price, perUnit: 'adet', ambalajMiktar: null };
 }
 
@@ -546,7 +584,16 @@ export async function searchMarketPrices(searchTermInput, options = {}) {
   // İstatistikler
   const sameUnitFiyatlar = uniqueFiyatlar.filter((f) => f.birimTipi === dominantUnit);
   const statsBase = sameUnitFiyatlar.length >= 3 ? sameUnitFiyatlar : uniqueFiyatlar;
-  const sortedPrices = statsBase.map((f) => f.birimFiyat).sort((a, b) => a - b);
+  let sortedPrices = statsBase.map((f) => f.birimFiyat).sort((a, b) => a - b);
+
+  // Ön-filtre: Birim fiyat sezgisel alt limitleri (2026 Türkiye piyasası)
+  // Bu limitler IQR'den önce uygulanır çünkü aşırı düşük fiyatlar IQR'yi bozar
+  const MIN_BIRIM_FIYAT = { kg: 5, L: 5, adet: 0.5 }; // TL
+  const minThreshold = MIN_BIRIM_FIYAT[dominantUnit] || 1;
+  const preFiltered = sortedPrices.filter((p) => p >= minThreshold);
+  if (preFiltered.length >= 3) {
+    sortedPrices = preFiltered;
+  }
 
   // Outlier temizle: IQR yöntemiyle aşırı ucuz/pahalı fiyatları çıkar
   let cleanPrices = sortedPrices;

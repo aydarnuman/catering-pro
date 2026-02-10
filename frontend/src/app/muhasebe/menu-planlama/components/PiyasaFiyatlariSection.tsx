@@ -21,6 +21,19 @@ import { faturaKalemleriAPI, type RafFiyatSonuc } from '@/lib/api/services/fatur
 
 // ─── TYPES ────────────────────────────────────────────────
 
+interface FiyatOzetProp {
+  birim_fiyat_ekonomik: number | null;
+  birim_fiyat_min: number | null;
+  birim_fiyat_max: number | null;
+  birim_fiyat_medyan: number | null;
+  birim_tipi: string | null;
+  confidence: number | null;
+  kaynak_sayisi: number | null;
+  kaynak_tip: string | null;
+  varyant_fiyat_dahil: boolean;
+  son_guncelleme: string | null;
+}
+
 interface PiyasaFiyatlariSectionProps {
   rafFiyatlar: RafFiyatSonuc[];
   rafFiyatLoading: boolean;
@@ -28,6 +41,8 @@ interface PiyasaFiyatlariSectionProps {
   urunId: number | undefined;
   faturaFiyat: number; // birim fiyat (TL/kg veya TL/L)
   modalOpened: boolean;
+  /** IQR temizli fiyat özeti (varsa ham hesaplama yerine kullanılır) */
+  fiyatOzet?: FiyatOzetProp | null;
 }
 
 // ─── HELPERS ──────────────────────────────────────────────
@@ -150,6 +165,7 @@ export function PiyasaFiyatlariSection({
   urunId,
   faturaFiyat,
   modalOpened,
+  fiyatOzet,
 }: PiyasaFiyatlariSectionProps) {
   const queryClient = useQueryClient();
   const [aramaLoading, setAramaLoading] = useState(false);
@@ -224,16 +240,24 @@ export function PiyasaFiyatlariSection({
     handlePiyasaArastir,
   ]);
 
-  // ─── Hesaplamalar ─────────────────────────────────────
+  // ─── Hesaplamalar (özet varsa IQR temizli, yoksa ham) ──
   const birimFiyatlar = rafFiyatlar
     .map((r) => Number(r.birim_fiyat || r.piyasa_fiyat_ort || 0))
     .filter((f) => f > 0);
-  const minFiyat = birimFiyatlar.length > 0 ? Math.min(...birimFiyatlar) : 0;
-  const maxFiyat = birimFiyatlar.length > 0 ? Math.max(...birimFiyatlar) : 0;
-  const ortFiyat =
-    birimFiyatlar.length > 0 ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length : 0;
-  const enYeniTarih = rafFiyatlar[0]?.arastirma_tarihi;
-  const birimTipi = rafFiyatlar.length > 0 ? parseBirimTipi(rafFiyatlar[0]) : 'kg';
+
+  // Özet tablodan IQR temizli değerler (varsa)
+  const minFiyat = fiyatOzet?.birim_fiyat_min
+    ? Number(fiyatOzet.birim_fiyat_min)
+    : birimFiyatlar.length > 0 ? Math.min(...birimFiyatlar) : 0;
+  const maxFiyat = fiyatOzet?.birim_fiyat_max
+    ? Number(fiyatOzet.birim_fiyat_max)
+    : birimFiyatlar.length > 0 ? Math.max(...birimFiyatlar) : 0;
+  const ortFiyat = fiyatOzet?.birim_fiyat_ekonomik
+    ? Number(fiyatOzet.birim_fiyat_ekonomik)
+    : birimFiyatlar.length > 0 ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length : 0;
+  const enYeniTarih = fiyatOzet?.son_guncelleme || rafFiyatlar[0]?.arastirma_tarihi;
+  const birimTipi = fiyatOzet?.birim_tipi || (rafFiyatlar.length > 0 ? parseBirimTipi(rafFiyatlar[0]) : 'kg');
+  const confidence = fiyatOzet?.confidence ? Number(fiyatOzet.confidence) : null;
 
   // Sıralı liste (birim fiyata göre artan)
   const sirali = [...rafFiyatlar]
@@ -491,9 +515,23 @@ export function PiyasaFiyatlariSection({
           <Progress.Section value={34} color="dark.3" />
           <Progress.Section value={33} color="red.8" />
         </Progress.Root>
-        <Text size="xs" c="dimmed" ta="center" mt={2}>
-          {birimTipi} basina fiyat araligi
-        </Text>
+        <Group gap={4} justify="center" mt={2}>
+          <Text size="xs" c="dimmed">
+            {birimTipi} basina fiyat araligi
+          </Text>
+          {confidence !== null && (
+            <Tooltip label={`Güvenilirlik: %${Math.round(confidence * 100)} (kaynak çeşitliliği + fiyat tutarlılığı + güncellik)`}>
+              <Badge
+                size="xs"
+                variant="light"
+                color={confidence >= 0.7 ? 'green' : confidence >= 0.4 ? 'yellow' : 'red'}
+                radius="sm"
+              >
+                {confidence >= 0.7 ? 'Güvenilir' : confidence >= 0.4 ? 'Orta' : 'Düşük'}
+              </Badge>
+            </Tooltip>
+          )}
+        </Group>
       </Box>
 
       {/* ── Marka özet şeridi ── */}
