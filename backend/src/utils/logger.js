@@ -108,7 +108,7 @@ const QUIET_PATTERNS = [
   '/api/contractors/bildirimler/liste',
   '/api/notifications/unread-count',
   '/api/invoices/stats',
-  '/istihbarat',       // polling status endpoint
+  '/istihbarat', // polling status endpoint
 ];
 
 // HTTP request logger middleware
@@ -121,8 +121,7 @@ export const httpLogger = (req, res, next) => {
     const status = res.statusCode;
 
     // 304 Not Modified + polling endpoint → loglama (gürültü azaltma)
-    const isQuiet = status === 304 ||
-      (req.method === 'GET' && QUIET_PATTERNS.some(p => url.includes(p)));
+    const isQuiet = status === 304 || (req.method === 'GET' && QUIET_PATTERNS.some((p) => url.includes(p)));
     if (isQuiet && status < 400) return;
 
     const logData = {

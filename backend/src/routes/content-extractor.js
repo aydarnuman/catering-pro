@@ -35,9 +35,10 @@ router.get('/announcement/:tenderId', async (req, res) => {
     const tender = result.rows[0];
 
     if (!tender.announcement_content) {
-      return res
-        .status(404)
-        .json({ success: false, error: 'Bu ihale için ilan içeriği henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
+      return res.status(404).json({
+        success: false,
+        error: 'Bu ihale için ilan içeriği henüz çekilmemiş. Scraper yeniden çalıştırılmalı.',
+      });
     }
 
     // PDF oluştur - Türkçe font ile
@@ -111,9 +112,10 @@ router.get('/goods-services/:tenderId', async (req, res) => {
     const tender = result.rows[0];
 
     if (!tender.goods_services_content) {
-      return res
-        .status(404)
-        .json({ success: false, error: 'Bu ihale için mal/hizmet listesi henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
+      return res.status(404).json({
+        success: false,
+        error: 'Bu ihale için mal/hizmet listesi henüz çekilmemiş. Scraper yeniden çalıştırılmalı.',
+      });
     }
 
     const serviceData = tender.goods_services_content;

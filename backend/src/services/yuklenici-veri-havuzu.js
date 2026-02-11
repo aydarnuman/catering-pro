@@ -13,13 +13,9 @@
  * TTL: 6 saat (tekrar çalıştırılırsa eski veriyi günceller)
  */
 
-import {
-  isTavilyConfigured,
-  tavilyExtract,
-  tavilySearch,
-} from './tavily-service.js';
 import { query } from '../database.js';
 import { logAPI, logError } from '../utils/logger.js';
+import { isTavilyConfigured, tavilyExtract, tavilySearch } from './tavily-service.js';
 
 const MODULE_NAME = 'Veri-Havuzu';
 const HAVUZ_TTL_MS = 6 * 60 * 60 * 1000; // 6 saat
@@ -65,9 +61,7 @@ export async function collectVeriHavuzu(yukleniciId, options = {}) {
     // ─── 3. Paralel veri toplama (Tavily + DB cross-ref) ────
     const [tavilyData, crossRefData] = await Promise.all([
       // Tavily aramaları
-      isTavilyConfigured()
-        ? collectTavilyData(kisaAd, tamUnvan)
-        : Promise.resolve(null),
+      isTavilyConfigured() ? collectTavilyData(kisaAd, tamUnvan) : Promise.resolve(null),
       // DB çapraz kontrol
       collectCrossRefData(yukleniciId, yuklenici.analiz_verisi),
     ]);
@@ -274,9 +268,7 @@ async function collectCrossRefData(yukleniciId, analizVerisi) {
       for (let i = 0; i < av.rakipler.length && i < 5; i++) {
         const r = av.rakipler[i];
         const rKisa = r.rakip_adi.toLowerCase().split(/\s+/).slice(0, 2).join(' ');
-        const eslesen = ihaleler.filter(
-          (ih) => ih.ihale_basligi?.toLowerCase().includes(rKisa)
-        );
+        const eslesen = ihaleler.filter((ih) => ih.ihale_basligi?.toLowerCase().includes(rKisa));
         if (eslesen.length > 0) {
           result.rakip_ihale_eslesmeler.push({
             rakip: r.rakip_adi.split(/\s+/).slice(0, 4).join(' '),

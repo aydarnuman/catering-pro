@@ -21,9 +21,9 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import { formatPara } from '../../../teklif/hesaplamalar';
+import type { UseTeklifMerkeziReturn } from '../hooks/useTeklifMerkezi';
 import type { SectionCompletionStatus, TeklifMerkeziSection } from '../types';
 import { SECTIONS } from '../types';
-import type { UseTeklifMerkeziReturn } from '../hooks/useTeklifMerkezi';
 
 interface OzetSectionProps {
   ctx: UseTeklifMerkeziReturn;
@@ -87,12 +87,20 @@ export function OzetSection({ ctx }: OzetSectionProps) {
       {/* ─── Tamamlanma Durumu ─── */}
       <Paper p="lg" withBorder radius="md">
         <Group justify="space-between" mb="md">
-          <Text size="md" fw={600}>Tamamlanma Durumu</Text>
+          <Text size="md" fw={600}>
+            Tamamlanma Durumu
+          </Text>
           <Badge size="lg" color={completionPct === 100 ? 'green' : 'blue'} variant="light">
             %{completionPct}
           </Badge>
         </Group>
-        <Progress value={completionPct} size="lg" radius="xl" color={completionPct === 100 ? 'green' : 'blue'} mb="md" />
+        <Progress
+          value={completionPct}
+          size="lg"
+          radius="xl"
+          color={completionPct === 100 ? 'green' : 'blue'}
+          mb="md"
+        />
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
           {SECTIONS.filter((s) => s.id !== 'ozet').map((section) => {
@@ -103,7 +111,10 @@ export function OzetSection({ ctx }: OzetSectionProps) {
                 p="sm"
                 radius="md"
                 withBorder
-                style={{ cursor: 'pointer', borderColor: `var(--mantine-color-${statusColor(status)}-6)` }}
+                style={{
+                  cursor: 'pointer',
+                  borderColor: `var(--mantine-color-${statusColor(status)}-6)`,
+                }}
                 onClick={() => setActiveSection(section.id)}
               >
                 <Group gap="sm">
@@ -111,8 +122,12 @@ export function OzetSection({ ctx }: OzetSectionProps) {
                     {SECTION_ICONS[section.icon]}
                   </ThemeIcon>
                   <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={500}>{section.label}</Text>
-                    <Text size="xs" c="dimmed">{section.description}</Text>
+                    <Text size="sm" fw={500}>
+                      {section.label}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {section.description}
+                    </Text>
                   </Box>
                   <Badge size="xs" color={statusColor(status)} variant="light">
                     {statusLabel(status)}
@@ -126,16 +141,28 @@ export function OzetSection({ ctx }: OzetSectionProps) {
 
       {/* ─── Uyarılar ─── */}
       {warnings.length > 0 && (
-        <Paper p="lg" withBorder radius="md" bg="rgba(255, 107, 107, 0.05)" style={{ borderColor: 'var(--mantine-color-red-7)' }}>
+        <Paper
+          p="lg"
+          withBorder
+          radius="md"
+          bg="rgba(255, 107, 107, 0.05)"
+          style={{ borderColor: 'var(--mantine-color-red-7)' }}
+        >
           <Group gap="xs" mb="sm">
             <IconAlertTriangle size={18} color="var(--mantine-color-red-6)" />
-            <Text size="md" fw={600} c="red">Dikkat Edilmesi Gerekenler</Text>
+            <Text size="md" fw={600} c="red">
+              Dikkat Edilmesi Gerekenler
+            </Text>
           </Group>
           <Stack gap={4}>
             {warnings.map((w) => (
               <Group key={w} gap="xs">
-                <Text size="xs" c="red">•</Text>
-                <Text size="sm" c="red.3">{w}</Text>
+                <Text size="xs" c="red">
+                  •
+                </Text>
+                <Text size="sm" c="red.3">
+                  {w}
+                </Text>
               </Group>
             ))}
           </Stack>
@@ -144,7 +171,9 @@ export function OzetSection({ ctx }: OzetSectionProps) {
 
       {/* ─── Finansal Özet ─── */}
       <Paper p="lg" withBorder radius="md">
-        <Text size="md" fw={600} mb="md">Finansal Özet</Text>
+        <Text size="md" fw={600} mb="md">
+          Finansal Özet
+        </Text>
 
         {/* Maliyet Dağılımı */}
         <Stack gap={6} mb="md">
@@ -160,10 +189,19 @@ export function OzetSection({ ctx }: OzetSectionProps) {
           ].map((item) => (
             <Group key={item.label} justify="space-between">
               <Group gap="xs">
-                <Box w={10} h={10} style={{ borderRadius: '50%', background: `var(--mantine-color-${item.color}-6)` }} />
+                <Box
+                  w={10}
+                  h={10}
+                  style={{
+                    borderRadius: '50%',
+                    background: `var(--mantine-color-${item.color}-6)`,
+                  }}
+                />
                 <Text size="sm">{item.label}</Text>
               </Group>
-              <Text size="sm" fw={500}>{item.tutar > 0 ? formatPara(item.tutar) : '—'}</Text>
+              <Text size="sm" fw={500}>
+                {item.tutar > 0 ? formatPara(item.tutar) : '—'}
+              </Text>
             </Group>
           ))}
         </Stack>
@@ -173,18 +211,28 @@ export function OzetSection({ ctx }: OzetSectionProps) {
         {/* Toplamlar */}
         <Stack gap={6}>
           <Group justify="space-between">
-            <Text size="sm" fw={600}>Toplam Maliyet</Text>
-            <Text size="sm" fw={600}>{maliyetToplam > 0 ? formatPara(maliyetToplam) : '—'}</Text>
+            <Text size="sm" fw={600}>
+              Toplam Maliyet
+            </Text>
+            <Text size="sm" fw={600}>
+              {maliyetToplam > 0 ? formatPara(maliyetToplam) : '—'}
+            </Text>
           </Group>
           <Group justify="space-between">
-            <Text size="sm" c="dimmed">Kâr (%{karOrani})</Text>
-            <Text size="sm" fw={500} c="green">{karTutari > 0 ? `+${formatPara(karTutari)}` : '—'}</Text>
+            <Text size="sm" c="dimmed">
+              Kâr (%{karOrani})
+            </Text>
+            <Text size="sm" fw={500} c="green">
+              {karTutari > 0 ? `+${formatPara(karTutari)}` : '—'}
+            </Text>
           </Group>
 
           <Divider my={4} />
 
           <Group justify="space-between">
-            <Text size="lg" fw={700}>TEKLİF FİYATI</Text>
+            <Text size="lg" fw={700}>
+              TEKLİF FİYATI
+            </Text>
             <Text size="lg" fw={700} c={riskAnalizi.isAsiriDusuk ? 'red' : 'green'}>
               {teklifFiyati > 0 ? formatPara(teklifFiyati) : '—'}
             </Text>
@@ -192,8 +240,12 @@ export function OzetSection({ ctx }: OzetSectionProps) {
 
           {cetvelToplami > 0 && (
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Cetvel Toplamı</Text>
-              <Text size="sm" fw={500}>{formatPara(cetvelToplami)}</Text>
+              <Text size="sm" c="dimmed">
+                Cetvel Toplamı
+              </Text>
+              <Text size="sm" fw={500}>
+                {formatPara(cetvelToplami)}
+              </Text>
             </Group>
           )}
         </Stack>
@@ -204,27 +256,42 @@ export function OzetSection({ ctx }: OzetSectionProps) {
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
           {/* Risk */}
           <Paper p="lg" withBorder radius="md">
-            <Text size="md" fw={600} mb="md">Risk Değerlendirmesi</Text>
+            <Text size="md" fw={600} mb="md">
+              Risk Değerlendirmesi
+            </Text>
             <Stack gap={6}>
               <Group justify="space-between">
-                <Text size="sm" c="dimmed">Yaklaşık Maliyet</Text>
-                <Text size="sm" fw={500}>{formatPara(hesaplamaState.yaklasikMaliyet)}</Text>
+                <Text size="sm" c="dimmed">
+                  Yaklaşık Maliyet
+                </Text>
+                <Text size="sm" fw={500}>
+                  {formatPara(hesaplamaState.yaklasikMaliyet)}
+                </Text>
               </Group>
               <Group justify="space-between">
-                <Text size="sm" c="dimmed">Sınır Değer</Text>
-                <Text size="sm" fw={500} c="blue">{aktifSinirDeger > 0 ? formatPara(aktifSinirDeger) : '—'}</Text>
+                <Text size="sm" c="dimmed">
+                  Sınır Değer
+                </Text>
+                <Text size="sm" fw={500} c="blue">
+                  {aktifSinirDeger > 0 ? formatPara(aktifSinirDeger) : '—'}
+                </Text>
               </Group>
               <Group justify="space-between">
-                <Text size="sm" c="dimmed">Bizim Teklif</Text>
+                <Text size="sm" c="dimmed">
+                  Bizim Teklif
+                </Text>
                 <Text size="sm" fw={500} c={riskAnalizi.isAsiriDusuk ? 'red' : 'green'}>
                   {hesaplamaState.bizimTeklif > 0 ? formatPara(hesaplamaState.bizimTeklif) : '—'}
                 </Text>
               </Group>
               {riskAnalizi.fark !== 0 && (
                 <Group justify="space-between">
-                  <Text size="sm" c="dimmed">Fark</Text>
+                  <Text size="sm" c="dimmed">
+                    Fark
+                  </Text>
                   <Text size="sm" fw={500} c={riskAnalizi.fark >= 0 ? 'green' : 'red'}>
-                    {riskAnalizi.fark >= 0 ? '+' : ''}{formatPara(riskAnalizi.fark)} ({riskAnalizi.farkYuzde.toFixed(1)}%)
+                    {riskAnalizi.fark >= 0 ? '+' : ''}
+                    {formatPara(riskAnalizi.fark)} ({riskAnalizi.farkYuzde.toFixed(1)}%)
                   </Text>
                 </Group>
               )}
@@ -239,20 +306,34 @@ export function OzetSection({ ctx }: OzetSectionProps) {
           {/* Teminat */}
           {hesaplamaState.bizimTeklif > 0 && (
             <Paper p="lg" withBorder radius="md">
-              <Text size="md" fw={600} mb="md">Teminat Tutarları</Text>
+              <Text size="md" fw={600} mb="md">
+                Teminat Tutarları
+              </Text>
               <Stack gap={6}>
                 <Group justify="space-between">
-                  <Text size="sm" c="dimmed">Geçici Teminat (%3)</Text>
-                  <Text size="sm" fw={500}>{formatPara(teminatlar.geciciTeminat)}</Text>
+                  <Text size="sm" c="dimmed">
+                    Geçici Teminat (%3)
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {formatPara(teminatlar.geciciTeminat)}
+                  </Text>
                 </Group>
                 <Group justify="space-between">
-                  <Text size="sm" c="dimmed">Kesin Teminat (%6)</Text>
-                  <Text size="sm" fw={500}>{formatPara(teminatlar.kesinTeminat)}</Text>
+                  <Text size="sm" c="dimmed">
+                    Kesin Teminat (%6)
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {formatPara(teminatlar.kesinTeminat)}
+                  </Text>
                 </Group>
                 <Divider my={4} />
                 <Group justify="space-between">
-                  <Text size="sm" fw={600}>Toplam Teminat</Text>
-                  <Text size="sm" fw={600}>{formatPara(teminatlar.geciciTeminat + teminatlar.kesinTeminat)}</Text>
+                  <Text size="sm" fw={600}>
+                    Toplam Teminat
+                  </Text>
+                  <Text size="sm" fw={600}>
+                    {formatPara(teminatlar.geciciTeminat + teminatlar.kesinTeminat)}
+                  </Text>
                 </Group>
               </Stack>
             </Paper>

@@ -77,9 +77,7 @@ export function ModulKarti({
   // Son guncelleme zamanini okunabilir formata cevir
   // updated_at her durum degisikliginde guncellenir (calisiyor/tamamlandi/hata)
   const zamanKaynagi = durum.updated_at || durum.son_guncelleme;
-  const sonGuncelleme = zamanKaynagi
-    ? formatZaman(zamanKaynagi)
-    : 'Henuz calistirilmadi';
+  const sonGuncelleme = zamanKaynagi ? formatZaman(zamanKaynagi) : 'Henuz calistirilmadi';
 
   const durumClass = DURUM_CLASS_MAP[durum.durum] || 'modul-kart-bekliyor';
 

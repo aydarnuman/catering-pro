@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconChevronRight, IconFile } from '@tabler/icons-react';
 import { useState } from 'react';
 import { DocumentWizardModal } from '../DocumentWizardModal';

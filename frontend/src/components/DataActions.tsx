@@ -322,7 +322,13 @@ export function DataActions({
       <RaporMerkeziModal
         opened={raporMerkeziOpen}
         onClose={() => setRaporMerkeziOpen(false)}
-        module={type === 'fatura' || type === 'cari' ? 'finans' : type === 'personel' || type === 'stok' || type === 'bordro' ? 'operasyon' : undefined}
+        module={
+          type === 'fatura' || type === 'cari'
+            ? 'finans'
+            : type === 'personel' || type === 'stok' || type === 'bordro'
+              ? 'operasyon'
+              : undefined
+        }
         context={{ filters }}
       />
     </>

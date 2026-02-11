@@ -15,11 +15,12 @@
 
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
-import { searchMarketPrices, isRelevantProduct } from './market-scraper.js';
+import { isRelevantProduct, searchMarketPrices } from './market-scraper.js';
 
 // ─── GIDA DIŞI ÜRÜN FİLTRESİ ─────────────────────────────
 
-const NON_FOOD_PATTERNS = /zeytin.*dolg|dolg.*zeytin|biber\s*sos|sos.*biber|felix|whiskas|purina|pedigree|mama|collagen|bıçak|bıçağ|aparat|deterjan|şampuan|kozmetik|saç\s*boya|palette|cips.*soğan|soğan.*cips/i;
+const NON_FOOD_PATTERNS =
+  /zeytin.*dolg|dolg.*zeytin|biber\s*sos|sos.*biber|felix|whiskas|purina|pedigree|mama|collagen|bıçak|bıçağ|aparat|deterjan|şampuan|kozmetik|saç\s*boya|palette|cips.*soğan|soğan.*cips/i;
 
 function isGidaUrunu(urunAdi) {
   return !NON_FOOD_PATTERNS.test(urunAdi || '');
@@ -42,27 +43,27 @@ const BILINEN_ESLESTIRMELER = {
   'tavuk bütün': ['tavuk bütün', 'tavuk'],
 
   // Yeşillik (taze ürünler Camgöz'de sınırlı)
-  'maydanoz': ['maydanoz demet', 'maydanoz'],
-  'dereotu': ['dereotu demet', 'dereotu'],
-  'nane': ['nane taze', 'nane kuru'],
-  'roka': ['roka', 'roka demet'],
+  maydanoz: ['maydanoz demet', 'maydanoz'],
+  dereotu: ['dereotu demet', 'dereotu'],
+  nane: ['nane taze', 'nane kuru'],
+  roka: ['roka', 'roka demet'],
   'taze soğan': ['taze soğan', 'yeşil soğan'],
 
   // Sebzeler (Camgöz'de kg bazlı)
   'yeşil biber': ['çarliston biber', 'sivri biber'],
-  'biber': ['çarliston biber', 'sivri biber', 'biber dolmalık'],
-  'soğan': ['kuru soğan', 'soğan kuru'],
+  biber: ['çarliston biber', 'sivri biber', 'biber dolmalık'],
+  soğan: ['kuru soğan', 'soğan kuru'],
   'kuru soğan': ['kuru soğan'],
 
   // İçecekler
-  'su': ['erikli su', 'hayat su', 'içme suyu'],
+  su: ['erikli su', 'hayat su', 'içme suyu'],
   'içme suyu': ['erikli su', 'hayat su'],
 
   // Ekmek/hamur
   'lavaş ekmeği': ['lavaş ekmek', 'lavaş'],
-  'lavaş': ['lavaş ekmek', 'lavaş'],
-  'ekmek': ['ekmek', 'ekmek beyaz'],
-  'pide': ['pide', 'ramazan pidesi'],
+  lavaş: ['lavaş ekmek', 'lavaş'],
+  ekmek: ['ekmek', 'ekmek beyaz'],
+  pide: ['pide', 'ramazan pidesi'],
 };
 
 /**
@@ -85,7 +86,7 @@ function generateCandidateTerms(urunAdi) {
     const adWords = lower.split(/\s+/);
 
     const isExactMatch = lower === key;
-    const isWordMatch = keyWords.every(kw => adWords.some(aw => aw === kw || aw.startsWith(kw)));
+    const isWordMatch = keyWords.every((kw) => adWords.some((aw) => aw === kw || aw.startsWith(kw)));
 
     if (isExactMatch || isWordMatch) {
       for (const alt of alts) candidates.add(alt);
@@ -169,14 +170,14 @@ async function findBestSearchTerm(urunAdi, varsayilanBirim = null, mevcutTerim =
       if (!result.success || !result.fiyatlar?.length) continue;
 
       // Gıda ürünü filtresi: sonuçlardan gıda olmayanları çıkar
-      const validResults = result.fiyatlar.filter(f =>
-        isGidaUrunu(f.urun || '') && isRelevantProduct(term, f.urun || '', 45)
+      const validResults = result.fiyatlar.filter(
+        (f) => isGidaUrunu(f.urun || '') && isRelevantProduct(term, f.urun || '', 45)
       );
 
       if (validResults.length === 0) continue;
 
       // Skor: alakalı sonuç sayısı × medyan/min fiyat tutarlılığı
-      const prices = validResults.map(f => f.birimFiyat).sort((a, b) => a - b);
+      const prices = validResults.map((f) => f.birimFiyat).sort((a, b) => a - b);
       const median = prices[Math.floor(prices.length / 2)];
       const spread = median > 0 ? (prices[prices.length - 1] - prices[0]) / median : 999;
 
@@ -246,19 +247,18 @@ export async function optimizeAllSearchTerms(options = {}) {
       const result = await findBestSearchTerm(urun.ad, urun.varsayilan_birim, urun.piyasa_arama_terimi);
 
       if (result && result.terim !== urun.piyasa_arama_terimi) {
-        await query(
-          'UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2',
-          [result.terim, urun.id]
-        );
+        await query('UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2', [result.terim, urun.id]);
         guncellemeSayisi++;
-        logger.info(`[AramaOptimizer] ${urun.ad}: "${urun.piyasa_arama_terimi}" → "${result.terim}" (${result.sonucSayisi} sonuç, ${result.kalite})`);
+        logger.info(
+          `[AramaOptimizer] ${urun.ad}: "${urun.piyasa_arama_terimi}" → "${result.terim}" (${result.sonucSayisi} sonuç, ${result.kalite})`
+        );
       }
     } catch (err) {
       hatalar.push(`${urun.ad}: ${err.message}`);
     }
 
     // Rate limiting: Camgöz'e çok hızlı istek atma
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1500));
   }
 
   return { islemSayisi, guncellemeSayisi, hatalar };
@@ -268,10 +268,9 @@ export async function optimizeAllSearchTerms(options = {}) {
  * Tek ürün için arama terimini optimize et (yeni ürün eklendiğinde)
  */
 export async function optimizeSingleProduct(urunKartId) {
-  const result = await query(
-    'SELECT id, ad, varsayilan_birim, piyasa_arama_terimi FROM urun_kartlari WHERE id = $1',
-    [urunKartId]
-  );
+  const result = await query('SELECT id, ad, varsayilan_birim, piyasa_arama_terimi FROM urun_kartlari WHERE id = $1', [
+    urunKartId,
+  ]);
 
   if (result.rows.length === 0) return null;
 
@@ -279,10 +278,7 @@ export async function optimizeSingleProduct(urunKartId) {
   const best = await findBestSearchTerm(urun.ad, urun.varsayilan_birim, urun.piyasa_arama_terimi);
 
   if (best) {
-    await query(
-      'UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2',
-      [best.terim, urunKartId]
-    );
+    await query('UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2', [best.terim, urunKartId]);
     return best;
   }
 
@@ -292,10 +288,7 @@ export async function optimizeSingleProduct(urunKartId) {
     .replace(/\d+[.,]?\d*\s*(kg|gr|lt|ml|adet)\b/gi, '')
     .trim();
   if (temiz !== urun.piyasa_arama_terimi) {
-    await query(
-      'UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2',
-      [temiz, urunKartId]
-    );
+    await query('UPDATE urun_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2', [temiz, urunKartId]);
   }
 
   return null;

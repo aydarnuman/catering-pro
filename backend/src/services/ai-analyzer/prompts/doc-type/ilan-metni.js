@@ -1,9 +1,9 @@
 /**
  * İhale İlanı Extraction Prompt
- * 
+ *
  * İhale ilanı metninden temel ihale bilgilerini çıkarır.
  * İlan metni genellikle ihalebul.com veya EKAP'tan scrape edilir.
- * 
+ *
  * İlan metninde bulunan tipik bilgiler:
  * - IKN, kurum adı, adres, telefon
  * - İhale tarihi, saati, süresi

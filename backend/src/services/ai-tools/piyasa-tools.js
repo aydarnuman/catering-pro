@@ -794,20 +794,21 @@ export const piyasaToolImplementations = {
             if (camgozVar) {
               // Camgöz zaten var → Tavily AI fiyatlarını UYUM FİLTRESİ ile ekle
               // Camgöz ortalamasından %60'tan fazla sapan AI fiyatlarını ekleme
-              const camgozPrices = piyasaData.fiyatlar.map(f => f.birimFiyat || f.fiyat).filter(p => p > 0);
-              const camgozOrt = camgozPrices.length > 0
-                ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length
-                : 0;
+              const camgozPrices = piyasaData.fiyatlar.map((f) => f.birimFiyat || f.fiyat).filter((p) => p > 0);
+              const camgozOrt =
+                camgozPrices.length > 0 ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length : 0;
 
-              const existingKeys = new Set(piyasaData.fiyatlar.map(f => `${f.market}-${Math.round(f.fiyat)}`));
-              const newItems = tavilyResult.fiyatlar.filter(f => {
+              const existingKeys = new Set(piyasaData.fiyatlar.map((f) => `${f.market}-${Math.round(f.fiyat)}`));
+              const newItems = tavilyResult.fiyatlar.filter((f) => {
                 if (existingKeys.has(`${f.market}-${Math.round(f.fiyat)}`)) return false;
                 // Uyum filtresi: Camgöz ortalamasından %60'tan fazla sapıyorsa ekleme
                 if (camgozOrt > 0) {
                   const aiFiyat = f.birimFiyat || f.fiyat;
                   const sapmaOrani = Math.abs(aiFiyat - camgozOrt) / camgozOrt;
-                  if (sapmaOrani > 0.60) {
-                    logger.info(`[Piyasa] Tavily AI fiyat elendi (sapma %${Math.round(sapmaOrani * 100)}): ${aiFiyat} vs Camgöz ort ${camgozOrt.toFixed(0)}`);
+                  if (sapmaOrani > 0.6) {
+                    logger.info(
+                      `[Piyasa] Tavily AI fiyat elendi (sapma %${Math.round(sapmaOrani * 100)}): ${aiFiyat} vs Camgöz ort ${camgozOrt.toFixed(0)}`
+                    );
                     return false;
                   }
                 }
@@ -890,8 +891,9 @@ export const piyasaToolImplementations = {
       // Outlier'ları filtrele, birim düzelt, özet hesapla, varyant cascade
       const cleanMin = piyasaData.min || 0;
       const cleanMax = piyasaData.max || Infinity;
-      const cleanFiyatlar = piyasaData.fiyatlar
-        .filter((f) => f.birimFiyat >= cleanMin * 0.8 && f.birimFiyat <= cleanMax * 1.2);
+      const cleanFiyatlar = piyasaData.fiyatlar.filter(
+        (f) => f.birimFiyat >= cleanMin * 0.8 && f.birimFiyat <= cleanMax * 1.2
+      );
 
       const dominantBirim = stokBilgi.birim === 'lt' ? 'L' : stokBilgi.birim === 'kg' ? 'kg' : piyasaData.birim || null;
 

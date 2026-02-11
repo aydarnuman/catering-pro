@@ -35,7 +35,7 @@ export const personelOdemeSchema = z.object({
 export const avansSchema = z.object({
   personel_id: z.number({ required_error: 'Personel ID gerekli' }).int().positive(),
   proje_id: z.number({ required_error: 'Proje ID gerekli' }).int().positive(),
-  tutar: z.number({ required_error: 'Tutar gerekli' }).positive('Tutar 0\'dan büyük olmalı'),
+  tutar: z.number({ required_error: 'Tutar gerekli' }).positive("Tutar 0'dan büyük olmalı"),
   tarih: z.string({ required_error: 'Tarih gerekli' }),
   aciklama: z.string().max(500).optional(),
   odeme_sekli: z.enum(['nakit', 'banka', 'havale']).optional().default('nakit'),
@@ -48,7 +48,7 @@ export const avansSchema = z.object({
 export const primSchema = z.object({
   personel_id: z.number({ required_error: 'Personel ID gerekli' }).int().positive(),
   proje_id: z.number({ required_error: 'Proje ID gerekli' }).int().positive(),
-  tutar: z.number({ required_error: 'Tutar gerekli' }).positive('Tutar 0\'dan büyük olmalı'),
+  tutar: z.number({ required_error: 'Tutar gerekli' }).positive("Tutar 0'dan büyük olmalı"),
   tarih: z.string({ required_error: 'Tarih gerekli' }),
   prim_turu: z.string({ required_error: 'Prim türü gerekli' }).max(100),
   aciklama: z.string().max(500).optional(),

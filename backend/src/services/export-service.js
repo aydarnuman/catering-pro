@@ -621,13 +621,7 @@ export function createBulkZip(files) {
  */
 export function createSectionedPDF(content) {
   return new Promise((resolve, reject) => {
-    const {
-      title = 'Rapor',
-      subtitle = null,
-      sections = [],
-      footer = null,
-      orientation = 'portrait',
-    } = content;
+    const { title = 'Rapor', subtitle = null, sections = [], footer = null, orientation = 'portrait' } = content;
 
     const doc = new PDFDocument({
       margin: 40,
@@ -663,10 +657,11 @@ export function createSectionedPDF(content) {
       doc.moveDown(0.5);
       doc.fillColor('black');
       if (fontLoaded) doc.font('Roboto');
-      doc.fontSize(8).text(
-        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`,
-        { align: 'right' }
-      );
+      doc
+        .fontSize(8)
+        .text(`Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`, {
+          align: 'right',
+        });
       doc.moveDown(1);
 
       // Bölümler
@@ -681,7 +676,12 @@ export function createSectionedPDF(content) {
           if (fontLoaded) doc.font('Roboto-Bold');
           doc.fontSize(12).fillColor('#333').text(section.title);
           doc.moveDown(0.3);
-          doc.strokeColor('#ddd').lineWidth(0.5).moveTo(startX, doc.y).lineTo(startX + pageWidth, doc.y).stroke();
+          doc
+            .strokeColor('#ddd')
+            .lineWidth(0.5)
+            .moveTo(startX, doc.y)
+            .lineTo(startX + pageWidth, doc.y)
+            .stroke();
           doc.moveDown(0.5);
           doc.fillColor('black');
         }
@@ -698,7 +698,9 @@ export function createSectionedPDF(content) {
           if (fontLoaded) doc.font('Roboto');
           for (const kv of section.keyValues) {
             const kvY = doc.y;
-            if (kvY > doc.page.height - 50) { doc.addPage(); }
+            if (kvY > doc.page.height - 50) {
+              doc.addPage();
+            }
             if (fontLoaded) doc.font('Roboto-Bold');
             doc.fontSize(9).text(`${kv.key}: `, startX, doc.y, { continued: true });
             if (fontLoaded) doc.font('Roboto');
@@ -721,11 +723,18 @@ export function createSectionedPDF(content) {
           doc.fontSize(8);
           section.headers.forEach((h, i) => {
             doc.text(truncateText(h, colWidth - 6), startX + i * colWidth + 3, currentY, {
-              width: colWidth - 6, height: rowHeight, lineBreak: false,
+              width: colWidth - 6,
+              height: rowHeight,
+              lineBreak: false,
             });
           });
           currentY += rowHeight;
-          doc.strokeColor('#333').lineWidth(0.5).moveTo(startX, currentY).lineTo(startX + pageWidth, currentY).stroke();
+          doc
+            .strokeColor('#333')
+            .lineWidth(0.5)
+            .moveTo(startX, currentY)
+            .lineTo(startX + pageWidth, currentY)
+            .stroke();
           currentY += 2;
 
           // Data
@@ -743,7 +752,9 @@ export function createSectionedPDF(content) {
             section.headers.forEach((h, i) => {
               const val = row[h] ?? row[Object.keys(row)[i]] ?? '';
               doc.text(truncateText(String(val), colWidth - 6), startX + i * colWidth + 3, currentY, {
-                width: colWidth - 6, height: rowHeight - 2, lineBreak: false,
+                width: colWidth - 6,
+                height: rowHeight - 2,
+                lineBreak: false,
               });
             });
             currentY += rowHeight - 2;

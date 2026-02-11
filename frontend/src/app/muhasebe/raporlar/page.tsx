@@ -88,7 +88,20 @@ interface KasaBankaOzetData {
   banka_bakiye?: number;
 }
 
-const AY_ISIMLERI = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const AY_ISIMLERI = [
+  'Oca',
+  'Şub',
+  'Mar',
+  'Nis',
+  'May',
+  'Haz',
+  'Tem',
+  'Ağu',
+  'Eyl',
+  'Eki',
+  'Kas',
+  'Ara',
+];
 
 const GIDER_RENKLERI: Record<string, string> = {
   Personel: '#4dabf7',
@@ -168,7 +181,16 @@ export default function RaporlarPage() {
       }
     }
 
-    const renkler = ['#4dabf7', '#51cf66', '#ff922b', '#ff6b6b', '#845ef7', '#20c997', '#fcc419', '#e599f7'];
+    const renkler = [
+      '#4dabf7',
+      '#51cf66',
+      '#ff922b',
+      '#ff6b6b',
+      '#845ef7',
+      '#20c997',
+      '#fcc419',
+      '#e599f7',
+    ];
     return Object.entries(kategoriler)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
@@ -186,7 +208,8 @@ export default function RaporlarPage() {
       const kat = k.kategori || k.grup || 'Diğer';
       if (!kategoriler[kat]) kategoriler[kat] = { deger: 0, kalem: 0, kritik: 0 };
       kategoriler[kat].kalem += 1;
-      kategoriler[kat].deger += Number(k.birim_fiyat || 0) * Number(k.miktar || k.stok_miktari || 0);
+      kategoriler[kat].deger +=
+        Number(k.birim_fiyat || 0) * Number(k.miktar || k.stok_miktari || 0);
       if (k.kritik_stok && Number(k.miktar || k.stok_miktari || 0) <= Number(k.kritik_stok)) {
         kategoriler[kat].kritik += 1;
       }
@@ -759,10 +782,7 @@ export default function RaporlarPage() {
       </Container>
 
       {/* Rapor Merkezi Modal */}
-      <RaporMerkeziModal
-        opened={raporMerkeziOpen}
-        onClose={() => setRaporMerkeziOpen(false)}
-      />
+      <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} />
     </Box>
   );
 }

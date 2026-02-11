@@ -109,23 +109,33 @@ export default function ProjelerSection({ API_BASE_URL }: ProjelerSectionProps) 
         <Stack gap="sm">
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
             <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed">Toplam Proje</Text>
-              <Text size="lg" fw={700}>{projeler.length}</Text>
+              <Text size="xs" c="dimmed">
+                Toplam Proje
+              </Text>
+              <Text size="lg" fw={700}>
+                {projeler.length}
+              </Text>
             </Paper>
             <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed">Aktif</Text>
+              <Text size="xs" c="dimmed">
+                Aktif
+              </Text>
               <Text size="lg" fw={700} c="green">
                 {projeler.filter((p) => p.durum === 'aktif').length}
               </Text>
             </Paper>
             <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed">Personel</Text>
+              <Text size="xs" c="dimmed">
+                Personel
+              </Text>
               <Text size="lg" fw={700} c="blue">
                 {projeler.reduce((sum, p) => sum + (Number(p.personel_sayisi) || 0), 0)}
               </Text>
             </Paper>
             <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed">Bütçe</Text>
+              <Text size="xs" c="dimmed">
+                Bütçe
+              </Text>
               <Text size="lg" fw={700} c="orange">
                 {formatCurrency(projeler.reduce((sum, p) => sum + (Number(p.butce) || 0), 0))}
               </Text>

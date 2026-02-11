@@ -107,11 +107,10 @@ router.post('/bulk', async (req, res) => {
 
     for (const report of reports) {
       try {
-        const result = await reportRegistry.generateReport(
-          report.reportId,
-          report.format || 'pdf',
-          { ...report.context, userId: req.user?.id }
-        );
+        const result = await reportRegistry.generateReport(report.reportId, report.format || 'pdf', {
+          ...report.context,
+          userId: req.user?.id,
+        });
         files.push({
           buffer: result.buffer,
           filename: result.filename,
@@ -160,19 +159,21 @@ router.post('/mail', async (req, res) => {
 
     // Tek rapor ise direkt ek olarak gönder
     if (reports.length === 1) {
-      const result = await reportRegistry.generateReport(
-        reports[0].reportId,
-        reports[0].format || 'pdf',
-        { ...reports[0].context, userId: req.user?.id }
-      );
+      const result = await reportRegistry.generateReport(reports[0].reportId, reports[0].format || 'pdf', {
+        ...reports[0].context,
+        userId: req.user?.id,
+      });
 
-      await sendMail({
-        to: email,
-        subject: subject || `Rapor: ${result.filename}`,
-        text: `İstediğiniz rapor ekte gönderilmiştir.\n\nRapor: ${result.filename}\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')}`,
-        attachmentName: result.filename,
-        attachmentType: result.contentType,
-      }, result.buffer);
+      await sendMail(
+        {
+          to: email,
+          subject: subject || `Rapor: ${result.filename}`,
+          text: `İstediğiniz rapor ekte gönderilmiştir.\n\nRapor: ${result.filename}\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')}`,
+          attachmentName: result.filename,
+          attachmentType: result.contentType,
+        },
+        result.buffer
+      );
 
       return res.json({ success: true, message: 'Rapor mail olarak gönderildi' });
     }
@@ -181,13 +182,14 @@ router.post('/mail', async (req, res) => {
     const files = [];
     for (const report of reports) {
       try {
-        const result = await reportRegistry.generateReport(
-          report.reportId,
-          report.format || 'pdf',
-          { ...report.context, userId: req.user?.id }
-        );
+        const result = await reportRegistry.generateReport(report.reportId, report.format || 'pdf', {
+          ...report.context,
+          userId: req.user?.id,
+        });
         files.push({ buffer: result.buffer, filename: result.filename });
-      } catch (_err) { /* skip failed */ }
+      } catch (_err) {
+        /* skip failed */
+      }
     }
 
     if (files.length === 0) {
@@ -197,13 +199,16 @@ router.post('/mail', async (req, res) => {
     const zipBuffer = await createBulkZip(files);
     const timestamp = new Date().toISOString().split('T')[0];
 
-    await sendMail({
-      to: email,
-      subject: subject || `Raporlar - ${timestamp}`,
-      text: `İstediğiniz ${files.length} adet rapor ekte gönderilmiştir.\n\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')}`,
-      attachmentName: `raporlar-${timestamp}.zip`,
-      attachmentType: 'application/zip',
-    }, zipBuffer);
+    await sendMail(
+      {
+        to: email,
+        subject: subject || `Raporlar - ${timestamp}`,
+        text: `İstediğiniz ${files.length} adet rapor ekte gönderilmiştir.\n\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')}`,
+        attachmentName: `raporlar-${timestamp}.zip`,
+        attachmentType: 'application/zip',
+      },
+      zipBuffer
+    );
 
     res.json({ success: true, message: `${files.length} rapor mail olarak gönderildi` });
   } catch (error) {

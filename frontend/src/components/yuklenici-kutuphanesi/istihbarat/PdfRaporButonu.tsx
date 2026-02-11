@@ -240,9 +240,13 @@ function renderModulBolum(
       const toplam = (veri.toplam as number) || ihaleler.length;
       icerik = `<p>Toplam <strong>${toplam}</strong> ihale kaydı</p>`;
       if (ihaleler.length > 0) {
-        icerik += '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Durum</th><th>Sözleşme Bedeli</th><th>Yaklaşık Maliyet</th><th>İndirim</th><th>Teklif</th><th>Tarih</th></tr>';
+        icerik +=
+          '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Durum</th><th>Sözleşme Bedeli</th><th>Yaklaşık Maliyet</th><th>İndirim</th><th>Teklif</th><th>Tarih</th></tr>';
         ihaleler.slice(0, 30).forEach((i) => {
-          const fesih = i.fesih_durumu && i.fesih_durumu !== 'yok' ? ` <span class="badge badge-red">Fesih</span>` : '';
+          const fesih =
+            i.fesih_durumu && i.fesih_durumu !== 'yok'
+              ? ` <span class="badge badge-red">Fesih</span>`
+              : '';
           icerik += `<tr>
             <td>${escapeHtml(String(i.ihale_basligi || i.ihale_adi || '-'))}${fesih}</td>
             <td>${escapeHtml(String(i.kurum_adi || '-'))}</td>
@@ -290,21 +294,28 @@ function renderModulBolum(
         if (devamEden?.sayi) kartlar.push(['Devam Eden', String(devamEden.sayi)]);
         if (toplam?.tutar) kartlar.push(['Toplam Sözleşme', formatNum(toplam.tutar as number)]);
         if (yillik?.tutar) kartlar.push(['Yıllık Ortalama', formatNum(yillik.tutar as number)]);
-        if (isBitirme?.tutar) kartlar.push(['İş Bitirme (5 Yıl)', formatNum(isBitirme.tutar as number)]);
+        if (isBitirme?.tutar)
+          kartlar.push(['İş Bitirme (5 Yıl)', formatNum(isBitirme.tutar as number)]);
         if (tenzilat?.yuzde) kartlar.push(['Ort. Tenzilat', `%${tenzilat.yuzde}`]);
-        if (ozet.ort_sozlesme_suresi_gun) kartlar.push(['Ort. Süre', `${ozet.ort_sozlesme_suresi_gun} gün`]);
+        if (ozet.ort_sozlesme_suresi_gun)
+          kartlar.push(['Ort. Süre', `${ozet.ort_sozlesme_suresi_gun} gün`]);
         if (ozet.ilk_sozlesme) kartlar.push(['İlk Sözleşme', String(ozet.ilk_sozlesme)]);
         if (ozet.son_sozlesme) kartlar.push(['Son Sözleşme', String(ozet.son_sozlesme)]);
 
-        kartlar.forEach(([k]) => { icerik += `<th>${escapeHtml(k)}</th>`; });
+        kartlar.forEach(([k]) => {
+          icerik += `<th>${escapeHtml(k)}</th>`;
+        });
         icerik += '</tr><tr>';
-        kartlar.forEach(([, v]) => { icerik += `<td><strong>${escapeHtml(v)}</strong></td>`; });
+        kartlar.forEach(([, v]) => {
+          icerik += `<td><strong>${escapeHtml(v)}</strong></td>`;
+        });
         icerik += '</tr></table>';
       }
 
       // Yıllık trend
       if (yillikTrend.length > 0) {
-        icerik += '<h3>Yıllık Performans</h3><table><tr><th>Yıl</th><th>Tamamlanan</th><th>Devam Eden</th><th>Toplam Sözleşme</th><th>Tenzilat</th></tr>';
+        icerik +=
+          '<h3>Yıllık Performans</h3><table><tr><th>Yıl</th><th>Tamamlanan</th><th>Devam Eden</th><th>Toplam Sözleşme</th><th>Tenzilat</th></tr>';
         yillikTrend.forEach((t) => {
           icerik += `<tr>
             <td><strong>${escapeHtml(String(t.yil))}</strong></td>
@@ -319,7 +330,8 @@ function renderModulBolum(
 
       // En sık rakipler
       if (rakipler.length > 0) {
-        icerik += '<h3>En Sık Karşılaşılan Rakipler</h3><table><tr><th>Firma</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
+        icerik +=
+          '<h3>En Sık Karşılaşılan Rakipler</h3><table><tr><th>Firma</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
         rakipler.slice(0, 10).forEach((r) => {
           icerik += `<tr>
             <td>${escapeHtml(String(r.rakip_adi || '-'))}</td>
@@ -332,7 +344,8 @@ function renderModulBolum(
 
       // İdareler
       if (idareler.length > 0) {
-        icerik += '<h3>En Çok Çalışılan İdareler</h3><table><tr><th>İdare</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
+        icerik +=
+          '<h3>En Çok Çalışılan İdareler</h3><table><tr><th>İdare</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
         idareler.slice(0, 8).forEach((d) => {
           const ihaleSayisi = ((d.tamamlanan as number) || 0) + ((d.devam_eden as number) || 0);
           icerik += `<tr>
@@ -346,7 +359,8 @@ function renderModulBolum(
 
       // Sektörler
       if (sektorler.length > 0) {
-        icerik += '<h3>Sektör Dağılımı</h3><table><tr><th>Sektör</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
+        icerik +=
+          '<h3>Sektör Dağılımı</h3><table><tr><th>Sektör</th><th>İhale Sayısı</th><th>Toplam Sözleşme</th></tr>';
         sektorler.slice(0, 6).forEach((s) => {
           const ihaleSayisi = ((s.tamamlanan as number) || 0) + ((s.devam_eden as number) || 0);
           icerik += `<tr>
@@ -398,10 +412,12 @@ function renderModulBolum(
     case 'kik_kararlari': {
       const kararlar = (veri.kararlar as Array<Record<string, unknown>>) || [];
       if (kararlar.length === 0) {
-        icerik = '<p class="badge badge-green">KİK kararı bulunamadı — bu olumlu bir işaret olabilir.</p>';
+        icerik =
+          '<p class="badge badge-green">KİK kararı bulunamadı — bu olumlu bir işaret olabilir.</p>';
       } else {
         icerik = `<p><strong>${kararlar.length}</strong> KİK kararı bulundu</p>`;
-        icerik += '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Bedel</th><th>Tarih</th></tr>';
+        icerik +=
+          '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Bedel</th><th>Tarih</th></tr>';
         kararlar.forEach((k) => {
           const kararTarih = (k.sozlesme_tarihi || k.created_at) as string | undefined;
           icerik += `<tr>
@@ -426,7 +442,8 @@ function renderModulBolum(
       if (yasakliMi) {
         icerik = `<p class="badge badge-red">DİKKAT: YASAKLI FİRMA — ${sonuclar.length} kayıt tespit edildi</p>`;
         if (sonuclar.length > 0) {
-          icerik += '<table><tr><th>Firma</th><th>Yasaklama Tarihi</th><th>Süre</th><th>Neden</th></tr>';
+          icerik +=
+            '<table><tr><th>Firma</th><th>Yasaklama Tarihi</th><th>Süre</th><th>Neden</th></tr>';
           sonuclar.forEach((s) => {
             icerik += `<tr>
               <td>${escapeHtml(s.firma_adi || '-')}</td>
@@ -438,7 +455,8 @@ function renderModulBolum(
           icerik += '</table>';
         }
       } else {
-        icerik = '<p class="badge badge-green">Yasaklı değil — EKAP yasaklılar listesinde bulunamadı.</p>';
+        icerik =
+          '<p class="badge badge-green">Yasaklı değil — EKAP yasaklılar listesinde bulunamadı.</p>';
       }
       if (not) icerik += `<p style="font-size:11px;color:#888;">${escapeHtml(not)}</p>`;
       break;
@@ -492,7 +510,8 @@ function renderModulBolum(
         icerik = '<p>Haber bulunamadı.</p>';
       } else {
         icerik = `<p><strong>${toplam}</strong> haber bulundu${aramaMetni ? ` — "${escapeHtml(aramaMetni)}"` : ''}</p>`;
-        icerik += '<table><tr><th style="width:45%;">Başlık</th><th>Özet</th><th>Kaynak</th><th>Tarih</th></tr>';
+        icerik +=
+          '<table><tr><th style="width:45%;">Başlık</th><th>Özet</th><th>Kaynak</th><th>Tarih</th></tr>';
         hb.slice(0, 15).forEach((h) => {
           const ozetText = h.ozet ? stripHtmlTags(String(h.ozet)) : '';
           icerik += `<tr>
@@ -522,8 +541,14 @@ function renderModulBolum(
         break;
       }
 
-      const tehlikeSeviyesi = (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
-      const tehlikeRenk = tehlikeSeviyesi === 'çok yüksek' || tehlikeSeviyesi === 'yüksek' ? 'red' : tehlikeSeviyesi === 'düşük' ? 'green' : 'orange';
+      const tehlikeSeviyesi =
+        (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
+      const tehlikeRenk =
+        tehlikeSeviyesi === 'çok yüksek' || tehlikeSeviyesi === 'yüksek'
+          ? 'red'
+          : tehlikeSeviyesi === 'düşük'
+            ? 'green'
+            : 'orange';
 
       icerik += `<p><strong>Tehlike Seviyesi:</strong> <span class="badge badge-${tehlikeRenk}">${escapeHtml(tehlikeSeviyesi.toUpperCase())}</span></p>`;
 
@@ -532,21 +557,53 @@ function renderModulBolum(
 
       if (eskiFormat) {
         // Eski SWOT formatı
-        if (rapor.genel_degerlendirme) icerik += `<h3>Genel Değerlendirme</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.genel_degerlendirme))}</p>`;
+        if (rapor.genel_degerlendirme)
+          icerik += `<h3>Genel Değerlendirme</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.genel_degerlendirme))}</p>`;
 
         const guclu = (rapor.guclu_yonler as string[]) || [];
         const zayif = (rapor.zayif_yonler as string[]) || [];
         const firsatlar = (rapor.firsatlar as string[]) || [];
         const tehditler = (rapor.tehditler as string[]) || [];
 
-        if (guclu.length) { icerik += '<h3>Güçlü Yönler</h3><ul>'; guclu.forEach(g => { icerik += `<li>${escapeHtml(g)}</li>`; }); icerik += '</ul>'; }
-        if (zayif.length) { icerik += '<h3>Zayıf Yönler</h3><ul>'; zayif.forEach(z => { icerik += `<li>${escapeHtml(z)}</li>`; }); icerik += '</ul>'; }
-        if (firsatlar.length) { icerik += '<h3>Fırsatlar</h3><ul>'; firsatlar.forEach(f => { icerik += `<li>${escapeHtml(f)}</li>`; }); icerik += '</ul>'; }
-        if (tehditler.length) { icerik += '<h3>Tehditler</h3><ul>'; tehditler.forEach(t => { icerik += `<li>${escapeHtml(t)}</li>`; }); icerik += '</ul>'; }
-        if (rapor.rekabet_stratejisi) icerik += `<h3>Rekabet Stratejisi</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.rekabet_stratejisi))}</p>`;
+        if (guclu.length) {
+          icerik += '<h3>Güçlü Yönler</h3><ul>';
+          guclu.forEach((g) => {
+            icerik += `<li>${escapeHtml(g)}</li>`;
+          });
+          icerik += '</ul>';
+        }
+        if (zayif.length) {
+          icerik += '<h3>Zayıf Yönler</h3><ul>';
+          zayif.forEach((z) => {
+            icerik += `<li>${escapeHtml(z)}</li>`;
+          });
+          icerik += '</ul>';
+        }
+        if (firsatlar.length) {
+          icerik += '<h3>Fırsatlar</h3><ul>';
+          firsatlar.forEach((f) => {
+            icerik += `<li>${escapeHtml(f)}</li>`;
+          });
+          icerik += '</ul>';
+        }
+        if (tehditler.length) {
+          icerik += '<h3>Tehditler</h3><ul>';
+          tehditler.forEach((t) => {
+            icerik += `<li>${escapeHtml(t)}</li>`;
+          });
+          icerik += '</ul>';
+        }
+        if (rapor.rekabet_stratejisi)
+          icerik += `<h3>Rekabet Stratejisi</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.rekabet_stratejisi))}</p>`;
 
         const tavsiyeler = (rapor.tavsiyeler as string[]) || [];
-        if (tavsiyeler.length) { icerik += '<h3>Tavsiyeler</h3><ul>'; tavsiyeler.forEach(t => { icerik += `<li>${escapeHtml(t)}</li>`; }); icerik += '</ul>'; }
+        if (tavsiyeler.length) {
+          icerik += '<h3>Tavsiyeler</h3><ul>';
+          tavsiyeler.forEach((t) => {
+            icerik += `<li>${escapeHtml(t)}</li>`;
+          });
+          icerik += '</ul>';
+        }
       } else {
         // Yeni format — İstihbarat Briefing
         const tamMetin = rapor.tam_metin as string;
@@ -555,17 +612,25 @@ function renderModulBolum(
           // Markdown tam metin — basit dönüşüm
           icerik += `<div style="white-space:pre-line;font-size:12px;">${escapeHtml(tamMetin)}</div>`;
         } else {
-          if (rapor.ozet_profil) icerik += `<h3>Özet Profil</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.ozet_profil))}</p>`;
-          if (rapor.tehlike_gerekce) icerik += `<p style="font-style:italic;color:#888;">${escapeHtml(String(rapor.tehlike_gerekce))}</p>`;
-          if (rapor.faaliyet_alani) icerik += `<h3>Faaliyet Alanı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.faaliyet_alani))}</p>`;
-          if (rapor.ihale_davranisi) icerik += `<h3>İhale Davranışı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.ihale_davranisi))}</p>`;
-          if (rapor.risk_sinyalleri) icerik += `<h3>Risk Sinyalleri</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.risk_sinyalleri))}</p>`;
-          if (rapor.rakip_agi) icerik += `<h3>Rakip Ağı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.rakip_agi))}</p>`;
+          if (rapor.ozet_profil)
+            icerik += `<h3>Özet Profil</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.ozet_profil))}</p>`;
+          if (rapor.tehlike_gerekce)
+            icerik += `<p style="font-style:italic;color:#888;">${escapeHtml(String(rapor.tehlike_gerekce))}</p>`;
+          if (rapor.faaliyet_alani)
+            icerik += `<h3>Faaliyet Alanı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.faaliyet_alani))}</p>`;
+          if (rapor.ihale_davranisi)
+            icerik += `<h3>İhale Davranışı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.ihale_davranisi))}</p>`;
+          if (rapor.risk_sinyalleri)
+            icerik += `<h3>Risk Sinyalleri</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.risk_sinyalleri))}</p>`;
+          if (rapor.rakip_agi)
+            icerik += `<h3>Rakip Ağı</h3><p style="white-space:pre-line;">${escapeHtml(String(rapor.rakip_agi))}</p>`;
 
           const tavsiyeler = (rapor.stratejik_tavsiyeler as string[]) || [];
           if (tavsiyeler.length) {
             icerik += '<h3>Stratejik Tavsiyeler</h3><ul>';
-            tavsiyeler.forEach(t => { icerik += `<li>${escapeHtml(t)}</li>`; });
+            tavsiyeler.forEach((t) => {
+              icerik += `<li>${escapeHtml(t)}</li>`;
+            });
             icerik += '</ul>';
           }
         }

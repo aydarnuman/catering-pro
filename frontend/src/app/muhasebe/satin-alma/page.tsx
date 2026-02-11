@@ -143,7 +143,7 @@ export default function SatinAlmaPage() {
       if (ozetResult.success) setOzet(ozetResult.data);
       if (tedarikciResult.success && Array.isArray(tedarikciResult.data))
         setTedarikciler(
-          tedarikciResult.data.map((c) => ({ id: c.id, unvan: c.unvan, vkn: c.vergi_no ?? '' })),
+          tedarikciResult.data.map((c) => ({ id: c.id, unvan: c.unvan, vkn: c.vergi_no ?? '' }))
         );
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
@@ -564,7 +564,12 @@ export default function SatinAlmaPage() {
               </Text>
             </Box>
             <Group>
-              <Button variant="light" color="indigo" leftSection={<IconClipboardList size={18} />} onClick={() => setRaporMerkeziOpen(true)}>
+              <Button
+                variant="light"
+                color="indigo"
+                leftSection={<IconClipboardList size={18} />}
+                onClick={() => setRaporMerkeziOpen(true)}
+              >
                 Raporlar
               </Button>
               <Button variant="light" leftSection={<IconRefresh size={18} />} onClick={loadData}>

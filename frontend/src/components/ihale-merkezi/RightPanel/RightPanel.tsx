@@ -1,13 +1,7 @@
 'use client';
 
 import { Box, Button, ScrollArea, Tabs, Text, ThemeIcon } from '@mantine/core';
-import {
-  IconChecklist,
-  IconGavel,
-  IconSparkles,
-  IconUsers,
-  IconWand,
-} from '@tabler/icons-react';
+import { IconChecklist, IconGavel, IconSparkles, IconUsers, IconWand } from '@tabler/icons-react';
 import { AraclarSection } from '../shared/AraclarSection';
 import { DilekceSection } from '../shared/DilekceSection';
 import { KontrolSection } from '../shared/KontrolSection';
@@ -99,9 +93,10 @@ export function RightPanel({
                       activeRightTab === 'teklif'
                         ? 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)'
                         : 'rgba(255,255,255,0.05)',
-                    border: activeRightTab === 'teklif'
-                      ? '1px solid rgba(255,255,255,0.25)'
-                      : '1px solid rgba(255,255,255,0.08)',
+                    border:
+                      activeRightTab === 'teklif'
+                        ? '1px solid rgba(255,255,255,0.25)'
+                        : '1px solid rgba(255,255,255,0.08)',
                     boxShadow:
                       activeRightTab === 'teklif'
                         ? '0 0 12px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2)'
@@ -193,7 +188,8 @@ export function RightPanel({
                     Teklif Merkezi
                   </Text>
                   <Text size="xs" c="dimmed" maw={260} style={{ lineHeight: 1.5 }}>
-                    AI tespit edilen verileri görüntüleyin, maliyet hesaplayın ve teklif cetveli oluşturun
+                    AI tespit edilen verileri görüntüleyin, maliyet hesaplayın ve teklif cetveli
+                    oluşturun
                   </Text>
                 </div>
 

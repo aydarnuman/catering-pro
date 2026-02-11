@@ -1,7 +1,7 @@
 /**
  * File Helper Utilities - Dosya tipi algılama, sanitize, URL-safe dönüşüm
  * document-storage.js'den extract edildi (refactoring)
- * 
+ *
  * Bu fonksiyonlar pure utility'lerdir - hiçbir side effect yoktur.
  */
 
@@ -17,16 +17,38 @@ import logger from '../../utils/logger.js';
 // Desteklenen dosya uzantıları - GENİŞLETİLMİŞ LİSTE
 export const SUPPORTED_EXTENSIONS = [
   // Dökümanlar
-  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-  '.rtf', '.odt', '.ods', '.odp',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  '.rtf',
+  '.odt',
+  '.ods',
+  '.odp',
   // Arşivler
-  '.zip', '.rar', '.7z',
+  '.zip',
+  '.rar',
+  '.7z',
   // Görseller
-  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.tif', '.bmp',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.tiff',
+  '.tif',
+  '.bmp',
   // Metin
-  '.txt', '.csv', '.xml', '.json',
+  '.txt',
+  '.csv',
+  '.xml',
+  '.json',
   // Teknik dosyalar (sadece sakla, analiz etme)
-  '.dwg', '.dxf',
+  '.dwg',
+  '.dxf',
 ];
 
 // Content-Type mapping - GENİŞLETİLMİŞ
@@ -240,12 +262,18 @@ export function sanitizeFileName(fileName) {
 export function makeUrlSafe(fileName) {
   // Türkçe karakterleri normalize et
   const turkishMap = {
-    ç: 'c', Ç: 'C',
-    ğ: 'g', Ğ: 'G',
-    ı: 'i', İ: 'I',
-    ö: 'o', Ö: 'O',
-    ş: 's', Ş: 'S',
-    ü: 'u', Ü: 'U',
+    ç: 'c',
+    Ç: 'C',
+    ğ: 'g',
+    Ğ: 'G',
+    ı: 'i',
+    İ: 'I',
+    ö: 'o',
+    Ö: 'O',
+    ş: 's',
+    Ş: 'S',
+    ü: 'u',
+    Ü: 'U',
   };
 
   let safe = fileName;

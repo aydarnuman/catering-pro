@@ -20,12 +20,7 @@ import {
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconBuilding,
-  IconChevronDown,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconBuilding, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { authFetch } from '@/lib/api';
 import type { FirmaBilgileri } from './types';
@@ -178,21 +173,36 @@ export default function FirmaBilgileriCard({
               <Divider />
               <SimpleGrid cols={2} spacing="xs">
                 <Text size="sm">
-                  <Text span fw={500}>Vergi No:</Text> {varsayilanFirma.vergi_no || '-'}
+                  <Text span fw={500}>
+                    Vergi No:
+                  </Text>{' '}
+                  {varsayilanFirma.vergi_no || '-'}
                 </Text>
                 <Text size="sm">
-                  <Text span fw={500}>Vergi Dairesi:</Text> {varsayilanFirma.vergi_dairesi || '-'}
+                  <Text span fw={500}>
+                    Vergi Dairesi:
+                  </Text>{' '}
+                  {varsayilanFirma.vergi_dairesi || '-'}
                 </Text>
                 <Text size="sm">
-                  <Text span fw={500}>Telefon:</Text> {varsayilanFirma.telefon || '-'}
+                  <Text span fw={500}>
+                    Telefon:
+                  </Text>{' '}
+                  {varsayilanFirma.telefon || '-'}
                 </Text>
                 <Text size="sm">
-                  <Text span fw={500}>E-posta:</Text> {varsayilanFirma.email || '-'}
+                  <Text span fw={500}>
+                    E-posta:
+                  </Text>{' '}
+                  {varsayilanFirma.email || '-'}
                 </Text>
               </SimpleGrid>
               {varsayilanFirma.adres && (
                 <Text size="sm">
-                  <Text span fw={500}>Adres:</Text> {varsayilanFirma.adres}
+                  <Text span fw={500}>
+                    Adres:
+                  </Text>{' '}
+                  {varsayilanFirma.adres}
                 </Text>
               )}
             </Stack>

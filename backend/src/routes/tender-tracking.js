@@ -89,10 +89,7 @@ router.post('/', async (req, res) => {
     );
 
     // Yaklaşık maliyeti tenders tablosundan çek
-    const tenderDataForCost = await query(
-      `SELECT estimated_cost FROM tenders WHERE id = $1`,
-      [tender_id]
-    );
+    const tenderDataForCost = await query(`SELECT estimated_cost FROM tenders WHERE id = $1`, [tender_id]);
     const estimatedCostFromTender = tenderDataForCost.rows[0]?.estimated_cost
       ? Number(tenderDataForCost.rows[0].estimated_cost)
       : null;
@@ -937,7 +934,11 @@ router.post('/add-from-analysis', async (req, res) => {
           // Gerekli belgeler
           if (my.gerekli_belgeler && Array.isArray(my.gerekli_belgeler)) {
             analysisSummary.gerekli_belgeler.push(
-              ...my.gerekli_belgeler.map((b) => typeof b === 'string' ? { belge: b, zorunlu: true, source: doc.original_filename } : { ...b, source: doc.original_filename })
+              ...my.gerekli_belgeler.map((b) =>
+                typeof b === 'string'
+                  ? { belge: b, zorunlu: true, source: doc.original_filename }
+                  : { ...b, source: doc.original_filename }
+              )
             );
           }
         }
@@ -962,19 +963,33 @@ router.post('/add-from-analysis', async (req, res) => {
         if (analysis.tarihler) {
           const t = analysis.tarihler;
           if (t.ihale_tarihi && !analysisSummary.takvim.some((tk) => tk.olay?.includes('İhale'))) {
-            analysisSummary.takvim.push({ olay: 'İhale Tarihi', tarih: t.ihale_tarihi + (t.ihale_saati ? ` ${t.ihale_saati}` : ''), source: doc.original_filename });
+            analysisSummary.takvim.push({
+              olay: 'İhale Tarihi',
+              tarih: t.ihale_tarihi + (t.ihale_saati ? ` ${t.ihale_saati}` : ''),
+              source: doc.original_filename,
+            });
           }
-          if (t.ise_baslama && !analysisSummary.takvim.some((tk) => tk.olay?.includes('Başlangıç') || tk.olay?.includes('başlama'))) {
+          if (
+            t.ise_baslama &&
+            !analysisSummary.takvim.some((tk) => tk.olay?.includes('Başlangıç') || tk.olay?.includes('başlama'))
+          ) {
             analysisSummary.takvim.push({ olay: 'İşe Başlama', tarih: t.ise_baslama, source: doc.original_filename });
           }
-          if (t.is_bitis && !analysisSummary.takvim.some((tk) => tk.olay?.includes('Bitiş') || tk.olay?.includes('bitis'))) {
+          if (
+            t.is_bitis &&
+            !analysisSummary.takvim.some((tk) => tk.olay?.includes('Bitiş') || tk.olay?.includes('bitis'))
+          ) {
             analysisSummary.takvim.push({ olay: 'İş Bitiş', tarih: t.is_bitis, source: doc.original_filename });
           }
           if (t.sure && !analysisSummary.teslim_suresi) {
             analysisSummary.teslim_suresi = t.sure;
           }
           if (t.teklif_gecerlilik) {
-            analysisSummary.takvim.push({ olay: 'Teklif Geçerlilik', tarih: `${t.teklif_gecerlilik} gün`, source: doc.original_filename });
+            analysisSummary.takvim.push({
+              olay: 'Teklif Geçerlilik',
+              tarih: `${t.teklif_gecerlilik} gün`,
+              source: doc.original_filename,
+            });
           }
         }
 
@@ -1043,7 +1058,15 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Mali kriterler (merge - placeholder değerleri filtrele)
         if (analysis.mali_kriterler && typeof analysis.mali_kriterler === 'object') {
-          const placeholderValues = ['bulunamadı', 'belirtilmemiş', 'bilinmiyor', 'yok', 'mevcut değil', 'istenen tutar', 'hesaplanacak'];
+          const placeholderValues = [
+            'bulunamadı',
+            'belirtilmemiş',
+            'bilinmiyor',
+            'yok',
+            'mevcut değil',
+            'istenen tutar',
+            'hesaplanacak',
+          ];
           for (const [key, val] of Object.entries(analysis.mali_kriterler)) {
             if (val && String(val).trim() !== '') {
               const valLower = String(val).trim().toLowerCase();
@@ -1051,7 +1074,10 @@ router.post('/add-from-analysis', async (req, res) => {
               // Placeholder değer mevcut gerçek değeri EZMEMELİ
               if (!isPlaceholder) {
                 analysisSummary.mali_kriterler[key] = val;
-              } else if (!analysisSummary.mali_kriterler[key] || placeholderValues.some((p) => String(analysisSummary.mali_kriterler[key]).toLowerCase().includes(p))) {
+              } else if (
+                !analysisSummary.mali_kriterler[key] ||
+                placeholderValues.some((p) => String(analysisSummary.mali_kriterler[key]).toLowerCase().includes(p))
+              ) {
                 // Mevcut değer de placeholder ise veya boşsa, placeholder'ı al (hiç yoktan iyidir)
                 analysisSummary.mali_kriterler[key] = val;
               }
@@ -1077,14 +1103,24 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Teminat oranları (merge - placeholder korumalı)
         if (analysis.teminat_oranlari && typeof analysis.teminat_oranlari === 'object') {
-          const placeholderValues = ['bulunamadı', 'belirtilmemiş', 'bilinmiyor', 'sözleşmede belirtilecek', 'rakam ve yazıyla', 'hesaplanacak'];
+          const placeholderValues = [
+            'bulunamadı',
+            'belirtilmemiş',
+            'bilinmiyor',
+            'sözleşmede belirtilecek',
+            'rakam ve yazıyla',
+            'hesaplanacak',
+          ];
           for (const [key, val] of Object.entries(analysis.teminat_oranlari)) {
             if (val && String(val).trim() !== '') {
               const valLower = String(val).trim().toLowerCase();
               const isPlaceholder = placeholderValues.some((p) => valLower === p || valLower.includes(p));
               if (!isPlaceholder) {
                 analysisSummary.teminat_oranlari[key] = val;
-              } else if (!analysisSummary.teminat_oranlari[key] || placeholderValues.some((p) => String(analysisSummary.teminat_oranlari[key]).toLowerCase().includes(p))) {
+              } else if (
+                !analysisSummary.teminat_oranlari[key] ||
+                placeholderValues.some((p) => String(analysisSummary.teminat_oranlari[key]).toLowerCase().includes(p))
+              ) {
                 analysisSummary.teminat_oranlari[key] = val;
               }
             }
@@ -1110,7 +1146,18 @@ router.post('/add-from-analysis', async (req, res) => {
         // İletişim bilgileri (v9: contact veya iletisim) - placeholder korumalı
         const iletisim = analysis.iletisim || analysis.contact;
         if (iletisim && typeof iletisim === 'object') {
-          const iletisimPlaceholders = ['0xxx xxx xx xx', 'email@domain.com', 'xxx@domain.com', 'tam adres', 'ad soyad', 'belirtilmemiş', 'bilinmiyor', '[telefon]', '[email]', '[adres]'];
+          const iletisimPlaceholders = [
+            '0xxx xxx xx xx',
+            'email@domain.com',
+            'xxx@domain.com',
+            'tam adres',
+            'ad soyad',
+            'belirtilmemiş',
+            'bilinmiyor',
+            '[telefon]',
+            '[email]',
+            '[adres]',
+          ];
           for (const [key, val] of Object.entries(iletisim)) {
             if (val && val?.trim?.() !== '') {
               const valLower = String(val).trim().toLowerCase();
@@ -1118,7 +1165,10 @@ router.post('/add-from-analysis', async (req, res) => {
               if (!isPlaceholder) {
                 // Gerçek değer - mevcut placeholder'ı ezer
                 analysisSummary.iletisim[key] = val;
-              } else if (!analysisSummary.iletisim[key] || iletisimPlaceholders.some((p) => String(analysisSummary.iletisim[key]).toLowerCase() === p)) {
+              } else if (
+                !analysisSummary.iletisim[key] ||
+                iletisimPlaceholders.some((p) => String(analysisSummary.iletisim[key]).toLowerCase() === p)
+              ) {
                 // Mevcut de placeholder veya boşsa, yeni placeholder'ı al
                 analysisSummary.iletisim[key] = val;
               }
@@ -1427,7 +1477,9 @@ router.post('/add-from-analysis', async (req, res) => {
 
       // is_yerleri'ndeki lokasyon isimlerini normalize set'e al (karşılaştırma için)
       const lokasyonNormSet = new Set(
-        analysisSummary.is_yerleri.map((iy) => normalizeForCompare(typeof iy === 'string' ? iy : iy.isim || iy.ad || ''))
+        analysisSummary.is_yerleri.map((iy) =>
+          normalizeForCompare(typeof iy === 'string' ? iy : iy.isim || iy.ad || '')
+        )
       );
 
       const lokasyonIpuclari = [
@@ -1681,10 +1733,7 @@ router.post('/add-from-analysis', async (req, res) => {
     });
 
     // Yaklaşık maliyeti tenders tablosundan çek (scraper'ın topladığı veri)
-    const tenderDataResult = await query(
-      `SELECT estimated_cost FROM tenders WHERE id = $1`,
-      [tender_id]
-    );
+    const tenderDataResult = await query(`SELECT estimated_cost FROM tenders WHERE id = $1`, [tender_id]);
     const estimatedCost = tenderDataResult.rows[0]?.estimated_cost
       ? Number(tenderDataResult.rows[0].estimated_cost)
       : null;
@@ -2224,9 +2273,9 @@ router.get('/:tenderId/rakip-analizi', async (req, res) => {
     const minEslesme = Math.min(2, kurumKelimeler.length);
 
     if (kurumKelimeler.length > 0) {
-    // Kurum adı eşleşmesi
-    icVeriResult = await query(
-      `
+      // Kurum adı eşleşmesi
+      icVeriResult = await query(
+        `
       WITH kurum_eslesen AS (
         SELECT
           yi.yuklenici_id,
@@ -2288,8 +2337,8 @@ router.get('/:tenderId/rakip-analizi', async (req, res) => {
       ORDER BY kurum_esleme_sayisi DESC, kurum_kazanim_sayisi DESC
       LIMIT 10
     `,
-      [sehir || '', ...kurumKelimeler.map((k) => `%${k}%`)]
-    );
+        [sehir || '', ...kurumKelimeler.map((k) => `%${k}%`)]
+      );
     } // kurumKelimeler.length > 0
 
     // Şehir bazlı ek rakipler (kurumda eşleşmeyenler ama şehirde aktif olanlar)

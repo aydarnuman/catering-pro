@@ -29,7 +29,9 @@ const generators = new Map();
  */
 export function registerReport(definition) {
   if (!definition.id || !definition.module || !definition.generator) {
-    throw new Error(`Rapor kaydı eksik alan: id=${definition.id}, module=${definition.module}, generator=${definition.generator}`);
+    throw new Error(
+      `Rapor kaydı eksik alan: id=${definition.id}, module=${definition.module}, generator=${definition.generator}`
+    );
   }
   reports.set(definition.id, {
     ...definition,
@@ -132,7 +134,9 @@ export async function generateReport(reportId, format, context = {}) {
   }
 
   if (!definition.formats.includes(format)) {
-    throw new Error(`${reportId} raporu "${format}" formatını desteklemiyor. Desteklenen: ${definition.formats.join(', ')}`);
+    throw new Error(
+      `${reportId} raporu "${format}" formatını desteklemiyor. Desteklenen: ${definition.formats.join(', ')}`
+    );
   }
 
   // Generator referansını parse et: 'modulAdi:fonksiyonAdi'
@@ -151,9 +155,9 @@ export async function generateReport(reportId, format, context = {}) {
   return {
     buffer: result.buffer,
     filename: result.filename || `${reportId}-${Date.now()}.${format === 'excel' ? 'xlsx' : 'pdf'}`,
-    contentType: result.contentType || (format === 'excel'
-      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      : 'application/pdf'),
+    contentType:
+      result.contentType ||
+      (format === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf'),
   };
 }
 
@@ -187,7 +191,11 @@ export async function previewReport(reportId, format, context = {}) {
 
   // Fallback: Normal generate çalıştır
   if (format === 'pdf' || !definition.formats.includes('excel')) {
-    const result = await generateReport(reportId, definition.formats.includes('pdf') ? 'pdf' : definition.formats[0], context);
+    const result = await generateReport(
+      reportId,
+      definition.formats.includes('pdf') ? 'pdf' : definition.formats[0],
+      context
+    );
     return { type: 'pdf', data: result.buffer };
   }
 

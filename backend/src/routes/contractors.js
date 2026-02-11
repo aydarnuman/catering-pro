@@ -308,9 +308,19 @@ router.patch('/:id', async (req, res) => {
 
     // Güncellenebilir alanlar (whitelist)
     const EDITABLE_FIELDS = [
-      'puan', 'notlar', 'etiketler', 'kisa_ad',
+      'puan',
+      'notlar',
+      'etiketler',
+      'kisa_ad',
       // Firma bilgileri (manuel giriş)
-      'telefon', 'email', 'adres', 'yetkili_kisi', 'vergi_no', 'web_sitesi', 'sektor', 'firma_notu',
+      'telefon',
+      'email',
+      'adres',
+      'yetkili_kisi',
+      'vergi_no',
+      'web_sitesi',
+      'sektor',
+      'firma_notu',
     ];
 
     const updates = [];
@@ -365,10 +375,9 @@ router.patch('/:id', async (req, res) => {
 router.get('/:id/notlar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await query(
-      `SELECT * FROM yuklenici_notlar WHERE yuklenici_id = $1 ORDER BY created_at DESC`,
-      [id]
-    );
+    const { rows } = await query(`SELECT * FROM yuklenici_notlar WHERE yuklenici_id = $1 ORDER BY created_at DESC`, [
+      id,
+    ]);
     res.json({ success: true, data: rows });
   } catch (error) {
     logError('Yapışkan Notlar Listele', error);
@@ -2186,7 +2195,7 @@ router.post('/:id/modul/tumunu-calistir', async (req, res) => {
     // Sıralama: veri_havuzu İLK → diğerleri PARALEL → ai_arastirma SON
     const havuzModul = 'veri_havuzu';
     const aiModul = 'ai_arastirma';
-    const ortaModuller = ISTIHBARAT_MODULLERI.filter(m => m !== havuzModul && m !== aiModul);
+    const ortaModuller = ISTIHBARAT_MODULLERI.filter((m) => m !== havuzModul && m !== aiModul);
 
     istihbaratLog(`▶ ${ISTIHBARAT_MODULLERI.length} modül sıralı başlatılıyor (${yuklenici.unvan})`);
     istihbaratLog(`  Sıra: veri_havuzu → ${ortaModuller.length} paralel → ai_arastirma`);
@@ -2224,8 +2233,8 @@ router.post('/:id/modul/tumunu-calistir', async (req, res) => {
           }
         })
       );
-      okCount += ortaResults.filter(r => r.status === 'fulfilled').length;
-      failCount += ortaResults.filter(r => r.status === 'rejected').length;
+      okCount += ortaResults.filter((r) => r.status === 'fulfilled').length;
+      failCount += ortaResults.filter((r) => r.status === 'rejected').length;
 
       // ─── Faz 3: AI İstihbarat (SON — tüm veriyi okur) ─────────
       const t0ai = Date.now();
@@ -2526,10 +2535,9 @@ router.post('/:id/derin-analiz', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows: [yuklenici] } = await query(
-      'SELECT id, unvan, kisa_ad FROM yukleniciler WHERE id = $1',
-      [id]
-    );
+    const {
+      rows: [yuklenici],
+    } = await query('SELECT id, unvan, kisa_ad FROM yukleniciler WHERE id = $1', [id]);
     if (!yuklenici) {
       return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
     }
@@ -2566,13 +2574,16 @@ router.post('/:id/derin-analiz', async (req, res) => {
        VALUES ($1, 'derin_analiz', 'tamamlandi', $2, NOW(), NOW())
        ON CONFLICT (yuklenici_id, modul)
        DO UPDATE SET durum = 'tamamlandi', veri = $2, son_guncelleme = NOW(), updated_at = NOW(), hata_mesaji = NULL`,
-      [id, JSON.stringify({
-        ozet: result.summary,
-        kaynaklar: result.sources,
-        kaynak_sayisi: result.totalSources,
-        alt_sorgular: result.subQueriesUsed,
-        olusturma_tarihi: new Date().toISOString(),
-      })]
+      [
+        id,
+        JSON.stringify({
+          ozet: result.summary,
+          kaynaklar: result.sources,
+          kaynak_sayisi: result.totalSources,
+          alt_sorgular: result.subQueriesUsed,
+          olusturma_tarihi: new Date().toISOString(),
+        }),
+      ]
     );
 
     logAPI('Derin Analiz', `Tamamlandı: ${result.totalSources} kaynak`, { yukleniciId: id });
@@ -2600,7 +2611,9 @@ router.get('/:id/derin-analiz', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows: [row] } = await query(
+    const {
+      rows: [row],
+    } = await query(
       `SELECT veri, son_guncelleme, durum
        FROM yuklenici_istihbarat
        WHERE yuklenici_id = $1 AND modul = 'derin_analiz'`,
@@ -2653,7 +2666,9 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
         const result = await scrapeContractorTenders(page, yuklenici, {
           maxPages: 5,
           onPageComplete: (pageNum, tenders, s) => {
-            logger.info(`[İSTİHBARAT] yk=${yukleniciId} ihale_gecmisi: sayfa ${pageNum} — ${tenders.length} ihale (toplam: ${s.tenders_found})`);
+            logger.info(
+              `[İSTİHBARAT] yk=${yukleniciId} ihale_gecmisi: sayfa ${pageNum} — ${tenders.length} ihale (toplam: ${s.tenders_found})`
+            );
           },
         });
         await updateModulDurum(yukleniciId, modul, 'tamamlandi', {

@@ -1,7 +1,16 @@
 import express from 'express';
 import { query } from '../database.js';
 import { validate } from '../middleware/validate.js';
-import { odendiSchema, personelOdemeSchema, avansSchema, primSchema, personelMaasDetaySchema, projeAyarlariSchema, aylikOdemeSchema, finalizeSchema } from '../validations/maas-odeme.js';
+import {
+  avansSchema,
+  aylikOdemeSchema,
+  finalizeSchema,
+  odendiSchema,
+  personelMaasDetaySchema,
+  personelOdemeSchema,
+  primSchema,
+  projeAyarlariSchema,
+} from '../validations/maas-odeme.js';
 
 const router = express.Router();
 

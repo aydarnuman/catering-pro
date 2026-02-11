@@ -9,8 +9,8 @@ export interface TrackerColumn {
   id: string;
   name: string;
   type: ColumnType;
-  options?: string[];  // for select type
-  aggFunc?: AggFunc;   // for number type
+  options?: string[]; // for select type
+  aggFunc?: AggFunc; // for number type
 }
 
 export interface TrackerRow {
@@ -36,7 +36,17 @@ export const AGG_LABELS: Record<AggFunc, string> = {
 };
 
 export const SHEET_COLORS = [
-  'red', 'orange', 'yellow', 'teal', 'green', 'cyan', 'blue', 'violet', 'grape', 'pink', 'gray',
+  'red',
+  'orange',
+  'yellow',
+  'teal',
+  'green',
+  'cyan',
+  'blue',
+  'violet',
+  'grape',
+  'pink',
+  'gray',
 ] as const;
 
 /** Color mapping for select options: index -> mantine color */

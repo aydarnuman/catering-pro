@@ -551,10 +551,7 @@ export function GenerationToolbar({
   const fabIconInner = isMobile ? 16 : 18;
   if (isCollapsed) {
     return (
-      <div
-        className="dock-container"
-        style={{ bottom: isMobile ? 16 : 24 }}
-      >
+      <div className="dock-container" style={{ bottom: isMobile ? 16 : 24 }}>
         {/* macOS Dock shelf – görünmez wrapper, sadece magnification + bounce */}
         <div className="dock-shelf">
           <Tooltip
@@ -599,9 +596,7 @@ export function GenerationToolbar({
                   </div>
                 </div>
               }
-              rightSection={
-                <IconChevronUp size={isMobile ? 14 : 16} style={{ opacity: 0.7 }} />
-              }
+              rightSection={<IconChevronUp size={isMobile ? 14 : 16} style={{ opacity: 0.7 }} />}
               styles={{
                 root: {
                   borderRadius: 9999,
@@ -628,11 +623,15 @@ export function GenerationToolbar({
           </Tooltip>
 
           {/* Active indicator – macOS dock noktası */}
-          <div className={`dock-indicator ${isDark ? 'dock-indicator-dark' : 'dock-indicator-light'}`} />
+          <div
+            className={`dock-indicator ${isDark ? 'dock-indicator-dark' : 'dock-indicator-light'}`}
+          />
         </div>
 
         {/* Dock reflection – yansıma */}
-        <div className={`dock-reflection ${isDark ? 'dock-reflection-dark' : 'dock-reflection-light'}`} />
+        <div
+          className={`dock-reflection ${isDark ? 'dock-reflection-dark' : 'dock-reflection-light'}`}
+        />
       </div>
     );
   }

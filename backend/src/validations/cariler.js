@@ -15,11 +15,7 @@ export const createCariSchema = z.object({
     .min(1, 'Ünvan gerekli')
     .max(255, 'Ünvan 255 karakterden uzun olamaz'),
   yetkili: z.string().max(100).optional(),
-  vergi_no: z
-    .string()
-    .max(20, 'Vergi no 20 karakterden uzun olamaz')
-    .optional()
-    .or(z.literal('')),
+  vergi_no: z.string().max(20, 'Vergi no 20 karakterden uzun olamaz').optional().or(z.literal('')),
   vergi_dairesi: z.string().max(100).optional(),
   telefon: z.string().max(30).optional().or(z.literal('')),
   email: z.string().email('Geçersiz email').max(255).optional().or(z.literal('')),

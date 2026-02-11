@@ -1,6 +1,6 @@
 /**
  * Sözleşme Tasarısı Extraction Prompt
- * 
+ *
  * Sözleşme tasarısı, ceza koşulları, ödeme şartları, fiyat farkı,
  * iş artışı, süre ve operasyonel kuralları içerir.
  */

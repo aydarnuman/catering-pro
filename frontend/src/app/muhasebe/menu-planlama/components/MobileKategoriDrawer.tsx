@@ -71,10 +71,7 @@ export function MobileKategoriDrawer({
               </Box>
 
               {/* Header */}
-              <Box
-                p="md"
-                style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-              >
+              <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
                 <Group justify="space-between">
                   <Group gap="sm">
                     <Text size="xl">{kat.ikon}</Text>
@@ -85,11 +82,7 @@ export function MobileKategoriDrawer({
                       </Text>
                     </Box>
                   </Group>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    onClick={onClose}
-                  >
+                  <ActionIcon variant="subtle" color="gray" onClick={onClose}>
                     <IconX size={18} />
                   </ActionIcon>
                 </Group>
@@ -99,18 +92,14 @@ export function MobileKategoriDrawer({
               <ScrollArea style={{ height: 'calc(100% - 80px)' }}>
                 <Stack gap={0}>
                   {yemekler.map((yemek) => {
-                    const isSecili = seciliYemekler.some(
-                      (y) => y.id === `recete-${yemek.id}`
-                    );
+                    const isSecili = seciliYemekler.some((y) => y.id === `recete-${yemek.id}`);
                     return (
                       <Box
                         key={yemek.id}
                         p="md"
                         style={{
                           borderBottom: '1px solid var(--mantine-color-default-border)',
-                          background: isSecili
-                            ? 'var(--mantine-color-teal-light)'
-                            : undefined,
+                          background: isSecili ? 'var(--mantine-color-teal-light)' : undefined,
                         }}
                       >
                         <Group justify="space-between" wrap="nowrap">

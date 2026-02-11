@@ -56,7 +56,12 @@ export function HukukiDurumDetay({ veriler, havuzVeri }: Props) {
     <Stack gap="lg">
       {/* Yasaklı durumu — en kritik bilgi, üstte */}
       <div>
-        <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
+        <Text
+          size="sm"
+          fw={600}
+          mb="xs"
+          style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
+        >
           EKAP Yasaklı Sorgusu
         </Text>
         <KikYasaklilarDetay veri={yasakliVeri} />
@@ -66,7 +71,12 @@ export function HukukiDurumDetay({ veriler, havuzVeri }: Props) {
 
       {/* KİK Kararları — altta */}
       <div>
-        <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
+        <Text
+          size="sm"
+          fw={600}
+          mb="xs"
+          style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
+        >
           KİK Kararları
         </Text>
         <KikKararlariDetay veri={kararlarVeri} />
@@ -82,31 +92,37 @@ export function HukukiDurumDetay({ veriler, havuzVeri }: Props) {
                 <IconGavel size={12} />
               </ThemeIcon>
               <Title order={6}>Web KİK Bulguları ({webKikSonuclari.length})</Title>
-              <Badge size="xs" variant="light" color="indigo">Veri Havuzu</Badge>
+              <Badge size="xs" variant="light" color="indigo">
+                Veri Havuzu
+              </Badge>
             </Group>
 
             <Accordion variant="contained" radius="sm">
               {webKikSonuclari.map((sonuc, i) => {
                 const key = sonuc.url || `kik-web-${i}`;
                 // Bu sonuçla eşleşen tam metin var mı?
-                const tamMetin = tamMetinler.find(
-                  (t) => t.url === sonuc.url
-                );
+                const tamMetin = tamMetinler.find((t) => t.url === sonuc.url);
                 return (
                   <Accordion.Item key={key} value={key}>
                     <Accordion.Control>
                       <Group gap="xs" wrap="nowrap">
-                        <Badge size="xs" color="red" variant="light">KİK Web</Badge>
+                        <Badge size="xs" color="red" variant="light">
+                          KİK Web
+                        </Badge>
                         <Text size="sm" lineClamp={1}>
                           {sonuc.title || 'KİK Kararı'}
                         </Text>
-                        <Badge size="xs" variant="outline" color="gray">{getDomain(sonuc.url)}</Badge>
+                        <Badge size="xs" variant="outline" color="gray">
+                          {getDomain(sonuc.url)}
+                        </Badge>
                       </Group>
                     </Accordion.Control>
                     <Accordion.Panel>
                       <Stack gap="xs">
                         {sonuc.content && (
-                          <Text size="xs" c="dimmed">{sonuc.content}</Text>
+                          <Text size="xs" c="dimmed">
+                            {sonuc.content}
+                          </Text>
                         )}
                         {tamMetin && (
                           <Alert variant="light" color="gray" title="Tam Metin" p="xs">

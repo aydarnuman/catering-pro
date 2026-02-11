@@ -44,7 +44,11 @@ import {
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DashboardStats, SektorGundemiPanel, YukleniciModal } from '@/components/yuklenici-kutuphanesi';
+import {
+  DashboardStats,
+  SektorGundemiPanel,
+  YukleniciModal,
+} from '@/components/yuklenici-kutuphanesi';
 import { BildirimListesi } from '@/components/yuklenici-kutuphanesi/istihbarat/BildirimListesi';
 import { getApiUrl } from '@/lib/config';
 import type { ScrapeStatus, SortField, StatsData, Yuklenici } from '@/types/yuklenici';
@@ -796,23 +800,16 @@ export default function YukleniciKutuphanesiPage() {
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text
-                          size="sm"
-                          fw={500}
-                          style={{ color: getKazanmaColor(kazanmaOrani) }}
-                        >
+                        <Text size="sm" fw={500} style={{ color: getKazanmaColor(kazanmaOrani) }}>
                           %{kazanmaOrani.toFixed(1)}
                         </Text>
                       </Table.Td>
                       <Table.Td>
                         {yk.devam_eden_is_sayisi > 0 || (yk.fesih_sayisi || 0) > 0 ? (
                           <Text size="xs" c="dimmed">
-                            {yk.devam_eden_is_sayisi > 0 &&
-                              `${yk.devam_eden_is_sayisi} aktif`}
-                            {yk.devam_eden_is_sayisi > 0 && (yk.fesih_sayisi || 0) > 0 &&
-                              ' · '}
-                            {(yk.fesih_sayisi || 0) > 0 &&
-                              `${yk.fesih_sayisi} fesih`}
+                            {yk.devam_eden_is_sayisi > 0 && `${yk.devam_eden_is_sayisi} aktif`}
+                            {yk.devam_eden_is_sayisi > 0 && (yk.fesih_sayisi || 0) > 0 && ' · '}
+                            {(yk.fesih_sayisi || 0) > 0 && `${yk.fesih_sayisi} fesih`}
                           </Text>
                         ) : (
                           <Text size="xs" c="dimmed">
@@ -846,9 +843,7 @@ export default function YukleniciKutuphanesiPage() {
                               onClick={() => handleTakipToggle(yk.id)}
                               aria-label={yk.takipte ? 'Takipten cikar' : 'Takibe al'}
                               style={{
-                                color: yk.takipte
-                                  ? 'var(--yk-gold)'
-                                  : 'var(--yk-text-secondary)',
+                                color: yk.takipte ? 'var(--yk-gold)' : 'var(--yk-text-secondary)',
                               }}
                             >
                               {yk.takipte ? (

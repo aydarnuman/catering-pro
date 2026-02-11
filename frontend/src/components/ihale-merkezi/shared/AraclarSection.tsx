@@ -2,8 +2,8 @@
 
 import {
   Anchor,
-  Box,
   Badge,
+  Box,
   Group,
   Paper,
   SimpleGrid,
@@ -49,27 +49,21 @@ const KONU_ICON: Record<string, { icon: React.ReactNode; color: string }> = {
   gida_fiyat_trend: { icon: <IconTrendingUp size={12} />, color: 'blue' },
 };
 
-export function AraclarSection({
-  tender,
-}: {
-  tender: SavedTender;
-  onRefresh?: () => void;
-}) {
+export function AraclarSection({ tender }: { tender: SavedTender; onRefresh?: () => void }) {
   // Tespit edilen veriler
-  const hesaplamaVerileri = ((tender as unknown as Record<string, unknown>).hesaplama_verileri || {}) as Record<string, unknown>;
-  const isSuresi = (
-    hesaplamaVerileri.is_suresi ||
+  const hesaplamaVerileri = ((tender as unknown as Record<string, unknown>).hesaplama_verileri ||
+    {}) as Record<string, unknown>;
+  const isSuresi = (hesaplamaVerileri.is_suresi ||
     tender.analysis_summary?.teslim_suresi ||
-    tender.analysis_summary?.sure
-  ) as string | undefined;
+    tender.analysis_summary?.sure) as string | undefined;
   const toplamOgun = Number(
     hesaplamaVerileri.toplam_ogun_sayisi ||
-    tender.analysis_summary?.toplam_ogun_sayisi ||
-    tender.analysis_summary?.ogun_bilgileri?.reduce(
-      (sum: number, o: { miktar?: number | string }) => sum + (Number(o.miktar) || 0),
+      tender.analysis_summary?.toplam_ogun_sayisi ||
+      tender.analysis_summary?.ogun_bilgileri?.reduce(
+        (sum: number, o: { miktar?: number | string }) => sum + (Number(o.miktar) || 0),
+        0
+      ) ||
       0
-    ) ||
-    0
   );
   const teknikSartSayisi = Number(
     hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0
@@ -174,7 +168,10 @@ export function AraclarSection({
         ) : gundem && gundem.konular.length > 0 ? (
           <Stack gap="xs">
             {gundem.konular.map((konu) => {
-              const meta = KONU_ICON[konu.konu] || { icon: <IconTrendingUp size={12} />, color: 'gray' };
+              const meta = KONU_ICON[konu.konu] || {
+                icon: <IconTrendingUp size={12} />,
+                color: 'gray',
+              };
               return (
                 <Box key={konu.konu}>
                   <Group gap={4} mb={2}>
@@ -219,7 +216,12 @@ export function AraclarSection({
         )}
 
         {/* KIK link */}
-        <Group gap="xs" mt="xs" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-dark-5)' }}>
+        <Group
+          gap="xs"
+          mt="xs"
+          pt="xs"
+          style={{ borderTop: '1px solid var(--mantine-color-dark-5)' }}
+        >
           <Tooltip label="KİK Karar Arama Motoru" position="top">
             <Anchor
               href="https://ekk.kik.gov.tr/EKAP/"

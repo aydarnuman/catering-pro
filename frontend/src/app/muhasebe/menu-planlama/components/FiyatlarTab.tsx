@@ -46,8 +46,8 @@ import {
   BarChart,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip as RechartsTooltip,
+  ResponsiveContainer,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -56,10 +56,7 @@ import {
   faturaKalemleriAPI,
   type PriceHistoryData,
 } from '@/lib/api/services/fatura-kalemleri';
-import {
-  type UrunKartiFiyat,
-  menuPlanlamaAPI,
-} from '@/lib/api/services/menu-planlama';
+import { menuPlanlamaAPI, type UrunKartiFiyat } from '@/lib/api/services/menu-planlama';
 import type { SeciliUrunDetayType } from './types';
 
 interface FiyatlarTabProps {
@@ -94,7 +91,6 @@ function getFiyatKaynagi(urun: UrunKartiFiyat): {
     return { label: 'Manuel', color: 'blue', icon: IconCoin };
   return { label: 'Fiyat Yok', color: 'red', icon: IconCoinOff };
 }
-
 
 export function FiyatlarTab({
   seciliFiyatUrunId,
@@ -222,7 +218,8 @@ export function FiyatlarTab({
       minPrice,
       maxPrice,
       changePercent,
-      trend: changePercent > 0 ? 'increasing' : changePercent < 0 ? 'decreasing' : ('stable' as const),
+      trend:
+        changePercent > 0 ? 'increasing' : changePercent < 0 ? 'decreasing' : ('stable' as const),
     };
   }, [fiyatTrendi]);
 
@@ -416,7 +413,11 @@ export function FiyatlarTab({
                 { label: 'Ortalama', value: fiyatIstatistikleri.avgPrice, color: 'dimmed' },
                 { label: 'Minimum', value: fiyatIstatistikleri.minPrice, color: 'green' },
                 { label: 'Maksimum', value: fiyatIstatistikleri.maxPrice, color: 'red' },
-                { label: 'Son Fiyat', value: fiyatTrendi[fiyatTrendi.length - 1]?.avg_price || 0, color: 'grape' },
+                {
+                  label: 'Son Fiyat',
+                  value: fiyatTrendi[fiyatTrendi.length - 1]?.avg_price || 0,
+                  color: 'grape',
+                },
               ].map((stat) => (
                 <Box
                   key={stat.label}
@@ -459,48 +460,148 @@ export function FiyatlarTab({
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
                   <LineChart data={chartData}>
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
-                    <RechartsTooltip content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
-                        return (
-                          <Paper p="xs" shadow="md" withBorder radius="sm">
-                            <Text fw={600} size="xs">{data.monthLabel}</Text>
-                            <Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text>
-                            <Text size="xs" c="dimmed">{data.transaction_count} işlem</Text>
-                          </Paper>
-                        );
-                      }
-                      return null;
-                    }} />
-                    <Line type="monotone" dataKey="avg_price" stroke="var(--mantine-color-grape-5)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: 'var(--mantine-color-grape-5)' }} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => {
+                        try {
+                          return format(parseISO(val), 'MMM', { locale: tr });
+                        } catch {
+                          return val;
+                        }
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <RechartsTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload?.length) {
+                          const data = payload[0].payload as PriceHistoryData & {
+                            monthLabel: string;
+                          };
+                          return (
+                            <Paper p="xs" shadow="md" withBorder radius="sm">
+                              <Text fw={600} size="xs">
+                                {data.monthLabel}
+                              </Text>
+                              <Text size="xs" c="grape">
+                                ₺{data.avg_price.toFixed(2)}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {data.transaction_count} işlem
+                              </Text>
+                            </Paper>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avg_price"
+                      stroke="var(--mantine-color-grape-5)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: 'var(--mantine-color-grape-5)' }}
+                    />
                   </LineChart>
                 ) : chartType === 'bar' ? (
                   <BarChart data={chartData}>
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
-                    <RechartsTooltip content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
-                        return (<Paper p="xs" shadow="md" withBorder radius="sm"><Text fw={600} size="xs">{data.monthLabel}</Text><Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text></Paper>);
-                      }
-                      return null;
-                    }} />
-                    <Bar dataKey="avg_price" fill="var(--mantine-color-grape-5)" radius={[4, 4, 0, 0]} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => {
+                        try {
+                          return format(parseISO(val), 'MMM', { locale: tr });
+                        } catch {
+                          return val;
+                        }
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <RechartsTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload?.length) {
+                          const data = payload[0].payload as PriceHistoryData & {
+                            monthLabel: string;
+                          };
+                          return (
+                            <Paper p="xs" shadow="md" withBorder radius="sm">
+                              <Text fw={600} size="xs">
+                                {data.monthLabel}
+                              </Text>
+                              <Text size="xs" c="grape">
+                                ₺{data.avg_price.toFixed(2)}
+                              </Text>
+                            </Paper>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar
+                      dataKey="avg_price"
+                      fill="var(--mantine-color-grape-5)"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 ) : (
                   <AreaChart data={chartData}>
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
-                    <RechartsTooltip content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
-                        return (<Paper p="xs" shadow="md" withBorder radius="sm"><Text fw={600} size="xs">{data.monthLabel}</Text><Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text></Paper>);
-                      }
-                      return null;
-                    }} />
-                    <Area type="monotone" dataKey="avg_price" stroke="var(--mantine-color-grape-5)" fill="rgba(145, 71, 255, 0.15)" />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => {
+                        try {
+                          return format(parseISO(val), 'MMM', { locale: tr });
+                        } catch {
+                          return val;
+                        }
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <RechartsTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload?.length) {
+                          const data = payload[0].payload as PriceHistoryData & {
+                            monthLabel: string;
+                          };
+                          return (
+                            <Paper p="xs" shadow="md" withBorder radius="sm">
+                              <Text fw={600} size="xs">
+                                {data.monthLabel}
+                              </Text>
+                              <Text size="xs" c="grape">
+                                ₺{data.avg_price.toFixed(2)}
+                              </Text>
+                            </Paper>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="avg_price"
+                      stroke="var(--mantine-color-grape-5)"
+                      fill="rgba(145, 71, 255, 0.15)"
+                    />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
@@ -553,7 +654,8 @@ export function FiyatlarTab({
               style={{
                 padding: '6px 12px',
                 borderRadius: 20,
-                background: seciliKategori === 'tumu' ? 'var(--mantine-color-dark-4)' : 'transparent',
+                background:
+                  seciliKategori === 'tumu' ? 'var(--mantine-color-dark-4)' : 'transparent',
                 transition: 'all 0.2s ease',
               }}
             >
@@ -578,11 +680,7 @@ export function FiyatlarTab({
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <Text
-                    size="xs"
-                    fw={isKatActive ? 500 : 400}
-                    c={isKatActive ? 'white' : 'dimmed'}
-                  >
+                  <Text size="xs" fw={isKatActive ? 500 : 400} c={isKatActive ? 'white' : 'dimmed'}>
                     {kat.ad}
                   </Text>
                 </UnstyledButton>
@@ -626,9 +724,13 @@ export function FiyatlarTab({
                 const fiyat = Number(urun.guncel_fiyat) || 0;
                 const piyasaFiyat = Number(urun.piyasa_fiyati) || 0;
                 const rawBirim = (urun.varsayilan_birim || 'adet').toLowerCase();
-                const birim = ['lt', 'litre', 'l'].includes(rawBirim) ? 'L'
-                  : ['kg', 'kilo'].includes(rawBirim) ? 'kg'
-                  : ['adet', 'ad'].includes(rawBirim) ? 'adet' : rawBirim;
+                const birim = ['lt', 'litre', 'l'].includes(rawBirim)
+                  ? 'L'
+                  : ['kg', 'kilo'].includes(rawBirim)
+                    ? 'kg'
+                    : ['adet', 'ad'].includes(rawBirim)
+                      ? 'adet'
+                      : rawBirim;
                 const kaynak = getFiyatKaynagi(urun);
                 const receteSayisi = Number(urun.recete_sayisi) || 0;
 
@@ -642,9 +744,7 @@ export function FiyatlarTab({
                       gap: 12,
                       padding: '10px 12px',
                       borderRadius: 'var(--mantine-radius-md)',
-                      background: isSelected
-                        ? 'var(--mantine-color-dark-5)'
-                        : 'transparent',
+                      background: isSelected ? 'var(--mantine-color-dark-5)' : 'transparent',
                       borderLeft: isSelected
                         ? '3px solid var(--mantine-color-grape-5)'
                         : '3px solid transparent',
@@ -662,7 +762,13 @@ export function FiyatlarTab({
                     }}
                   >
                     {/* Kategori ikonu */}
-                    <ThemeIcon size="sm" variant="light" color="gray" radius="xl" style={{ flexShrink: 0 }}>
+                    <ThemeIcon
+                      size="sm"
+                      variant="light"
+                      color="gray"
+                      radius="xl"
+                      style={{ flexShrink: 0 }}
+                    >
                       <IconPackages size={12} />
                     </ThemeIcon>
 

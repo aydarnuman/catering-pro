@@ -57,11 +57,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openContextNotes = useCallback(
-    (
-      contextType: Exclude<NoteContextType, null>,
-      contextId: number,
-      contextTitle?: string
-    ) => {
+    (contextType: Exclude<NoteContextType, null>, contextId: number, contextTitle?: string) => {
       setState({
         opened: true,
         contextType,

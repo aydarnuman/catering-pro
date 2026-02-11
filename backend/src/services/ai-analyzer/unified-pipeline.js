@@ -27,10 +27,10 @@ import logger from '../../utils/logger.js';
 import { logValidationResult, validateCriticalFields } from './controls/field-validator.js';
 // Kalite metrikleri
 import { PipelineMonitor } from './controls/quality-metrics.js';
-// Zero-Loss Pipeline - Son fallback olarak kullanılır
-import { runZeroLossPipeline as runFallbackPipeline } from './pipeline/index.js';
 // Extractor - yerel metin çıkarma (DOC/DOCX/XLSX/TXT için Azure'u atla)
 import { extract as extractLocal } from './pipeline/extractor.js';
+// Zero-Loss Pipeline - Son fallback olarak kullanılır
+import { runZeroLossPipeline as runFallbackPipeline } from './pipeline/index.js';
 import { analyzeWithCustomModel, analyzeWithLayout, checkHealth } from './providers/azure-document-ai.js';
 import { createErrorOutput, createSuccessOutput } from './schemas/final-output.js';
 import { mergeResults } from './utils/merge-results.js';
@@ -282,9 +282,12 @@ export async function analyzeDocument(filePath, options = {}) {
       for (const { field, config } of criticalValidation.missing) {
         try {
           // Eksik alan doldurma - yeterli metin gönder (150K limit)
-          const fillText = extractedText.length > 150_000
-            ? extractedText.substring(0, 97_500) + '\n\n[...atlandı...]\n\n' + extractedText.substring(extractedText.length - 52_500)
-            : extractedText;
+          const fillText =
+            extractedText.length > 150_000
+              ? extractedText.substring(0, 97_500) +
+                '\n\n[...atlandı...]\n\n' +
+                extractedText.substring(extractedText.length - 52_500)
+              : extractedText;
           const fillPrompt = config.fallbackPrompt + `\n\nMETİN:\n${fillText}`;
 
           const fillResponse = await anthropic.messages.create({
@@ -446,11 +449,11 @@ function prepareForClaude(azureResult) {
   function cleanOcrText(rawText) {
     if (!rawText) return '';
     return rawText
-      .replace(/\0/g, '')                        // null bytes
-      .replace(/¿/g, '')                        // garbled question marks
-      .replace(/\uFFFD/g, '')                   // Unicode replacement char
-      .replace(/[^\S\n]{3,}/g, ' ')             // 3+ ardışık boşluk → tek boşluk
-      .replace(/\n{4,}/g, '\n\n\n')             // 4+ ardışık newline → 3
+      .replace(/\0/g, '') // null bytes
+      .replace(/¿/g, '') // garbled question marks
+      .replace(/\uFFFD/g, '') // Unicode replacement char
+      .replace(/[^\S\n]{3,}/g, ' ') // 3+ ardışık boşluk → tek boşluk
+      .replace(/\n{4,}/g, '\n\n\n') // 4+ ardışık newline → 3
       .replace(/:selec[t ]*ed|:unselected/gi, '') // Azure checkbox artifacts
       .trim();
   }
@@ -525,7 +528,7 @@ function prepareForClaude(azureResult) {
     fieldsText = '\n--- AZURE CUSTOM MODEL ÇIKTISI ---\n';
     for (const [key, field] of Object.entries(customFields)) {
       if (field !== null && field !== undefined) {
-        const confidence = typeof field === 'object' ? (field.confidence || 0) : 1;
+        const confidence = typeof field === 'object' ? field.confidence || 0 : 1;
         const value = typeof field === 'object' ? field.value || field.content : field;
 
         // Düşük confidence field'ları atla
@@ -548,7 +551,7 @@ function prepareForClaude(azureResult) {
     if (filteredCount > 0) {
       logger.info(`Confidence filtreleme: ${filteredCount} alan atıldı (conf < ${MIN_CONFIDENCE})`, {
         module: 'unified-pipeline',
-        droppedFields: droppedFields.map(f => `${f.key}(${f.confidence}%)`).join(', '),
+        droppedFields: droppedFields.map((f) => `${f.key}(${f.confidence}%)`).join(', '),
       });
     }
   }
@@ -650,8 +653,8 @@ async function runClaudeAnalysis(preparedData) {
   // AKILLI METİN HAZIRLAMA - Claude Opus 4.6: 1M token context!
   // 500K karakter ≈ 125K token, context'in %12'si - rahat sığar
   // ═══════════════════════════════════════════════════════════════════════
-  const TEXT_LIMIT = 500_000;   // ~125K token (was 15K - 33x artış!)
-  const TABLE_LIMIT = 100_000;  // ~25K token  (was 8K  - 12x artış!)
+  const TEXT_LIMIT = 500_000; // ~125K token (was 15K - 33x artış!)
+  const TABLE_LIMIT = 100_000; // ~25K token  (was 8K  - 12x artış!)
 
   function smartTruncate(text, limit) {
     if (!text || text.length <= limit) return text;

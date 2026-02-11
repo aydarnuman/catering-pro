@@ -1064,7 +1064,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
       const carpan = ['g', 'gr', 'gram', 'ml'].includes(birim) ? 0.001 : 1;
 
       // DB'deki toplam_fiyat varsa onu kullan (trigger/hesaplaReceteMaliyet tarafından hesaplandı)
-      const sistemToplam = parseFloat(m.sistem_toplam) || (miktar * carpan * sistemFiyat);
+      const sistemToplam = parseFloat(m.sistem_toplam) || miktar * carpan * sistemFiyat;
       const piyasaToplam = miktar * carpan * piyasaFiyat;
 
       toplamSistem += sistemToplam;

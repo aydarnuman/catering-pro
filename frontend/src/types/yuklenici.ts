@@ -259,11 +259,11 @@ export type IstihbaratModulAdi =
 
 /** Dock'ta gösterilen grup adları (5 adet) */
 export type DockGrupAdi =
-  | 'ihale_performansi'   // ihale_gecmisi + profil_analizi + katilimcilar
-  | 'hukuki_durum'        // kik_kararlari + kik_yasaklilar
-  | 'sirket_bilgileri'    // tekil
-  | 'haberler'            // tekil
-  | 'ai_arastirma';       // tekil
+  | 'ihale_performansi' // ihale_gecmisi + profil_analizi + katilimcilar
+  | 'hukuki_durum' // kik_kararlari + kik_yasaklilar
+  | 'sirket_bilgileri' // tekil
+  | 'haberler' // tekil
+  | 'ai_arastirma'; // tekil
 
 /** Modül çalışma durumları */
 export type ModulDurum = 'bekliyor' | 'calisiyor' | 'tamamlandi' | 'hata';

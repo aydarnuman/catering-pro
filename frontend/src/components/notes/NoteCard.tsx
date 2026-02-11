@@ -69,7 +69,10 @@ function formatDueDate(date: string | null): string | null {
  * Strip HTML tags and get plain text preview
  */
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -156,8 +159,12 @@ export function NoteCard({
               opacity: 0.4,
               transition: 'opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '0.4';
+            }}
           >
             <IconGripVertical size={16} />
           </Box>
@@ -259,7 +266,12 @@ export function NoteCard({
             {/* Reminder indicator */}
             {hasReminder && (
               <Tooltip label="Hatirlatici var">
-                <Badge size="xs" variant="light" color="violet" leftSection={<IconBell size={10} />}>
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="violet"
+                  leftSection={<IconBell size={10} />}
+                >
                   {note.reminders.length}
                 </Badge>
               </Tooltip>
@@ -268,7 +280,12 @@ export function NoteCard({
             {/* Attachment indicator */}
             {hasAttachments && (
               <Tooltip label={`${note.attachments.length} dosya`}>
-                <Badge size="xs" variant="light" color="cyan" leftSection={<IconPaperclip size={10} />}>
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="cyan"
+                  leftSection={<IconPaperclip size={10} />}
+                >
                   {note.attachments.length}
                 </Badge>
               </Tooltip>

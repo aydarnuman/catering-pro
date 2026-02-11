@@ -1,7 +1,7 @@
 /**
  * useQueueProgress
  * SSE ile kuyruk işleme progress takibi
- * 
+ *
  * Queue processor dokümanları işlerken frontend'e gerçek zamanlı bildirim gönderir.
  * EventSource ile /api/documents/queue/progress endpoint'ine bağlanır.
  */
@@ -104,7 +104,7 @@ export function useQueueProgress(options: UseQueueProgressOptions = {}): UseQueu
       try {
         const data = JSON.parse(e.data);
         const event: QueueEvent = { ...data, timestamp: Date.now() };
-        
+
         setProcessingDocs((prev) => {
           const existing = prev.findIndex((d) => d.documentId === data.documentId);
           if (existing >= 0) {
@@ -114,7 +114,7 @@ export function useQueueProgress(options: UseQueueProgressOptions = {}): UseQueu
           }
           return [...prev, event];
         });
-        
+
         addEvent(event);
       } catch {}
     });
@@ -124,7 +124,7 @@ export function useQueueProgress(options: UseQueueProgressOptions = {}): UseQueu
       try {
         const data = JSON.parse(e.data);
         const event: QueueEvent = { ...data, timestamp: Date.now() };
-        
+
         setProcessingDocs((prev) => prev.filter((d) => d.documentId !== data.documentId));
         addEvent(event);
         onDocumentCompleteRef.current?.(event);
@@ -136,7 +136,7 @@ export function useQueueProgress(options: UseQueueProgressOptions = {}): UseQueu
       try {
         const data = JSON.parse(e.data);
         const event: QueueEvent = { ...data, timestamp: Date.now() };
-        
+
         setProcessingDocs((prev) => prev.filter((d) => d.documentId !== data.documentId));
         addEvent(event);
         onDocumentErrorRef.current?.(event);

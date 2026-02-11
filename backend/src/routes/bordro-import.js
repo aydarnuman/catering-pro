@@ -460,9 +460,10 @@ router.post('/templates/from-analysis', async (req, res) => {
     }
 
     if (!suggestedMapping || Object.keys(suggestedMapping).length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Kolon eşleştirmesi bulunamadı. AI analizi sonrasında template kaydedebilirsiniz.' });
+      return res.status(400).json({
+        success: false,
+        error: 'Kolon eşleştirmesi bulunamadı. AI analizi sonrasında template kaydedebilirsiniz.',
+      });
     }
 
     const template = await saveTemplate({

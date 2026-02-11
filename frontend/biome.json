@@ -6,8 +6,8 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": "off",
-        "noShadowRestrictedNames": "off",
-        "noArrayIndexKey": "off",
+        "noShadowRestrictedNames": "warn",
+        "noArrayIndexKey": "warn",
         "noAssignInExpressions": "warn",
         "useIterableCallbackReturn": "warn"
       },
@@ -16,23 +16,28 @@
         "noNonNullAssertion": "off"
       },
       "correctness": {
-        "noUnusedVariables": "off",
-        "noUnusedImports": "off",
-        "noUnusedFunctionParameters": "off",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noUnusedFunctionParameters": "warn",
         "useExhaustiveDependencies": "off"
       },
       "a11y": {
-        "useKeyWithClickEvents": "off",
+        "useKeyWithClickEvents": "warn",
         "noSvgWithoutTitle": "off",
-        "useButtonType": "off",
+        "useButtonType": "warn",
         "noAutofocus": "off"
       },
       "complexity": {
         "noForEach": "off",
         "useLiteralKeys": "off",
-        "noExcessiveCognitiveComplexity": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 100
+          }
+        },
         "useIndexOf": "off",
-        "noImportantStyles": "off"
+        "noImportantStyles": "warn"
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn",
@@ -75,6 +80,16 @@
         "rules": {
           "security": {
             "noDangerouslySetInnerHtml": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app/error.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noShadowRestrictedNames": "off"
           }
         }
       }

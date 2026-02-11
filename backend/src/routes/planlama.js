@@ -427,7 +427,7 @@ router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
     }
 
     // Merkezi yazım servisi ile kaydet
-    const fiyatVerileri = sonuclar.map(s => ({
+    const fiyatVerileri = sonuclar.map((s) => ({
       urun: s.urunAdi,
       market: s.market,
       marka: s.marka || null,
@@ -450,10 +450,10 @@ router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
 
     // Ürün kartını güncelle (varsa)
     if (stok_kart_id) {
-      await query(
-        `UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`,
-        [ortBirimFiyat, stok_kart_id]
-      ).catch(() => {});
+      await query(`UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`, [
+        ortBirimFiyat,
+        stok_kart_id,
+      ]).catch(() => {});
     }
 
     res.json({
@@ -479,22 +479,24 @@ router.post('/piyasa/fiyat-kaydet', async (req, res) => {
     await savePiyasaFiyatlar({
       urunKartId: stok_kart_id,
       urunAdi: urun_adi || '',
-      fiyatlar: [{
-        urun: urun_adi || '',
-        market: 'Manuel',
-        fiyat: piyasa_fiyat_ort,
-        birimFiyat: piyasa_fiyat_ort,
-        birimTipi: 'kg',
-      }],
+      fiyatlar: [
+        {
+          urun: urun_adi || '',
+          market: 'Manuel',
+          fiyat: piyasa_fiyat_ort,
+          birimFiyat: piyasa_fiyat_ort,
+          birimTipi: 'kg',
+        },
+      ],
       kaynakTip: 'manuel',
       eskiKayitlariTemizle: false,
     });
 
     // Ürün kartındaki son fiyatı da güncelle
-    await query(
-      `UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`,
-      [piyasa_fiyat_ort, stok_kart_id]
-    ).catch(() => {});
+    await query(`UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`, [
+      piyasa_fiyat_ort,
+      stok_kart_id,
+    ]).catch(() => {});
 
     res.json({ success: true, message: 'Fiyat kaydedildi' });
   } catch (error) {
@@ -1551,11 +1553,13 @@ router.post('/piyasa/terim-optimize', async (_req, res) => {
     const { optimizeAllSearchTerms } = await import('../services/arama-terimi-optimizer.js');
 
     // Async başlat, hemen cevap dön
-    optimizeAllSearchTerms({ limit: 30 }).then((result) => {
-      logger.info(`[TerimOptimize] ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
-    }).catch((err) => {
-      logger.error(`[TerimOptimize] Hata: ${err.message}`);
-    });
+    optimizeAllSearchTerms({ limit: 30 })
+      .then((result) => {
+        logger.info(`[TerimOptimize] ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
+      })
+      .catch((err) => {
+        logger.error(`[TerimOptimize] Hata: ${err.message}`);
+      });
 
     res.json({
       success: true,

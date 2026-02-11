@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionIcon, Select, Table, Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GramajEditableRowProps } from './types';
 
 export const GramajEditableRow = ({

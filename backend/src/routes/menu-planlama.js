@@ -751,7 +751,7 @@ async function hesaplaReceteMaliyet(receteId) {
         Number(m.urun_son_alis) ||
         Number(m.urun_manuel_fiyat) ||
         Number(m.piyasa_fiyat) ||
-        Number(m.varyant_fiyat) ||  // ← YENİ: Varyant fiyat fallback
+        Number(m.varyant_fiyat) || // ← YENİ: Varyant fiyat fallback
         0;
 
       // Birim dönüşümü: küçük birim (g/gr/ml) ise 0.001, değilse 1
@@ -766,7 +766,7 @@ async function hesaplaReceteMaliyet(receteId) {
       } else if (Number(m.urun_son_alis) > 0) fiyatKaynagi = 'FATURA';
       else if (Number(m.urun_manuel_fiyat) > 0) fiyatKaynagi = 'MANUEL';
       else if (Number(m.piyasa_fiyat) > 0) fiyatKaynagi = 'PIYASA';
-      else if (Number(m.varyant_fiyat) > 0) fiyatKaynagi = 'VARYANT';  // ← YENİ
+      else if (Number(m.varyant_fiyat) > 0) fiyatKaynagi = 'VARYANT'; // ← YENİ
 
       // Malzeme fiyatını güncelle
       await query(

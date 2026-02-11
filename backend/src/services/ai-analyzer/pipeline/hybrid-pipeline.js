@@ -1,12 +1,12 @@
 /**
  * @deprecated v9.0'dan itibaren kullanılmıyor!
- * 
+ *
  * unified-pipeline.js aynı işlevselliği içerir:
  *   import { analyzeDocument } from './unified-pipeline.js';
- * 
+ *
  * Bu dosya geriye uyumluluk için korunuyor ama yeni kodda KULLANILMAMALI.
  * Tüm Azure+Claude hibrit mantığı unified-pipeline.js'e taşındı.
- * 
+ *
  * Eski: Hybrid Pipeline - Azure Document Intelligence + Claude Semantic Analysis
  */
 

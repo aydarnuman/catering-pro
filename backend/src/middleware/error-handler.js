@@ -9,7 +9,18 @@ import logger from '../utils/logger.js';
  * Hassas alanları log'dan maskeler
  * Şifreler, tokenlar vb. [REDACTED] ile değiştirilir
  */
-const SENSITIVE_FIELDS = ['password', 'sifre', 'parola', 'token', 'secret', 'refresh_token', 'access_token', 'credit_card', 'cvv', 'card_number'];
+const SENSITIVE_FIELDS = [
+  'password',
+  'sifre',
+  'parola',
+  'token',
+  'secret',
+  'refresh_token',
+  'access_token',
+  'credit_card',
+  'cvv',
+  'card_number',
+];
 
 function sanitizeBody(body) {
   if (!body || typeof body !== 'object') return body;

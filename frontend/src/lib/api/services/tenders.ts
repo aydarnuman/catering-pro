@@ -347,7 +347,10 @@ export const tendersAPI = {
    * İhale için potansiyel rakip analizi
    * Hibrit: iç veritabanı + Tavily web araması
    */
-  async getRakipAnalizi(tenderId: number, force = false): Promise<ApiResponse<RakipAnaliziResponse>> {
+  async getRakipAnalizi(
+    tenderId: number,
+    force = false
+  ): Promise<ApiResponse<RakipAnaliziResponse>> {
     const response = await api.get(`/api/tender-tracking/${tenderId}/rakip-analizi`, {
       params: force ? { force: 'true' } : undefined,
     });

@@ -41,7 +41,12 @@ interface AIHelpToolProps {
   onCreateTasksFromAI?: (tasks: string[]) => void;
 }
 
-const AI_ACTIONS: Array<{ value: AIAction; label: string; icon: React.ReactNode; description: string }> = [
+const AI_ACTIONS: Array<{
+  value: AIAction;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+}> = [
   {
     value: 'summarize',
     label: 'Notu Ozetle',
@@ -87,21 +92,18 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
     label: n.title || stripHtml(n.content).slice(0, 60) || 'Baslıksiz not',
   }));
 
-  const getPrompt = useCallback(
-    (act: AIAction, text: string): string => {
-      switch (act) {
-        case 'summarize':
-          return `Asagidaki notu Turkce olarak 2-3 cumlede ozetle. Sadece ozeti yaz, baska aciklama ekleme:\n\n${text}`;
-        case 'fix-writing':
-          return `Asagidaki Turkce metindeki yazim, imla ve gramer hatalarini duzelt. Sadece duzeltilmis metni yaz, aciklama ekleme:\n\n${text}`;
-        case 'extract-tasks':
-          return `Asagidaki metinden yapilacak is/gorev maddelerini cikar. Her maddeyi ayri satirda "- " ile baslat. Sadece gorev listesini yaz:\n\n${text}`;
-        default:
-          return text;
-      }
-    },
-    []
-  );
+  const getPrompt = useCallback((act: AIAction, text: string): string => {
+    switch (act) {
+      case 'summarize':
+        return `Asagidaki notu Turkce olarak 2-3 cumlede ozetle. Sadece ozeti yaz, baska aciklama ekleme:\n\n${text}`;
+      case 'fix-writing':
+        return `Asagidaki Turkce metindeki yazim, imla ve gramer hatalarini duzelt. Sadece duzeltilmis metni yaz, aciklama ekleme:\n\n${text}`;
+      case 'extract-tasks':
+        return `Asagidaki metinden yapilacak is/gorev maddelerini cikar. Her maddeyi ayri satirda "- " ile baslat. Sadece gorev listesini yaz:\n\n${text}`;
+      default:
+        return text;
+    }
+  }, []);
 
   const handleRun = useCallback(async () => {
     let text = customText;
@@ -126,7 +128,8 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
       const response = await aiAPI.sendAgentMessage({
         message: prompt,
         department: 'GENEL',
-        systemContext: 'Kullanici not yonetim araci icerisinden islem yapiyor. Kisa ve oz cevap ver.',
+        systemContext:
+          'Kullanici not yonetim araci icerisinden islem yapiyor. Kisa ve oz cevap ver.',
       });
 
       if (response.success && response.data?.response) {
@@ -135,7 +138,11 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
         notifications.show({ title: 'Hata', message: 'AI yanit veremedi', color: 'red' });
       }
     } catch {
-      notifications.show({ title: 'Hata', message: 'AI servisi ile baglanti kurulamadi', color: 'red' });
+      notifications.show({
+        title: 'Hata',
+        message: 'AI servisi ile baglanti kurulamadi',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -172,7 +179,9 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
           <Text size="lg" fw={700} style={{ letterSpacing: '-0.02em' }}>
             AI Yardim
           </Text>
-          <Text size="xs" c="dimmed">Notlarinizi AI ile analiz edin</Text>
+          <Text size="xs" c="dimmed">
+            Notlarinizi AI ile analiz edin
+          </Text>
         </Box>
       </Group>
 
@@ -212,12 +221,19 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
                     style={{
                       color: isSelected
                         ? `var(--mantine-color-${clr}-${isDark ? '4' : '6'})`
-                        : isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                        : isDark
+                          ? 'rgba(255,255,255,0.5)'
+                          : 'rgba(0,0,0,0.4)',
                     }}
                   >
                     {act.icon}
                   </Box>
-                  <Text size="xs" fw={isSelected ? 700 : 500} ta="center" style={{ lineHeight: 1.2 }}>
+                  <Text
+                    size="xs"
+                    fw={isSelected ? 700 : 500}
+                    ta="center"
+                    style={{ lineHeight: 1.2 }}
+                  >
                     {act.label}
                   </Text>
                 </Stack>

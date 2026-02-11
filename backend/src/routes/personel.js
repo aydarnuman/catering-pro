@@ -2,7 +2,20 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { createPersonelSchema, updatePersonelSchema, createProjeSchema, updateProjeSchema, atamaSchema, topluAtamaSchema, updateAtamaSchema, createGorevSchema, updateGorevSchema, tazminatHesaplaSchema, tazminatKaydetSchema, izinGunSchema } from '../validations/personel.js';
+import {
+  atamaSchema,
+  createGorevSchema,
+  createPersonelSchema,
+  createProjeSchema,
+  izinGunSchema,
+  tazminatHesaplaSchema,
+  tazminatKaydetSchema,
+  topluAtamaSchema,
+  updateAtamaSchema,
+  updateGorevSchema,
+  updatePersonelSchema,
+  updateProjeSchema,
+} from '../validations/personel.js';
 
 const router = express.Router();
 
@@ -334,40 +347,46 @@ router.get('/:id', async (req, res) => {
 // =====================================================
 // YENİ PERSONEL EKLE
 // =====================================================
-router.post('/', authenticate, requirePermission('personel', 'create'), validate(createPersonelSchema), auditLog('personel'), async (req, res) => {
-  try {
-    const {
-      ad,
-      soyad,
-      tc_kimlik,
-      telefon,
-      email,
-      adres,
-      departman,
-      pozisyon,
-      ise_giris_tarihi,
-      maas,
-      maas_tipi,
-      iban,
-      dogum_tarihi,
-      cinsiyet,
-      notlar,
-      sicil_no,
-      acil_kisi,
-      acil_telefon,
-      durum,
-      // Bordro alanları
-      medeni_durum,
-      es_calisiyormu,
-      cocuk_sayisi,
-      engel_derecesi,
-      sgk_no,
-      yemek_yardimi,
-      yol_yardimi,
-    } = req.body;
+router.post(
+  '/',
+  authenticate,
+  requirePermission('personel', 'create'),
+  validate(createPersonelSchema),
+  auditLog('personel'),
+  async (req, res) => {
+    try {
+      const {
+        ad,
+        soyad,
+        tc_kimlik,
+        telefon,
+        email,
+        adres,
+        departman,
+        pozisyon,
+        ise_giris_tarihi,
+        maas,
+        maas_tipi,
+        iban,
+        dogum_tarihi,
+        cinsiyet,
+        notlar,
+        sicil_no,
+        acil_kisi,
+        acil_telefon,
+        durum,
+        // Bordro alanları
+        medeni_durum,
+        es_calisiyormu,
+        cocuk_sayisi,
+        engel_derecesi,
+        sgk_no,
+        yemek_yardimi,
+        yol_yardimi,
+      } = req.body;
 
-    const result = await query(
-      `
+      const result = await query(
+        `
       INSERT INTO personeller (
         ad, soyad, tc_kimlik, telefon, email, adres,
         departman, pozisyon, ise_giris_tarihi, maas, maas_tipi,
@@ -378,89 +397,96 @@ router.post('/', authenticate, requirePermission('personel', 'create'), validate
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
       RETURNING *
     `,
-      [
-        ad,
-        soyad,
-        tc_kimlik,
-        telefon || null,
-        email || null,
-        adres || null,
-        departman || null,
-        pozisyon || null,
-        ise_giris_tarihi,
-        maas || 0,
-        maas_tipi || 'aylik',
-        iban || null,
-        dogum_tarihi || null,
-        cinsiyet || null,
-        notlar || null,
-        sicil_no || null,
-        acil_kisi || null,
-        acil_telefon || null,
-        durum || 'aktif',
-        medeni_durum || 'bekar',
-        es_calisiyormu || false,
-        cocuk_sayisi || 0,
-        engel_derecesi || 0,
-        sgk_no || null,
-        yemek_yardimi || 0,
-        yol_yardimi || 0,
-      ]
-    );
+        [
+          ad,
+          soyad,
+          tc_kimlik,
+          telefon || null,
+          email || null,
+          adres || null,
+          departman || null,
+          pozisyon || null,
+          ise_giris_tarihi,
+          maas || 0,
+          maas_tipi || 'aylik',
+          iban || null,
+          dogum_tarihi || null,
+          cinsiyet || null,
+          notlar || null,
+          sicil_no || null,
+          acil_kisi || null,
+          acil_telefon || null,
+          durum || 'aktif',
+          medeni_durum || 'bekar',
+          es_calisiyormu || false,
+          cocuk_sayisi || 0,
+          engel_derecesi || 0,
+          sgk_no || null,
+          yemek_yardimi || 0,
+          yol_yardimi || 0,
+        ]
+      );
 
-    res.status(201).json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    if (error.code === '23505') {
-      if (error.constraint?.includes('tc_kimlik')) {
-        return res.status(400).json({ success: false, error: 'Bu TC kimlik numarası zaten kayıtlı' });
+      res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      if (error.code === '23505') {
+        if (error.constraint?.includes('tc_kimlik')) {
+          return res.status(400).json({ success: false, error: 'Bu TC kimlik numarası zaten kayıtlı' });
+        }
+        if (error.constraint?.includes('sicil_no')) {
+          return res.status(400).json({ success: false, error: 'Bu sicil numarası zaten kullanılıyor' });
+        }
       }
-      if (error.constraint?.includes('sicil_no')) {
-        return res.status(400).json({ success: false, error: 'Bu sicil numarası zaten kullanılıyor' });
-      }
+      res.status(500).json({ success: false, error: error.message });
     }
-    res.status(500).json({ success: false, error: error.message });
   }
-});
+);
 
 // =====================================================
 // PERSONEL GÜNCELLE
 // =====================================================
-router.put('/:id', authenticate, requirePermission('personel', 'edit'), validate(updatePersonelSchema), auditLog('personel'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      ad,
-      soyad,
-      tc_kimlik,
-      telefon,
-      email,
-      adres,
-      departman,
-      pozisyon,
-      ise_giris_tarihi,
-      isten_cikis_tarihi,
-      maas,
-      maas_tipi,
-      iban,
-      dogum_tarihi,
-      cinsiyet,
-      notlar,
-      sicil_no,
-      acil_kisi,
-      acil_telefon,
-      durum,
-      // Bordro alanları
-      medeni_durum,
-      es_calisiyormu,
-      cocuk_sayisi,
-      engel_derecesi,
-      sgk_no,
-      yemek_yardimi,
-      yol_yardimi,
-    } = req.body;
+router.put(
+  '/:id',
+  authenticate,
+  requirePermission('personel', 'edit'),
+  validate(updatePersonelSchema),
+  auditLog('personel'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        ad,
+        soyad,
+        tc_kimlik,
+        telefon,
+        email,
+        adres,
+        departman,
+        pozisyon,
+        ise_giris_tarihi,
+        isten_cikis_tarihi,
+        maas,
+        maas_tipi,
+        iban,
+        dogum_tarihi,
+        cinsiyet,
+        notlar,
+        sicil_no,
+        acil_kisi,
+        acil_telefon,
+        durum,
+        // Bordro alanları
+        medeni_durum,
+        es_calisiyormu,
+        cocuk_sayisi,
+        engel_derecesi,
+        sgk_no,
+        yemek_yardimi,
+        yol_yardimi,
+      } = req.body;
 
-    const result = await query(
-      `
+      const result = await query(
+        `
       UPDATE personeller SET
         ad = COALESCE($2, ad),
         soyad = COALESCE($3, soyad),
@@ -493,47 +519,48 @@ router.put('/:id', authenticate, requirePermission('personel', 'edit'), validate
       WHERE id = $1
       RETURNING *
     `,
-      [
-        id,
-        ad,
-        soyad,
-        tc_kimlik,
-        telefon,
-        email,
-        adres,
-        departman,
-        pozisyon,
-        ise_giris_tarihi,
-        isten_cikis_tarihi,
-        maas,
-        maas_tipi,
-        iban,
-        dogum_tarihi,
-        cinsiyet,
-        notlar,
-        sicil_no,
-        acil_kisi,
-        acil_telefon,
-        durum,
-        medeni_durum,
-        es_calisiyormu,
-        cocuk_sayisi,
-        engel_derecesi,
-        sgk_no,
-        yemek_yardimi,
-        yol_yardimi,
-      ]
-    );
+        [
+          id,
+          ad,
+          soyad,
+          tc_kimlik,
+          telefon,
+          email,
+          adres,
+          departman,
+          pozisyon,
+          ise_giris_tarihi,
+          isten_cikis_tarihi,
+          maas,
+          maas_tipi,
+          iban,
+          dogum_tarihi,
+          cinsiyet,
+          notlar,
+          sicil_no,
+          acil_kisi,
+          acil_telefon,
+          durum,
+          medeni_durum,
+          es_calisiyormu,
+          cocuk_sayisi,
+          engel_derecesi,
+          sgk_no,
+          yemek_yardimi,
+          yol_yardimi,
+        ]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Personel bulunamadı' });
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Personel bulunamadı' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
     }
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
-});
+);
 
 // =====================================================
 // PERSONEL SİL

@@ -17,24 +17,15 @@ import {
   TextInput,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconInfoCircle,
-  IconPlus,
-  IconScale,
-  IconX,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconPlus, IconScale, IconX } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { API_BASE_URL } from '@/lib/config';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
+import { API_BASE_URL } from '@/lib/config';
 import { GramajEditableRow } from './GramajEditableRow';
 import { GramajNewRow } from './GramajNewRow';
-import type {
-  BackendMaliyetAnaliziResponse,
-  ReceteDetay,
-  SartnameSet,
-} from './types';
+import type { BackendMaliyetAnaliziResponse, ReceteDetay, SartnameSet } from './types';
 
 interface ReceteDetayModalProps {
   opened: boolean;
@@ -357,11 +348,7 @@ export function ReceteDetayModal({
                     }}
                   >
                     <Group gap={8} wrap="nowrap">
-                      <Text
-                        size="sm"
-                        fw={isActive ? 600 : 400}
-                        c={isActive ? 'white' : 'dimmed'}
-                      >
+                      <Text size="sm" fw={isActive ? 600 : 400} c={isActive ? 'white' : 'dimmed'}>
                         {sartname?.ad || `Şartname ${tabId}`}
                       </Text>
                       {sartnameTabs.length > 1 && (
@@ -445,9 +432,7 @@ export function ReceteDetayModal({
                 py="xs"
               >
                 <Group gap="xs" wrap="wrap">
-                  <Text size="xs">
-                    Bazı malzemelerin fiyatı varyantlardan alınıyor:
-                  </Text>
+                  <Text size="xs">Bazı malzemelerin fiyatı varyantlardan alınıyor:</Text>
                   {receteDetay.malzemeler
                     .filter((m) => m.fiyat_kaynagi === 'VARYANT')
                     .map((m) => (
@@ -494,10 +479,7 @@ export function ReceteDetayModal({
                         />
                       ))}
                       {/* Yeni satır ekleme */}
-                      <GramajNewRow
-                        sartnameId={activeReceteTab || 0}
-                        onAdd={handleAddGramaj}
-                      />
+                      <GramajNewRow sartnameId={activeReceteTab || 0} onAdd={handleAddGramaj} />
                     </Table.Tbody>
                   </Table>
 

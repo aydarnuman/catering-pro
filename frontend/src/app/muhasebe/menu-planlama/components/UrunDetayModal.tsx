@@ -46,7 +46,11 @@ import {
   type PriceHistoryData,
   type RafFiyatSonuc,
 } from '@/lib/api/services/fatura-kalemleri';
-import { menuPlanlamaAPI, type UrunVaryant, type VaryantOzet } from '@/lib/api/services/menu-planlama';
+import {
+  menuPlanlamaAPI,
+  type UrunVaryant,
+  type VaryantOzet,
+} from '@/lib/api/services/menu-planlama';
 import { urunlerAPI } from '@/lib/api/services/urunler';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { PiyasaFiyatlariSection } from './PiyasaFiyatlariSection';
@@ -172,7 +176,10 @@ export function UrunDetayModal({
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: rafFiyatData, isLoading: rafFiyatLoading } = useQuery<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }>({
+  const { data: rafFiyatData, isLoading: rafFiyatLoading } = useQuery<{
+    data: RafFiyatSonuc[];
+    ozet: FiyatOzet | null;
+  }>({
     queryKey: ['raf-fiyat', urun?.urun_id],
     queryFn: async () => {
       const urunId = urun?.urun_id;
@@ -193,9 +200,31 @@ export function UrunDetayModal({
     queryKey: ['urun-varyantlar', urun?.urun_id],
     queryFn: async () => {
       const urunId = urun?.urun_id;
-      if (!urunId) return { varyantlar: [], ozet: { varyant_sayisi: 0, fiyatli_varyant_sayisi: 0, en_ucuz_fiyat: null, en_ucuz_varyant_adi: null, en_pahali_fiyat: null, ortalama_fiyat: null } };
+      if (!urunId)
+        return {
+          varyantlar: [],
+          ozet: {
+            varyant_sayisi: 0,
+            fiyatli_varyant_sayisi: 0,
+            en_ucuz_fiyat: null,
+            en_ucuz_varyant_adi: null,
+            en_pahali_fiyat: null,
+            ortalama_fiyat: null,
+          },
+        };
       const res = await menuPlanlamaAPI.getUrunVaryantlari(urunId);
-      if (!res.success || !res.data) return { varyantlar: [], ozet: { varyant_sayisi: 0, fiyatli_varyant_sayisi: 0, en_ucuz_fiyat: null, en_ucuz_varyant_adi: null, en_pahali_fiyat: null, ortalama_fiyat: null } };
+      if (!res.success || !res.data)
+        return {
+          varyantlar: [],
+          ozet: {
+            varyant_sayisi: 0,
+            fiyatli_varyant_sayisi: 0,
+            en_ucuz_fiyat: null,
+            en_ucuz_varyant_adi: null,
+            en_pahali_fiyat: null,
+            ortalama_fiyat: null,
+          },
+        };
       return res.data;
     },
     enabled: !!urun?.urun_id && opened,
@@ -519,8 +548,7 @@ export function UrunDetayModal({
                         ₺{fiyatBilgi.aktifFiyat.toFixed(2)}
                       </Text>
                       <Text size="sm" c="dimmed">
-                        /
-                        {(() => {
+                        /{(() => {
                           const u = (d.standard_unit || 'kg').toLowerCase();
                           if (['lt', 'litre', 'l'].includes(u)) return 'L';
                           if (['kg', 'kilo'].includes(u)) return 'kg';
@@ -1241,13 +1269,21 @@ export function UrunDetayModal({
                           />
                           <StatCard
                             label="En Ucuz"
-                            value={varyantOzet.en_ucuz_fiyat ? `₺${Number(varyantOzet.en_ucuz_fiyat).toFixed(2)}` : '—'}
+                            value={
+                              varyantOzet.en_ucuz_fiyat
+                                ? `₺${Number(varyantOzet.en_ucuz_fiyat).toFixed(2)}`
+                                : '—'
+                            }
                             color="teal"
                             subtitle={varyantOzet.en_ucuz_varyant_adi || undefined}
                           />
                           <StatCard
                             label="Ortalama"
-                            value={varyantOzet.ortalama_fiyat ? `₺${Number(varyantOzet.ortalama_fiyat).toFixed(2)}` : '—'}
+                            value={
+                              varyantOzet.ortalama_fiyat
+                                ? `₺${Number(varyantOzet.ortalama_fiyat).toFixed(2)}`
+                                : '—'
+                            }
                             color="blue"
                           />
                         </SimpleGrid>
@@ -1264,7 +1300,9 @@ export function UrunDetayModal({
                               p="sm"
                               style={{
                                 borderRadius: 'var(--mantine-radius-md)',
-                                background: isEnUcuz ? 'var(--mantine-color-dark-6)' : 'transparent',
+                                background: isEnUcuz
+                                  ? 'var(--mantine-color-dark-6)'
+                                  : 'transparent',
                                 border: isEnUcuz
                                   ? '1px solid var(--mantine-color-teal-8)'
                                   : '1px solid var(--mantine-color-dark-5)',

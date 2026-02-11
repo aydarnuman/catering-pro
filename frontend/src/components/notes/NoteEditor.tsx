@@ -235,7 +235,9 @@ export function NoteEditor({
 
       {/* Color picker */}
       <Group gap="xs" align="center">
-        <Text size="xs" c="dimmed">Renk:</Text>
+        <Text size="xs" c="dimmed">
+          Renk:
+        </Text>
         <NoteColorPicker value={color} onChange={setColor} size="sm" />
       </Group>
 
@@ -252,7 +254,9 @@ export function NoteEditor({
       {/* Priority */}
       {showPriority && isTask && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>Oncelik:</Text>
+          <Text size="xs" c="dimmed" mb={4}>
+            Oncelik:
+          </Text>
           <NotePrioritySelect value={priority} onChange={setPriority} size="sm" />
         </Box>
       )}
@@ -286,7 +290,9 @@ export function NoteEditor({
       {/* Tags */}
       {showTags && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>Etiketler:</Text>
+          <Text size="xs" c="dimmed" mb={4}>
+            Etiketler:
+          </Text>
           <NoteTagsInput value={tags} onChange={setTags} />
         </Box>
       )}
@@ -295,7 +301,12 @@ export function NoteEditor({
       {showActions && (
         <Group justify="flex-end" mt="xs">
           {onCancel && (
-            <Button variant="subtle" size={compact ? 'xs' : 'sm'} onClick={onCancel} leftSection={<IconX size={14} />}>
+            <Button
+              variant="subtle"
+              size={compact ? 'xs' : 'sm'}
+              onClick={onCancel}
+              leftSection={<IconX size={14} />}
+            >
               Iptal
             </Button>
           )}

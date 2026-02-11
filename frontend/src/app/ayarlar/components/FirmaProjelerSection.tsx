@@ -1,10 +1,10 @@
 'use client';
 
 import { Divider, Stack } from '@mantine/core';
-import type { FirmaBilgileri } from './types';
+import DokumanYonetimi from './DokumanYonetimi';
 import FirmaBilgileriCard from './FirmaBilgileriCard';
 import ProjelerSection from './ProjelerSection';
-import DokumanYonetimi from './DokumanYonetimi';
+import type { FirmaBilgileri } from './types';
 
 interface FirmaProjelerSectionProps {
   firmalar: FirmaBilgileri[];

@@ -18,11 +18,11 @@ import cariTools from './cari-tools.js';
 import faturaTools from './fatura-tools.js';
 import ihaleTools from './ihale-tools.js';
 import { menuToolDefinitions, menuToolImplementations } from './menu-tools.js';
+import { getToolCount, validateManifest } from './module-manifest.js';
 import { personelToolDefinitions, personelToolImplementations } from './personel-tools.js';
 import { piyasaToolDefinitions, piyasaToolImplementations } from './piyasa-tools.js';
 import raporTools from './rapor-tools.js';
 import satinAlmaTools from './satin-alma-tools.js';
-import { validateManifest, getToolCount } from './module-manifest.js';
 import { webToolDefinitions, webToolImplementations } from './web-tools.js';
 
 const execAsync = promisify(exec);
@@ -1197,9 +1197,7 @@ class AIToolsRegistry {
     try {
       const toolsDir = path.dirname(fileURLToPath(import.meta.url));
       const files = await fs.readdir(toolsDir);
-      const toolFiles = files.filter(
-        (f) => f.endsWith('-tools.js') && f !== 'index.js' && f !== 'module-manifest.js'
-      );
+      const toolFiles = files.filter((f) => f.endsWith('-tools.js') && f !== 'index.js' && f !== 'module-manifest.js');
 
       for (const file of toolFiles) {
         try {

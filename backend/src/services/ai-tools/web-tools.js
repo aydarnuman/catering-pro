@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isTavilyConfigured, tavilyExtract, tavilyResearch, tavilyCrawl, tavilyMap } from '../tavily-service.js';
+import { isTavilyConfigured, tavilyCrawl, tavilyExtract, tavilyMap, tavilyResearch } from '../tavily-service.js';
 
 // Tavily API Key (ücretsiz: https://tavily.com)
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
@@ -171,7 +171,7 @@ export const webToolDefinitions = [
   {
     name: 'site_tara',
     description:
-      'Bir web sitesini komple tarar ve tüm sayfalarının içeriğini çeker. Rakip catering firma siteleri, ihale portalları, mevzuat siteleri gibi tek bir kaynağı derinlemesine incelemek için kullanılır. web_arama\'dan farklıdır: web_arama birçok sitede arar, site_tara TEK bir sitenin alt sayfalarını tarar. Örn: Rakip firmanın menü sayfalarını taramak, KİK kararlarını taramak, bir toptancının ürün kataloğunu çekmek.',
+      "Bir web sitesini komple tarar ve tüm sayfalarının içeriğini çeker. Rakip catering firma siteleri, ihale portalları, mevzuat siteleri gibi tek bir kaynağı derinlemesine incelemek için kullanılır. web_arama'dan farklıdır: web_arama birçok sitede arar, site_tara TEK bir sitenin alt sayfalarını tarar. Örn: Rakip firmanın menü sayfalarını taramak, KİK kararlarını taramak, bir toptancının ürün kataloğunu çekmek.",
     input_schema: {
       type: 'object',
       properties: {
@@ -186,7 +186,8 @@ export const webToolDefinitions = [
         },
         derinlik: {
           type: 'number',
-          description: 'Tarama derinliği (1-5). 1=sadece ana sayfa, 2=bir alt seviye linkler, 3+=derin tarama. Varsayılan: 2',
+          description:
+            'Tarama derinliği (1-5). 1=sadece ana sayfa, 2=bir alt seviye linkler, 3+=derin tarama. Varsayılan: 2',
         },
         max_sayfa: {
           type: 'number',
@@ -204,7 +205,7 @@ export const webToolDefinitions = [
   {
     name: 'site_haritasi',
     description:
-      'Bir web sitesinin URL haritasını çıkarır (içerik ÇEKMEZ, sadece linkleri listeler). site_tara\'dan çok daha hızlı ve ucuzdur. Önce site_haritasi ile yapıyı keşfedin, sonra önemli sayfaları sayfa_oku veya site_tara ile çekin. Örn: ihalebul.com\'un yapısını keşfetmek, bir firmanın tüm sayfalarını listelemek.',
+      "Bir web sitesinin URL haritasını çıkarır (içerik ÇEKMEZ, sadece linkleri listeler). site_tara'dan çok daha hızlı ve ucuzdur. Önce site_haritasi ile yapıyı keşfedin, sonra önemli sayfaları sayfa_oku veya site_tara ile çekin. Örn: ihalebul.com'un yapısını keşfetmek, bir firmanın tüm sayfalarını listelemek.",
     input_schema: {
       type: 'object',
       properties: {
@@ -685,8 +686,7 @@ export const webToolImplementations = {
         url_listesi: result.urls,
         url_gruplari: gruplar,
         ...(talimat && { kullanilan_talimat: talimat }),
-        ipucu:
-          'İlginç sayfaların içeriğini görmek için sayfa_oku veya site_tara tool\'unu kullanın.',
+        ipucu: "İlginç sayfaların içeriğini görmek için sayfa_oku veya site_tara tool'unu kullanın.",
       };
     } catch (error) {
       return {

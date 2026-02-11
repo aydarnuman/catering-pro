@@ -28,27 +28,92 @@ function parseTurkishPrice(text) {
 
 const KNOWN_BRANDS = new Set([
   // Süt / Peynir
-  'pınar', 'sütaş', 'eker', 'muratbey', 'tahsildaroğlu', 'bahçıvan', 'ülker',
-  'danone', 'içim', 'mis', 'torku', 'tukaş', 'sek', 'president', 'milka',
+  'pınar',
+  'sütaş',
+  'eker',
+  'muratbey',
+  'tahsildaroğlu',
+  'bahçıvan',
+  'ülker',
+  'danone',
+  'içim',
+  'mis',
+  'torku',
+  'tukaş',
+  'sek',
+  'president',
+  'milka',
   // Yağ
-  'komili', 'kristal', 'yudum', 'orkide', 'luna', 'becel', 'altınbaşak',
+  'komili',
+  'kristal',
+  'yudum',
+  'orkide',
+  'luna',
+  'becel',
+  'altınbaşak',
   // Bakliyat / Tahıl
-  'yayla', 'duru', 'reis', 'nuh\'un ankara', 'barilla', 'arbella', 'filiz',
+  'yayla',
+  'duru',
+  'reis',
+  "nuh'un ankara",
+  'barilla',
+  'arbella',
+  'filiz',
   // Et / Tavuk / Sucuk
-  'banvit', 'pınar', 'namet', 'mudurnu', 'beşler', 'polonez', 'cumhuriyet',
+  'banvit',
+  'pınar',
+  'namet',
+  'mudurnu',
+  'beşler',
+  'polonez',
+  'cumhuriyet',
   // Konserve / Salça
-  'tat', 'tamek', 'penguen', 'öncü', 'sera', 'doğanay',
+  'tat',
+  'tamek',
+  'penguen',
+  'öncü',
+  'sera',
+  'doğanay',
   // Genel FMCG
-  'heinz', 'knorr', 'calve', 'bizim', 'nescafe', 'nestle', 'lipton', 'doğadan',
-  'burcu', 'kemal kükrer', 'dalan', 'doğuş', 'çaykur', 'ofçay', 'beta',
+  'heinz',
+  'knorr',
+  'calve',
+  'bizim',
+  'nescafe',
+  'nestle',
+  'lipton',
+  'doğadan',
+  'burcu',
+  'kemal kükrer',
+  'dalan',
+  'doğuş',
+  'çaykur',
+  'ofçay',
+  'beta',
   // Baharat / Sos
-  'bağdat', 'arifoğlu', 'ana bahçe',
+  'bağdat',
+  'arifoğlu',
+  'ana bahçe',
   // Market markaları
-  'chef\'s basket', 'a101', 'şok', 'bim', 'migros', 'file', 'happy valley',
+  "chef's basket",
+  'a101',
+  'şok',
+  'bim',
+  'migros',
+  'file',
+  'happy valley',
   // Şeker / Un
-  'balküpü', 'billur', 'sinangil', 'söke', 'ulusoy',
+  'balküpü',
+  'billur',
+  'sinangil',
+  'söke',
+  'ulusoy',
   // Zeytin / Zeytinyağı
-  'tariş', 'marmarabirlik', 'gemlik', 'kırlangıç', 'madra',
+  'tariş',
+  'marmarabirlik',
+  'gemlik',
+  'kırlangıç',
+  'madra',
 ]);
 
 /**
@@ -120,24 +185,93 @@ function parseProductName(productName) {
       // Ürün kelimesi değilse marka kabul et
       const foodKeywords = [
         // Sebzeler
-        'domates', 'biber', 'soğan', 'patates', 'salatalık', 'patlıcan', 'kabak',
-        'havuç', 'marul', 'ıspanak', 'lahana', 'turp', 'enginar', 'kereviz',
+        'domates',
+        'biber',
+        'soğan',
+        'patates',
+        'salatalık',
+        'patlıcan',
+        'kabak',
+        'havuç',
+        'marul',
+        'ıspanak',
+        'lahana',
+        'turp',
+        'enginar',
+        'kereviz',
         // Meyveler
-        'elma', 'portakal', 'muz', 'üzüm', 'limon', 'kayısı', 'erik', 'kiraz',
+        'elma',
+        'portakal',
+        'muz',
+        'üzüm',
+        'limon',
+        'kayısı',
+        'erik',
+        'kiraz',
         // Temel gıda
-        'pirinç', 'bulgur', 'makarna', 'un', 'şeker', 'tuz',
-        'süt', 'yoğurt', 'peynir', 'tereyağı', 'ayçiçek', 'zeytinyağı',
-        'tavuk', 'dana', 'kuzu', 'kıyma', 'nohut', 'mercimek', 'fasulye',
+        'pirinç',
+        'bulgur',
+        'makarna',
+        'un',
+        'şeker',
+        'tuz',
+        'süt',
+        'yoğurt',
+        'peynir',
+        'tereyağı',
+        'ayçiçek',
+        'zeytinyağı',
+        'tavuk',
+        'dana',
+        'kuzu',
+        'kıyma',
+        'nohut',
+        'mercimek',
+        'fasulye',
         // Türler/varyantlar
-        'sızma', 'riviera', 'baldo', 'osmancık', 'basmati',
-        'spagetti', 'burgu', 'penne', 'erişte',
+        'sızma',
+        'riviera',
+        'baldo',
+        'osmancık',
+        'basmati',
+        'spagetti',
+        'burgu',
+        'penne',
+        'erişte',
         // Renkler (ürün tanımlayıcı olarak: kırmızı mercimek, yeşil mercimek vb.)
-        'kırmızı', 'yeşil', 'sarı', 'beyaz', 'siyah', 'kahverengi', 'mor',
+        'kırmızı',
+        'yeşil',
+        'sarı',
+        'beyaz',
+        'siyah',
+        'kahverengi',
+        'mor',
         // Boyut/durum tanımlayıcıları
-        'kuru', 'taze', 'dondurulmuş', 'konserve', 'organik', 'yerli', 'ithal',
-        'kaymaksız', 'yarım', 'tam', 'yağlı', 'yağsız', 'light',
-        'ince', 'kalın', 'küçük', 'büyük', 'orta', 'jumbo', 'ekstra',
-        'çiğ', 'haşlanmış', 'közlenmiş', 'kurutulmuş', 'tütsülenmiş',
+        'kuru',
+        'taze',
+        'dondurulmuş',
+        'konserve',
+        'organik',
+        'yerli',
+        'ithal',
+        'kaymaksız',
+        'yarım',
+        'tam',
+        'yağlı',
+        'yağsız',
+        'light',
+        'ince',
+        'kalın',
+        'küçük',
+        'büyük',
+        'orta',
+        'jumbo',
+        'ekstra',
+        'çiğ',
+        'haşlanmış',
+        'közlenmiş',
+        'kurutulmuş',
+        'tütsülenmiş',
       ];
       if (!foodKeywords.includes(firstWord.toLowerCase())) {
         marka = firstWord;
@@ -149,7 +283,8 @@ function parseProductName(productName) {
   // Ürün adını markasız hale getir
   const urunAdiParts = marka ? words.slice(markaEndIdx) : words;
   // Ambalajı da çıkar
-  const urunAdi = urunAdiParts.join(' ')
+  const urunAdi = urunAdiParts
+    .join(' ')
     .replace(/\d+[.,]?\d*\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl|adet|ad)\b/gi, '')
     .replace(/[x×]\s*\d+/gi, '')
     .replace(/\d+\s*['']?\s*(lı|li|lu|lü)\b/gi, '')
@@ -232,36 +367,133 @@ async function fetchCamgozPrices(searchTerm) {
 
 // Gıda dışı anahtar kelimeler
 const NON_FOOD_KEYWORDS = new Set([
-  'deterjan', 'temizlik', 'matik', 'çamaşır', 'bulaşık', 'yumuşatıcı',
-  'şampuan', 'losyon', 'parfüm', 'deodorant', 'kolonya', 'duş jeli', 'saç kremi',
-  'bebek bezi', 'ıslak havlu', 'ıslak mendil',
-  'tuvalet kağıdı', 'peçete', 'çöp torbası', 'poşet', 'folyo', 'streç',
-  'silikon', 'demlik', 'süzgeç', 'bardak', 'tabak', 'çatal', 'kaşık', 'bıçak',
-  'tencere', 'tava', 'kevgir', 'rende', 'spatula', 'tepsi', 'kavanoz', 'saklama kabı',
-  'köpek maması', 'kedi maması', 'pet food',
-  'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik', 'mum', 'dekoratif',
-  'omega', 'vitamin', 'takviye', 'kapsül', 'tablet', 'balance oil', 'kür',
+  'deterjan',
+  'temizlik',
+  'matik',
+  'çamaşır',
+  'bulaşık',
+  'yumuşatıcı',
+  'şampuan',
+  'losyon',
+  'parfüm',
+  'deodorant',
+  'kolonya',
+  'duş jeli',
+  'saç kremi',
+  'bebek bezi',
+  'ıslak havlu',
+  'ıslak mendil',
+  'tuvalet kağıdı',
+  'peçete',
+  'çöp torbası',
+  'poşet',
+  'folyo',
+  'streç',
+  'silikon',
+  'demlik',
+  'süzgeç',
+  'bardak',
+  'tabak',
+  'çatal',
+  'kaşık',
+  'bıçak',
+  'tencere',
+  'tava',
+  'kevgir',
+  'rende',
+  'spatula',
+  'tepsi',
+  'kavanoz',
+  'saklama kabı',
+  'köpek maması',
+  'kedi maması',
+  'pet food',
+  'oyuncak',
+  'kitap',
+  'dergi',
+  'kırtasiye',
+  'elektronik',
+  'mum',
+  'dekoratif',
+  'omega',
+  'vitamin',
+  'takviye',
+  'kapsül',
+  'tablet',
+  'balance oil',
+  'kür',
   // Mutfak aletleri / eşyaları
-  'aparat', 'önleyici', 'kaynatma', 'taşırmaz', 'cam', 'termos', 'matara',
-  'mandal', 'askı', 'paspas', 'fırça', 'sünger', 'bez', 'eldiven',
+  'aparat',
+  'önleyici',
+  'kaynatma',
+  'taşırmaz',
+  'cam',
+  'termos',
+  'matara',
+  'mandal',
+  'askı',
+  'paspas',
+  'fırça',
+  'sünger',
+  'bez',
+  'eldiven',
   // Kişisel bakım
-  'sabun', 'el kremi', 'diş macunu', 'diş macun', 'diş fırçası', 'ağız bakım',
-  'eyüp sabri', 'tuncer',
+  'sabun',
+  'el kremi',
+  'diş macunu',
+  'diş macun',
+  'diş fırçası',
+  'ağız bakım',
+  'eyüp sabri',
+  'tuncer',
   // Tohum / Fide (sebze değil, ekim malzemesi)
-  'tohum', 'fide', 'çim', 'gübre', 'toprak',
+  'tohum',
+  'fide',
+  'çim',
+  'gübre',
+  'toprak',
   // Hayvan ürünleri
-  'köpek', 'kedi', 'akvaryum', 'kuş yemi', 'balık yemi', 'karides yemi',
-  'köpek ödülü', 'kedi ödülü',
+  'köpek',
+  'kedi',
+  'akvaryum',
+  'kuş yemi',
+  'balık yemi',
+  'karides yemi',
+  'köpek ödülü',
+  'kedi ödülü',
   // Mobilya / Ev eşyası (yanlış eşleşme önleme)
-  'koltuk', 'sandalye', 'masa', 'sehpa', 'mobilya', 'dolap', 'raf', 'yatak',
-  'oyuncu koltuğu', 'bilgisayar',
+  'koltuk',
+  'sandalye',
+  'masa',
+  'sehpa',
+  'mobilya',
+  'dolap',
+  'raf',
+  'yatak',
+  'oyuncu koltuğu',
+  'bilgisayar',
   // Kozmetik / Saç boyası (tarçın, karamel gibi renk adları karışır)
-  'palette', 'saç boyası', 'boya', 'koleston', 'garnier', 'loreal',
-  'saç bakım', 'saç spreyi', 'saç köpüğü', 'saç maskesi',
-  'oje', 'ruj', 'fondöten', 'maskara', 'göz kalemi', 'pudra',
+  'palette',
+  'saç boyası',
+  'boya',
+  'koleston',
+  'garnier',
+  'loreal',
+  'saç bakım',
+  'saç spreyi',
+  'saç köpüğü',
+  'saç maskesi',
+  'oje',
+  'ruj',
+  'fondöten',
+  'maskara',
+  'göz kalemi',
+  'pudra',
   // Bitki çayları (maydanoz çayı, tarçın çayı vb. gıda ile karışır)
   // NOT: "çay" kelimesi gıda, ama "bitki çayı" + gıda aramada karışıyor
-  'poşet çay', 'süzen poşet', 'çay bardak',
+  'poşet çay',
+  'süzen poşet',
+  'çay bardak',
 ]);
 
 /**
@@ -299,7 +531,8 @@ function wordMatchScore(product, word) {
       // Çoğul eki: lar/ler, ları/leri
       // bal→balı ✓ (ı = hal eki)    bal→balon ✗ (on = farklı kelime)
       // yağ→yağın ✓ (ın = hal eki)  süt→sütün ✓ (ün = hal eki)
-      const TURKISH_SUFFIXES = /^([ıiuüaeğ]|[ıiuü]n|[dt][ae]|[dt][ae]n|l[ae]r|n[ıiuü]n|s[ıiuü]|[ıiuü]m|n[dt][ae]|lar[ıiuü]|ler[ıiuü])$/i;
+      const TURKISH_SUFFIXES =
+        /^([ıiuüaeğ]|[ıiuü]n|[dt][ae]|[dt][ae]n|l[ae]r|n[ıiuü]n|s[ıiuü]|[ıiuü]m|n[dt][ae]|lar[ıiuü]|ler[ıiuü])$/i;
       if (TURKISH_SUFFIXES.test(suffix)) return 0.9;
 
       // Biraz daha uzun ama tanınabilir ekler (peyniri, unu vb.)
@@ -322,7 +555,10 @@ function wordMatchScore(product, word) {
 }
 
 function calculateRelevanceScore(searchTerm, productName) {
-  const search = searchTerm.toLowerCase().replace(/\d+\s*(kg|gr|g|lt|l|ml|adet)/gi, '').trim();
+  const search = searchTerm
+    .toLowerCase()
+    .replace(/\d+\s*(kg|gr|g|lt|l|ml|adet)/gi, '')
+    .trim();
   const product = productName.toLowerCase();
 
   // 1. Gıda dışı kontrol (hemen eleme)
@@ -336,20 +572,36 @@ function calculateRelevanceScore(searchTerm, productName) {
 
   // ── Kategori çapraz bulaşma koruması ──
   // Baharat aramasında kozmetik (tarçın bakır = saç boyası rengi)
-  if (/renk|bakır|kumral|sarışın|kahve\s*rengi|platin|açık|koyu/i.test(product) &&
-      !search.includes('renk')) return 0;
+  if (/renk|bakır|kumral|sarışın|kahve\s*rengi|platin|açık|koyu/i.test(product) && !search.includes('renk')) return 0;
   // Yeşillik aramasında bitki çayı (maydanoz çayı, nane çayı)
   // "çay" aramasında değilsek ve üründe "çay" + "poşet/süzen/bardak" varsa
-  if (!search.includes('çay') && /çay/i.test(product) &&
-      /poşet|süzen|demleme|limonlu|bardak/i.test(product)) return 0;
+  if (!search.includes('çay') && /çay/i.test(product) && /poşet|süzen|demleme|limonlu|bardak/i.test(product)) return 0;
   // Gıda aramasında evcil hayvan ürünü (marka adları: Felix, Whiskas, Purina, Pedigree)
-  if (/kedi|köpek|kuş|balık\s*yem|felix|whiskas|purina|pedigree|reflex|proplan|pouch/i.test(product) &&
-      !/kedi|köpek|felix|whiskas/i.test(search)) return 0;
+  if (
+    /kedi|köpek|kuş|balık\s*yem|felix|whiskas|purina|pedigree|reflex|proplan|pouch/i.test(product) &&
+    !/kedi|köpek|felix|whiskas/i.test(search)
+  )
+    return 0;
 
   // ── Ürün karışım koruması (dolgulu, soslu, aromalı = farklı kategori) ──
   // "biber" aramasında "biber dolgulu zeytin" veya "biber sos" gelmesin
   // AMA "biber" aramasında "sivri biber", "dolma biber" gelebilsin
-  const COMPOSITE_MARKERS = ['dolgulu', 'aromalı', 'çeşnili', 'soslu', 'kaplamalı', 'kaplı', 'biberli', 'soğanlı', 'sarımsaklı', 'limonlu', 'sütlü', 'ballı', 'peynirli', 'etli'];
+  const COMPOSITE_MARKERS = [
+    'dolgulu',
+    'aromalı',
+    'çeşnili',
+    'soslu',
+    'kaplamalı',
+    'kaplı',
+    'biberli',
+    'soğanlı',
+    'sarımsaklı',
+    'limonlu',
+    'sütlü',
+    'ballı',
+    'peynirli',
+    'etli',
+  ];
   for (const marker of COMPOSITE_MARKERS) {
     if (product.includes(marker) && !search.includes(marker)) {
       // Ürün adında composite marker var ama arama teriminde yok
@@ -683,4 +935,12 @@ export function getAvailableMarkets() {
 // Yardımcı fonksiyonları dışa aç (test + piyasa-tools kullanımı için)
 export { parseProductName, calculateRelevanceScore, calculateUnitPrice };
 
-export default { searchMarketPrices, quickSearch, getAvailableMarkets, closeBrowser, parseProductName, calculateRelevanceScore, calculateUnitPrice };
+export default {
+  searchMarketPrices,
+  quickSearch,
+  getAvailableMarkets,
+  closeBrowser,
+  parseProductName,
+  calculateRelevanceScore,
+  calculateUnitPrice,
+};

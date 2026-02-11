@@ -27,8 +27,14 @@ async function faturaListesi(ctx, format) {
   let sql = 'SELECT * FROM uyumsoft_invoices WHERE 1=1';
   const params = [];
 
-  if (filters.type) { params.push(filters.type); sql += ` AND type = $${params.length}`; }
-  if (filters.status) { params.push(filters.status); sql += ` AND status = $${params.length}`; }
+  if (filters.type) {
+    params.push(filters.type);
+    sql += ` AND type = $${params.length}`;
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    sql += ` AND status = $${params.length}`;
+  }
   sql += ' ORDER BY invoice_date DESC';
 
   const result = await query(sql, params);
@@ -43,7 +49,16 @@ async function faturaListesi(ctx, format) {
     buffer,
     filename: `fatura-listesi-${Date.now()}.xlsx`,
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    previewData: { headers: ['Fatura No', 'Müşteri', 'Tarih', 'Tutar', 'Durum'], rows: faturalar.slice(0, 30).map(f => ({ 'Fatura No': f.invoice_number, 'Müşteri': f.customer_name, 'Tarih': f.invoice_date, 'Tutar': fmtPara(f.total_amount), 'Durum': f.status })) },
+    previewData: {
+      headers: ['Fatura No', 'Müşteri', 'Tarih', 'Tutar', 'Durum'],
+      rows: faturalar.slice(0, 30).map((f) => ({
+        'Fatura No': f.invoice_number,
+        Müşteri: f.customer_name,
+        Tarih: f.invoice_date,
+        Tutar: fmtPara(f.total_amount),
+        Durum: f.status,
+      })),
+    },
   };
 }
 
@@ -66,7 +81,10 @@ async function cariListesi(ctx, format) {
   const filters = ctx.filters || {};
   let sql = 'SELECT * FROM cariler WHERE 1=1';
   const params = [];
-  if (filters.tip) { params.push(filters.tip); sql += ` AND tip = $${params.length}`; }
+  if (filters.tip) {
+    params.push(filters.tip);
+    sql += ` AND tip = $${params.length}`;
+  }
   sql += ' ORDER BY unvan ASC';
 
   const result = await query(sql, params);
@@ -82,16 +100,14 @@ async function cariListesi(ctx, format) {
 
 // ── 4. Cari Bakiye ──
 async function cariBakiye(_ctx, format) {
-  const result = await query(
-    `SELECT * FROM cariler WHERE bakiye != 0 ORDER BY bakiye DESC`
-  );
+  const result = await query(`SELECT * FROM cariler WHERE bakiye != 0 ORDER BY bakiye DESC`);
   const cariler = result.rows || [];
 
-  const data = cariler.map(c => ({
-    'Ünvan': c.unvan || '-',
-    'Tip': c.tip || '-',
-    'Bakiye': fmtPara(c.bakiye),
-    'Telefon': c.telefon || '-',
+  const data = cariler.map((c) => ({
+    Ünvan: c.unvan || '-',
+    Tip: c.tip || '-',
+    Bakiye: fmtPara(c.bakiye),
+    Telefon: c.telefon || '-',
   }));
 
   if (format === 'pdf') {
@@ -113,12 +129,12 @@ async function kasaBankaOzet(_ctx, format) {
   const result = await query(`SELECT * FROM kasa_banka ORDER BY created_at DESC LIMIT 500`);
   const hareketler = result.rows || [];
 
-  const data = hareketler.map(h => ({
-    'Tarih': h.tarih || h.created_at,
-    'Hesap': h.hesap_adi || '-',
-    'Tür': h.tur || '-',
-    'Açıklama': h.aciklama || '-',
-    'Tutar': fmtPara(h.tutar),
+  const data = hareketler.map((h) => ({
+    Tarih: h.tarih || h.created_at,
+    Hesap: h.hesap_adi || '-',
+    Tür: h.tur || '-',
+    Açıklama: h.aciklama || '-',
+    Tutar: fmtPara(h.tutar),
   }));
 
   if (format === 'pdf') {
@@ -146,10 +162,10 @@ async function gelirGider(_ctx, format) {
   const summary = result.rows?.[0] || {};
 
   const data = [
-    { 'Kalem': 'Toplam Gelir (Satış)', 'Tutar': fmtPara(summary.toplam_gelir) },
-    { 'Kalem': 'Toplam Gider (Alış)', 'Tutar': fmtPara(summary.toplam_gider) },
-    { 'Kalem': 'Net Durum', 'Tutar': fmtPara(Number(summary.toplam_gelir) - Number(summary.toplam_gider)) },
-    { 'Kalem': 'Toplam Fatura Sayısı', 'Tutar': String(summary.fatura_sayisi || 0) },
+    { Kalem: 'Toplam Gelir (Satış)', Tutar: fmtPara(summary.toplam_gelir) },
+    { Kalem: 'Toplam Gider (Alış)', Tutar: fmtPara(summary.toplam_gider) },
+    { Kalem: 'Net Durum', Tutar: fmtPara(Number(summary.toplam_gelir) - Number(summary.toplam_gider)) },
+    { Kalem: 'Toplam Fatura Sayısı', Tutar: String(summary.fatura_sayisi || 0) },
   ];
 
   if (format === 'pdf') {
@@ -178,11 +194,11 @@ async function projeHarcama(_ctx, format) {
   );
   const projeler = result.rows || [];
 
-  const data = projeler.map(p => ({
-    'Proje': p.ad || '-',
-    'Bütçe': fmtPara(p.butce),
-    'Harcama': fmtPara(p.toplam_harcama),
-    'Kalan': fmtPara(Number(p.butce || 0) - Number(p.toplam_harcama || 0)),
+  const data = projeler.map((p) => ({
+    Proje: p.ad || '-',
+    Bütçe: fmtPara(p.butce),
+    Harcama: fmtPara(p.toplam_harcama),
+    Kalan: fmtPara(Number(p.butce || 0) - Number(p.toplam_harcama || 0)),
   }));
 
   if (format === 'pdf') {
@@ -201,13 +217,76 @@ async function projeHarcama(_ctx, format) {
 // ── Kayıt ──
 
 registerReports([
-  { id: 'finans-fatura-listesi', module: 'finans', label: 'Fatura Listesi', description: 'Tüm faturaların listesi', icon: 'file-invoice', formats: ['excel', 'pdf'], category: 'fatura', generator: 'finans:faturaListesi' },
-  { id: 'finans-vadesi-gecen', module: 'finans', label: 'Vadesi Geçen Faturalar', description: 'Ödenmemiş vadesi geçmiş faturalar', icon: 'alert-triangle', formats: ['excel', 'pdf'], category: 'fatura', generator: 'finans:vadeliGecen' },
-  { id: 'finans-cari-listesi', module: 'finans', label: 'Cari Listesi', description: 'Tüm cari hesaplar', icon: 'users', formats: ['excel', 'pdf'], category: 'cari', generator: 'finans:cariListesi' },
-  { id: 'finans-cari-bakiye', module: 'finans', label: 'Cari Bakiye Raporu', description: 'Bakiyesi sıfır olmayan cariler', icon: 'coin', formats: ['excel', 'pdf'], category: 'cari', generator: 'finans:cariBakiye' },
-  { id: 'finans-kasa-banka', module: 'finans', label: 'Kasa/Banka Özet', description: 'Kasa ve banka hareketleri', icon: 'building-bank', formats: ['excel', 'pdf'], category: 'hesap', generator: 'finans:kasaBankaOzet' },
-  { id: 'finans-gelir-gider', module: 'finans', label: 'Gelir-Gider Raporu', description: 'Genel gelir-gider özeti', icon: 'chart-bar', formats: ['excel', 'pdf'], category: 'hesap', generator: 'finans:gelirGider' },
-  { id: 'finans-proje-harcama', module: 'finans', label: 'Proje Harcama Raporu', description: 'Proje bazlı bütçe ve harcama durumu', icon: 'briefcase', formats: ['excel', 'pdf'], category: 'proje', generator: 'finans:projeHarcama' },
+  {
+    id: 'finans-fatura-listesi',
+    module: 'finans',
+    label: 'Fatura Listesi',
+    description: 'Tüm faturaların listesi',
+    icon: 'file-invoice',
+    formats: ['excel', 'pdf'],
+    category: 'fatura',
+    generator: 'finans:faturaListesi',
+  },
+  {
+    id: 'finans-vadesi-gecen',
+    module: 'finans',
+    label: 'Vadesi Geçen Faturalar',
+    description: 'Ödenmemiş vadesi geçmiş faturalar',
+    icon: 'alert-triangle',
+    formats: ['excel', 'pdf'],
+    category: 'fatura',
+    generator: 'finans:vadeliGecen',
+  },
+  {
+    id: 'finans-cari-listesi',
+    module: 'finans',
+    label: 'Cari Listesi',
+    description: 'Tüm cari hesaplar',
+    icon: 'users',
+    formats: ['excel', 'pdf'],
+    category: 'cari',
+    generator: 'finans:cariListesi',
+  },
+  {
+    id: 'finans-cari-bakiye',
+    module: 'finans',
+    label: 'Cari Bakiye Raporu',
+    description: 'Bakiyesi sıfır olmayan cariler',
+    icon: 'coin',
+    formats: ['excel', 'pdf'],
+    category: 'cari',
+    generator: 'finans:cariBakiye',
+  },
+  {
+    id: 'finans-kasa-banka',
+    module: 'finans',
+    label: 'Kasa/Banka Özet',
+    description: 'Kasa ve banka hareketleri',
+    icon: 'building-bank',
+    formats: ['excel', 'pdf'],
+    category: 'hesap',
+    generator: 'finans:kasaBankaOzet',
+  },
+  {
+    id: 'finans-gelir-gider',
+    module: 'finans',
+    label: 'Gelir-Gider Raporu',
+    description: 'Genel gelir-gider özeti',
+    icon: 'chart-bar',
+    formats: ['excel', 'pdf'],
+    category: 'hesap',
+    generator: 'finans:gelirGider',
+  },
+  {
+    id: 'finans-proje-harcama',
+    module: 'finans',
+    label: 'Proje Harcama Raporu',
+    description: 'Proje bazlı bütçe ve harcama durumu',
+    icon: 'briefcase',
+    formats: ['excel', 'pdf'],
+    category: 'proje',
+    generator: 'finans:projeHarcama',
+  },
 ]);
 
 registerGenerator('finans', {

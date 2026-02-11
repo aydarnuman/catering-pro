@@ -17,8 +17,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
-import { pool } from '../database.js';
 import aiConfig from '../config/ai.config.js';
+import { pool } from '../database.js';
 import logger from '../utils/logger.js';
 
 // v9.0: TEK MERKEZİ SİSTEM
@@ -59,11 +59,13 @@ class DocumentQueueProcessor extends EventEmitter {
   addSSEClient(res) {
     this._sseClients.add(res);
     res.on('close', () => this._sseClients.delete(res));
-    
+
     // Bağlantıda mevcut kuyruk durumunu gönder
-    this.getQueueStatus().then((status) => {
-      this._sendSSE(res, 'queue_status', status);
-    }).catch(() => {});
+    this.getQueueStatus()
+      .then((status) => {
+        this._sendSSE(res, 'queue_status', status);
+      })
+      .catch(() => {});
   }
 
   /**

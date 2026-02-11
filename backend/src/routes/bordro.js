@@ -1,7 +1,15 @@
 import express from 'express';
 import { query } from '../database.js';
 import { validate } from '../middleware/validate.js';
-import { netBrutSchema, hesaplaSchema, kaydetSchema, topluHesaplaSchema, odemeSchema, topluOdemeSchema, donemSilSchema } from '../validations/bordro.js';
+import {
+  donemSilSchema,
+  hesaplaSchema,
+  kaydetSchema,
+  netBrutSchema,
+  odemeSchema,
+  topluHesaplaSchema,
+  topluOdemeSchema,
+} from '../validations/bordro.js';
 
 const router = express.Router();
 

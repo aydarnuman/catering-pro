@@ -58,8 +58,15 @@ export function ProfilAnaliziDetay({ veri }: Props) {
       {yillikTrend.length > 0 && (
         <Bolum baslik="Yıllık Performans">
           {yillikTrend.map((t) => (
-            <Group key={`trend-${String(t.yil)}`} justify="space-between" py={4} style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}>
-              <Text size="sm" fw={600}>{String(t.yil)}</Text>
+            <Group
+              key={`trend-${String(t.yil)}`}
+              justify="space-between"
+              py={4}
+              style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}
+            >
+              <Text size="sm" fw={600}>
+                {String(t.yil)}
+              </Text>
               <Group gap="md">
                 <Text size="xs" c="dimmed">
                   {(t.tamamlanan as number) || 0} tamamlanan · {(t.devam_eden as number) || 0} devam
@@ -89,9 +96,13 @@ export function ProfilAnaliziDetay({ veri }: Props) {
                 {r.rakip_adi as string}
               </Text>
               <Group gap={8} wrap="nowrap">
-                <Text size="xs" c="dimmed">{r.ihale_sayisi as number} ihale</Text>
+                <Text size="xs" c="dimmed">
+                  {r.ihale_sayisi as number} ihale
+                </Text>
                 {!!r.toplam_sozlesme && (
-                  <Text size="xs" c="orange">{formatCurrency(r.toplam_sozlesme as number)}</Text>
+                  <Text size="xs" c="orange">
+                    {formatCurrency(r.toplam_sozlesme as number)}
+                  </Text>
                 )}
               </Group>
             </Group>
@@ -112,7 +123,9 @@ export function ProfilAnaliziDetay({ veri }: Props) {
                   {((d.tamamlanan as number) || 0) + ((d.devam_eden as number) || 0)} ihale
                 </Text>
                 {!!d.toplam_sozlesme && (
-                  <Text size="xs" c="orange">{formatCurrency(d.toplam_sozlesme as number)}</Text>
+                  <Text size="xs" c="orange">
+                    {formatCurrency(d.toplam_sozlesme as number)}
+                  </Text>
                 )}
               </Group>
             </Group>
@@ -133,7 +146,9 @@ export function ProfilAnaliziDetay({ veri }: Props) {
                   {((s.tamamlanan as number) || 0) + ((s.devam_eden as number) || 0)} ihale
                 </Text>
                 {!!s.toplam_sozlesme && (
-                  <Text size="xs" c="orange">{formatCurrency(s.toplam_sozlesme as number)}</Text>
+                  <Text size="xs" c="orange">
+                    {formatCurrency(s.toplam_sozlesme as number)}
+                  </Text>
                 )}
               </Group>
             </Group>
@@ -181,10 +196,18 @@ function OzetBolum({ ozet }: { ozet: Record<string, unknown> }) {
         <OzetKart baslik="Toplam Sözleşme" deger={formatCurrency(toplam.tutar as number)} />
       )}
       {!!yillik?.tutar && (
-        <OzetKart baslik="Yıllık Ortalama" deger={formatCurrency(yillik.tutar as number)} renk="indigo" />
+        <OzetKart
+          baslik="Yıllık Ortalama"
+          deger={formatCurrency(yillik.tutar as number)}
+          renk="indigo"
+        />
       )}
       {!!isBitirme?.tutar && (
-        <OzetKart baslik="İş Bitirme (5 Yıl)" deger={formatCurrency(isBitirme.tutar as number)} renk="grape" />
+        <OzetKart
+          baslik="İş Bitirme (5 Yıl)"
+          deger={formatCurrency(isBitirme.tutar as number)}
+          renk="grape"
+        />
       )}
       {!!tenzilat?.yuzde && (
         <OzetKart baslik="Ort. Tenzilat" deger={`%${tenzilat.yuzde}`} renk="teal" />
@@ -206,8 +229,12 @@ function OzetKart({ baslik, deger, renk }: { baslik: string; deger: unknown; ren
   if (deger === undefined || deger === null) return null;
   return (
     <Card withBorder p="xs" radius="sm">
-      <Text size="xs" c="dimmed">{baslik}</Text>
-      <Text size="sm" fw={700} c={renk}>{String(deger)}</Text>
+      <Text size="xs" c="dimmed">
+        {baslik}
+      </Text>
+      <Text size="sm" fw={700} c={renk}>
+        {String(deger)}
+      </Text>
     </Card>
   );
 }
@@ -215,7 +242,12 @@ function OzetKart({ baslik, deger, renk }: { baslik: string; deger: unknown; ren
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (
     <div>
-      <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
+      <Text
+        size="sm"
+        fw={600}
+        mb="xs"
+        style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
+      >
         {baslik}
       </Text>
       {children}

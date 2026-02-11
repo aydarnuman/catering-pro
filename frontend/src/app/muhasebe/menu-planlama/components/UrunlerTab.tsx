@@ -533,7 +533,9 @@ export function UrunlerTab({ isActive, isMobile = false, isMounted = true }: Uru
           )}
           <Group gap={4} ml="auto">
             {Number(urun.varyant_sayisi) > 0 && (
-              <Tooltip label={`${urun.varyant_sayisi} varyant${urun.varyant_en_ucuz_adi ? ` · En ucuz: ${urun.varyant_en_ucuz_adi}` : ''}`}>
+              <Tooltip
+                label={`${urun.varyant_sayisi} varyant${urun.varyant_en_ucuz_adi ? ` · En ucuz: ${urun.varyant_en_ucuz_adi}` : ''}`}
+              >
                 <Badge size="xs" variant="dot" color="violet" radius="sm">
                   {urun.varyant_sayisi}V
                 </Badge>

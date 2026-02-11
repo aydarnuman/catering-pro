@@ -295,7 +295,12 @@ export default function ProfilSection({ user, loading }: ProfilSectionProps) {
       </Stack>
 
       {/* Şifre Değiştir Modal */}
-      <Modal opened={passwordModalOpened} onClose={closePasswordModal} title="Şifre Değiştir" size="sm">
+      <Modal
+        opened={passwordModalOpened}
+        onClose={closePasswordModal}
+        title="Şifre Değiştir"
+        size="sm"
+      >
         <Stack gap="md">
           <PasswordInput
             label="Mevcut Şifre"
@@ -330,7 +335,13 @@ export default function ProfilSection({ user, loading }: ProfilSectionProps) {
       </Modal>
 
       {/* Çıkış Onay Modal */}
-      <Modal opened={logoutModalOpened} onClose={closeLogoutModal} title="Çıkış Yap" size="sm" centered>
+      <Modal
+        opened={logoutModalOpened}
+        onClose={closeLogoutModal}
+        title="Çıkış Yap"
+        size="sm"
+        centered
+      >
         <Stack gap="md">
           <Text>Oturumunuzu kapatmak istediğinize emin misiniz?</Text>
           <Group justify="flex-end">

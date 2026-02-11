@@ -21,11 +21,11 @@ import documentDownloadService from './document-download.js';
 // Utility fonksiyonlar (refactoring: extract edildi)
 import {
   CONTENT_TYPES as CONTENT_TYPES_IMPORTED,
-  SUPPORTED_EXTENSIONS as SUPPORTED_EXTENSIONS_IMPORTED,
   detectFileType as detectFileTypeUtil,
   getDisplayName as getDisplayNameUtil,
   getExtensionFromUrl as getExtensionFromUrlUtil,
   makeUrlSafe as makeUrlSafeUtil,
+  SUPPORTED_EXTENSIONS as SUPPORTED_EXTENSIONS_IMPORTED,
   sanitizeFileName as sanitizeFileNameUtil,
   sleep as sleepUtil,
   walkDirectory as walkDirectoryUtil,
@@ -1393,13 +1393,27 @@ class DocumentStorageService {
   // UTILITY METOTLAR → utils/file-helpers.js'e delege (geriye uyumluluk)
   // ═══════════════════════════════════════════════════════════════════════
 
-  getExtensionFromUrl(url) { return getExtensionFromUrlUtil(url); }
-  getDisplayName(docType) { return getDisplayNameUtil(docType); }
-  detectFileType(buffer) { return detectFileTypeUtil(buffer); }
-  sanitizeFileName(fileName) { return sanitizeFileNameUtil(fileName); }
-  makeUrlSafe(fileName) { return makeUrlSafeUtil(fileName); }
-  async walkDirectory(dir) { return walkDirectoryUtil(dir); }
-  sleep(ms) { return sleepUtil(ms); }
+  getExtensionFromUrl(url) {
+    return getExtensionFromUrlUtil(url);
+  }
+  getDisplayName(docType) {
+    return getDisplayNameUtil(docType);
+  }
+  detectFileType(buffer) {
+    return detectFileTypeUtil(buffer);
+  }
+  sanitizeFileName(fileName) {
+    return sanitizeFileNameUtil(fileName);
+  }
+  makeUrlSafe(fileName) {
+    return makeUrlSafeUtil(fileName);
+  }
+  async walkDirectory(dir) {
+    return walkDirectoryUtil(dir);
+  }
+  sleep(ms) {
+    return sleepUtil(ms);
+  }
 }
 
 export default new DocumentStorageService();

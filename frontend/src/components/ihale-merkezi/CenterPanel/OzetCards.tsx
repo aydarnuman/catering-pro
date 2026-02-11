@@ -65,29 +65,101 @@ export function isRealPersonelPosition(pozisyon: string): boolean {
   if (!pozisyon) return false;
   const lower = pozisyon.toLowerCase();
   const personelKeywords = [
-    'aşçı', 'asci', 'aşçıbaşı', 'ascibaşi', 'aşçı başı',
-    'garson', 'bulaşıkçı', 'bulasikci', 'temizlik', 'şoför', 'sofor',
-    'diyetisyen', 'gıda mühendis', 'gida muhendis', 'gıda teknik', 'gida teknik',
-    'kasap', 'fırıncı', 'firinci', 'pastacı', 'pastaci',
-    'müdür', 'mudur', 'sorumlu', 'yardımcı', 'yardimci',
-    'kalfa', 'usta', 'çamaşırcı', 'camasirci',
-    'toplam', 'personel', 'işçi', 'isci', 'eleman',
-    'diyet aşçı', 'diyet asci', 'kumanyacı', 'kumanyaci',
-    'depocu', 'ambar',
+    'aşçı',
+    'asci',
+    'aşçıbaşı',
+    'ascibaşi',
+    'aşçı başı',
+    'garson',
+    'bulaşıkçı',
+    'bulasikci',
+    'temizlik',
+    'şoför',
+    'sofor',
+    'diyetisyen',
+    'gıda mühendis',
+    'gida muhendis',
+    'gıda teknik',
+    'gida teknik',
+    'kasap',
+    'fırıncı',
+    'firinci',
+    'pastacı',
+    'pastaci',
+    'müdür',
+    'mudur',
+    'sorumlu',
+    'yardımcı',
+    'yardimci',
+    'kalfa',
+    'usta',
+    'çamaşırcı',
+    'camasirci',
+    'toplam',
+    'personel',
+    'işçi',
+    'isci',
+    'eleman',
+    'diyet aşçı',
+    'diyet asci',
+    'kumanyacı',
+    'kumanyaci',
+    'depocu',
+    'ambar',
   ];
   const locationKeywords = [
-    'hastane', 'hospital', 'eah', 'üniversite', 'universite', 'okul', 'lise',
-    'ilkokul', 'ortaokul', 'fakülte', 'fakulte', 'enstitü', 'enstitu',
-    'müdürlüğü', 'mudurlugu', 'başkanlığı', 'baskanligi',
-    'merkez', 'bina', 'lojman', 'kışla', 'kisla', 'karakol',
-    'cezaevi', 'tesis', 'kampüs', 'kampus', 'şube', 'sube',
-    'ilçe', 'ilce', 'il ', 'prof.', 'prof ', 'dr.', 'şehit',
-    'fizik tedavi', 'rehabilitasyon', 'devlet', 'eğitim ve araştırma',
-    'acil durum', 'sağlık', 'saglik', 'poliklinik', 'dispanser',
-    'adsm', 'asm', 'tsm', 'trsm',
+    'hastane',
+    'hospital',
+    'eah',
+    'üniversite',
+    'universite',
+    'okul',
+    'lise',
+    'ilkokul',
+    'ortaokul',
+    'fakülte',
+    'fakulte',
+    'enstitü',
+    'enstitu',
+    'müdürlüğü',
+    'mudurlugu',
+    'başkanlığı',
+    'baskanligi',
+    'merkez',
+    'bina',
+    'lojman',
+    'kışla',
+    'kisla',
+    'karakol',
+    'cezaevi',
+    'tesis',
+    'kampüs',
+    'kampus',
+    'şube',
+    'sube',
+    'ilçe',
+    'ilce',
+    'il ',
+    'prof.',
+    'prof ',
+    'dr.',
+    'şehit',
+    'fizik tedavi',
+    'rehabilitasyon',
+    'devlet',
+    'eğitim ve araştırma',
+    'acil durum',
+    'sağlık',
+    'saglik',
+    'poliklinik',
+    'dispanser',
+    'adsm',
+    'asm',
+    'tsm',
+    'trsm',
   ];
-  if (locationKeywords.some(kw => lower.includes(kw))) return false;
-  if (personelKeywords.some(kw => lower.includes(kw))) return true;
+  if (locationKeywords.some((kw) => lower.includes(kw))) return false;
+  if (personelKeywords.some((kw) => lower.includes(kw))) return true;
   return true;
 }
 
@@ -464,11 +536,7 @@ export function BirimFiyatlarCard({
             : displayItems.map((item, idx) => {
                 const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
                 return (
-                  <Group
-                    key={`bf-${idx}-${itemText.substring(0, 15)}`}
-                    gap="xs"
-                    wrap="nowrap"
-                  >
+                  <Group key={`bf-${idx}-${itemText.substring(0, 15)}`} gap="xs" wrap="nowrap">
                     <Badge
                       size="xs"
                       variant="filled"
@@ -892,7 +960,7 @@ export function PersonelCard({
   if (!personel || personel.length === 0) return null;
 
   // Lokasyonları filtrele, sadece gerçek personel pozisyonlarını göster
-  const realPersonel = personel.filter(p => isRealPersonelPosition(p.pozisyon));
+  const realPersonel = personel.filter((p) => isRealPersonelPosition(p.pozisyon));
   if (realPersonel.length === 0) return null;
 
   const displayItems = expanded || isEditing ? realPersonel : realPersonel.slice(0, 5);
@@ -1079,12 +1147,11 @@ export function OgunBilgileriCard({
   const flatOgunler = ogunler.filter((o) => o.tur);
 
   // Toplam hesapla - flat format veya props'tan gelen
-  const toplamOgun =
-    toplamOgunSayisi ||
-    flatOgunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
+  const toplamOgun = toplamOgunSayisi || flatOgunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
 
   // Badge metni
-  const badgeText = toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
+  const badgeText =
+    toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
 
   return (
     <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
@@ -1147,7 +1214,11 @@ export function OgunBilgileriCard({
                           {headers.map((h, hIdx) => (
                             <Table.Th
                               key={`th-${tIdx}-${hIdx}`}
-                              style={hIdx === 0 ? { minWidth: 120 } : { textAlign: 'right', minWidth: 60 }}
+                              style={
+                                hIdx === 0
+                                  ? { minWidth: 120 }
+                                  : { textAlign: 'right', minWidth: 60 }
+                              }
                             >
                               {h.replace(/\n.*$/g, '')}
                             </Table.Th>
@@ -1159,10 +1230,7 @@ export function OgunBilgileriCard({
                           const firstCol = String(row[0] || '').trim();
                           const isToplam = firstCol.toUpperCase() === 'TOPLAM';
                           return (
-                            <Table.Tr
-                              key={`tr-${tIdx}-${rIdx}`}
-                              fw={isToplam ? 700 : undefined}
-                            >
+                            <Table.Tr key={`tr-${tIdx}-${rIdx}`} fw={isToplam ? 700 : undefined}>
                               {row.map((cell, cIdx) => (
                                 <Table.Td
                                   key={`td-${tIdx}-${rIdx}-${cIdx}`}
@@ -1220,7 +1288,15 @@ export function OgunBilgileriCard({
 // CATERİNG DETAY KARTLARI (Azure v5 - Kategorize)
 // ═══════════════════════════════════════════════════════════════
 
-function CateringInfoRow({ label, value, icon }: { label: string; value: string | null | undefined; icon?: React.ReactNode }) {
+function CateringInfoRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string | null | undefined;
+  icon?: React.ReactNode;
+}) {
   if (!value) return null;
   return (
     <Group gap="xs" wrap="nowrap" py={3}>
@@ -1239,7 +1315,11 @@ function CateringInfoRow({ label, value, icon }: { label: string; value: string 
   );
 }
 
-export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: AnalysisData | null }) {
+export function CateringDetayKartlari({
+  analysisSummary,
+}: {
+  analysisSummary?: AnalysisData | null;
+}) {
   if (!analysisSummary) return null;
 
   const {
@@ -1270,7 +1350,14 @@ export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: A
   const hasKisiDagilimi = kisiFields.some(Boolean);
 
   // Kategori 2: Hizmet & Mutfak
-  const hizmetFields = [mutfak_tipi, servis_tipi, et_tipi, yemek_pisirilecek_yer, yemek_cesit_sayisi, hizmet_gun_sayisi];
+  const hizmetFields = [
+    mutfak_tipi,
+    servis_tipi,
+    et_tipi,
+    yemek_pisirilecek_yer,
+    yemek_cesit_sayisi,
+    hizmet_gun_sayisi,
+  ];
   const hasHizmetMutfak = hizmetFields.some(Boolean);
 
   // Kategori 3: Lojistik & Dağıtım
@@ -1286,7 +1373,8 @@ export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: A
   const hasMenuFiyat = menuFields.some(Boolean);
 
   // Hiçbir kategori dolmamışsa gösterme
-  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat) return null;
+  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat)
+    return null;
 
   return (
     <>

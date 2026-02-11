@@ -18,12 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  IconBook2,
-  IconPlus,
-  IconSearch,
-  IconSparkles,
-} from '@tabler/icons-react';
+import { IconBook2, IconPlus, IconSearch, IconSparkles } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
@@ -35,11 +30,7 @@ interface RecetelerTabProps {
   isActive: boolean;
 }
 
-export function RecetelerTab({
-  fetchReceteDetay,
-  KATEGORILER,
-  isActive,
-}: RecetelerTabProps) {
+export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: RecetelerTabProps) {
   const queryClient = useQueryClient();
 
   // Local state
@@ -323,9 +314,7 @@ export function RecetelerTab({
               padding: '6px 12px',
               borderRadius: 20,
               background:
-                seciliKategoriKod === null
-                  ? 'var(--mantine-color-dark-4)'
-                  : 'transparent',
+                seciliKategoriKod === null ? 'var(--mantine-color-dark-4)' : 'transparent',
               transition: 'all 0.2s ease',
             }}
           >
@@ -338,9 +327,7 @@ export function RecetelerTab({
             </Text>
           </UnstyledButton>
           {receteKategorileriAPI.map((kat) => {
-            const katSayisi = receteler.filter(
-              (r) => r.kategori_adi === kat.ad
-            ).length;
+            const katSayisi = receteler.filter((r) => r.kategori_adi === kat.ad).length;
             if (katSayisi === 0) return null;
             const isActive = seciliKategoriKod === kat.kod;
             return (
@@ -350,9 +337,7 @@ export function RecetelerTab({
                 style={{
                   padding: '6px 12px',
                   borderRadius: 20,
-                  background: isActive
-                    ? 'var(--mantine-color-dark-4)'
-                    : 'transparent',
+                  background: isActive ? 'var(--mantine-color-dark-4)' : 'transparent',
                   transition: 'all 0.2s ease',
                 }}
               >
@@ -360,11 +345,7 @@ export function RecetelerTab({
                   <Text size="sm" style={{ lineHeight: 1 }}>
                     {kat.ikon}
                   </Text>
-                  <Text
-                    size="xs"
-                    fw={isActive ? 500 : 400}
-                    c={isActive ? 'white' : 'dimmed'}
-                  >
+                  <Text size="xs" fw={isActive ? 500 : 400} c={isActive ? 'white' : 'dimmed'}>
                     {kat.ad}
                   </Text>
                 </Group>
@@ -390,9 +371,7 @@ export function RecetelerTab({
           <Stack align="center" gap="sm">
             <IconBook2 size={40} color="var(--mantine-color-gray-5)" />
             <Text size="sm" c="dimmed">
-              {receteler.length === 0
-                ? 'Henüz reçete yok'
-                : 'Arama sonucu bulunamadı'}
+              {receteler.length === 0 ? 'Henüz reçete yok' : 'Arama sonucu bulunamadı'}
             </Text>
           </Stack>
         </Center>
@@ -400,18 +379,12 @@ export function RecetelerTab({
         <ScrollArea.Autosize mah={520}>
           <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="sm">
             {filteredReceteler.map((recete) => {
-              const kategoriAdi =
-                recete.kategori_adi || recete.kategori || 'Kategorisiz';
+              const kategoriAdi = recete.kategori_adi || recete.kategori || 'Kategorisiz';
               const kategoriInfo = KATEGORILER.find(
-                (k) =>
-                  k.ad === kategoriAdi ||
-                  (recete.kategori && k.kod === recete.kategori)
+                (k) => k.ad === kategoriAdi || (recete.kategori && k.kod === recete.kategori)
               );
-              const maliyet = Number(
-                recete.tahmini_maliyet || recete.toplam_maliyet || 0
-              );
-              const malzemeSayisi =
-                recete.malzeme_sayisi || recete.malzemeler?.length || 0;
+              const maliyet = Number(recete.tahmini_maliyet || recete.toplam_maliyet || 0);
+              const malzemeSayisi = recete.malzeme_sayisi || recete.malzemeler?.length || 0;
               const porsiyon = recete.porsiyon_miktar || recete.porsiyon;
               const kalori = recete.kalori;
               const hazirlama = recete.hazirlik_suresi;
@@ -454,9 +427,7 @@ export function RecetelerTab({
                         justifyContent: 'center',
                       }}
                     >
-                      <Text size="lg">
-                        {kategoriInfo?.ikon || recete.kategori_ikon || '🍽️'}
-                      </Text>
+                      <Text size="lg">{kategoriInfo?.ikon || recete.kategori_ikon || '🍽️'}</Text>
                     </Box>
                     {maliyet > 0 && !Number.isNaN(maliyet) && (
                       <Text size="sm" fw={600} c="teal">

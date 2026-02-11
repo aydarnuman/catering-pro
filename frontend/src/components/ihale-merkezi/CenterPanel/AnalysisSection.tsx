@@ -337,15 +337,23 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                           </Badge>
                           <Box style={{ flex: 1, minWidth: 0 }}>
                             <Group gap={4} wrap="nowrap">
-                              <Text size="xs" style={{ flex: 1 }}>{text}</Text>
+                              <Text size="xs" style={{ flex: 1 }}>
+                                {text}
+                              </Text>
                               {onem && (
                                 <Badge
                                   size="xs"
                                   variant="light"
-                                  color={onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray'}
+                                  color={
+                                    onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray'
+                                  }
                                   style={{ flexShrink: 0 }}
                                 >
-                                  {onem === 'kritik' ? 'Kritik' : onem === 'normal' ? 'Normal' : onem}
+                                  {onem === 'kritik'
+                                    ? 'Kritik'
+                                    : onem === 'normal'
+                                      ? 'Normal'
+                                      : onem}
                                 </Badge>
                               )}
                             </Group>

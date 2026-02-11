@@ -274,7 +274,10 @@ export const menuPlanlamaAPI = {
   /**
    * AI malzeme önerisi
    */
-  async getAiMalzemeOneri(receteId: number, prompt: string): Promise<ApiResponse<AiMalzemeOneriData>> {
+  async getAiMalzemeOneri(
+    receteId: number,
+    prompt: string
+  ): Promise<ApiResponse<AiMalzemeOneriData>> {
     const response = await api.post(`/api/menu-planlama/receteler/${receteId}/ai-malzeme-oneri`, {
       prompt,
     });

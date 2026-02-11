@@ -153,7 +153,9 @@ export function IhaleGecmisiDetay({ veri }: Props) {
                   </Text>
                 )}
                 {!!ihale.fesih_durumu && ihale.fesih_durumu !== 'yok' && (
-                  <Badge size="xs" variant="filled" color="red">Fesih: {String(ihale.fesih_durumu)}</Badge>
+                  <Badge size="xs" variant="filled" color="red">
+                    Fesih: {String(ihale.fesih_durumu)}
+                  </Badge>
                 )}
                 {!!ihale.sozlesme_tarihi && (
                   <Text size="xs" c="dimmed">

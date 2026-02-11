@@ -384,9 +384,16 @@ export const notesAPI = {
   /**
    * Get shares for a note
    */
-  async getNoteShares(
-    noteId: string
-  ): Promise<{ success: boolean; shares: Array<{ id: string; shared_with: number; shared_with_name: string; shared_with_email: string; permission: string }> }> {
+  async getNoteShares(noteId: string): Promise<{
+    success: boolean;
+    shares: Array<{
+      id: string;
+      shared_with: number;
+      shared_with_name: string;
+      shared_with_email: string;
+      permission: string;
+    }>;
+  }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/sharing/${noteId}`);
     return response.json();
   },

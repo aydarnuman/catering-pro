@@ -13,10 +13,9 @@ const invoiceItemSchema = z.object({
   discount_rate: z.number().min(0).max(100).optional().default(0),
 });
 
-const invoiceStatusEnum = z.enum(
-  ['draft', 'sent', 'paid', 'cancelled', 'overdue', 'pending', 'approved'],
-  { errorMap: () => ({ message: 'Geçersiz fatura durumu' }) }
-);
+const invoiceStatusEnum = z.enum(['draft', 'sent', 'paid', 'cancelled', 'overdue', 'pending', 'approved'], {
+  errorMap: () => ({ message: 'Geçersiz fatura durumu' }),
+});
 
 export const createInvoiceSchema = z.object({
   invoice_type: z.enum(['sales', 'purchase', 'satis', 'alis'], {

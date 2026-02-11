@@ -17,7 +17,7 @@ import logger from '../utils/logger.js';
 import { optimizeAllSearchTerms } from './arama-terimi-optimizer.js';
 import { syncHalFiyatlari } from './hal-scraper.js';
 import { searchMarketPrices } from './market-scraper.js';
-import { savePiyasaFiyatlar, detectAndFixPriceAnomalies } from './piyasa-fiyat-writer.js';
+import { detectAndFixPriceAnomalies, savePiyasaFiyatlar } from './piyasa-fiyat-writer.js';
 import { isTavilyConfigured, tavilyPiyasaAra, tavilySearch } from './tavily-service.js';
 
 // ─── ARAMA TERİMİ OPTİMİZASYONU ──────────────────────────
@@ -228,17 +228,17 @@ class PiyasaSyncScheduler {
           if (tavilyResult.success && tavilyResult.fiyatlar?.length > 0) {
             if (camgozVar) {
               // Camgöz var → Tavily AI fiyatlarını UYUM FİLTRESİ ile ekle
-              const camgozPrices = result.fiyatlar.map(f => f.birimFiyat || f.fiyat).filter(p => p > 0);
-              const camgozOrt = camgozPrices.length > 0
-                ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length : 0;
+              const camgozPrices = result.fiyatlar.map((f) => f.birimFiyat || f.fiyat).filter((p) => p > 0);
+              const camgozOrt =
+                camgozPrices.length > 0 ? camgozPrices.reduce((s, p) => s + p, 0) / camgozPrices.length : 0;
 
-              const existing = new Set(result.fiyatlar.map(f => `${f.market}-${Math.round(f.fiyat)}`));
-              const extra = tavilyResult.fiyatlar.filter(f => {
+              const existing = new Set(result.fiyatlar.map((f) => `${f.market}-${Math.round(f.fiyat)}`));
+              const extra = tavilyResult.fiyatlar.filter((f) => {
                 if (existing.has(`${f.market}-${Math.round(f.fiyat)}`)) return false;
                 if (camgozOrt > 0) {
                   const aiFiyat = f.birimFiyat || f.fiyat;
                   const sapma = Math.abs(aiFiyat - camgozOrt) / camgozOrt;
-                  if (sapma > 0.60) return false; // %60'tan fazla sapma → ekleme
+                  if (sapma > 0.6) return false; // %60'tan fazla sapma → ekleme
                 }
                 return true;
               });
@@ -671,7 +671,9 @@ class PiyasaSyncScheduler {
         logger.info('[PiyasaSync] Arama terimi optimizasyonu başlıyor (haftalık)...');
         try {
           const result = await optimizeAllSearchTerms({ limit: 30 });
-          logger.info(`[PiyasaSync] Terim optimizasyonu tamamlandı: ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`);
+          logger.info(
+            `[PiyasaSync] Terim optimizasyonu tamamlandı: ${result.guncellemeSayisi}/${result.islemSayisi} güncellendi`
+          );
         } catch (err) {
           logger.error(`[PiyasaSync] Terim optimizasyonu hatası: ${err.message}`);
         }

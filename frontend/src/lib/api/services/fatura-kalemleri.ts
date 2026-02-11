@@ -515,10 +515,15 @@ export const faturaKalemleriAPI = {
   },
 
   /** Raf fiyatı (piyasa) araştırma sonuçları + IQR temizli özet */
-  async getRafFiyat(urunId: number | string): Promise<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }> {
-    const res = await api.get<{ success: boolean; data: RafFiyatSonuc[]; ozet?: FiyatOzet | null; error?: string }>(
-      `${BASE_URL}/fiyatlar/${urunId}/raf-fiyat`
-    );
+  async getRafFiyat(
+    urunId: number | string
+  ): Promise<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }> {
+    const res = await api.get<{
+      success: boolean;
+      data: RafFiyatSonuc[];
+      ozet?: FiyatOzet | null;
+      error?: string;
+    }>(`${BASE_URL}/fiyatlar/${urunId}/raf-fiyat`);
     if (res.data?.success) {
       return { data: res.data.data || [], ozet: res.data.ozet || null };
     }
@@ -570,7 +575,11 @@ export const faturaKalemleriAPI = {
         oneri?: string;
       };
     }
-    return { success: false, urun: urunAdi, error: (d as { error?: string })?.error || 'Araştırma başarısız' };
+    return {
+      success: false,
+      urun: urunAdi,
+      error: (d as { error?: string })?.error || 'Araştırma başarısız',
+    };
   },
 
   /** Rapor: fiyat geçmişi – getFiyatGecmisi alias */

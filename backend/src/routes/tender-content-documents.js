@@ -335,9 +335,16 @@ router.post('/analyze-batch', async (req, res) => {
         try {
           // v9.1: Content dokümanları için özel yol
           if (doc.source_type === 'content' && doc.content_text) {
-            sendEvent({ stage: 'progress', documentId: docId, message: 'Content doküman analiz ediliyor...', progress: 30 });
+            sendEvent({
+              stage: 'progress',
+              documentId: docId,
+              message: 'Content doküman analiz ediliyor...',
+              progress: 30,
+            });
 
-            const { detectDocType, getDocTypePrompt } = await import('../services/ai-analyzer/prompts/doc-type/index.js');
+            const { detectDocType, getDocTypePrompt } = await import(
+              '../services/ai-analyzer/prompts/doc-type/index.js'
+            );
             const { safeJsonParse } = await import('../services/ai-analyzer/utils/parser.js');
             const Anthropic = (await import('@anthropic-ai/sdk')).default;
             const { aiConfig } = await import('../config/ai.config.js');
@@ -349,7 +356,12 @@ router.post('/analyze-batch', async (req, res) => {
             let provider = 'claude-text';
 
             if (docTypePrompt) {
-              sendEvent({ stage: 'progress', documentId: docId, message: `${docType} tipinde özel analiz...`, progress: 50 });
+              sendEvent({
+                stage: 'progress',
+                documentId: docId,
+                message: `${docType} tipinde özel analiz...`,
+                progress: 50,
+              });
               const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
               const response = await anthropic.messages.create({
                 model: aiConfig.claude.defaultModel,
@@ -357,7 +369,12 @@ router.post('/analyze-batch', async (req, res) => {
                 messages: [{ role: 'user', content: docTypePrompt.prompt + doc.content_text }],
               });
               analysis = safeJsonParse(response.content[0]?.text || '{}') || {};
-              analysis.meta = { method: 'doc-type-specialized', docType, inputTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0 };
+              analysis.meta = {
+                method: 'doc-type-specialized',
+                docType,
+                inputTokens: response.usage?.input_tokens || 0,
+                outputTokens: response.usage?.output_tokens || 0,
+              };
               provider = `claude-text-${docType}`;
             } else {
               // Genel analiz fallback

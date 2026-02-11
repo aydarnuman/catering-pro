@@ -110,7 +110,11 @@ async function writeSinglePrice({
   const maxAllowed = BIRIM_FIYAT_MAX[fixedBirim] || BIRIM_FIYAT_MAX.adet;
   if (birimFiyat > maxAllowed) {
     logger.debug('[PiyasaWriter] Anomali fiyat atlandı', {
-      urunAdi, birimFiyat, fixedBirim, maxAllowed, marketAdi,
+      urunAdi,
+      birimFiyat,
+      fixedBirim,
+      maxAllowed,
+      marketAdi,
     });
     return false;
   }
@@ -254,10 +258,9 @@ export async function refreshOzet(urunKartId) {
     await query('SELECT refresh_urun_fiyat_ozet($1)', [urunKartId]);
 
     // Varyant cascade: parent varsa parent'ın özetini de güncelle
-    const parentCheck = await query(
-      'SELECT ana_urun_id FROM urun_kartlari WHERE id = $1 AND ana_urun_id IS NOT NULL',
-      [urunKartId]
-    ).catch(() => ({ rows: [] }));
+    const parentCheck = await query('SELECT ana_urun_id FROM urun_kartlari WHERE id = $1 AND ana_urun_id IS NOT NULL', [
+      urunKartId,
+    ]).catch(() => ({ rows: [] }));
 
     if (parentCheck.rows[0]?.ana_urun_id) {
       await query('SELECT refresh_parent_fiyat_ozet($1)', [parentCheck.rows[0].ana_urun_id]).catch(() => {});
@@ -308,7 +311,7 @@ export async function detectAndFixPriceAnomalies(options = {}) {
     const duzeltilen = result.rows.length;
     if (duzeltilen > 0) {
       logger.info(`[PiyasaWriter] ${duzeltilen} fatura anomalisi düzeltildi`, {
-        urunler: result.rows.map(r => r.ad).join(', '),
+        urunler: result.rows.map((r) => r.ad).join(', '),
       });
     }
 

@@ -1,16 +1,16 @@
 /**
  * Doküman Tipine Özel Prompt'lar - Index
- * 
+ *
  * Her ihale doküman tipi için ayrı prompt tanımlar.
  * Doküman tipi dosya adından veya DB doc_type/content_type'dan tespit edilir.
  */
 
-import ilanMetni from './ilan-metni.js';
+import birimFiyatCetveli from './birim-fiyat-cetveli.js';
 import idariSartname from './idari-sartname.js';
+import ilanMetni from './ilan-metni.js';
+import malHizmetListesi from './mal-hizmet-listesi.js';
 import sozlesmeTasarisi from './sozlesme-tasarisi.js';
 import teknikSartname from './teknik-sartname.js';
-import malHizmetListesi from './mal-hizmet-listesi.js';
-import birimFiyatCetveli from './birim-fiyat-cetveli.js';
 
 /**
  * Doküman tipine özel prompt registry

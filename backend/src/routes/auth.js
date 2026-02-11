@@ -17,17 +17,16 @@ import loginAttemptService from '../services/login-attempt-service.js';
 import sessionService from '../services/session-service.js';
 import logger from '../utils/logger.js';
 import {
-  loginSchema,
-  registerSchema,
-  updateProfileSchema,
   changePasswordSchema,
-  updateUserSchema,
+  createIpRuleSchema,
   lockAccountSchema,
   loginAttemptsQuerySchema,
-  createIpRuleSchema,
+  loginSchema,
+  registerSchema,
   updateIpRuleSchema,
+  updateProfileSchema,
+  updateUserSchema,
   validatePasswordSchema,
-  idParamSchema,
 } from '../validations/auth.js';
 
 const router = express.Router();

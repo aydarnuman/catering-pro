@@ -22,7 +22,11 @@ function fmtPara(val) {
 
 function fmtTarih(val) {
   if (!val) return '-';
-  try { return new Date(val).toLocaleDateString('tr-TR'); } catch { return String(val); }
+  try {
+    return new Date(val).toLocaleDateString('tr-TR');
+  } catch {
+    return String(val);
+  }
 }
 
 async function getTenderTracking(tenderId) {
@@ -101,7 +105,7 @@ async function ozetPDF(ctx) {
         { key: 'Hizmet Gün Sayısı', value: analysis.hizmet_gun_sayisi || '-' },
         { key: 'Mutfak Tipi', value: analysis.mutfak_tipi || '-' },
         { key: 'Servis Tipi', value: analysis.servis_tipi || '-' },
-      ].filter(kv => kv.value !== '-'),
+      ].filter((kv) => kv.value !== '-'),
     });
   }
 
@@ -110,7 +114,7 @@ async function ozetPDF(ctx) {
     sections.push({
       title: 'Önemli Notlar',
       headers: ['Tip', 'Not'],
-      data: analysis.onemli_notlar.map(n => ({ Tip: n.tip || n.type || '-', Not: n.not || n.text || '-' })),
+      data: analysis.onemli_notlar.map((n) => ({ Tip: n.tip || n.type || '-', Not: n.not || n.text || '-' })),
     });
   }
 
@@ -144,8 +148,8 @@ async function analizPDF(ctx) {
       headers: ['#', 'Şart', 'Zorunlu'],
       data: a.teknik_sartlar.map((s, i) => ({
         '#': i + 1,
-        'Şart': s.sart || s.text || s,
-        'Zorunlu': s.zorunlu ? 'Evet' : 'Hayır',
+        Şart: s.sart || s.text || s,
+        Zorunlu: s.zorunlu ? 'Evet' : 'Hayır',
       })),
     });
   }
@@ -155,11 +159,11 @@ async function analizPDF(ctx) {
     sections.push({
       title: `Birim Fiyatlar (${a.birim_fiyatlar.length})`,
       headers: ['Kalem', 'Miktar', 'Birim', 'Fiyat'],
-      data: a.birim_fiyatlar.map(b => ({
-        'Kalem': b.kalem || b.aciklama || '-',
-        'Miktar': b.miktar ?? '-',
-        'Birim': b.birim || '-',
-        'Fiyat': b.fiyat ? fmtPara(b.fiyat) : '-',
+      data: a.birim_fiyatlar.map((b) => ({
+        Kalem: b.kalem || b.aciklama || '-',
+        Miktar: b.miktar ?? '-',
+        Birim: b.birim || '-',
+        Fiyat: b.fiyat ? fmtPara(b.fiyat) : '-',
       })),
     });
   }
@@ -169,9 +173,9 @@ async function analizPDF(ctx) {
     sections.push({
       title: `Personel Gereksinimleri (${a.personel_detaylari.length})`,
       headers: ['Pozisyon', 'Adet', 'Ücret Oranı'],
-      data: a.personel_detaylari.map(p => ({
-        'Pozisyon': p.pozisyon || '-',
-        'Adet': p.adet ?? '-',
+      data: a.personel_detaylari.map((p) => ({
+        Pozisyon: p.pozisyon || '-',
+        Adet: p.adet ?? '-',
         'Ücret Oranı': p.ucret_orani || '-',
       })),
     });
@@ -182,10 +186,10 @@ async function analizPDF(ctx) {
     sections.push({
       title: 'Öğün Bilgileri',
       headers: ['Öğün', 'Kişi Sayısı', 'Detay'],
-      data: a.ogun_bilgileri.map(o => ({
-        'Öğün': o.ogun || o.tur || '-',
+      data: a.ogun_bilgileri.map((o) => ({
+        Öğün: o.ogun || o.tur || '-',
         'Kişi Sayısı': o.kisi_sayisi ?? '-',
-        'Detay': o.detay || o.aciklama || '-',
+        Detay: o.detay || o.aciklama || '-',
       })),
     });
   }
@@ -195,10 +199,10 @@ async function analizPDF(ctx) {
     sections.push({
       title: `Ceza Koşulları (${a.ceza_kosullari.length})`,
       headers: ['Tür', 'Oran', 'Açıklama'],
-      data: a.ceza_kosullari.map(c => ({
-        'Tür': c.tur || '-',
-        'Oran': c.oran || '-',
-        'Açıklama': c.aciklama || '-',
+      data: a.ceza_kosullari.map((c) => ({
+        Tür: c.tur || '-',
+        Oran: c.oran || '-',
+        Açıklama: c.aciklama || '-',
       })),
     });
   }
@@ -208,10 +212,10 @@ async function analizPDF(ctx) {
     sections.push({
       title: 'Gerekli Belgeler',
       headers: ['Belge', 'Zorunlu', 'Puan'],
-      data: a.gerekli_belgeler.map(b => ({
-        'Belge': b.belge || b.ad || '-',
-        'Zorunlu': b.zorunlu ? 'Evet' : 'Hayır',
-        'Puan': b.puan ?? '-',
+      data: a.gerekli_belgeler.map((b) => ({
+        Belge: b.belge || b.ad || '-',
+        Zorunlu: b.zorunlu ? 'Evet' : 'Hayır',
+        Puan: b.puan ?? '-',
       })),
     });
   }
@@ -226,7 +230,7 @@ async function analizPDF(ctx) {
         { key: 'Özkaynak', value: mk.ozkaynak || '-' },
         { key: 'İş Deneyimi', value: mk.is_deneyimi || '-' },
         { key: 'Ciro', value: mk.ciro || '-' },
-      ].filter(kv => kv.value !== '-'),
+      ].filter((kv) => kv.value !== '-'),
     });
   }
 
@@ -239,7 +243,7 @@ async function analizPDF(ctx) {
         { key: 'Geçici Teminat', value: to.gecici ? `%${to.gecici}` : '-' },
         { key: 'Kesin Teminat', value: to.kesin ? `%${to.kesin}` : '-' },
         { key: 'Ek Kesin Teminat', value: to.ek_kesin ? `%${to.ek_kesin}` : '-' },
-      ].filter(kv => kv.value !== '-'),
+      ].filter((kv) => kv.value !== '-'),
     });
   }
 
@@ -248,10 +252,10 @@ async function analizPDF(ctx) {
     sections.push({
       title: 'Takvim',
       headers: ['Olay', 'Tarih', 'Gün'],
-      data: a.takvim.map(t => ({
-        'Olay': t.olay || '-',
-        'Tarih': t.tarih || '-',
-        'Gün': t.gun ?? '-',
+      data: a.takvim.map((t) => ({
+        Olay: t.olay || '-',
+        Tarih: t.tarih || '-',
+        Gün: t.gun ?? '-',
       })),
     });
   }
@@ -288,34 +292,45 @@ async function cetvelExcel(ctx) {
     const analysis = tender.analysis_summary || {};
     if (analysis.birim_fiyatlar?.length) {
       const data = analysis.birim_fiyatlar.map((b, i) => ({
-        'Sıra': i + 1,
+        Sıra: i + 1,
         'İş Kalemi': b.kalem || b.aciklama || '-',
-        'Birim': b.birim || '-',
-        'Miktar': b.miktar ?? 0,
+        Birim: b.birim || '-',
+        Miktar: b.miktar ?? 0,
         'Birim Fiyat (TL)': b.fiyat ?? 0,
         'Tutar (TL)': (b.miktar || 0) * (b.fiyat || 0),
       }));
 
       const toplam = data.reduce((sum, r) => sum + (r['Tutar (TL)'] || 0), 0);
-      data.push({ 'Sıra': '', 'İş Kalemi': 'TOPLAM', 'Birim': '', 'Miktar': '', 'Birim Fiyat (TL)': '', 'Tutar (TL)': toplam });
+      data.push({
+        Sıra: '',
+        'İş Kalemi': 'TOPLAM',
+        Birim: '',
+        Miktar: '',
+        'Birim Fiyat (TL)': '',
+        'Tutar (TL)': toplam,
+      });
 
       const buffer = createExcel(data, { sheetName: 'Birim Fiyat Cetveli' });
-      return { buffer, filename: `cetvel-${tender.id}-${Date.now()}.xlsx`, previewData: { headers: Object.keys(data[0]), rows: data } };
+      return {
+        buffer,
+        filename: `cetvel-${tender.id}-${Date.now()}.xlsx`,
+        previewData: { headers: Object.keys(data[0]), rows: data },
+      };
     }
     throw new Error('Birim fiyat cetveli verisi bulunamadı');
   }
 
   const data = cetvel.map((c, i) => ({
-    'Sıra': c.sira || i + 1,
+    Sıra: c.sira || i + 1,
     'İş Kalemi': c.isKalemi || c.is_kalemi || '-',
-    'Birim': c.birim || '-',
-    'Miktar': c.miktar ?? 0,
+    Birim: c.birim || '-',
+    Miktar: c.miktar ?? 0,
     'Birim Fiyat (TL)': c.birimFiyat || c.birim_fiyat || 0,
-    'Tutar (TL)': c.tutar || ((c.miktar || 0) * (c.birimFiyat || c.birim_fiyat || 0)),
+    'Tutar (TL)': c.tutar || (c.miktar || 0) * (c.birimFiyat || c.birim_fiyat || 0),
   }));
 
   const toplam = data.reduce((sum, r) => sum + (r['Tutar (TL)'] || 0), 0);
-  data.push({ 'Sıra': '', 'İş Kalemi': 'TOPLAM', 'Birim': '', 'Miktar': '', 'Birim Fiyat (TL)': '', 'Tutar (TL)': toplam });
+  data.push({ Sıra: '', 'İş Kalemi': 'TOPLAM', Birim: '', Miktar: '', 'Birim Fiyat (TL)': '', 'Tutar (TL)': toplam });
 
   const buffer = createExcel(data, { sheetName: 'Birim Fiyat Cetveli' });
   return {
@@ -356,18 +371,18 @@ async function maliyetExcel(ctx) {
 
   // Özet sayfası
   const ozetData = [
-    { 'Kategori': 'Malzeme', 'Tutar (TL)': md.malzeme || 0 },
-    { 'Kategori': 'Personel', 'Tutar (TL)': md.personel || 0 },
-    { 'Kategori': 'Nakliye', 'Tutar (TL)': md.nakliye || 0 },
-    { 'Kategori': 'Sarf Malzeme', 'Tutar (TL)': md.sarf_malzeme || 0 },
-    { 'Kategori': 'Ekipman', 'Tutar (TL)': md.ekipman || 0 },
-    { 'Kategori': 'Genel Gider', 'Tutar (TL)': md.genel_gider || 0 },
-    { 'Kategori': 'Yasal Giderler', 'Tutar (TL)': md.yasal_giderler || 0 },
-    { 'Kategori': 'Risk Payı', 'Tutar (TL)': md.risk_payi || 0 },
-    { 'Kategori': 'TOPLAM MALİYET', 'Tutar (TL)': h.maliyet_toplam || 0 },
-    { 'Kategori': 'Kâr Oranı (%)', 'Tutar (TL)': h.kar_orani || 0 },
-    { 'Kategori': 'Kâr Tutarı', 'Tutar (TL)': h.kar_tutari || 0 },
-    { 'Kategori': 'TEKLİF FİYATI', 'Tutar (TL)': h.teklif_fiyati || 0 },
+    { Kategori: 'Malzeme', 'Tutar (TL)': md.malzeme || 0 },
+    { Kategori: 'Personel', 'Tutar (TL)': md.personel || 0 },
+    { Kategori: 'Nakliye', 'Tutar (TL)': md.nakliye || 0 },
+    { Kategori: 'Sarf Malzeme', 'Tutar (TL)': md.sarf_malzeme || 0 },
+    { Kategori: 'Ekipman', 'Tutar (TL)': md.ekipman || 0 },
+    { Kategori: 'Genel Gider', 'Tutar (TL)': md.genel_gider || 0 },
+    { Kategori: 'Yasal Giderler', 'Tutar (TL)': md.yasal_giderler || 0 },
+    { Kategori: 'Risk Payı', 'Tutar (TL)': md.risk_payi || 0 },
+    { Kategori: 'TOPLAM MALİYET', 'Tutar (TL)': h.maliyet_toplam || 0 },
+    { Kategori: 'Kâr Oranı (%)', 'Tutar (TL)': h.kar_orani || 0 },
+    { Kategori: 'Kâr Tutarı', 'Tutar (TL)': h.kar_tutari || 0 },
+    { Kategori: 'TEKLİF FİYATI', 'Tutar (TL)': h.teklif_fiyati || 0 },
   ];
   sheets.push({ name: 'Maliyet Özet', data: ozetData });
 
@@ -376,9 +391,9 @@ async function maliyetExcel(ctx) {
   if (persData.length > 0) {
     sheets.push({
       name: 'Personel Detay',
-      data: persData.map(p => ({
-        'Pozisyon': p.pozisyon || '-',
-        'Adet': p.adet || 0,
+      data: persData.map((p) => ({
+        Pozisyon: p.pozisyon || '-',
+        Adet: p.adet || 0,
         'Brüt Maaş': p.brutMaas || p.brut_maas || 0,
         'Aylık Toplam': (p.adet || 0) * (p.brutMaas || p.brut_maas || 0),
       })),
@@ -390,8 +405,8 @@ async function maliyetExcel(ctx) {
   if (malzData.length > 0) {
     sheets.push({
       name: 'Malzeme Detay',
-      data: malzData.map(o => ({
-        'Öğün': o.ogun || o.ad || '-',
+      data: malzData.map((o) => ({
+        Öğün: o.ogun || o.ad || '-',
         'Kişi Başı Maliyet': o.kisiBasi || o.kisi_basi || 0,
         'Kişi Sayısı': o.kisiSayisi || o.kisi_sayisi || 0,
         'Günlük Toplam': (o.kisiBasi || o.kisi_basi || 0) * (o.kisiSayisi || o.kisi_sayisi || 0),
@@ -417,22 +432,22 @@ async function kikHesaplamaExcel(ctx) {
   const h = tender.hesaplama_verileri || {};
 
   const data = [
-    { 'Parametre': 'Yaklaşık Maliyet', 'Değer': fmtPara(tender.yaklasik_maliyet || tender.bedel) },
-    { 'Parametre': 'Sınır Değer', 'Değer': fmtPara(tender.sinir_deger) },
-    { 'Parametre': 'Bizim Teklif', 'Değer': fmtPara(tender.bizim_teklif) },
-    { 'Parametre': 'İhale Türü', 'Değer': h.ihale_turu || '-' },
-    { 'Parametre': 'Toplam Maliyet', 'Değer': fmtPara(h.maliyet_toplam) },
-    { 'Parametre': 'Kâr Oranı', 'Değer': h.kar_orani ? `%${h.kar_orani}` : '-' },
-    { 'Parametre': 'Teklif Fiyatı', 'Değer': fmtPara(h.teklif_fiyati) },
+    { Parametre: 'Yaklaşık Maliyet', Değer: fmtPara(tender.yaklasik_maliyet || tender.bedel) },
+    { Parametre: 'Sınır Değer', Değer: fmtPara(tender.sinir_deger) },
+    { Parametre: 'Bizim Teklif', Değer: fmtPara(tender.bizim_teklif) },
+    { Parametre: 'İhale Türü', Değer: h.ihale_turu || '-' },
+    { Parametre: 'Toplam Maliyet', Değer: fmtPara(h.maliyet_toplam) },
+    { Parametre: 'Kâr Oranı', Değer: h.kar_orani ? `%${h.kar_orani}` : '-' },
+    { Parametre: 'Teklif Fiyatı', Değer: fmtPara(h.teklif_fiyati) },
   ];
 
   // Teklif listesi
   const teklifler = h.teklif_listesi || [];
   if (teklifler.length > 0) {
-    data.push({ 'Parametre': '---', 'Değer': '---' });
-    data.push({ 'Parametre': 'TEKLİF LİSTESİ', 'Değer': '' });
+    data.push({ Parametre: '---', Değer: '---' });
+    data.push({ Parametre: 'TEKLİF LİSTESİ', Değer: '' });
     teklifler.forEach((t, i) => {
-      data.push({ 'Parametre': `${i + 1}. ${t.firma || 'Firma'}`, 'Değer': fmtPara(t.tutar) });
+      data.push({ Parametre: `${i + 1}. ${t.firma || 'Firma'}`, Değer: fmtPara(t.tutar) });
     });
   }
 
@@ -492,7 +507,10 @@ async function teminatRiskPDF(ctx) {
         { key: 'Bizim Teklif', value: fmtPara(bizimTeklif) },
         { key: 'Sınır Değer', value: fmtPara(sinirDeger) },
         { key: 'Fark', value: fmtPara(bizimTeklif - sinirDeger) },
-        { key: 'Aşırı Düşük Riski', value: bizimTeklif < sinirDeger ? 'EVET - Aşırı düşük teklif savunması gerekebilir' : 'HAYIR' },
+        {
+          key: 'Aşırı Düşük Riski',
+          value: bizimTeklif < sinirDeger ? 'EVET - Aşırı düşük teklif savunması gerekebilir' : 'HAYIR',
+        },
       ],
     },
   ];
@@ -502,8 +520,10 @@ async function teminatRiskPDF(ctx) {
     sections.push({
       title: 'Ceza Koşulları',
       headers: ['Tür', 'Oran', 'Açıklama'],
-      data: analysis.ceza_kosullari.map(c => ({
-        'Tür': c.tur || '-', 'Oran': c.oran || '-', 'Açıklama': c.aciklama || '-',
+      data: analysis.ceza_kosullari.map((c) => ({
+        Tür: c.tur || '-',
+        Oran: c.oran || '-',
+        Açıklama: c.aciklama || '-',
       })),
     });
   }
@@ -524,21 +544,25 @@ async function topluListeExcel(ctx) {
   const tenders = await getAllTrackedTenders(ctx.userId);
 
   const statusLabels = {
-    inceleniyor: 'İnceleniyor', bekliyor: 'Bekliyor', basvuruldu: 'Başvuruldu',
-    kazanildi: 'Kazanıldı', kaybedildi: 'Kaybedildi', iptal: 'İptal',
+    inceleniyor: 'İnceleniyor',
+    bekliyor: 'Bekliyor',
+    basvuruldu: 'Başvuruldu',
+    kazanildi: 'Kazanıldı',
+    kaybedildi: 'Kaybedildi',
+    iptal: 'İptal',
   };
 
   const data = tenders.map((t, i) => ({
     '#': i + 1,
     'İhale Başlığı': t.ihale_basligi || '-',
-    'Kurum': t.kurum || '-',
-    'Tarih': fmtTarih(t.tarih),
-    'Şehir': t.city || '-',
+    Kurum: t.kurum || '-',
+    Tarih: fmtTarih(t.tarih),
+    Şehir: t.city || '-',
     'Yaklaşık Maliyet': fmtPara(t.bedel || t.yaklasik_maliyet),
     'Bizim Teklif': fmtPara(t.bizim_teklif),
-    'Durum': statusLabels[t.status] || t.status || '-',
-    'Döküman': t.dokuman_sayisi || 0,
-    'Eklenme': fmtTarih(t.created_at),
+    Durum: statusLabels[t.status] || t.status || '-',
+    Döküman: t.dokuman_sayisi || 0,
+    Eklenme: fmtTarih(t.created_at),
   }));
 
   const buffer = createExcel(data, { sheetName: 'Takip Edilen İhaleler' });

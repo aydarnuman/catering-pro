@@ -1,6 +1,6 @@
 /**
  * Birim Fiyat Teklif Cetveli Extraction Prompt
- * 
+ *
  * İhale birim fiyat teklif cetveli (genelde DOCX).
  * İş kalemleri, miktarları ve birimleri içerir.
  * Fiyat sütunları genellikle boştur (istekli dolduracak).

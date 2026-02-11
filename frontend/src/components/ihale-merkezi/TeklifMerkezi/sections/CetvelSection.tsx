@@ -14,11 +14,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import {
-  IconFileSpreadsheet,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconFileSpreadsheet, IconPlus, IconTrash } from '@tabler/icons-react';
 import { formatPara } from '../../../teklif/hesaplamalar';
 import type { UseTeklifMerkeziReturn } from '../hooks/useTeklifMerkezi';
 
@@ -48,8 +44,12 @@ export function CetvelSection({ ctx }: CetvelSectionProps) {
           <Group gap="sm">
             <IconFileSpreadsheet size={22} color="var(--mantine-color-blue-6)" />
             <div>
-              <Text size="md" fw={600}>Birim Fiyat Teklif Cetveli</Text>
-              <Text size="xs" c="dimmed">İhale kalemlerinin birim fiyatlarını belirleyin</Text>
+              <Text size="md" fw={600}>
+                Birim Fiyat Teklif Cetveli
+              </Text>
+              <Text size="xs" c="dimmed">
+                İhale kalemlerinin birim fiyatlarını belirleyin
+              </Text>
             </div>
           </Group>
           <Group gap="sm">
@@ -87,12 +87,20 @@ export function CetvelSection({ ctx }: CetvelSectionProps) {
               <Table withTableBorder withColumnBorders striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th w={50} ta="center">Sıra</Table.Th>
+                    <Table.Th w={50} ta="center">
+                      Sıra
+                    </Table.Th>
                     <Table.Th miw={250}>İş Kalemi</Table.Th>
                     <Table.Th w={100}>Birim</Table.Th>
-                    <Table.Th w={120} ta="right">Miktar</Table.Th>
-                    <Table.Th w={140} ta="right">Birim Fiyat (₺)</Table.Th>
-                    <Table.Th w={140} ta="right">Tutar (₺)</Table.Th>
+                    <Table.Th w={120} ta="right">
+                      Miktar
+                    </Table.Th>
+                    <Table.Th w={140} ta="right">
+                      Birim Fiyat (₺)
+                    </Table.Th>
+                    <Table.Th w={140} ta="right">
+                      Tutar (₺)
+                    </Table.Th>
                     <Table.Th w={50}></Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -100,7 +108,9 @@ export function CetvelSection({ ctx }: CetvelSectionProps) {
                   {cetvel.map((kalem, idx) => (
                     <Table.Tr key={kalem.sira}>
                       <Table.Td ta="center">
-                        <Text size="sm" c="dimmed">{kalem.sira}</Text>
+                        <Text size="sm" c="dimmed">
+                          {kalem.sira}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
                         <TextInput
@@ -150,7 +160,9 @@ export function CetvelSection({ ctx }: CetvelSectionProps) {
                       </Table.Td>
                       <Table.Td ta="right">
                         <Text size="sm" fw={600}>
-                          {kalem.tutar > 0 ? kalem.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : '—'}
+                          {kalem.tutar > 0
+                            ? kalem.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })
+                            : '—'}
                         </Text>
                       </Table.Td>
                       <Table.Td ta="center">

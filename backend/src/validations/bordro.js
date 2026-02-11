@@ -11,7 +11,7 @@ const tutarField = z.number().min(0).max(99999999);
 // ─── Net → Brüt hesaplama ────────────────────────────────────
 
 export const netBrutSchema = z.object({
-  net_maas: z.number({ required_error: 'Net maaş gerekli' }).positive('Net maaş 0\'dan büyük olmalı'),
+  net_maas: z.number({ required_error: 'Net maaş gerekli' }).positive("Net maaş 0'dan büyük olmalı"),
   medeni_durum: z.enum(['bekar', 'evli']).optional().default('bekar'),
   es_calisiyormu: z.boolean().optional().default(false),
   cocuk_sayisi: z.number().int().min(0).max(20).optional().default(0),
@@ -24,11 +24,14 @@ export const netBrutSchema = z.object({
 export const hesaplaSchema = z.object({
   personel_id: z.union([
     z.number().int().positive(),
-    z.string().transform((v) => parseInt(v, 10)).pipe(z.number().int().positive()),
+    z
+      .string()
+      .transform((v) => parseInt(v, 10))
+      .pipe(z.number().int().positive()),
   ]),
   yil: yilField,
   ay: ayField,
-  brut_maas: z.number({ required_error: 'Brüt maaş gerekli' }).positive('Brüt maaş 0\'dan büyük olmalı'),
+  brut_maas: z.number({ required_error: 'Brüt maaş gerekli' }).positive("Brüt maaş 0'dan büyük olmalı"),
   fazla_mesai_saat: z.number().min(0).max(744).optional().default(0),
   fazla_mesai_carpan: z.number().min(1).max(5).optional().default(1.5),
   ikramiye: tutarField.optional().default(0),

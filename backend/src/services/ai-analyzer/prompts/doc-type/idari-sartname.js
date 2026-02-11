@@ -1,6 +1,6 @@
 /**
  * İdari Şartname Extraction Prompt
- * 
+ *
  * İdari şartname, ihale yeterlilik kriterlerinin ve prosedürlerin yer aldığı
  * en kapsamlı dokümandır. Mali/mesleki yeterlilik, teminat, belgeler burada.
  */

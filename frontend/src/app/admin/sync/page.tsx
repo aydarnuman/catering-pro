@@ -47,7 +47,7 @@ import {
   IconSparkles,
   IconTrash,
 } from '@tabler/icons-react';
-import dayjs from 'dayjs';
+import { format } from 'date-fns';
 import { useCallback, useEffect, useState } from 'react';
 import { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
 import { useAuth } from '@/context/AuthContext';
@@ -218,8 +218,8 @@ export default function SyncControlPage() {
     if (syncType === 'dateRange' && dateRange[0] && dateRange[1]) {
       endpoint = '/sync/date-range';
       body = {
-        startDate: dayjs(dateRange[0]).format('YYYY-MM-DD'),
-        endDate: dayjs(dateRange[1]).format('YYYY-MM-DD'),
+        startDate: format(dateRange[0], 'yyyy-MM-dd'),
+        endDate: format(dateRange[1], 'yyyy-MM-dd'),
         maxInvoices,
       };
     } else if (syncType === 'category' && selectedCategory) {
@@ -539,7 +539,7 @@ export default function SyncControlPage() {
                   </Group>
                   <Text fw={700} size="lg">
                     {schedulerStatus?.lastSyncTime
-                      ? dayjs(schedulerStatus.lastSyncTime).format('DD.MM HH:mm')
+                      ? format(new Date(schedulerStatus.lastSyncTime), 'dd.MM HH:mm')
                       : 'Henüz yapılmadı'}
                   </Text>
                 </Paper>
@@ -767,7 +767,7 @@ export default function SyncControlPage() {
                   </Group>
                   <Text fw={700} size="lg">
                     {tenderSchedulerStatus?.lastScrapeTime
-                      ? dayjs(tenderSchedulerStatus.lastScrapeTime).format('DD.MM HH:mm')
+                      ? format(new Date(tenderSchedulerStatus.lastScrapeTime), 'dd.MM HH:mm')
                       : 'Henüz yapılmadı'}
                   </Text>
                 </Paper>
@@ -1233,7 +1233,7 @@ export default function SyncControlPage() {
                           <Table.Td>{databaseStats?.tableSizes?.[index]?.size || 'N/A'}</Table.Td>
                           <Table.Td>
                             {table.lastUpdate
-                              ? dayjs(table.lastUpdate).format('DD.MM.YYYY HH:mm')
+                              ? format(new Date(table.lastUpdate), 'dd.MM.yyyy HH:mm')
                               : '-'}
                           </Table.Td>
                         </Table.Tr>
@@ -1375,7 +1375,7 @@ export default function SyncControlPage() {
                           {log.status}
                         </Badge>
                       </Table.Td>
-                      <Table.Td>{dayjs(log.started_at).format('DD.MM HH:mm')}</Table.Td>
+                      <Table.Td>{format(new Date(log.started_at), 'dd.MM HH:mm')}</Table.Td>
                       <Table.Td>
                         {log.finished_at && log.started_at
                           ? `${Math.round((new Date(log.finished_at).getTime() - new Date(log.started_at).getTime()) / 1000)}s`

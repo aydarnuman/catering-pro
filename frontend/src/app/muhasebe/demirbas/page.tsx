@@ -2407,9 +2407,7 @@ export default function DemirbasPage() {
                   </Table.Thead>
                   <Table.Tbody>
                     {detayData.hareketler.map((h) => (
-                      <Table.Tr
-                        key={`${h.tarih}-${h.hareket_tipi}-${h.aciklama || ''}`}
-                      >
+                      <Table.Tr key={`${h.tarih}-${h.hareket_tipi}-${h.aciklama || ''}`}>
                         <Table.Td>{formatDate(h.tarih)}</Table.Td>
                         <Table.Td>
                           <Badge variant="light" size="sm">

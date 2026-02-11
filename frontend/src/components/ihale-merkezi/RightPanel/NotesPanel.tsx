@@ -38,7 +38,9 @@ export function NotesPanel({ trackingId: _trackingId, tenderId, tenderTitle }: N
           </ThemeIcon>
 
           {isLoading ? (
-            <Text size="xs" c="dimmed">Yukleniyor...</Text>
+            <Text size="xs" c="dimmed">
+              Yukleniyor...
+            </Text>
           ) : noteCount > 0 ? (
             <Stack align="center" gap={4}>
               <Group gap="xs">
@@ -57,7 +59,9 @@ export function NotesPanel({ trackingId: _trackingId, tenderId, tenderTitle }: N
               </Text>
             </Stack>
           ) : (
-            <Text size="xs" c="dimmed">Henuz not yok</Text>
+            <Text size="xs" c="dimmed">
+              Henuz not yok
+            </Text>
           )}
 
           <Button
@@ -65,9 +69,7 @@ export function NotesPanel({ trackingId: _trackingId, tenderId, tenderTitle }: N
             color="violet"
             size="xs"
             leftSection={<IconNote size={14} />}
-            onClick={() =>
-              openContextNotes('tender', tenderId, tenderTitle || 'Ihale')
-            }
+            onClick={() => openContextNotes('tender', tenderId, tenderTitle || 'Ihale')}
           >
             {noteCount > 0 ? 'Notlari Ac' : 'Not Ekle'}
           </Button>

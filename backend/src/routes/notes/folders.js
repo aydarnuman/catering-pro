@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 
     res.json({ success: true, folders: result.rows });
   } catch (error) {
-    console.error('Folder list error:', error);
+    logger.error('Folder list error:', error);
     res.status(500).json({ success: false, message: 'Klasörler yüklenemedi' });
   }
 });
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
 
     res.json({ success: true, folder: { ...result.rows[0], note_count: 0 } });
   } catch (error) {
-    console.error('Folder create error:', error);
+    logger.error('Folder create error:', error);
     res.status(500).json({ success: false, message: 'Klasör oluşturulamadı' });
   }
 });
@@ -86,10 +87,7 @@ router.put('/:id', async (req, res) => {
     const { name, color, icon, password, remove_password } = req.body;
 
     // Check ownership
-    const existing = await pool.query(
-      'SELECT id FROM note_folders WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    const existing = await pool.query('SELECT id FROM note_folders WHERE id = $1 AND user_id = $2', [id, userId]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Klasör bulunamadı' });
     }
@@ -140,7 +138,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, folder: result.rows[0] });
   } catch (error) {
-    console.error('Folder update error:', error);
+    logger.error('Folder update error:', error);
     res.status(500).json({ success: false, message: 'Klasör güncellenemedi' });
   }
 });
@@ -155,15 +153,12 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Move notes to no-folder first
-    await pool.query(
-      'UPDATE unified_notes SET folder_id = NULL WHERE folder_id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    await pool.query('UPDATE unified_notes SET folder_id = NULL WHERE folder_id = $1 AND user_id = $2', [id, userId]);
 
-    const result = await pool.query(
-      'DELETE FROM note_folders WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, userId]
-    );
+    const result = await pool.query('DELETE FROM note_folders WHERE id = $1 AND user_id = $2 RETURNING id', [
+      id,
+      userId,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Klasör bulunamadı' });
@@ -171,7 +166,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true, message: 'Klasör silindi' });
   } catch (error) {
-    console.error('Folder delete error:', error);
+    logger.error('Folder delete error:', error);
     res.status(500).json({ success: false, message: 'Klasör silinemedi' });
   }
 });
@@ -190,10 +185,10 @@ router.post('/:id/unlock', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Şifre gerekli' });
     }
 
-    const result = await pool.query(
-      'SELECT password_hash FROM note_folders WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    const result = await pool.query('SELECT password_hash FROM note_folders WHERE id = $1 AND user_id = $2', [
+      id,
+      userId,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Klasör bulunamadı' });
@@ -211,7 +206,7 @@ router.post('/:id/unlock', async (req, res) => {
 
     res.json({ success: true, unlocked: true });
   } catch (error) {
-    console.error('Folder unlock error:', error);
+    logger.error('Folder unlock error:', error);
     res.status(500).json({ success: false, message: 'Kilit açılamadı' });
   }
 });
@@ -230,33 +225,34 @@ router.put('/move-note', async (req, res) => {
     }
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      'SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2',
-      [note_id, userId]
-    );
+    const noteCheck = await pool.query('SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2', [
+      note_id,
+      userId,
+    ]);
     if (noteCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadı' });
     }
 
     // If folder_id provided, verify folder ownership
     if (folder_id) {
-      const folderCheck = await pool.query(
-        'SELECT id FROM note_folders WHERE id = $1 AND user_id = $2',
-        [folder_id, userId]
-      );
+      const folderCheck = await pool.query('SELECT id FROM note_folders WHERE id = $1 AND user_id = $2', [
+        folder_id,
+        userId,
+      ]);
       if (folderCheck.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Klasör bulunamadı' });
       }
     }
 
-    await pool.query(
-      'UPDATE unified_notes SET folder_id = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-      [folder_id || null, note_id, userId]
-    );
+    await pool.query('UPDATE unified_notes SET folder_id = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
+      folder_id || null,
+      note_id,
+      userId,
+    ]);
 
     res.json({ success: true, message: folder_id ? 'Not klasöre taşındı' : 'Not klasörden çıkarıldı' });
   } catch (error) {
-    console.error('Move note error:', error);
+    logger.error('Move note error:', error);
     res.status(500).json({ success: false, message: 'Not taşınamadı' });
   }
 });

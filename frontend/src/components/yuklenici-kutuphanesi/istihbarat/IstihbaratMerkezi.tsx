@@ -23,7 +23,12 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
-import type { DockGrupAdi, IstihbaratModul, IstihbaratModulAdi, Yuklenici } from '@/types/yuklenici';
+import type {
+  DockGrupAdi,
+  IstihbaratModul,
+  IstihbaratModulAdi,
+  Yuklenici,
+} from '@/types/yuklenici';
 import { YukleniciIletisimBilgileri } from '../FirmaBilgileri';
 // RiskNotlarTab kaldırıldı — risk verileri Hukuki Durum modülünde, notlar YapiskanNotlar'da
 import { BolgeselHaritaPaneli } from './BolgeselHaritaPaneli';

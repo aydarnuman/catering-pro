@@ -146,7 +146,8 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
   }
 
   // Yeni format (istihbarat briefing)
-  const tehlikeSeviyesi = (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
+  const tehlikeSeviyesi =
+    (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
   const tehlikeRenk =
     tehlikeSeviyesi === 'çok yüksek'
       ? 'red'
@@ -189,9 +190,7 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
       </Group>
 
       {/* Eski format — SWOT */}
-      {eskiFormat && (
-        <EskiFormatGoster rapor={rapor} />
-      )}
+      {eskiFormat && <EskiFormatGoster rapor={rapor} />}
 
       {/* Yeni format — İstihbarat Briefing (Opus 4.6 Markdown çıktısı) */}
       {!eskiFormat && (
@@ -263,7 +262,12 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
               )}
 
               {stratejikTavsiyeler.length > 0 && (
-                <Card withBorder p="sm" radius="sm" style={{ borderColor: 'var(--mantine-color-blue-3)' }}>
+                <Card
+                  withBorder
+                  p="sm"
+                  radius="sm"
+                  style={{ borderColor: 'var(--mantine-color-blue-3)' }}
+                >
                   <Group gap="xs" mb="xs">
                     <ThemeIcon size="sm" variant="light" color="blue">
                       <IconBulb size={14} />
@@ -340,15 +344,25 @@ function EskiFormatGoster({ rapor }: { rapor: Record<string, unknown> }) {
     <>
       {!!rapor.genel_degerlendirme && (
         <Card withBorder p="sm" radius="sm">
-          <Text size="sm" fw={600} mb="xs">Genel Değerlendirme</Text>
+          <Text size="sm" fw={600} mb="xs">
+            Genel Değerlendirme
+          </Text>
           <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
             {rapor.genel_degerlendirme as string}
           </Text>
         </Card>
       )}
       <Group grow align="flex-start">
-        <SWOTKart baslik="Güçlü Yönler" maddeler={(rapor.guclu_yonler as string[]) || []} renk="green" />
-        <SWOTKart baslik="Zayıf Yönler" maddeler={(rapor.zayif_yonler as string[]) || []} renk="red" />
+        <SWOTKart
+          baslik="Güçlü Yönler"
+          maddeler={(rapor.guclu_yonler as string[]) || []}
+          renk="green"
+        />
+        <SWOTKart
+          baslik="Zayıf Yönler"
+          maddeler={(rapor.zayif_yonler as string[]) || []}
+          renk="red"
+        />
       </Group>
       <Group grow align="flex-start">
         <SWOTKart baslik="Fırsatlar" maddeler={(rapor.firsatlar as string[]) || []} renk="blue" />
@@ -356,7 +370,9 @@ function EskiFormatGoster({ rapor }: { rapor: Record<string, unknown> }) {
       </Group>
       {!!rapor.rekabet_stratejisi && (
         <Card withBorder p="sm" radius="sm">
-          <Text size="sm" fw={600} mb="xs">Rekabet Stratejisi</Text>
+          <Text size="sm" fw={600} mb="xs">
+            Rekabet Stratejisi
+          </Text>
           <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
             {rapor.rekabet_stratejisi as string}
           </Text>
@@ -364,7 +380,9 @@ function EskiFormatGoster({ rapor }: { rapor: Record<string, unknown> }) {
       )}
       {(rapor.tavsiyeler as string[])?.length > 0 && (
         <Card withBorder p="sm" radius="sm" bg="blue.0">
-          <Text size="sm" fw={600} mb="xs">Tavsiyeler</Text>
+          <Text size="sm" fw={600} mb="xs">
+            Tavsiyeler
+          </Text>
           <List size="sm" spacing={4}>
             {(rapor.tavsiyeler as string[]).map((t) => (
               <List.Item key={`tav-${t.slice(0, 30)}`}>{t}</List.Item>
@@ -388,7 +406,9 @@ function SWOTKart({
   if (maddeler.length === 0) return null;
   return (
     <Card withBorder p="sm" radius="sm">
-      <Text size="xs" fw={600} c={renk} mb="xs">{baslik}</Text>
+      <Text size="xs" fw={600} c={renk} mb="xs">
+        {baslik}
+      </Text>
       <List size="xs" spacing={2}>
         {maddeler.map((m) => (
           <List.Item key={`${baslik}-${m.slice(0, 30)}`}>{m}</List.Item>
@@ -411,7 +431,13 @@ function DerinAnalizPanel({
   onCalistir: () => void;
 }) {
   return (
-    <Card withBorder radius="md" p="md" mt="md" style={{ borderColor: 'var(--mantine-color-teal-3)' }}>
+    <Card
+      withBorder
+      radius="md"
+      p="md"
+      mt="md"
+      style={{ borderColor: 'var(--mantine-color-teal-3)' }}
+    >
       <Group justify="space-between" mb="sm">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="teal">
@@ -440,7 +466,9 @@ function DerinAnalizPanel({
       {yukleniyor && !data && (
         <Group gap="xs" py="sm">
           <Loader size="xs" />
-          <Text size="xs" c="dimmed">Önceki analiz sonuçları yükleniyor...</Text>
+          <Text size="xs" c="dimmed">
+            Önceki analiz sonuçları yükleniyor...
+          </Text>
         </Group>
       )}
 
@@ -455,8 +483,8 @@ function DerinAnalizPanel({
 
       {!data && !yukleniyor && !calistiriliyor && (
         <Text size="xs" c="dimmed">
-          Birden fazla arama stratejisi ile kapsamlı web araştırması yapar.
-          Her çalıştırmada ~5-8 Tavily kredisi harcanır.
+          Birden fazla arama stratejisi ile kapsamlı web araştırması yapar. Her çalıştırmada ~5-8
+          Tavily kredisi harcanır.
         </Text>
       )}
 
@@ -477,7 +505,9 @@ function DerinAnalizPanel({
               <Accordion.Item value="kaynaklar">
                 <Accordion.Control>
                   <Group gap="xs">
-                    <Text size="sm" fw={600}>Kaynaklar</Text>
+                    <Text size="sm" fw={600}>
+                      Kaynaklar
+                    </Text>
                     <Badge size="xs" variant="light" color="gray">
                       {data.kaynaklar.length} sayfa
                     </Badge>
@@ -523,7 +553,10 @@ function DerinAnalizPanel({
             )}
             {(data.olusturma_tarihi || data.son_guncelleme) && (
               <Text size="xs" c="dimmed">
-                Son: {new Date(data.son_guncelleme || data.olusturma_tarihi || '').toLocaleString('tr-TR')}
+                Son:{' '}
+                {new Date(data.son_guncelleme || data.olusturma_tarihi || '').toLocaleString(
+                  'tr-TR'
+                )}
               </Text>
             )}
           </Group>

@@ -1,21 +1,8 @@
 'use client';
 
-import {
-  Box,
-  Center,
-  Container,
-  Loader,
-  Stack,
-  Tabs,
-  Text,
-} from '@mantine/core';
+import { Box, Center, Container, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconBook2,
-  IconCalendar,
-  IconFile,
-  IconPackages,
-} from '@tabler/icons-react';
+import { IconBook2, IconCalendar, IconFile, IconPackages } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
@@ -29,7 +16,6 @@ import { MobileKategoriDrawer } from './components/MobileKategoriDrawer';
 import { MobileMenuNav } from './components/MobileMenuNav';
 import { ReceteDetayModal } from './components/ReceteDetayModal';
 import { RecetelerTab } from './components/RecetelerTab';
-import { UrunlerTab } from './components/UrunlerTab';
 import {
   type BackendReceteResponse,
   type KategoriInfo,
@@ -38,6 +24,7 @@ import {
   type SeciliYemek,
   VARSAYILAN_KATEGORILER,
 } from './components/types';
+import { UrunlerTab } from './components/UrunlerTab';
 
 export default function MenuMaliyetPage() {
   const { isMobile, isMounted } = useResponsive();
@@ -271,7 +258,13 @@ export default function MenuMaliyetPage() {
         {/* Mobil Bottom Navigation */}
         {isMobile && isMounted && (
           <MobileMenuNav
-            activeCategory={activeTab === 'takvim' ? 'planlama' : activeTab === 'receteler' || activeTab === 'urunler' || activeTab === 'menuler' ? 'katalog' : 'analiz'}
+            activeCategory={
+              activeTab === 'takvim'
+                ? 'planlama'
+                : activeTab === 'receteler' || activeTab === 'urunler' || activeTab === 'menuler'
+                  ? 'katalog'
+                  : 'analiz'
+            }
             onCategoryChange={(cat) => {
               if (cat === 'planlama') setActiveTab('takvim');
               else if (cat === 'katalog') setActiveTab('receteler');

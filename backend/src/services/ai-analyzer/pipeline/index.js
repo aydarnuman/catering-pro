@@ -143,10 +143,14 @@ async function ocrWithTesseract(pagePath, pageIndex) {
     await worker.terminate();
 
     const text = data.text || '';
-    logger.info(`    ✓ Tesseract fallback sayfa ${pageIndex + 1} (${text.length} karakter)`, { module: 'ocr-tesseract' });
+    logger.info(`    ✓ Tesseract fallback sayfa ${pageIndex + 1} (${text.length} karakter)`, {
+      module: 'ocr-tesseract',
+    });
     return text;
   } catch (err) {
-    logger.warn(`    ✗ Tesseract fallback başarısız sayfa ${pageIndex + 1}: ${err.message}`, { module: 'ocr-tesseract' });
+    logger.warn(`    ✗ Tesseract fallback başarısız sayfa ${pageIndex + 1}: ${err.message}`, {
+      module: 'ocr-tesseract',
+    });
     return '';
   }
 }
@@ -203,10 +207,13 @@ Sadece metni döndür, yorum veya açıklama ekleme.`,
       return text;
     } catch (error) {
       if (attempt === maxRetries) {
-        logger.error(`    ✗ Sayfa ${pageIndex + 1} Claude Vision ${maxRetries} denemede başarısız, Tesseract fallback deneniyor...`, {
-          module: 'ocr',
-          error: error.message,
-        });
+        logger.error(
+          `    ✗ Sayfa ${pageIndex + 1} Claude Vision ${maxRetries} denemede başarısız, Tesseract fallback deneniyor...`,
+          {
+            module: 'ocr',
+            error: error.message,
+          }
+        );
         // Tesseract.js lokal OCR fallback
         return ocrWithTesseract(pagePath, pageIndex);
       }

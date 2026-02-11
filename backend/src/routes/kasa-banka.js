@@ -6,7 +6,16 @@
 import express from 'express';
 import { query } from '../database.js';
 import { validate } from '../middleware/validate.js';
-import { createHesapSchema, updateHesapSchema, createHareketSchema, createTransferSchema, createCekSenetSchema, tahsilCekSenetSchema, ciroCekSenetSchema, iadeCekSenetSchema } from '../validations/kasa-banka.js';
+import {
+  ciroCekSenetSchema,
+  createCekSenetSchema,
+  createHareketSchema,
+  createHesapSchema,
+  createTransferSchema,
+  iadeCekSenetSchema,
+  tahsilCekSenetSchema,
+  updateHesapSchema,
+} from '../validations/kasa-banka.js';
 
 const router = express.Router();
 

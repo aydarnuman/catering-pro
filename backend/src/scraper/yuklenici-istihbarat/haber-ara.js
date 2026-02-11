@@ -24,11 +24,7 @@
  * }
  */
 
-import {
-  isTavilyConfigured,
-  tavilyExtract,
-  tavilySearch,
-} from '../../services/tavily-service.js';
+import { isTavilyConfigured, tavilyExtract, tavilySearch } from '../../services/tavily-service.js';
 import logger from '../shared/scraper-logger.js';
 
 const MODULE_NAME = 'Haber-Arama';
@@ -46,13 +42,7 @@ const MODULE_NAME = 'Haber-Arama';
  * @returns {Object} Haber ve istihbarat sonuçları
  */
 export async function araHaberler(firmaAdi, options = {}) {
-  const {
-    maxSonuc = 20,
-    kikAra = true,
-    kikTamMetin = false,
-    derinIcerik = false,
-    days = 90,
-  } = options;
+  const { maxSonuc = 20, kikAra = true, kikTamMetin = false, derinIcerik = false, days = 90 } = options;
 
   const session = logger.createSession(MODULE_NAME);
   session.info(`Hibrit haber araması başlatılıyor: "${firmaAdi}"`);
@@ -125,15 +115,12 @@ export async function araHaberler(firmaAdi, options = {}) {
     // ─── 2. KİK Kararları Araması (Tavily ile) ───────────────
     if (kikAra) {
       try {
-        const kikResult = await tavilySearch(
-          `"${firmaAdi}" site:arsiv.kikkararlari.com`,
-          {
-            searchDepth: 'basic',
-            maxResults: 5,
-            includeAnswer: false,
-            includeDomains: ['arsiv.kikkararlari.com'],
-          }
-        );
+        const kikResult = await tavilySearch(`"${firmaAdi}" site:arsiv.kikkararlari.com`, {
+          searchDepth: 'basic',
+          maxResults: 5,
+          includeAnswer: false,
+          includeDomains: ['arsiv.kikkararlari.com'],
+        });
 
         if (kikResult.success && kikResult.results?.length > 0) {
           session.info(`KİK Kararları: ${kikResult.results.length} sonuç bulundu`);
@@ -163,9 +150,7 @@ export async function araHaberler(firmaAdi, options = {}) {
                   const matchingKarar = kikKararlari.find((k) => k.link === ext.url);
                   if (matchingKarar) {
                     // Tam metin çok uzun olabilir, sadece ilk 3000 karakter
-                    matchingKarar.tam_metin = ext.rawContent
-                      ? ext.rawContent.substring(0, 3000)
-                      : null;
+                    matchingKarar.tam_metin = ext.rawContent ? ext.rawContent.substring(0, 3000) : null;
                   }
                 }
               }
@@ -190,7 +175,7 @@ export async function araHaberler(firmaAdi, options = {}) {
       'forie.com',
       'turkishexporter.com.tr',
       'find.com.tr',
-      'ihalebul.com',       // Login gerektirir
+      'ihalebul.com', // Login gerektirir
       'linkedin.com',
       'facebook.com',
       'twitter.com',
@@ -211,7 +196,9 @@ export async function araHaberler(firmaAdi, options = {}) {
         .filter(Boolean);
 
       if (extractUrls.length > 0) {
-        session.info(`Derin içerik: ${extractUrls.length} sayfa çekiliyor (${extractUrls.map(u => extractDomain(u)).join(', ')})...`);
+        session.info(
+          `Derin içerik: ${extractUrls.length} sayfa çekiliyor (${extractUrls.map((u) => extractDomain(u)).join(', ')})...`
+        );
         const extractResult = await tavilyExtract(extractUrls);
 
         if (extractResult.success && extractResult.results?.length > 0) {
@@ -328,7 +315,10 @@ function parseRssItems(xml, maxSonuc) {
 
     if (baslik) {
       const temizOzet = description
-        ? description.replace(/<[^>]*>/g, '').trim().substring(0, 300)
+        ? description
+            .replace(/<[^>]*>/g, '')
+            .trim()
+            .substring(0, 300)
         : '';
 
       haberler.push({

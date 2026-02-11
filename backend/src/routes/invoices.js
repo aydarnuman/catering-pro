@@ -7,8 +7,8 @@ import express from 'express';
 import { query, transaction } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { createInvoiceSchema, updateInvoiceSchema, updateInvoiceStatusSchema } from '../validations/invoices.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
+import { createInvoiceSchema, updateInvoiceSchema, updateInvoiceStatusSchema } from '../validations/invoices.js';
 
 const router = express.Router();
 
@@ -208,43 +208,49 @@ router.get('/:id', async (req, res) => {
  * POST /api/invoices
  * Yeni fatura oluştur
  */
-router.post('/', authenticate, validate(createInvoiceSchema), requirePermission('fatura', 'create'), auditLog('fatura'), async (req, res) => {
-  try {
-    const {
-      invoice_type,
-      series,
-      invoice_no,
-      customer_name,
-      customer_vkn,
-      customer_address,
-      customer_phone,
-      customer_email,
-      invoice_date,
-      due_date,
-      status = 'draft',
-      notes,
-      items = [],
-      created_by,
-    } = req.body;
+router.post(
+  '/',
+  authenticate,
+  validate(createInvoiceSchema),
+  requirePermission('fatura', 'create'),
+  auditLog('fatura'),
+  async (req, res) => {
+    try {
+      const {
+        invoice_type,
+        series,
+        invoice_no,
+        customer_name,
+        customer_vkn,
+        customer_address,
+        customer_phone,
+        customer_email,
+        invoice_date,
+        due_date,
+        status = 'draft',
+        notes,
+        items = [],
+        created_by,
+      } = req.body;
 
-    // Transaction başlat
-    const result = await transaction(async (client) => {
-      // Toplamları hesapla
-      let subtotal = 0;
-      let vat_total = 0;
+      // Transaction başlat
+      const result = await transaction(async (client) => {
+        // Toplamları hesapla
+        let subtotal = 0;
+        let vat_total = 0;
 
-      items.forEach((item) => {
-        const lineTotal = item.quantity * item.unit_price;
-        const vatAmount = lineTotal * (item.vat_rate / 100);
-        subtotal += lineTotal;
-        vat_total += vatAmount;
-      });
+        items.forEach((item) => {
+          const lineTotal = item.quantity * item.unit_price;
+          const vatAmount = lineTotal * (item.vat_rate / 100);
+          subtotal += lineTotal;
+          vat_total += vatAmount;
+        });
 
-      const total_amount = subtotal + vat_total;
+        const total_amount = subtotal + vat_total;
 
-      // Faturayı kaydet
-      const invoiceResult = await client.query(
-        `
+        // Faturayı kaydet
+        const invoiceResult = await client.query(
+          `
         INSERT INTO invoices (
           invoice_type, series, invoice_no, 
           customer_name, customer_vkn, customer_address, customer_phone, customer_email,
@@ -255,94 +261,101 @@ router.post('/', authenticate, validate(createInvoiceSchema), requirePermission(
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         ) RETURNING *
       `,
-        [
-          invoice_type,
-          series,
-          invoice_no,
-          customer_name,
-          customer_vkn,
-          customer_address,
-          customer_phone,
-          customer_email,
-          invoice_date,
-          due_date,
-          subtotal,
-          vat_total,
-          total_amount,
-          status,
-          notes,
-          'manual',
-          created_by,
-        ]
-      );
+          [
+            invoice_type,
+            series,
+            invoice_no,
+            customer_name,
+            customer_vkn,
+            customer_address,
+            customer_phone,
+            customer_email,
+            invoice_date,
+            due_date,
+            subtotal,
+            vat_total,
+            total_amount,
+            status,
+            notes,
+            'manual',
+            created_by,
+          ]
+        );
 
-      const invoice = invoiceResult.rows[0];
+        const invoice = invoiceResult.rows[0];
 
-      // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
-      invoice.items = [];
-      return invoice;
-    });
+        // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
+        invoice.items = [];
+        return invoice;
+      });
 
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
   }
-});
+);
 
 /**
  * PUT /api/invoices/:id
  * Fatura güncelle
  */
-router.put('/:id', authenticate, validate(updateInvoiceSchema), requirePermission('fatura', 'edit'), auditLog('fatura'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      invoice_type,
-      series,
-      invoice_no,
-      customer_name,
-      customer_vkn,
-      customer_address,
-      customer_phone,
-      customer_email,
-      invoice_date,
-      due_date,
-      status,
-      notes,
-      items = [],
-      updated_by,
-    } = req.body;
+router.put(
+  '/:id',
+  authenticate,
+  validate(updateInvoiceSchema),
+  requirePermission('fatura', 'edit'),
+  auditLog('fatura'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        invoice_type,
+        series,
+        invoice_no,
+        customer_name,
+        customer_vkn,
+        customer_address,
+        customer_phone,
+        customer_email,
+        invoice_date,
+        due_date,
+        status,
+        notes,
+        items = [],
+        updated_by,
+      } = req.body;
 
-    const result = await transaction(async (client) => {
-      // Mevcut faturayı kontrol et
-      const checkResult = await client.query('SELECT id FROM invoices WHERE id = $1', [id]);
+      const result = await transaction(async (client) => {
+        // Mevcut faturayı kontrol et
+        const checkResult = await client.query('SELECT id FROM invoices WHERE id = $1', [id]);
 
-      if (!checkResult.rows[0]) {
-        throw new Error('Fatura bulunamadı');
-      }
+        if (!checkResult.rows[0]) {
+          throw new Error('Fatura bulunamadı');
+        }
 
-      // Toplamları hesapla
-      let subtotal = 0;
-      let vat_total = 0;
+        // Toplamları hesapla
+        let subtotal = 0;
+        let vat_total = 0;
 
-      items.forEach((item) => {
-        const lineTotal = item.quantity * item.unit_price;
-        const vatAmount = lineTotal * (item.vat_rate / 100);
-        subtotal += lineTotal;
-        vat_total += vatAmount;
-      });
+        items.forEach((item) => {
+          const lineTotal = item.quantity * item.unit_price;
+          const vatAmount = lineTotal * (item.vat_rate / 100);
+          subtotal += lineTotal;
+          vat_total += vatAmount;
+        });
 
-      const total_amount = subtotal + vat_total;
+        const total_amount = subtotal + vat_total;
 
-      // Faturayı güncelle
-      const invoiceResult = await client.query(
-        `
+        // Faturayı güncelle
+        const invoiceResult = await client.query(
+          `
         UPDATE invoices SET
           invoice_type = $1, series = $2, invoice_no = $3,
           customer_name = $4, customer_vkn = $5, customer_address = $6,
@@ -354,45 +367,46 @@ router.put('/:id', authenticate, validate(updateInvoiceSchema), requirePermissio
         WHERE id = $17
         RETURNING *
       `,
-        [
-          invoice_type,
-          series,
-          invoice_no,
-          customer_name,
-          customer_vkn,
-          customer_address,
-          customer_phone,
-          customer_email,
-          invoice_date,
-          due_date,
-          subtotal,
-          vat_total,
-          total_amount,
-          status,
-          notes,
-          updated_by,
-          id,
-        ]
-      );
+          [
+            invoice_type,
+            series,
+            invoice_no,
+            customer_name,
+            customer_vkn,
+            customer_address,
+            customer_phone,
+            customer_email,
+            invoice_date,
+            due_date,
+            subtotal,
+            vat_total,
+            total_amount,
+            status,
+            notes,
+            updated_by,
+            id,
+          ]
+        );
 
-      const invoice = invoiceResult.rows[0];
+        const invoice = invoiceResult.rows[0];
 
-      // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
-      invoice.items = [];
-      return invoice;
-    });
+        // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
+        invoice.items = [];
+        return invoice;
+      });
 
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
   }
-});
+);
 
 /**
  * PATCH /api/invoices/:id/status

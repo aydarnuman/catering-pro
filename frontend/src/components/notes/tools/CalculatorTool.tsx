@@ -181,50 +181,132 @@ function GeneralCalculator() {
 
       {/* Buttons */}
       <SimpleGrid cols={4} spacing={5}>
-        <Button className="ws-calc-btn" variant="light" color="gray" onClick={clearAll} style={btnBase} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="light"
+          color="gray"
+          onClick={clearAll}
+          style={btnBase}
+          radius="md"
+        >
           C
         </Button>
-        <Button className="ws-calc-btn" variant="light" color="gray" onClick={handlePercent} style={btnBase} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="light"
+          color="gray"
+          onClick={handlePercent}
+          style={btnBase}
+          radius="md"
+        >
           %
         </Button>
-        <Button className="ws-calc-btn" variant="light" color="gray" onClick={handleBackspace} style={btnBase} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="light"
+          color="gray"
+          onClick={handleBackspace}
+          style={btnBase}
+          radius="md"
+        >
           <IconBackspace size={17} />
         </Button>
-        <Button className="ws-calc-btn" variant="filled" color="orange" onClick={() => performOperation('/')} style={{ ...btnBase, opacity: 0.9 }} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="filled"
+          color="orange"
+          onClick={() => performOperation('/')}
+          style={{ ...btnBase, opacity: 0.9 }}
+          radius="md"
+        >
           /
         </Button>
 
         {['7', '8', '9'].map((d) => (
-          <Button className="ws-calc-btn" key={d} variant="default" onClick={() => inputDigit(d)} style={btnBase} radius="md">
+          <Button
+            className="ws-calc-btn"
+            key={d}
+            variant="default"
+            onClick={() => inputDigit(d)}
+            style={btnBase}
+            radius="md"
+          >
             {d}
           </Button>
         ))}
-        <Button className="ws-calc-btn" variant="filled" color="orange" onClick={() => performOperation('*')} style={{ ...btnBase, opacity: 0.9 }} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="filled"
+          color="orange"
+          onClick={() => performOperation('*')}
+          style={{ ...btnBase, opacity: 0.9 }}
+          radius="md"
+        >
           x
         </Button>
 
         {['4', '5', '6'].map((d) => (
-          <Button className="ws-calc-btn" key={d} variant="default" onClick={() => inputDigit(d)} style={btnBase} radius="md">
+          <Button
+            className="ws-calc-btn"
+            key={d}
+            variant="default"
+            onClick={() => inputDigit(d)}
+            style={btnBase}
+            radius="md"
+          >
             {d}
           </Button>
         ))}
-        <Button className="ws-calc-btn" variant="filled" color="orange" onClick={() => performOperation('-')} style={{ ...btnBase, opacity: 0.9 }} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="filled"
+          color="orange"
+          onClick={() => performOperation('-')}
+          style={{ ...btnBase, opacity: 0.9 }}
+          radius="md"
+        >
           -
         </Button>
 
         {['1', '2', '3'].map((d) => (
-          <Button className="ws-calc-btn" key={d} variant="default" onClick={() => inputDigit(d)} style={btnBase} radius="md">
+          <Button
+            className="ws-calc-btn"
+            key={d}
+            variant="default"
+            onClick={() => inputDigit(d)}
+            style={btnBase}
+            radius="md"
+          >
             {d}
           </Button>
         ))}
-        <Button className="ws-calc-btn" variant="filled" color="orange" onClick={() => performOperation('+')} style={{ ...btnBase, opacity: 0.9 }} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="filled"
+          color="orange"
+          onClick={() => performOperation('+')}
+          style={{ ...btnBase, opacity: 0.9 }}
+          radius="md"
+        >
           +
         </Button>
 
-        <Button className="ws-calc-btn" variant="default" onClick={() => inputDigit('0')} style={{ ...btnBase, gridColumn: 'span 2' }} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="default"
+          onClick={() => inputDigit('0')}
+          style={{ ...btnBase, gridColumn: 'span 2' }}
+          radius="md"
+        >
           0
         </Button>
-        <Button className="ws-calc-btn" variant="default" onClick={inputDecimal} style={btnBase} radius="md">
+        <Button
+          className="ws-calc-btn"
+          variant="default"
+          onClick={inputDecimal}
+          style={btnBase}
+          radius="md"
+        >
           .
         </Button>
         <Button
@@ -233,7 +315,8 @@ function GeneralCalculator() {
           onClick={() => performOperation('=')}
           style={{
             ...btnBase,
-            background: 'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-violet-8) 100%)',
+            background:
+              'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-violet-8) 100%)',
           }}
           radius="md"
         >
@@ -322,20 +405,26 @@ function KarMarjiCalculator() {
         >
           <Stack gap={6}>
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Kar:</Text>
+              <Text size="sm" c="dimmed">
+                Kar:
+              </Text>
               <Text size="sm" fw={700} c={kar >= 0 ? 'teal' : 'red'}>
                 {kar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
               </Text>
             </Group>
             <Divider />
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Kar marji:</Text>
+              <Text size="sm" c="dimmed">
+                Kar marji:
+              </Text>
               <Badge size="lg" variant="light" color={karMarji >= 0 ? 'teal' : 'red'}>
                 %{karMarji.toFixed(1)}
               </Badge>
             </Group>
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Markup:</Text>
+              <Text size="sm" c="dimmed">
+                Markup:
+              </Text>
               <Badge size="lg" variant="light" color="violet">
                 %{markup.toFixed(1)}
               </Badge>
@@ -349,7 +438,10 @@ function KarMarjiCalculator() {
 
 // ─── Birim Cevirici ───
 type UnitCategory = 'weight' | 'volume';
-const UNIT_CONVERSIONS: Record<UnitCategory, Array<{ value: string; label: string; toBase: number }>> = {
+const UNIT_CONVERSIONS: Record<
+  UnitCategory,
+  Array<{ value: string; label: string; toBase: number }>
+> = {
   weight: [
     { value: 'kg', label: 'Kilogram', toBase: 1000 },
     { value: 'g', label: 'Gram', toBase: 1 },
@@ -374,9 +466,7 @@ function BirimCevirici() {
   const fromDef = units.find((u) => u.value === fromUnit);
   const toDef = units.find((u) => u.value === toUnit);
   const valueNum = typeof value === 'number' ? value : 0;
-  const result = fromDef && toDef && valueNum > 0
-    ? (valueNum * fromDef.toBase) / toDef.toBase
-    : 0;
+  const result = fromDef && toDef && valueNum > 0 ? (valueNum * fromDef.toBase) / toDef.toBase : 0;
 
   return (
     <Stack gap="sm">
@@ -386,7 +476,11 @@ function BirimCevirici() {
           variant={category === 'weight' ? 'filled' : 'light'}
           color={category === 'weight' ? 'violet' : 'gray'}
           style={{ cursor: 'pointer' }}
-          onClick={() => { setCategory('weight'); setFromUnit('kg'); setToUnit('g'); }}
+          onClick={() => {
+            setCategory('weight');
+            setFromUnit('kg');
+            setToUnit('g');
+          }}
         >
           Agirlik
         </Badge>
@@ -395,7 +489,11 @@ function BirimCevirici() {
           variant={category === 'volume' ? 'filled' : 'light'}
           color={category === 'volume' ? 'violet' : 'gray'}
           style={{ cursor: 'pointer' }}
-          onClick={() => { setCategory('volume'); setFromUnit('lt'); setToUnit('ml'); }}
+          onClick={() => {
+            setCategory('volume');
+            setFromUnit('lt');
+            setToUnit('ml');
+          }}
         >
           Hacim
         </Badge>
@@ -441,7 +539,9 @@ function BirimCevirici() {
             <Text size="lg" fw={700} c="violet">
               {result.toLocaleString('tr-TR', { maximumFractionDigits: 4 })}
             </Text>
-            <Text size="sm" c="dimmed">{toUnit}</Text>
+            <Text size="sm" c="dimmed">
+              {toUnit}
+            </Text>
           </Group>
         </Paper>
       )}
@@ -491,7 +591,9 @@ function KisiBasiCalculator() {
           }}
         >
           <Stack gap={4} align="center">
-            <Text size="xs" c="dimmed">Kisi basi maliyet</Text>
+            <Text size="xs" c="dimmed">
+              Kisi basi maliyet
+            </Text>
             <Text size="xl" fw={700} c="violet">
               {kisiBasiMaliyet.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
             </Text>
@@ -527,7 +629,9 @@ function FireCalculator() {
         radius="md"
       />
       <Stack gap={4}>
-        <Text size="xs" c="dimmed" fw={500}>Fire orani:</Text>
+        <Text size="xs" c="dimmed" fw={500}>
+          Fire orani:
+        </Text>
         <Group gap="xs">
           {[5, 10, 15, 20, 25, 30].map((oran) => (
             <Badge
@@ -566,14 +670,18 @@ function FireCalculator() {
         >
           <Stack gap={6}>
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Fire miktari:</Text>
+              <Text size="sm" c="dimmed">
+                Fire miktari:
+              </Text>
               <Text size="sm" fw={600} c="orange">
                 {fireMiktari.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} kg
               </Text>
             </Group>
             <Divider />
             <Group justify="space-between">
-              <Text size="sm" fw={700}>Net kullanilabilir:</Text>
+              <Text size="sm" fw={700}>
+                Net kullanilabilir:
+              </Text>
               <Text size="sm" fw={700} c="teal">
                 {netMiktar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} kg
               </Text>

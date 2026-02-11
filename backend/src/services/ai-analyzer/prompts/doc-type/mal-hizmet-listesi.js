@@ -1,6 +1,6 @@
 /**
  * Mal/Hizmet Listesi Extraction Prompt
- * 
+ *
  * ihalebul.com'dan scrape edilen mal/hizmet listesi.
  * Genellikle kalem, miktar, birim bilgilerini içerir.
  * Bu veriler birim fiyat cetvelinin temelini oluşturur.

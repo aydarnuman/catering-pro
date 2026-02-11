@@ -119,7 +119,15 @@ function filterEksikBilgiler(eksikBilgiler: string[], summary: AnalysisData): st
       },
     },
     {
-      keywords: ['personel', 'aşçı', 'asci', 'diyetisyen', 'gıda mühendis', 'gida muhendis', 'personel detay'],
+      keywords: [
+        'personel',
+        'aşçı',
+        'asci',
+        'diyetisyen',
+        'gıda mühendis',
+        'gida muhendis',
+        'personel detay',
+      ],
       check: () => {
         const p = summary.personel_detaylari;
         return !!(p && Array.isArray(p) && p.length > 0);
@@ -236,23 +244,37 @@ export function OzetTabPanel({
 
     // Operasyonel
     if (analysisSummary.takvim?.length) operasyonel++;
-    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) operasyonel++;
+    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0)
+      operasyonel++;
     if (analysisSummary.personel_detaylari?.length) operasyonel++;
     if (analysisSummary.ogun_bilgileri?.length) operasyonel++;
     if (analysisSummary.is_yerleri?.length) operasyonel++;
     // CateringDetayKartlari check
     if (
-      analysisSummary.kahvalti_kisi_sayisi || analysisSummary.ogle_kisi_sayisi ||
-      analysisSummary.aksam_kisi_sayisi || analysisSummary.mutfak_tipi ||
-      analysisSummary.dagitim_saatleri || analysisSummary.kalite_standartlari ||
+      analysisSummary.kahvalti_kisi_sayisi ||
+      analysisSummary.ogle_kisi_sayisi ||
+      analysisSummary.aksam_kisi_sayisi ||
+      analysisSummary.mutfak_tipi ||
+      analysisSummary.dagitim_saatleri ||
+      analysisSummary.kalite_standartlari ||
       analysisSummary.ogun_dagilimi
-    ) operasyonel++;
+    )
+      operasyonel++;
 
     // Mali & Hukuki
     if (analysisSummary.birim_fiyatlar?.length) mali++;
-    if (analysisSummary.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0) mali++;
-    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0) mali++;
-    if (analysisSummary.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar)) mali++;
+    if (
+      analysisSummary.teminat_oranlari &&
+      Object.keys(analysisSummary.teminat_oranlari).length > 0
+    )
+      mali++;
+    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0)
+      mali++;
+    if (
+      analysisSummary.fiyat_farki &&
+      (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar)
+    )
+      mali++;
     if (analysisSummary.ceza_kosullari?.length) mali++;
     if (analysisSummary.odeme_kosullari) mali++;
     if (analysisSummary.is_artisi) mali++;
@@ -278,14 +300,15 @@ export function OzetTabPanel({
   const showCategory = (cat: CategoryTab) => activeCategory === 'tumu' || activeCategory === cat;
 
   // ─── Shared card render helpers ────────────────────────────────
-  const makeSaveHandler = (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
-    await saveCorrection({
-      field_path: fieldPath,
-      old_value: oldValue,
-      new_value: newValue,
-    });
-    onRefreshData?.();
-  };
+  const makeSaveHandler =
+    (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
+      await saveCorrection({
+        field_path: fieldPath,
+        old_value: oldValue,
+        new_value: newValue,
+      });
+      onRefreshData?.();
+    };
 
   return (
     <Stack gap="md" style={{ maxWidth: 820, margin: '0 auto', width: '100%' }}>
@@ -531,12 +554,11 @@ export function OzetTabPanel({
                 IKN: {analysisSummary.ikn}
               </Badge>
             )}
-            {analysisSummary.kisi_sayisi &&
-              analysisSummary.kisi_sayisi !== 'Belirtilmemiş' && (
-                <Badge variant="light" color="blue" size="sm" leftSection={<IconUsers size={10} />}>
-                  {analysisSummary.kisi_sayisi} kişi
-                </Badge>
-              )}
+            {analysisSummary.kisi_sayisi && analysisSummary.kisi_sayisi !== 'Belirtilmemiş' && (
+              <Badge variant="light" color="blue" size="sm" leftSection={<IconUsers size={10} />}>
+                {analysisSummary.kisi_sayisi} kişi
+              </Badge>
+            )}
             {analysisSummary.toplam_personel && (
               <Badge variant="light" color="indigo" size="sm" leftSection={<IconUsers size={10} />}>
                 {Number(analysisSummary.toplam_personel).toLocaleString('tr-TR')} personel
@@ -575,7 +597,11 @@ export function OzetTabPanel({
             )}
             {analysisSummary.teklif_turu && (
               <Badge variant="light" color="cyan" size="sm">
-                {analysisSummary.teklif_turu === 'birim_fiyat' ? 'Birim Fiyat' : analysisSummary.teklif_turu === 'goturu_bedel' ? 'Götürü Bedel' : analysisSummary.teklif_turu}
+                {analysisSummary.teklif_turu === 'birim_fiyat'
+                  ? 'Birim Fiyat'
+                  : analysisSummary.teklif_turu === 'goturu_bedel'
+                    ? 'Götürü Bedel'
+                    : analysisSummary.teklif_turu}
               </Badge>
             )}
             {analysisSummary.kapasite_gereksinimi && (
@@ -590,7 +616,7 @@ export function OzetTabPanel({
       <RakipAnalizi
         tenderId={
           isSaved
-            ? savedTender?.tender_id ?? null
+            ? (savedTender?.tender_id ?? null)
             : (selectedTender as Tender)?.id
               ? Number((selectedTender as Tender).id)
               : null
@@ -814,7 +840,9 @@ export function OzetTabPanel({
               <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
                 <IconSettings size={18} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+              <Text size="sm" c="dimmed">
+                Bu kategoride henüz veri yok.
+              </Text>
             </Paper>
           )}
         </>
@@ -876,20 +904,30 @@ export function OzetTabPanel({
                 <ThemeIcon size="sm" variant="light" color="green">
                   <IconCurrencyLira size={12} />
                 </ThemeIcon>
-                <Text size="sm" fw={600}>Ödeme Koşulları</Text>
+                <Text size="sm" fw={600}>
+                  Ödeme Koşulları
+                </Text>
               </Group>
               <Stack gap={4}>
                 {analysisSummary.odeme_kosullari.hakedis_suresi && (
-                  <Text size="xs" c="dimmed">Hakediş Süresi: {analysisSummary.odeme_kosullari.hakedis_suresi}</Text>
+                  <Text size="xs" c="dimmed">
+                    Hakediş Süresi: {analysisSummary.odeme_kosullari.hakedis_suresi}
+                  </Text>
                 )}
                 {analysisSummary.odeme_kosullari.odeme_suresi && (
-                  <Text size="xs" c="dimmed">Ödeme Süresi: {analysisSummary.odeme_kosullari.odeme_suresi}</Text>
+                  <Text size="xs" c="dimmed">
+                    Ödeme Süresi: {analysisSummary.odeme_kosullari.odeme_suresi}
+                  </Text>
                 )}
                 {analysisSummary.odeme_kosullari.avans && (
-                  <Text size="xs" c="dimmed">Avans: {analysisSummary.odeme_kosullari.avans}</Text>
+                  <Text size="xs" c="dimmed">
+                    Avans: {analysisSummary.odeme_kosullari.avans}
+                  </Text>
                 )}
                 {analysisSummary.odeme_kosullari.odeme_periyodu && (
-                  <Text size="xs" c="dimmed">Periyot: {analysisSummary.odeme_kosullari.odeme_periyodu}</Text>
+                  <Text size="xs" c="dimmed">
+                    Periyot: {analysisSummary.odeme_kosullari.odeme_periyodu}
+                  </Text>
                 )}
               </Stack>
             </Paper>
@@ -902,17 +940,25 @@ export function OzetTabPanel({
                 <ThemeIcon size="sm" variant="light" color="yellow">
                   <IconMathFunction size={12} />
                 </ThemeIcon>
-                <Text size="sm" fw={600}>İş Artışı / Eksilişi</Text>
+                <Text size="sm" fw={600}>
+                  İş Artışı / Eksilişi
+                </Text>
               </Group>
               <Stack gap={4}>
                 {analysisSummary.is_artisi.oran && (
-                  <Text size="xs" c="dimmed">Maks. İş Artışı: {analysisSummary.is_artisi.oran}</Text>
+                  <Text size="xs" c="dimmed">
+                    Maks. İş Artışı: {analysisSummary.is_artisi.oran}
+                  </Text>
                 )}
                 {analysisSummary.is_artisi.kosullar && (
-                  <Text size="xs" c="dimmed">{analysisSummary.is_artisi.kosullar}</Text>
+                  <Text size="xs" c="dimmed">
+                    {analysisSummary.is_artisi.kosullar}
+                  </Text>
                 )}
                 {analysisSummary.is_artisi.is_eksilisi && (
-                  <Text size="xs" c="dimmed">İş Eksilişi: {analysisSummary.is_artisi.is_eksilisi}</Text>
+                  <Text size="xs" c="dimmed">
+                    İş Eksilişi: {analysisSummary.is_artisi.is_eksilisi}
+                  </Text>
                 )}
               </Stack>
             </Paper>
@@ -924,7 +970,9 @@ export function OzetTabPanel({
               <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
                 <IconBuildingBank size={18} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+              <Text size="sm" c="dimmed">
+                Bu kategoride henüz veri yok.
+              </Text>
             </Paper>
           )}
         </>
@@ -967,17 +1015,25 @@ export function OzetTabPanel({
                 <ThemeIcon size="sm" variant="light" color="teal">
                   <IconClipboardList size={12} />
                 </ThemeIcon>
-                <Text size="sm" fw={600}>Operasyonel Kurallar</Text>
+                <Text size="sm" fw={600}>
+                  Operasyonel Kurallar
+                </Text>
               </Group>
               <Stack gap={4}>
                 {analysisSummary.operasyonel_kurallar.alt_yuklenici && (
-                  <Text size="xs" c="dimmed">Alt Yüklenici: {analysisSummary.operasyonel_kurallar.alt_yuklenici}</Text>
+                  <Text size="xs" c="dimmed">
+                    Alt Yüklenici: {analysisSummary.operasyonel_kurallar.alt_yuklenici}
+                  </Text>
                 )}
                 {analysisSummary.operasyonel_kurallar.personel_kurallari?.map((k) => (
-                  <Text key={`pk-${k.slice(0, 30)}`} size="xs" c="dimmed">- {k}</Text>
+                  <Text key={`pk-${k.slice(0, 30)}`} size="xs" c="dimmed">
+                    - {k}
+                  </Text>
                 ))}
                 {analysisSummary.operasyonel_kurallar.yemek_kurallari?.map((k) => (
-                  <Text key={`yk-${k.slice(0, 30)}`} size="xs" c="dimmed">- {k}</Text>
+                  <Text key={`yk-${k.slice(0, 30)}`} size="xs" c="dimmed">
+                    - {k}
+                  </Text>
                 ))}
               </Stack>
             </Paper>
@@ -989,7 +1045,9 @@ export function OzetTabPanel({
               <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
                 <IconClipboardList size={18} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+              <Text size="sm" c="dimmed">
+                Bu kategoride henüz veri yok.
+              </Text>
             </Paper>
           )}
         </>
@@ -1015,10 +1073,12 @@ export function OzetTabPanel({
           )}
 
           {/* Eksik Bilgiler */}
-          {analysisSummary?.eksik_bilgiler && analysisSummary.eksik_bilgiler.length > 0 && (() => {
-            const filtered = filterEksikBilgiler(analysisSummary.eksik_bilgiler, analysisSummary);
-            return filtered.length > 0 ? <EksikBilgilerCard eksikBilgiler={filtered} /> : null;
-          })()}
+          {analysisSummary?.eksik_bilgiler &&
+            analysisSummary.eksik_bilgiler.length > 0 &&
+            (() => {
+              const filtered = filterEksikBilgiler(analysisSummary.eksik_bilgiler, analysisSummary);
+              return filtered.length > 0 ? <EksikBilgilerCard eksikBilgiler={filtered} /> : null;
+            })()}
 
           {/* Empty state for Belgeler */}
           {activeCategory === 'belgeler' && categoryCounts.belgeler === 0 && (
@@ -1026,7 +1086,9 @@ export function OzetTabPanel({
               <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
                 <IconFolder size={18} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+              <Text size="sm" c="dimmed">
+                Bu kategoride henüz veri yok.
+              </Text>
             </Paper>
           )}
         </>

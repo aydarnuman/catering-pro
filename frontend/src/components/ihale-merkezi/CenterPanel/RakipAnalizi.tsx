@@ -40,10 +40,7 @@ interface RakipAnaliziProps {
 }
 
 // Katman config
-const KATMAN_CONFIG: Record<
-  string,
-  { label: string; color: string; icon: typeof IconTarget }
-> = {
+const KATMAN_CONFIG: Record<string, { label: string; color: string; icon: typeof IconTarget }> = {
   kesin: { label: 'Kesin Rakip', color: 'red', icon: IconTarget },
   kuvvetli: { label: 'Kuvvetli Aday', color: 'orange', icon: IconTrendingUp },
   sehir: { label: 'Bölgede Aktif', color: 'blue', icon: IconMapPin },
@@ -68,7 +65,13 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
     >
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          <ThemeIcon size="sm" variant="light" color={config.color} radius="xl" style={{ flexShrink: 0 }}>
+          <ThemeIcon
+            size="sm"
+            variant="light"
+            color={config.color}
+            radius="xl"
+            style={{ flexShrink: 0 }}
+          >
             <Icon size={12} />
           </ThemeIcon>
           <Box style={{ minWidth: 0, flex: 1 }}>
@@ -104,7 +107,12 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             </Tooltip>
           )}
           {rakip.gecmis?.length > 0 && (
-            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setExpanded(!expanded)}>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              color="gray"
+              onClick={() => setExpanded(!expanded)}
+            >
               {expanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
             </ActionIcon>
           )}
@@ -112,7 +120,9 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
       </Group>
 
       {/* İstatistikler */}
-      {(rakip.kazanma_orani != null || rakip.ortalama_indirim_orani != null || rakip.katildigi_ihale_sayisi != null) && (
+      {(rakip.kazanma_orani != null ||
+        rakip.ortalama_indirim_orani != null ||
+        rakip.katildigi_ihale_sayisi != null) && (
         <Group gap="xs" mt={6} wrap="wrap">
           {rakip.katildigi_ihale_sayisi != null && (
             <Badge variant="light" color="gray" size="xs" leftSection={<IconUsers size={9} />}>
@@ -130,7 +140,12 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             </Badge>
           )}
           {rakip.ortalama_indirim_orani != null && (
-            <Badge variant="light" color="green" size="xs" leftSection={<IconCurrencyLira size={9} />}>
+            <Badge
+              variant="light"
+              color="green"
+              size="xs"
+              leftSection={<IconCurrencyLira size={9} />}
+            >
               %{rakip.ortalama_indirim_orani.toFixed(1)} ort. indirim
             </Badge>
           )}
@@ -150,7 +165,12 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             Bu kurumdaki geçmişi:
           </Text>
           {rakip.gecmis?.map((g: RakipGecmis) => (
-            <Paper key={`${g.ihale_basligi}-${g.kurum_adi}-${g.sozlesme_tarihi}`} p="xs" radius="sm" bg="dark.7">
+            <Paper
+              key={`${g.ihale_basligi}-${g.kurum_adi}-${g.sozlesme_tarihi}`}
+              p="xs"
+              radius="sm"
+              bg="dark.7"
+            >
               <Group justify="space-between" gap="xs">
                 <Box style={{ minWidth: 0, flex: 1 }}>
                   <Text size="xs" lineClamp={1} fw={500}>
@@ -164,7 +184,11 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
                     )}
                     {g.sozlesme_tarihi && (
                       <Text size="xs" c="dimmed">
-                        · {new Date(g.sozlesme_tarihi).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' })}
+                        ·{' '}
+                        {new Date(g.sozlesme_tarihi).toLocaleDateString('tr-TR', {
+                          month: 'short',
+                          year: 'numeric',
+                        })}
                       </Text>
                     )}
                   </Group>
@@ -180,11 +204,7 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
                       %{Number(g.indirim_orani).toFixed(1)}
                     </Badge>
                   )}
-                  <Badge
-                    size="xs"
-                    variant="light"
-                    color={g.rol === 'yuklenici' ? 'green' : 'gray'}
-                  >
+                  <Badge size="xs" variant="light" color={g.rol === 'yuklenici' ? 'green' : 'gray'}>
                     {g.rol === 'yuklenici' ? 'Kazandı' : g.rol === 'katilimci' ? 'Katıldı' : g.rol}
                   </Badge>
                 </Group>
@@ -287,7 +307,11 @@ export function RakipAnalizi({ tenderId }: RakipAnaliziProps) {
           )}
         </Group>
         <Group gap={4}>
-          <Badge size="xs" variant="light" color={kaynak === 'ic_veri' ? 'blue' : kaynak === 'tavily' ? 'grape' : 'gray'}>
+          <Badge
+            size="xs"
+            variant="light"
+            color={kaynak === 'ic_veri' ? 'blue' : kaynak === 'tavily' ? 'grape' : 'gray'}
+          >
             {kaynak === 'ic_veri' ? 'İç Veri' : kaynak === 'tavily' ? 'Web' : '-'}
           </Badge>
           <Tooltip label="Yenile (cache temizle)">

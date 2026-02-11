@@ -1,6 +1,6 @@
 /**
  * Teknik Şartname Extraction Prompt
- * 
+ *
  * Teknik şartname, personel detayları, öğün bilgileri, gramaj,
  * servis saatleri, kalite standartları ve ekipman gereksinimlerini içerir.
  */

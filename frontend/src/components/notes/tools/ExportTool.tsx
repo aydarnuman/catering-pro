@@ -117,9 +117,7 @@ export function ExportTool({ notes }: ExportToolProps) {
 
   // All notes as text
   const allNotesText = useMemo(() => {
-    return notes
-      .map((n, i) => `--- Not ${i + 1} ---\n${noteToText(n)}`)
-      .join('\n\n');
+    return notes.map((n, i) => `--- Not ${i + 1} ---\n${noteToText(n)}`).join('\n\n');
   }, [notes]);
 
   // All notes as markdown
@@ -194,7 +192,9 @@ export function ExportTool({ notes }: ExportToolProps) {
           <Text size="lg" fw={700} style={{ letterSpacing: '-0.02em' }}>
             Disa Aktar
           </Text>
-          <Text size="xs" c="dimmed">Notlarinizi farkli formatlarda paylasin</Text>
+          <Text size="xs" c="dimmed">
+            Notlarinizi farkli formatlarda paylasin
+          </Text>
         </Box>
       </Group>
 
@@ -301,7 +301,9 @@ export function ExportTool({ notes }: ExportToolProps) {
           <Text size="sm" fw={700}>
             Tum Notlar
           </Text>
-          <Text size="xs" c="dimmed">({notes.length})</Text>
+          <Text size="xs" c="dimmed">
+            ({notes.length})
+          </Text>
         </Group>
         <Group gap="xs">
           <CopyButton value={allNotesText}>

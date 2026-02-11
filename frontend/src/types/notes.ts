@@ -22,9 +22,19 @@ export type NoteContentFormat = 'plain' | 'markdown' | 'html';
 
 // Context types - what entity the note is attached to
 export type NoteContextType =
-  | 'tender' | 'customer' | 'event' | 'project' | 'contractor'
-  | 'invoice' | 'stock' | 'personnel' | 'purchasing' | 'asset'
-  | 'finance' | 'menu' | 'recipe'
+  | 'tender'
+  | 'customer'
+  | 'event'
+  | 'project'
+  | 'contractor'
+  | 'invoice'
+  | 'stock'
+  | 'personnel'
+  | 'purchasing'
+  | 'asset'
+  | 'finance'
+  | 'menu'
+  | 'recipe'
   | null;
 
 // Reminder types

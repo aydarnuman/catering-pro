@@ -94,7 +94,9 @@ router.post('/talepler', async (req, res) => {
     } = req.body;
 
     if (!personel_id || !izin_turu_id || !baslangic_tarihi || !bitis_tarihi) {
-      return res.status(400).json({ success: false, error: 'Personel, izin türü, başlangıç ve bitiş tarihi zorunludur' });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Personel, izin türü, başlangıç ve bitiş tarihi zorunludur' });
     }
 
     // Çakışma kontrolü

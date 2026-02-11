@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Button,
-  Divider,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Switch,
-  Text,
-} from '@mantine/core';
+import { Button, Divider, Group, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { AIAnalysisData } from './types';

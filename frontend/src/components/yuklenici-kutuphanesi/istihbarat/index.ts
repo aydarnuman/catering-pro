@@ -14,5 +14,13 @@ export { KarsilastirmaPaneli } from './KarsilastirmaPaneli';
 export { ModulDetay } from './ModulDetay';
 export { ModulKarti } from './ModulKarti';
 // Yardımcılar
-export { DOCK_GRUPLARI, getDockGrupMeta, getDurumEtiket, getDurumRenk, getGrupDurum, getModulMeta, MODUL_LISTESI } from './modul-meta';
+export {
+  DOCK_GRUPLARI,
+  getDockGrupMeta,
+  getDurumEtiket,
+  getDurumRenk,
+  getGrupDurum,
+  getModulMeta,
+  MODUL_LISTESI,
+} from './modul-meta';
 export { PdfRaporButonu } from './PdfRaporButonu';

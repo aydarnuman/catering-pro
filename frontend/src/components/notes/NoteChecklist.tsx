@@ -5,15 +5,7 @@
  * Metadata JSONB icinde { checklist: [{ id, text, done }] } olarak saklanir
  */
 
-import {
-  ActionIcon,
-  Checkbox,
-  Group,
-  Progress,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { ActionIcon, Checkbox, Group, Progress, Stack, Text, TextInput } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 
@@ -103,12 +95,7 @@ export function NoteChecklist({ items, onChange, readonly = false }: NoteCheckli
             {item.text}
           </Text>
           {!readonly && (
-            <ActionIcon
-              variant="subtle"
-              size="xs"
-              color="red"
-              onClick={() => removeItem(item.id)}
-            >
+            <ActionIcon variant="subtle" size="xs" color="red" onClick={() => removeItem(item.id)}>
               <IconTrash size={12} />
             </ActionIcon>
           )}
@@ -126,12 +113,7 @@ export function NoteChecklist({ items, onChange, readonly = false }: NoteCheckli
             onKeyDown={handleKeyDown}
             style={{ flex: 1 }}
           />
-          <ActionIcon
-            variant="light"
-            size="sm"
-            onClick={addItem}
-            disabled={!newItemText.trim()}
-          >
+          <ActionIcon variant="light" size="sm" onClick={addItem} disabled={!newItemText.trim()}>
             <IconPlus size={14} />
           </ActionIcon>
         </Group>

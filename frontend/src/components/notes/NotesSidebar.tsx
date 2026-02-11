@@ -16,13 +16,7 @@ import {
   TextInput,
   useMantineColorScheme,
 } from '@mantine/core';
-import {
-  IconListCheck,
-  IconNotes,
-  IconPin,
-  IconSearch,
-  IconX,
-} from '@tabler/icons-react';
+import { IconListCheck, IconNotes, IconPin, IconSearch, IconX } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import type { NoteTag, UnifiedNote } from '@/types/notes';
 
@@ -67,9 +61,27 @@ export function NotesSidebar({ notes, activeFilter, onFilterChange, tags }: Note
     color: string;
     count: number;
   }> = [
-    { type: 'all', label: 'Tum Notlar', icon: <IconNotes size={16} />, color: 'blue', count: stats.total },
-    { type: 'pinned', label: 'Sabitlenen', icon: <IconPin size={16} />, color: 'violet', count: stats.pinned },
-    { type: 'tasks', label: 'Gorevler', icon: <IconListCheck size={16} />, color: 'orange', count: stats.tasks },
+    {
+      type: 'all',
+      label: 'Tum Notlar',
+      icon: <IconNotes size={16} />,
+      color: 'blue',
+      count: stats.total,
+    },
+    {
+      type: 'pinned',
+      label: 'Sabitlenen',
+      icon: <IconPin size={16} />,
+      color: 'violet',
+      count: stats.pinned,
+    },
+    {
+      type: 'tasks',
+      label: 'Gorevler',
+      icon: <IconListCheck size={16} />,
+      color: 'orange',
+      count: stats.tasks,
+    },
   ];
 
   return (
@@ -107,10 +119,14 @@ export function NotesSidebar({ notes, activeFilter, onFilterChange, tags }: Note
                       justifyContent: 'center',
                       background: isActive
                         ? `var(--mantine-color-${item.color}-${isDark ? '8' : '0'})`
-                        : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                        : isDark
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(0,0,0,0.03)',
                       color: isActive
                         ? `var(--mantine-color-${item.color}-${isDark ? '4' : '6'})`
-                        : isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                        : isDark
+                          ? 'rgba(255,255,255,0.5)'
+                          : 'rgba(0,0,0,0.4)',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -145,7 +161,13 @@ export function NotesSidebar({ notes, activeFilter, onFilterChange, tags }: Note
               <Divider
                 my="sm"
                 label={
-                  <Text size="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                  <Text
+                    size="xs"
+                    fw={600}
+                    c="dimmed"
+                    tt="uppercase"
+                    style={{ letterSpacing: '0.05em' }}
+                  >
                     Etiketler
                   </Text>
                 }
@@ -197,11 +219,15 @@ export function NotesSidebar({ notes, activeFilter, onFilterChange, tags }: Note
                     }
                     rightSection={
                       tag.usage_count ? (
-                        <Text size="xs" c="dimmed">{tag.usage_count}</Text>
+                        <Text size="xs" c="dimmed">
+                          {tag.usage_count}
+                        </Text>
                       ) : undefined
                     }
                     active={isTagActive}
-                    onClick={() => onFilterChange({ type: 'tag', tagId: tag.id, tagName: tag.name })}
+                    onClick={() =>
+                      onFilterChange({ type: 'tag', tagId: tag.id, tagName: tag.name })
+                    }
                     variant="light"
                     className="ws-sidebar-item"
                     style={{ borderRadius: 8, transition: 'all 0.15s ease' }}

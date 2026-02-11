@@ -5,7 +5,18 @@
  * MERSİS ve Ticaret Sicil Gazetesi verileri.
  */
 
-import { Anchor, Badge, Card, Divider, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import {
+  Anchor,
+  Badge,
+  Card,
+  Divider,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
 import { IconExternalLink, IconWorld } from '@tabler/icons-react';
 import type { HavuzVeri } from '../ModulDetay';
 
@@ -84,7 +95,12 @@ export function SirketBilgileriDetay({ veri, havuzVeri }: Props) {
         {ticaretSicil?.basarili && (ticaretSicil.ilanlar as unknown[])?.length > 0 ? (
           <Stack gap="xs">
             {(ticaretSicil.ilanlar as Array<Record<string, string>>).map((ilan) => (
-              <Paper key={ilan.ilan_tarihi + ilan.ilan_turu + (ilan.ozet?.slice(0, 30) || '')} withBorder p="xs" radius="sm">
+              <Paper
+                key={ilan.ilan_tarihi + ilan.ilan_turu + (ilan.ozet?.slice(0, 30) || '')}
+                withBorder
+                p="xs"
+                radius="sm"
+              >
                 <Group justify="space-between" mb={2}>
                   {ilan.ilan_tarihi && (
                     <Badge size="xs" variant="light">
@@ -111,43 +127,55 @@ export function SirketBilgileriDetay({ veri, havuzVeri }: Props) {
       </div>
 
       {/* Veri Havuzundan ek sicil bulguları */}
-      {havuzVeri?.web_istihbarat?.sicil_sonuclari && havuzVeri.web_istihbarat.sicil_sonuclari.length > 0 && (
-        <>
-          <Divider />
-          <div>
-            <Group gap="xs" mb="xs">
-              <ThemeIcon size="sm" variant="light" color="indigo">
-                <IconWorld size={12} />
-              </ThemeIcon>
-              <Title order={6}>Web Sicil Bulguları ({havuzVeri.web_istihbarat.sicil_sonuclari.length})</Title>
-              <Badge size="xs" variant="light" color="indigo">Veri Havuzu</Badge>
-            </Group>
+      {havuzVeri?.web_istihbarat?.sicil_sonuclari &&
+        havuzVeri.web_istihbarat.sicil_sonuclari.length > 0 && (
+          <>
+            <Divider />
+            <div>
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light" color="indigo">
+                  <IconWorld size={12} />
+                </ThemeIcon>
+                <Title order={6}>
+                  Web Sicil Bulguları ({havuzVeri.web_istihbarat.sicil_sonuclari.length})
+                </Title>
+                <Badge size="xs" variant="light" color="indigo">
+                  Veri Havuzu
+                </Badge>
+              </Group>
 
-            <Stack gap="xs">
-              {havuzVeri.web_istihbarat.sicil_sonuclari.map((item) => (
-                <Paper key={item.url || item.title} withBorder p="sm" radius="sm">
-                  <Group justify="space-between" wrap="nowrap" mb={4}>
-                    <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
-                      {item.url ? (
-                        <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
-                          {item.title || 'Sicil kaynağı'}
-                          <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
-                        </Anchor>
-                      ) : (
-                        item.title || 'Sicil kaynağı'
-                      )}
-                    </Text>
-                  </Group>
-                  {item.content && (
-                    <Text size="xs" c="dimmed" lineClamp={3} mb={4}>{item.content}</Text>
-                  )}
-                  <Badge size="xs" variant="outline" color="gray">{getDomain(item.url)}</Badge>
-                </Paper>
-              ))}
-            </Stack>
-          </div>
-        </>
-      )}
+              <Stack gap="xs">
+                {havuzVeri.web_istihbarat.sicil_sonuclari.map((item) => (
+                  <Paper key={item.url || item.title} withBorder p="sm" radius="sm">
+                    <Group justify="space-between" wrap="nowrap" mb={4}>
+                      <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
+                        {item.url ? (
+                          <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
+                            {item.title || 'Sicil kaynağı'}
+                            <IconExternalLink
+                              size={12}
+                              style={{ marginLeft: 4, verticalAlign: 'middle' }}
+                            />
+                          </Anchor>
+                        ) : (
+                          item.title || 'Sicil kaynağı'
+                        )}
+                      </Text>
+                    </Group>
+                    {item.content && (
+                      <Text size="xs" c="dimmed" lineClamp={3} mb={4}>
+                        {item.content}
+                      </Text>
+                    )}
+                    <Badge size="xs" variant="outline" color="gray">
+                      {getDomain(item.url)}
+                    </Badge>
+                  </Paper>
+                ))}
+              </Stack>
+            </div>
+          </>
+        )}
 
       {sorgulamaTarihi && (
         <Text size="xs" c="dimmed" ta="right">

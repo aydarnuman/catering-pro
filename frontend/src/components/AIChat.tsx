@@ -702,7 +702,11 @@ Kurallar:
               radius="xl"
               rightSection={
                 inputValue.trim() && !isLoading ? (
-                  <Tooltip label={isEnhancing ? 'Zenginlestiriliyor...' : 'Prompt\'u iyilestir'} withArrow position="top">
+                  <Tooltip
+                    label={isEnhancing ? 'Zenginlestiriliyor...' : "Prompt'u iyilestir"}
+                    withArrow
+                    position="top"
+                  >
                     <ActionIcon
                       size={28}
                       radius="xl"
@@ -1227,7 +1231,11 @@ Kurallar:
             size="md"
             rightSection={
               inputValue.trim() && !isLoading ? (
-                <Tooltip label={isEnhancing ? 'Zenginlestiriliyor...' : 'Prompt\'u iyilestir'} withArrow position="top">
+                <Tooltip
+                  label={isEnhancing ? 'Zenginlestiriliyor...' : "Prompt'u iyilestir"}
+                  withArrow
+                  position="top"
+                >
                   <ActionIcon
                     size={28}
                     radius="xl"
@@ -1237,7 +1245,11 @@ Kurallar:
                     onClick={handleEnhancePrompt}
                     style={{
                       transition: 'all 0.2s ease',
-                      boxShadow: isEnhancing ? 'none' : godModeEnabled ? '0 0 6px rgba(255,71,87,0.3)' : '0 0 6px rgba(139,92,246,0.3)',
+                      boxShadow: isEnhancing
+                        ? 'none'
+                        : godModeEnabled
+                          ? '0 0 6px rgba(255,71,87,0.3)'
+                          : '0 0 6px rgba(139,92,246,0.3)',
                     }}
                   >
                     <IconSparkles size={14} />

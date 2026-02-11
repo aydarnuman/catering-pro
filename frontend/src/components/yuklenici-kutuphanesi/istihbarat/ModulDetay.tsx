@@ -40,7 +40,12 @@ export interface HavuzVeri {
   } | null;
   tam_metinler?: Array<{ url: string; domain: string; metin: string }>;
   capraz_kontrol?: {
-    coopetition?: Array<{ firma: string; rakip_ihale_sayisi: number; rakip_sozlesme: number; ortak_sozlesme: number }>;
+    coopetition?: Array<{
+      firma: string;
+      rakip_ihale_sayisi: number;
+      rakip_sozlesme: number;
+      ortak_sozlesme: number;
+    }>;
     rakip_ihale_eslesmeler?: Array<{ rakip: string; ihaleler: string[] }>;
   };
   meta?: {
@@ -51,7 +56,12 @@ export interface HavuzVeri {
 }
 
 /** Gruplar için veri_havuzu'ndan zenginleştirme gerekli mi? */
-const HAVUZ_ZENGINLESTIR: DockGrupAdi[] = ['ihale_performansi', 'hukuki_durum', 'haberler', 'sirket_bilgileri'];
+const HAVUZ_ZENGINLESTIR: DockGrupAdi[] = [
+  'ihale_performansi',
+  'hukuki_durum',
+  'haberler',
+  'sirket_bilgileri',
+];
 
 export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Çoklu modül verisi: { ihale_gecmisi: {...}, profil_analizi: {...}, ... }
@@ -72,10 +82,9 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
       // Alt modül verileri
       const modulPromises = altModuller.map(async (modulAdi: IstihbaratModulAdi) => {
         try {
-          const res = await fetch(
-            getApiUrl(`/contractors/${yukleniciId}/modul/${modulAdi}/veri`),
-            { credentials: 'include' }
-          );
+          const res = await fetch(getApiUrl(`/contractors/${yukleniciId}/modul/${modulAdi}/veri`), {
+            credentials: 'include',
+          });
           const json = await res.json();
           return { modul: modulAdi, veri: json.success ? json.data : null };
         } catch {
@@ -85,10 +94,9 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
 
       // Havuz verisi (zenginleştirme gereken gruplar için paralel çek)
       const havuzPromise = HAVUZ_ZENGINLESTIR.includes(grup)
-        ? fetch(
-            getApiUrl(`/contractors/${yukleniciId}/modul/veri_havuzu/veri`),
-            { credentials: 'include' }
-          )
+        ? fetch(getApiUrl(`/contractors/${yukleniciId}/modul/veri_havuzu/veri`), {
+            credentials: 'include',
+          })
             .then((r) => r.json())
             .then((json) => (json.success ? json.data : null))
             .catch(() => null)
@@ -145,7 +153,12 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Hata
   if (hata) {
     return (
-      <Alert icon={<IconInfoCircle size={16} />} title="Veri yüklenemedi" color="red" variant="light">
+      <Alert
+        icon={<IconInfoCircle size={16} />}
+        title="Veri yüklenemedi"
+        color="red"
+        variant="light"
+      >
         {hata}
       </Alert>
     );
@@ -157,7 +170,9 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
     return (
       <Center py="xl">
         <Stack align="center" gap="md">
-          <Text size="lg" fw={600}>{meta?.baslik}</Text>
+          <Text size="lg" fw={600}>
+            {meta?.baslik}
+          </Text>
           <Text c="dimmed" size="sm" ta="center">
             Bu modül henüz çalıştırılmadı.
             <br />
@@ -171,7 +186,9 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Gruba göre doğru paneli render et
   return (
     <Box>
-      <Title order={5} mb="md">{meta?.baslik || grup}</Title>
+      <Title order={5} mb="md">
+        {meta?.baslik || grup}
+      </Title>
       {renderGrupPaneli(grup, veriler, yukleniciId, havuzVeri)}
     </Box>
   );

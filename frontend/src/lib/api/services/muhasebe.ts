@@ -220,9 +220,7 @@ export const muhasebeAPI = {
   /**
    * Çek/Senet listele
    */
-  async getCekSenetler(params?: {
-    limit?: number;
-  }): Promise<ApiResponse<any[]>> {
+  async getCekSenetler(params?: { limit?: number }): Promise<ApiResponse<any[]>> {
     const response = await api.get('/api/kasa-banka/cek-senet', { params });
     return response.data;
   },
@@ -359,11 +357,7 @@ export const muhasebeAPI = {
   /**
    * Mutabakat dönemsel
    */
-  async getMutabakatDonemsel(
-    cariId: number,
-    yil: number,
-    ay: number
-  ): Promise<ApiResponse<any>> {
+  async getMutabakatDonemsel(cariId: number, yil: number, ay: number): Promise<ApiResponse<any>> {
     const response = await api.get(`/api/mutabakat/donemsel/${cariId}`, {
       params: { yil, ay },
     });
@@ -399,10 +393,7 @@ export const muhasebeAPI = {
   /**
    * Proje güncelle
    */
-  async updateProje(
-    projeId: number,
-    proje: any
-  ): Promise<ApiResponse<any>> {
+  async updateProje(projeId: number, proje: any): Promise<ApiResponse<any>> {
     const response = await api.put(`/api/projeler/${projeId}`, proje);
     return response.data;
   },

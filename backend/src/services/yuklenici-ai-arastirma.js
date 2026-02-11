@@ -526,7 +526,13 @@ fesih:${yuklenici.fesih_sayisi || 0} | kik_şikayet:${yuklenici.kik_sikayet_sayi
 
   // ── Web istihbaratı (kompakt — URL yerine domain, gereksiz boşluklar yok) ──
   if (webIstihbarat) {
-    const getDomain = (url) => { try { return new URL(url).hostname.replace('www.', ''); } catch { return url; } };
+    const getDomain = (url) => {
+      try {
+        return new URL(url).hostname.replace('www.', '');
+      } catch {
+        return url;
+      }
+    };
 
     if (webIstihbarat.aiOzet) {
       prompt += `\n═══ WEB ÖZETİ (Tavily AI) ═══\n${webIstihbarat.aiOzet}\n`;
@@ -534,10 +540,10 @@ fesih:${yuklenici.fesih_sayisi || 0} | kik_şikayet:${yuklenici.kik_sikayet_sayi
 
     // Tüm web sonuçlarını tek blokta göster (daha az section header)
     const allWebResults = [
-      ...(webIstihbarat.webSonuclari || []).map(r => ({ ...r, tip: 'ihale' })),
-      ...(webIstihbarat.kikKararMetinleri || []).map(r => ({ ...r, tip: 'kik' })),
-      ...(webIstihbarat.haberSonuclari || []).map(r => ({ ...r, tip: 'haber' })),
-      ...(webIstihbarat.sicilSonuclari || []).map(r => ({ ...r, tip: 'sicil' })),
+      ...(webIstihbarat.webSonuclari || []).map((r) => ({ ...r, tip: 'ihale' })),
+      ...(webIstihbarat.kikKararMetinleri || []).map((r) => ({ ...r, tip: 'kik' })),
+      ...(webIstihbarat.haberSonuclari || []).map((r) => ({ ...r, tip: 'haber' })),
+      ...(webIstihbarat.sicilSonuclari || []).map((r) => ({ ...r, tip: 'sicil' })),
     ];
 
     if (allWebResults.length > 0) {
@@ -562,7 +568,13 @@ fesih:${yuklenici.fesih_sayisi || 0} | kik_şikayet:${yuklenici.kik_sikayet_sayi
   // ── Derin Analiz (kompakt — URL yerine domain) ──
   if (modulMap.derin_analiz) {
     const da = modulMap.derin_analiz;
-    const getDomain2 = (url) => { try { return new URL(url).hostname.replace('www.', ''); } catch { return ''; } };
+    const getDomain2 = (url) => {
+      try {
+        return new URL(url).hostname.replace('www.', '');
+      } catch {
+        return '';
+      }
+    };
     prompt += `\n═══ DERİN ARAŞTIRMA (${da.kaynak_sayisi || '?'} kaynak) ═══\n`;
     if (da.ozet) prompt += `${da.ozet}\n`;
     if (da.kaynaklar?.length > 0) {

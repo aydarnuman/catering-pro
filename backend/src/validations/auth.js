@@ -89,7 +89,13 @@ export const updateUserSchema = z
 // ─── Admin: Hesap kilitleme ──────────────────────────────────
 
 export const lockAccountSchema = z.object({
-  minutes: z.number().int().min(1, 'En az 1 dakika').max(43200, 'En fazla 30 gün (43200 dakika)').optional().default(60),
+  minutes: z
+    .number()
+    .int()
+    .min(1, 'En az 1 dakika')
+    .max(43200, 'En fazla 30 gün (43200 dakika)')
+    .optional()
+    .default(60),
 });
 
 // ─── Admin: Login denemeleri sorgusu ─────────────────────────

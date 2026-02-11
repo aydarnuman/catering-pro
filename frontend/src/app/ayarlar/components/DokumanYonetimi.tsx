@@ -390,8 +390,12 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                         <KatIcon size={14} />
                       </ThemeIcon>
                       <div>
-                        <Text size="xs" c="dimmed">{val.label}</Text>
-                        <Text size="sm" fw={600}>{count}</Text>
+                        <Text size="xs" c="dimmed">
+                          {val.label}
+                        </Text>
+                        <Text size="sm" fw={600}>
+                          {count}
+                        </Text>
                       </div>
                       <ActionIcon size="xs" variant="subtle" ml="auto">
                         <IconChevronDown
@@ -448,9 +452,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                             (b) => b.value === doc.belge_tipi
                           );
                           const kategori =
-                            belgeKategorileri[
-                              doc.belge_kategori as keyof typeof belgeKategorileri
-                            ];
+                            belgeKategorileri[doc.belge_kategori as keyof typeof belgeKategorileri];
                           const DocKatIcon = kategori?.icon || IconFileText;
 
                           return (

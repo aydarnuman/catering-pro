@@ -61,7 +61,7 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
 
   // Üstte küçük özet satırı
   const ihaleSayisi = gecmisVeri
-    ? ((gecmisVeri.toplam as number) || ((gecmisVeri.ihaleler as unknown[])?.length ?? 0))
+    ? (gecmisVeri.toplam as number) || ((gecmisVeri.ihaleler as unknown[])?.length ?? 0)
     : 0;
   const katilimciSayisi = katilimciVeri
     ? ((katilimciVeri.katilimcilar as unknown[])?.length ?? 0)
@@ -71,7 +71,9 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
     { label: 'Özet', value: 'ozet' },
     { label: 'Geçmiş', value: 'gecmis' },
     { label: 'Katılımcılar', value: 'katilimcilar' },
-    ...(webIhaleBulgu.length > 0 ? [{ label: `Web (${webIhaleBulgu.length})`, value: 'web_bulgu' }] : []),
+    ...(webIhaleBulgu.length > 0
+      ? [{ label: `Web (${webIhaleBulgu.length})`, value: 'web_bulgu' }]
+      : []),
   ];
 
   return (
@@ -82,7 +84,10 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
         {ihaleSayisi > 0 && katilimciSayisi > 0 && ' · '}
         {katilimciSayisi > 0 && `${katilimciSayisi} katılımcı kaydı`}
         {webIhaleBulgu.length > 0 && ` · ${webIhaleBulgu.length} web bulgusu`}
-        {ihaleSayisi === 0 && katilimciSayisi === 0 && webIhaleBulgu.length === 0 && 'Modülleri çalıştırarak veri toplayabilirsiniz'}
+        {ihaleSayisi === 0 &&
+          katilimciSayisi === 0 &&
+          webIhaleBulgu.length === 0 &&
+          'Modülleri çalıştırarak veri toplayabilirsiniz'}
       </Text>
 
       {/* Sekme geçişi */}
@@ -107,8 +112,12 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
         <Stack gap="sm">
           {webAiOzet && (
             <Card withBorder radius="md" p="sm" bg="blue.0">
-              <Text size="xs" fw={600} c="blue.8" mb={4}>Web İstihbarat Özeti</Text>
-              <Text size="sm" c="blue.9">{webAiOzet}</Text>
+              <Text size="xs" fw={600} c="blue.8" mb={4}>
+                Web İstihbarat Özeti
+              </Text>
+              <Text size="sm" c="blue.9">
+                {webAiOzet}
+              </Text>
             </Card>
           )}
           <Group gap="xs" mb="xs">
@@ -124,7 +133,10 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
                   {item.url ? (
                     <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
                       {item.title || 'Web kaynağı'}
-                      <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
+                      <IconExternalLink
+                        size={12}
+                        style={{ marginLeft: 4, verticalAlign: 'middle' }}
+                      />
                     </Anchor>
                   ) : (
                     item.title || 'Web kaynağı'
@@ -132,9 +144,13 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
                 </Text>
               </Group>
               {item.content && (
-                <Text size="xs" c="dimmed" lineClamp={3} mb={4}>{item.content}</Text>
+                <Text size="xs" c="dimmed" lineClamp={3} mb={4}>
+                  {item.content}
+                </Text>
               )}
-              <Badge size="xs" variant="outline" color="gray">{getDomain(item.url)}</Badge>
+              <Badge size="xs" variant="outline" color="gray">
+                {getDomain(item.url)}
+              </Badge>
             </Paper>
           ))}
         </Stack>

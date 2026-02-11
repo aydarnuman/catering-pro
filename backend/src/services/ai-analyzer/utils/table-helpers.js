@@ -1,7 +1,7 @@
 /**
  * Table Helper Functions - Azure Document Intelligence tablo işleme
  * unified-pipeline.js'den extract edildi (refactoring)
- * 
+ *
  * Bu fonksiyonlar Azure'dan gelen tablo verilerini parse edip
  * anlamlı veri yapılarına dönüştürür.
  */

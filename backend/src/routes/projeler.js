@@ -768,56 +768,56 @@ router.get('/:id/tam-ozet', async (req, res) => {
         proje,
 
         personel: {
-        aktif_sayisi: parseInt(personelResult.rows[0].aktif_sayisi, 10) || 0,
-        toplam_net_maas: parseFloat(personelResult.rows[0].toplam_net_maas) || 0,
-        toplam_bordro_maas: parseFloat(personelResult.rows[0].toplam_bordro_maas) || 0,
-        toplam_elden_fark: parseFloat(eldenFarkResult.rows[0].toplam_elden_fark) || 0,
-      },
-
-      bordro: {
-        yil,
-        ay,
-        bu_ay_tahakkuk: parseFloat(bordroResult.rows[0].bu_ay_tahakkuk) || 0,
-        net_ucretler: parseFloat(bordroResult.rows[0].net_ucretler) || 0,
-        sgk_vergi_toplam: parseFloat(bordroResult.rows[0].sgk_vergi_toplam) || 0,
-        odeme_durumu: {
-          toplam_personel: parseInt(bordroOdemeResult.rows[0].toplam, 10) || 0,
-          banka_odenen: parseInt(bordroOdemeResult.rows[0].banka_odenen, 10) || 0,
-          elden_odenen: parseInt(bordroOdemeResult.rows[0].elden_odenen, 10) || 0,
-          odenen_banka: parseFloat(bordroOdemeResult.rows[0].odenen_banka) || 0,
-          odenen_elden: parseFloat(bordroOdemeResult.rows[0].odenen_elden) || 0,
+          aktif_sayisi: parseInt(personelResult.rows[0].aktif_sayisi, 10) || 0,
+          toplam_net_maas: parseFloat(personelResult.rows[0].toplam_net_maas) || 0,
+          toplam_bordro_maas: parseFloat(personelResult.rows[0].toplam_bordro_maas) || 0,
+          toplam_elden_fark: parseFloat(eldenFarkResult.rows[0].toplam_elden_fark) || 0,
         },
-        sgk_odendi: aylikOdeme.sgk_odendi || false,
-        vergi_odendi: aylikOdeme.vergi_odendi || false,
-      },
 
-      satin_alma: {
-        toplam_siparis: parseInt(satinAlmaResult.rows[0].toplam_siparis, 10) || 0,
-        bekleyen: parseInt(satinAlmaResult.rows[0].bekleyen, 10) || 0,
-        tamamlanan: parseInt(satinAlmaResult.rows[0].tamamlanan, 10) || 0,
-        toplam_harcama: parseFloat(satinAlmaResult.rows[0].toplam_harcama) || 0,
-      },
-
-      finans: {
-        bu_ay: {
-          gelir: parseFloat(finansResult.rows[0].bu_ay_gelir) || 0,
-          gider: parseFloat(finansResult.rows[0].bu_ay_gider) || 0,
-          net:
-            (parseFloat(finansResult.rows[0].bu_ay_gelir) || 0) - (parseFloat(finansResult.rows[0].bu_ay_gider) || 0),
-          odenen_gider: parseFloat(finansResult.rows[0].odenen_gider) || 0,
+        bordro: {
+          yil,
+          ay,
+          bu_ay_tahakkuk: parseFloat(bordroResult.rows[0].bu_ay_tahakkuk) || 0,
+          net_ucretler: parseFloat(bordroResult.rows[0].net_ucretler) || 0,
+          sgk_vergi_toplam: parseFloat(bordroResult.rows[0].sgk_vergi_toplam) || 0,
+          odeme_durumu: {
+            toplam_personel: parseInt(bordroOdemeResult.rows[0].toplam, 10) || 0,
+            banka_odenen: parseInt(bordroOdemeResult.rows[0].banka_odenen, 10) || 0,
+            elden_odenen: parseInt(bordroOdemeResult.rows[0].elden_odenen, 10) || 0,
+            odenen_banka: parseFloat(bordroOdemeResult.rows[0].odenen_banka) || 0,
+            odenen_elden: parseFloat(bordroOdemeResult.rows[0].odenen_elden) || 0,
+          },
+          sgk_odendi: aylikOdeme.sgk_odendi || false,
+          vergi_odendi: aylikOdeme.vergi_odendi || false,
         },
-        toplam: {
-          gelir: parseFloat(toplamFinansResult.rows[0].toplam_gelir) || 0,
-          gider: parseFloat(toplamFinansResult.rows[0].toplam_gider) || 0,
-          net:
-            (parseFloat(toplamFinansResult.rows[0].toplam_gelir) || 0) -
-            (parseFloat(toplamFinansResult.rows[0].toplam_gider) || 0),
-        },
-      },
 
-      faturalar,
-      demirbas,
-      cek_senet: cekSenet,
+        satin_alma: {
+          toplam_siparis: parseInt(satinAlmaResult.rows[0].toplam_siparis, 10) || 0,
+          bekleyen: parseInt(satinAlmaResult.rows[0].bekleyen, 10) || 0,
+          tamamlanan: parseInt(satinAlmaResult.rows[0].tamamlanan, 10) || 0,
+          toplam_harcama: parseFloat(satinAlmaResult.rows[0].toplam_harcama) || 0,
+        },
+
+        finans: {
+          bu_ay: {
+            gelir: parseFloat(finansResult.rows[0].bu_ay_gelir) || 0,
+            gider: parseFloat(finansResult.rows[0].bu_ay_gider) || 0,
+            net:
+              (parseFloat(finansResult.rows[0].bu_ay_gelir) || 0) - (parseFloat(finansResult.rows[0].bu_ay_gider) || 0),
+            odenen_gider: parseFloat(finansResult.rows[0].odenen_gider) || 0,
+          },
+          toplam: {
+            gelir: parseFloat(toplamFinansResult.rows[0].toplam_gelir) || 0,
+            gider: parseFloat(toplamFinansResult.rows[0].toplam_gider) || 0,
+            net:
+              (parseFloat(toplamFinansResult.rows[0].toplam_gelir) || 0) -
+              (parseFloat(toplamFinansResult.rows[0].toplam_gider) || 0),
+          },
+        },
+
+        faturalar,
+        demirbas,
+        cek_senet: cekSenet,
 
         _meta: {
           tarih: now.toISOString(),
@@ -917,46 +917,46 @@ router.get('/stats/genel-ozet', async (_req, res) => {
       success: true,
       data: {
         projeler: {
-        toplam: parseInt(projeSayilari.rows[0].toplam, 10) || 0,
-        aktif: parseInt(projeSayilari.rows[0].aktif, 10) || 0,
-        tamamlanan: parseInt(projeSayilari.rows[0].tamamlanan, 10) || 0,
-        bekleyen: parseInt(projeSayilari.rows[0].bekleyen, 10) || 0,
-      },
+          toplam: parseInt(projeSayilari.rows[0].toplam, 10) || 0,
+          aktif: parseInt(projeSayilari.rows[0].aktif, 10) || 0,
+          tamamlanan: parseInt(projeSayilari.rows[0].tamamlanan, 10) || 0,
+          bekleyen: parseInt(projeSayilari.rows[0].bekleyen, 10) || 0,
+        },
 
-      personel: {
-        toplam: parseInt(personelResult.rows[0].toplam_personel, 10) || 0,
-        maas_yuku: parseFloat(personelResult.rows[0].toplam_maas_yukü) || 0,
-        bordro_yuku: parseFloat(personelResult.rows[0].toplam_bordro_yukü) || 0,
-      },
+        personel: {
+          toplam: parseInt(personelResult.rows[0].toplam_personel, 10) || 0,
+          maas_yuku: parseFloat(personelResult.rows[0].toplam_maas_yukü) || 0,
+          bordro_yuku: parseFloat(personelResult.rows[0].toplam_bordro_yukü) || 0,
+        },
 
-      bordro: {
-        yil,
-        ay,
-        tahakkuk: parseFloat(bordroResult.rows[0].bu_ay_tahakkuk) || 0,
-        net: parseFloat(bordroResult.rows[0].bu_ay_net) || 0,
-      },
+        bordro: {
+          yil,
+          ay,
+          tahakkuk: parseFloat(bordroResult.rows[0].bu_ay_tahakkuk) || 0,
+          net: parseFloat(bordroResult.rows[0].bu_ay_net) || 0,
+        },
 
-      satin_alma: {
-        toplam_siparis: parseInt(satinAlmaResult.rows[0].toplam_siparis, 10) || 0,
-        bekleyen: parseInt(satinAlmaResult.rows[0].bekleyen, 10) || 0,
-        harcama: parseFloat(satinAlmaResult.rows[0].toplam_harcama) || 0,
-      },
+        satin_alma: {
+          toplam_siparis: parseInt(satinAlmaResult.rows[0].toplam_siparis, 10) || 0,
+          bekleyen: parseInt(satinAlmaResult.rows[0].bekleyen, 10) || 0,
+          harcama: parseFloat(satinAlmaResult.rows[0].toplam_harcama) || 0,
+        },
 
-      finans: {
-        bu_ay_gelir: parseFloat(finansResult.rows[0].bu_ay_gelir) || 0,
-        bu_ay_gider: parseFloat(finansResult.rows[0].bu_ay_gider) || 0,
-        bu_ay_net:
-          (parseFloat(finansResult.rows[0].bu_ay_gelir) || 0) - (parseFloat(finansResult.rows[0].bu_ay_gider) || 0),
-      },
+        finans: {
+          bu_ay_gelir: parseFloat(finansResult.rows[0].bu_ay_gelir) || 0,
+          bu_ay_gider: parseFloat(finansResult.rows[0].bu_ay_gider) || 0,
+          bu_ay_net:
+            (parseFloat(finansResult.rows[0].bu_ay_gelir) || 0) - (parseFloat(finansResult.rows[0].bu_ay_gider) || 0),
+        },
 
-      en_aktif_projeler: enAktifProjeler.rows.map((p) => ({
-        id: p.id,
-        ad: p.ad,
-        kod: p.kod,
-        renk: p.renk,
-        personel: parseInt(p.personel, 10) || 0,
-        maas_yuku: parseFloat(p.maas_yuku) || 0,
-      })),
+        en_aktif_projeler: enAktifProjeler.rows.map((p) => ({
+          id: p.id,
+          ad: p.ad,
+          kod: p.kod,
+          renk: p.renk,
+          personel: parseInt(p.personel, 10) || 0,
+          maas_yuku: parseFloat(p.maas_yuku) || 0,
+        })),
 
         _meta: {
           tarih: new Date().toISOString(),

@@ -19,7 +19,8 @@ const TenderMapModal = dynamic(() => import('@/components/TenderMapModal'), {
 });
 
 const TeklifMerkeziModal = dynamic(
-  () => import('./TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
+  () =>
+    import('./TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
   { ssr: false, loading: () => null }
 );
 
@@ -304,7 +305,10 @@ function IhaleMerkeziLayoutInner() {
           opened={state.teklifModalOpen}
           onClose={() => updateState({ teklifModalOpen: false })}
           tender={state.selectedTender as import('./types').SavedTender}
-          onRefresh={() => { refreshAll(); refreshAndUpdateSelected(); }}
+          onRefresh={() => {
+            refreshAll();
+            refreshAndUpdateSelected();
+          }}
         />
       )}
 

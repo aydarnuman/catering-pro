@@ -261,14 +261,18 @@ export async function analyzeWithLayout(document, options = {}) {
           // Office Open XML dosyaları ZIP tabanlıdır ama geçerli belgelerdir
           // Hem uzantıya hem ZIP içeriğine bakarak karar ver
           const fileNameHint = (options?.fileName || '').toLowerCase();
-          const isOfficeXmlByExt = fileNameHint.endsWith('.docx') || fileNameHint.endsWith('.xlsx') || fileNameHint.endsWith('.pptx');
+          const isOfficeXmlByExt =
+            fileNameHint.endsWith('.docx') || fileNameHint.endsWith('.xlsx') || fileNameHint.endsWith('.pptx');
 
           // ZIP içindeki dosya adlarına bakarak Office Open XML mi kontrol et
           // Office Open XML [Content_Types].xml veya word/ excel/ ppt/ dizini içerir
           let isOfficeXmlByContent = false;
           try {
-            const zipSnippet = documentBuffer.slice(0, 2000).toString('ascii', 0, Math.min(2000, documentBuffer.length));
-            isOfficeXmlByContent = zipSnippet.includes('[Content_Types]') ||
+            const zipSnippet = documentBuffer
+              .slice(0, 2000)
+              .toString('ascii', 0, Math.min(2000, documentBuffer.length));
+            isOfficeXmlByContent =
+              zipSnippet.includes('[Content_Types]') ||
               zipSnippet.includes('word/') ||
               zipSnippet.includes('xl/') ||
               zipSnippet.includes('ppt/');
@@ -588,9 +592,14 @@ export async function analyzeWithCustomModel(document, modelId = null) {
           } else if (documentBuffer[0] === 0x50 && documentBuffer[1] === 0x4b) {
             // Office Open XML (DOCX/XLSX/PPTX)
             contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          } else if (documentBuffer[0] === 0xFF && documentBuffer[1] === 0xD8) {
+          } else if (documentBuffer[0] === 0xff && documentBuffer[1] === 0xd8) {
             contentType = 'image/jpeg';
-          } else if (documentBuffer[0] === 0x89 && documentBuffer[1] === 0x50 && documentBuffer[2] === 0x4E && documentBuffer[3] === 0x47) {
+          } else if (
+            documentBuffer[0] === 0x89 &&
+            documentBuffer[1] === 0x50 &&
+            documentBuffer[2] === 0x4e &&
+            documentBuffer[3] === 0x47
+          ) {
             contentType = 'image/png';
           } else if (magic === 'RIFF') {
             contentType = 'image/webp';
@@ -768,7 +777,10 @@ function extractCustomFieldsFromRest(result) {
           }));
           // Array alanlarının value'sunu JSON string olarak sakla
           // confidence'ı da koru, böylece getField() ve prepareForClaude() çalışır
-          const arrayValueStr = items.map(i => typeof i.value === 'object' ? JSON.stringify(i.value) : i.value).filter(Boolean).join('; ');
+          const arrayValueStr = items
+            .map((i) => (typeof i.value === 'object' ? JSON.stringify(i.value) : i.value))
+            .filter(Boolean)
+            .join('; ');
           fields[key] = {
             items,
             type: 'array',

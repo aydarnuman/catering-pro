@@ -20,13 +20,13 @@ async function auditLog(ctx, format) {
   );
   const logs = result.rows || [];
 
-  const data = logs.map(l => ({
-    'Tarih': l.created_at ? new Date(l.created_at).toLocaleString('tr-TR') : '-',
-    'Kullanıcı': l.kullanici_adi || '-',
-    'İşlem': l.action || '-',
-    'Modül': l.module || '-',
-    'Detay': l.details ? (typeof l.details === 'string' ? l.details : JSON.stringify(l.details)).substring(0, 100) : '-',
-    'IP': l.ip_address || '-',
+  const data = logs.map((l) => ({
+    Tarih: l.created_at ? new Date(l.created_at).toLocaleString('tr-TR') : '-',
+    Kullanıcı: l.kullanici_adi || '-',
+    İşlem: l.action || '-',
+    Modül: l.module || '-',
+    Detay: l.details ? (typeof l.details === 'string' ? l.details : JSON.stringify(l.details)).substring(0, 100) : '-',
+    IP: l.ip_address || '-',
   }));
 
   if (format === 'pdf') {
@@ -34,7 +34,7 @@ async function auditLog(ctx, format) {
       title: 'DENETİM KAYITLARI',
       subtitle: `Son ${logs.length} kayıt`,
       headers: ['Tarih', 'Kullanıcı', 'İşlem', 'Modül', 'IP'],
-      data: data.map(d => ({ Tarih: d.Tarih, Kullanıcı: d.Kullanıcı, İşlem: d.İşlem, Modül: d.Modül, IP: d.IP })),
+      data: data.map((d) => ({ Tarih: d.Tarih, Kullanıcı: d.Kullanıcı, İşlem: d.İşlem, Modül: d.Modül, IP: d.IP })),
       footer: 'Catering Pro - Yönetim',
     });
     return { buffer, filename: `audit-log-${Date.now()}.pdf`, contentType: 'application/pdf' };
@@ -50,11 +50,11 @@ async function kullaniciListesi(_ctx, format) {
   );
   const users = result.rows || [];
 
-  const data = users.map(u => ({
+  const data = users.map((u) => ({
     'Ad Soyad': u.tam_ad || '-',
     'E-posta': u.email || '-',
-    'Rol': u.rol || '-',
-    'Durum': u.aktif ? 'Aktif' : 'Pasif',
+    Rol: u.rol || '-',
+    Durum: u.aktif ? 'Aktif' : 'Pasif',
     'Son Giriş': u.son_giris ? new Date(u.son_giris).toLocaleString('tr-TR') : '-',
     'Kayıt Tarihi': u.created_at ? new Date(u.created_at).toLocaleDateString('tr-TR') : '-',
   }));
@@ -79,14 +79,54 @@ async function sistemRaporu(_ctx, _format) {
   // Çeşitli istatistikler topla
   const stats = {};
 
-  try { const r = await query('SELECT COUNT(*) as c FROM users'); stats.kullanici = r.rows[0]?.c || 0; } catch { stats.kullanici = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM tenders'); stats.ihale = r.rows[0]?.c || 0; } catch { stats.ihale = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM tender_tracking'); stats.takip = r.rows[0]?.c || 0; } catch { stats.takip = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM uyumsoft_invoices'); stats.fatura = r.rows[0]?.c || 0; } catch { stats.fatura = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM cariler'); stats.cari = r.rows[0]?.c || 0; } catch { stats.cari = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM urunler'); stats.urun = r.rows[0]?.c || 0; } catch { stats.urun = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM personel'); stats.personel = r.rows[0]?.c || 0; } catch { stats.personel = 'N/A'; }
-  try { const r = await query('SELECT COUNT(*) as c FROM documents'); stats.dokuman = r.rows[0]?.c || 0; } catch { stats.dokuman = 'N/A'; }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM users');
+    stats.kullanici = r.rows[0]?.c || 0;
+  } catch {
+    stats.kullanici = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM tenders');
+    stats.ihale = r.rows[0]?.c || 0;
+  } catch {
+    stats.ihale = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM tender_tracking');
+    stats.takip = r.rows[0]?.c || 0;
+  } catch {
+    stats.takip = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM uyumsoft_invoices');
+    stats.fatura = r.rows[0]?.c || 0;
+  } catch {
+    stats.fatura = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM cariler');
+    stats.cari = r.rows[0]?.c || 0;
+  } catch {
+    stats.cari = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM urunler');
+    stats.urun = r.rows[0]?.c || 0;
+  } catch {
+    stats.urun = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM personel');
+    stats.personel = r.rows[0]?.c || 0;
+  } catch {
+    stats.personel = 'N/A';
+  }
+  try {
+    const r = await query('SELECT COUNT(*) as c FROM documents');
+    stats.dokuman = r.rows[0]?.c || 0;
+  } catch {
+    stats.dokuman = 'N/A';
+  }
 
   const sections = [
     {
@@ -127,9 +167,36 @@ async function sistemRaporu(_ctx, _format) {
 // ── Kayıt ──
 
 registerReports([
-  { id: 'admin-audit-log', module: 'admin', label: 'Denetim Kayıtları', description: 'Sistem aktivite logları', icon: 'history', formats: ['excel', 'pdf'], category: 'admin', generator: 'admin:auditLog' },
-  { id: 'admin-kullanicilar', module: 'admin', label: 'Kullanıcı Listesi', description: 'Tüm sistem kullanıcıları', icon: 'users', formats: ['excel', 'pdf'], category: 'admin', generator: 'admin:kullaniciListesi' },
-  { id: 'admin-sistem', module: 'admin', label: 'Sistem Raporu', description: 'Sistem durumu ve istatistikler', icon: 'server', formats: ['pdf'], category: 'admin', generator: 'admin:sistemRaporu' },
+  {
+    id: 'admin-audit-log',
+    module: 'admin',
+    label: 'Denetim Kayıtları',
+    description: 'Sistem aktivite logları',
+    icon: 'history',
+    formats: ['excel', 'pdf'],
+    category: 'admin',
+    generator: 'admin:auditLog',
+  },
+  {
+    id: 'admin-kullanicilar',
+    module: 'admin',
+    label: 'Kullanıcı Listesi',
+    description: 'Tüm sistem kullanıcıları',
+    icon: 'users',
+    formats: ['excel', 'pdf'],
+    category: 'admin',
+    generator: 'admin:kullaniciListesi',
+  },
+  {
+    id: 'admin-sistem',
+    module: 'admin',
+    label: 'Sistem Raporu',
+    description: 'Sistem durumu ve istatistikler',
+    icon: 'server',
+    formats: ['pdf'],
+    category: 'admin',
+    generator: 'admin:sistemRaporu',
+  },
 ]);
 
 registerGenerator('admin', {

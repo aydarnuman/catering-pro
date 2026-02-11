@@ -5,7 +5,13 @@
  * Backend'de 8 modül bağımsız çalışır, frontend sadece gruplayarak gösterir.
  */
 
-import type { DockGrupAdi, DockGrupMeta, IstihbaratModul, ModulDurum, ModulMeta } from '@/types/yuklenici';
+import type {
+  DockGrupAdi,
+  DockGrupMeta,
+  IstihbaratModul,
+  ModulDurum,
+  ModulMeta,
+} from '@/types/yuklenici';
 
 // ─── Dock Grup Tanımları (5 adet — UI'da gösterilen) ───────────
 
@@ -61,15 +67,87 @@ export const DOCK_GRUPLARI: DockGrupMeta[] = [
 // ─── Eski 8'li liste (geriye uyumluluk — backend API'leriyle eşleşir) ───
 
 export const MODUL_LISTESI: ModulMeta[] = [
-  { ad: 'veri_havuzu', baslik: 'Veri Havuzu', aciklama: 'Merkez web istihbarat verisi — Tavily aramaları ve çapraz kontrol', ikon: 'IconDatabase', renk: 'indigo', kaynak: 'Tavily + DB', puppeteer: false },
-  { ad: 'ihale_gecmisi', baslik: 'İhale Geçmişi', aciklama: 'ihalebul.com üzerinden ihale geçmişi ve sözleşme bilgileri', ikon: 'IconFileText', renk: 'blue', kaynak: 'ihalebul.com', puppeteer: true },
-  { ad: 'profil_analizi', baslik: 'Profil Analizi', aciklama: 'Yıllık trendler, rakipler, şehirler ve sektör dağılımı', ikon: 'IconChartPie', renk: 'grape', kaynak: 'ihalebul.com', puppeteer: true },
-  { ad: 'katilimcilar', baslik: 'Katılımcılar', aciklama: 'İhalelerde yarışan diğer firmalar ve teklif detayları', ikon: 'IconUsers', renk: 'cyan', kaynak: 'ihalebul.com', puppeteer: true },
-  { ad: 'sirket_bilgileri', baslik: 'Şirket Kimliği', aciklama: 'MERSİS ve Ticaret Sicil Gazetesi kayıtları', ikon: 'IconBuilding', renk: 'teal', kaynak: 'MERSİS + T. Sicil', puppeteer: true },
-  { ad: 'kik_kararlari', baslik: 'KİK Kararları', aciklama: 'Kamu İhale Kurumu şikayet ve itirazen şikayet kararları', ikon: 'IconGavel', renk: 'red', kaynak: 'ihalebul.com', puppeteer: true },
-  { ad: 'kik_yasaklilar', baslik: 'Yasaklı Sorgusu', aciklama: 'EKAP üzerinden yasaklılar listesi kontrolü', ikon: 'IconShieldOff', renk: 'orange', kaynak: 'ekap.kik.gov.tr', puppeteer: true },
-  { ad: 'haberler', baslik: 'Haberler', aciklama: 'Google News üzerinden güncel haber taraması', ikon: 'IconNews', renk: 'violet', kaynak: 'Google News', puppeteer: false },
-  { ad: 'ai_arastirma', baslik: 'AI İstihbarat', aciklama: 'Tüm verileri analiz eden yapay zeka destekli rapor', ikon: 'IconBrain', renk: 'pink', kaynak: 'Claude AI', puppeteer: false },
+  {
+    ad: 'veri_havuzu',
+    baslik: 'Veri Havuzu',
+    aciklama: 'Merkez web istihbarat verisi — Tavily aramaları ve çapraz kontrol',
+    ikon: 'IconDatabase',
+    renk: 'indigo',
+    kaynak: 'Tavily + DB',
+    puppeteer: false,
+  },
+  {
+    ad: 'ihale_gecmisi',
+    baslik: 'İhale Geçmişi',
+    aciklama: 'ihalebul.com üzerinden ihale geçmişi ve sözleşme bilgileri',
+    ikon: 'IconFileText',
+    renk: 'blue',
+    kaynak: 'ihalebul.com',
+    puppeteer: true,
+  },
+  {
+    ad: 'profil_analizi',
+    baslik: 'Profil Analizi',
+    aciklama: 'Yıllık trendler, rakipler, şehirler ve sektör dağılımı',
+    ikon: 'IconChartPie',
+    renk: 'grape',
+    kaynak: 'ihalebul.com',
+    puppeteer: true,
+  },
+  {
+    ad: 'katilimcilar',
+    baslik: 'Katılımcılar',
+    aciklama: 'İhalelerde yarışan diğer firmalar ve teklif detayları',
+    ikon: 'IconUsers',
+    renk: 'cyan',
+    kaynak: 'ihalebul.com',
+    puppeteer: true,
+  },
+  {
+    ad: 'sirket_bilgileri',
+    baslik: 'Şirket Kimliği',
+    aciklama: 'MERSİS ve Ticaret Sicil Gazetesi kayıtları',
+    ikon: 'IconBuilding',
+    renk: 'teal',
+    kaynak: 'MERSİS + T. Sicil',
+    puppeteer: true,
+  },
+  {
+    ad: 'kik_kararlari',
+    baslik: 'KİK Kararları',
+    aciklama: 'Kamu İhale Kurumu şikayet ve itirazen şikayet kararları',
+    ikon: 'IconGavel',
+    renk: 'red',
+    kaynak: 'ihalebul.com',
+    puppeteer: true,
+  },
+  {
+    ad: 'kik_yasaklilar',
+    baslik: 'Yasaklı Sorgusu',
+    aciklama: 'EKAP üzerinden yasaklılar listesi kontrolü',
+    ikon: 'IconShieldOff',
+    renk: 'orange',
+    kaynak: 'ekap.kik.gov.tr',
+    puppeteer: true,
+  },
+  {
+    ad: 'haberler',
+    baslik: 'Haberler',
+    aciklama: 'Google News üzerinden güncel haber taraması',
+    ikon: 'IconNews',
+    renk: 'violet',
+    kaynak: 'Google News',
+    puppeteer: false,
+  },
+  {
+    ad: 'ai_arastirma',
+    baslik: 'AI İstihbarat',
+    aciklama: 'Tüm verileri analiz eden yapay zeka destekli rapor',
+    ikon: 'IconBrain',
+    renk: 'pink',
+    kaynak: 'Claude AI',
+    puppeteer: false,
+  },
 ];
 
 // ─── Yardımcı Fonksiyonlar ───────────────────────────────────
@@ -108,7 +186,10 @@ export function getGrupDurum(grupAdi: DockGrupAdi, moduller: IstihbaratModul[]):
  * Bir grubun en son güncelleme zamanını al
  * (alt modüllerin en güncel updated_at değeri)
  */
-export function getGrupSonGuncelleme(grupAdi: DockGrupAdi, moduller: IstihbaratModul[]): string | null {
+export function getGrupSonGuncelleme(
+  grupAdi: DockGrupAdi,
+  moduller: IstihbaratModul[]
+): string | null {
   const grup = DOCK_GRUPLARI.find((g) => g.ad === grupAdi);
   if (!grup) return null;
 
@@ -124,20 +205,29 @@ export function getGrupSonGuncelleme(grupAdi: DockGrupAdi, moduller: IstihbaratM
 /** Durum badge renkleri */
 export function getDurumRenk(durum: string): string {
   switch (durum) {
-    case 'tamamlandi': return 'green';
-    case 'calisiyor': return 'blue';
-    case 'hata': return 'red';
-    default: return 'gray';
+    case 'tamamlandi':
+      return 'green';
+    case 'calisiyor':
+      return 'blue';
+    case 'hata':
+      return 'red';
+    default:
+      return 'gray';
   }
 }
 
 /** Durum Türkçe etiketleri */
 export function getDurumEtiket(durum: string): string {
   switch (durum) {
-    case 'tamamlandi': return 'Tamamlandı';
-    case 'calisiyor': return 'Çalışıyor...';
-    case 'hata': return 'Hata';
-    case 'bekliyor': return 'Bekliyor';
-    default: return durum;
+    case 'tamamlandi':
+      return 'Tamamlandı';
+    case 'calisiyor':
+      return 'Çalışıyor...';
+    case 'hata':
+      return 'Hata';
+    case 'bekliyor':
+      return 'Bekliyor';
+    default:
+      return durum;
   }
 }

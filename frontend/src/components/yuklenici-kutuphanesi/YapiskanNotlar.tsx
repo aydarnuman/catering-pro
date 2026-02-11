@@ -5,13 +5,7 @@
  * Eski dogrudan API yerine unified notes modal'a yonlendirir.
  */
 
-import {
-  Badge,
-  Button,
-  Card,
-  Group,
-  Text,
-} from '@mantine/core';
+import { Badge, Button, Card, Group, Text } from '@mantine/core';
 import { IconNote } from '@tabler/icons-react';
 import { useNotesModal } from '@/context/NotesContext';
 import { useNotes } from '@/hooks/useNotes';
@@ -60,9 +54,7 @@ export function YapiskanNotlar({ yukleniciId, firmaAdi }: Props) {
           color="yellow"
           size="compact-xs"
           leftSection={<IconNote size={12} />}
-          onClick={() =>
-            openContextNotes('contractor', yukleniciId, firmaAdi || 'Yuklenici')
-          }
+          onClick={() => openContextNotes('contractor', yukleniciId, firmaAdi || 'Yuklenici')}
         >
           {noteCount > 0 ? 'Notlari Ac' : 'Not Ekle'}
         </Button>

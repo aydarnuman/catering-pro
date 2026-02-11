@@ -6,43 +6,42 @@
 
 // Re-export mevcut tipler
 export type {
-  TeklifData,
-  MaliyetDetay,
-  MaliyetKalemKey,
-  CetvelKalemi,
-  MalzemeMaliyet,
-  PersonelMaliyet,
-  NakliyeMaliyet,
-  SarfMalzemeMaliyet,
-  EkipmanBakimMaliyet,
-  GenelGiderMaliyet,
-  YasalGiderlerMaliyet,
-  RiskPayiMaliyet,
-  OgunDetay,
-  PozisyonKalem,
   AracKalem,
-  SarfKalem,
+  CetvelKalemi,
+  EkipmanBakimMaliyet,
   EkipmanKalem,
   GenelGiderKalem,
-  YasalGiderKalem,
+  GenelGiderMaliyet,
+  MaliyetDetay,
+  MaliyetKalemKey,
+  MalzemeMaliyet,
+  NakliyeMaliyet,
+  OgunDetay,
+  PersonelMaliyet,
+  PozisyonKalem,
   RiskKategori,
+  RiskPayiMaliyet,
+  SarfKalem,
+  SarfMalzemeMaliyet,
+  TeklifData,
+  YasalGiderKalem,
+  YasalGiderlerMaliyet,
 } from '../../teklif/types';
 
 export {
+  ARAC_TIPLERI,
   DEFAULT_TEKLIF_DATA,
+  EKIPMAN_SABLONLARI,
+  GENEL_GIDER_KALEMLERI,
   MALIYET_KALEMLERI,
   POZISYON_SABLONLARI,
-  ARAC_TIPLERI,
-  EKIPMAN_SABLONLARI,
-  SARF_KALEMLERI,
-  GENEL_GIDER_KALEMLERI,
-  YASAL_GIDER_SABLONLARI,
   RISK_KATEGORILERI,
+  SARF_KALEMLERI,
+  YASAL_GIDER_SABLONLARI,
 } from '../../teklif/types';
-
-export type { SavedTender, AnalysisData } from '../types';
-export type { TeklifItem, ActiveTool, IhaleTuru } from '../calculation-utils';
+export type { ActiveTool, IhaleTuru, TeklifItem } from '../calculation-utils';
 export { IHALE_KATSAYILARI } from '../calculation-utils';
+export type { AnalysisData, SavedTender } from '../types';
 
 // ─── Section Tanımları ─────────────────────────────────────────
 
@@ -58,9 +57,24 @@ export interface SectionInfo {
 }
 
 export const SECTIONS: SectionInfo[] = [
-  { id: 'tespit', label: 'Döküman Tespitleri', icon: 'sparkles', description: 'AI tespit edilen veriler' },
-  { id: 'maliyet', label: 'Teklif Maliyetlendirme', icon: 'calculator', description: '8 kategori gider dökümü' },
-  { id: 'hesaplamalar', label: 'KİK & Hesaplamalar', icon: 'scale', description: 'Sınır değer, teminat, risk' },
+  {
+    id: 'tespit',
+    label: 'Döküman Tespitleri',
+    icon: 'sparkles',
+    description: 'AI tespit edilen veriler',
+  },
+  {
+    id: 'maliyet',
+    label: 'Teklif Maliyetlendirme',
+    icon: 'calculator',
+    description: '8 kategori gider dökümü',
+  },
+  {
+    id: 'hesaplamalar',
+    label: 'KİK & Hesaplamalar',
+    icon: 'scale',
+    description: 'Sınır değer, teminat, risk',
+  },
   { id: 'cetvel', label: 'Teklif Cetveli', icon: 'table', description: 'Teklif kalemleri listesi' },
   { id: 'ozet', label: 'Son Kontrol', icon: 'check', description: 'Son kontrol ve onay' },
 ];

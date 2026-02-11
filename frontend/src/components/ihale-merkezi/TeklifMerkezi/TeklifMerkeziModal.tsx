@@ -14,24 +14,25 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
-import {
-  IconArrowLeft,
-  IconArrowRight,
-  IconDeviceFloppy,
-  IconX,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconArrowRight, IconDeviceFloppy, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
+import { useTeklifMerkezi } from './hooks/useTeklifMerkezi';
+import { CetvelSection } from './sections/CetvelSection';
+import { HesaplamalarSection } from './sections/HesaplamalarSection';
+import { MaliyetSection } from './sections/MaliyetSection';
+import { OzetSection } from './sections/OzetSection';
+import { TespitSection } from './sections/TespitSection';
+import { TeklifMerkeziSidebar } from './TeklifMerkeziSidebar';
 import type { TeklifMerkeziModalProps, TeklifMerkeziSection } from './types';
 import { SECTIONS } from './types';
-import { useTeklifMerkezi } from './hooks/useTeklifMerkezi';
-import { TeklifMerkeziSidebar } from './TeklifMerkeziSidebar';
-import { TespitSection } from './sections/TespitSection';
-import { MaliyetSection } from './sections/MaliyetSection';
-import { HesaplamalarSection } from './sections/HesaplamalarSection';
-import { CetvelSection } from './sections/CetvelSection';
-import { OzetSection } from './sections/OzetSection';
 
-const SECTION_ORDER: TeklifMerkeziSection[] = ['tespit', 'maliyet', 'hesaplamalar', 'cetvel', 'ozet'];
+const SECTION_ORDER: TeklifMerkeziSection[] = [
+  'tespit',
+  'maliyet',
+  'hesaplamalar',
+  'cetvel',
+  'ozet',
+];
 
 export function TeklifMerkeziModal({
   opened,
@@ -57,7 +58,9 @@ export function TeklifMerkeziModal({
 
   const handleClose = useCallback(() => {
     if (isDirty) {
-      const confirmed = window.confirm('Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?');
+      const confirmed = window.confirm(
+        'Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?'
+      );
       if (!confirmed) return;
     }
     onClose();
@@ -65,13 +68,28 @@ export function TeklifMerkeziModal({
 
   // Keyboard shortcuts
   useHotkeys([
-    ['ctrl+s', (e) => { e.preventDefault(); handleSave(); }],
-    ['mod+s', (e) => { e.preventDefault(); handleSave(); }],
+    [
+      'ctrl+s',
+      (e) => {
+        e.preventDefault();
+        handleSave();
+      },
+    ],
+    [
+      'mod+s',
+      (e) => {
+        e.preventDefault();
+        handleSave();
+      },
+    ],
     ['alt+ArrowLeft', goBack],
     ['alt+ArrowRight', goForward],
   ]);
 
-  const currentSectionInfo = useMemo(() => SECTIONS.find((s) => s.id === activeSection), [activeSection]);
+  const currentSectionInfo = useMemo(
+    () => SECTIONS.find((s) => s.id === activeSection),
+    [activeSection]
+  );
 
   const renderSection = () => {
     switch (activeSection) {
@@ -100,7 +118,13 @@ export function TeklifMerkeziModal({
       withCloseButton={false}
       padding={0}
       styles={{
-        body: { height: '100vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' },
+        body: {
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: 0,
+          overflow: 'hidden',
+        },
         content: { background: 'var(--mantine-color-dark-8)' },
       }}
     >
@@ -128,16 +152,34 @@ export function TeklifMerkeziModal({
         </Group>
         <Group gap="xs">
           {/* Nav prev/next */}
-          <Tooltip label={`Önceki: ${canGoBack ? SECTIONS[currentIndex - 1]?.label : ''}`} disabled={!canGoBack}>
-            <Button size="compact-xs" variant="subtle" disabled={!canGoBack} onClick={goBack} leftSection={<IconArrowLeft size={14} />}>
+          <Tooltip
+            label={`Önceki: ${canGoBack ? SECTIONS[currentIndex - 1]?.label : ''}`}
+            disabled={!canGoBack}
+          >
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              disabled={!canGoBack}
+              onClick={goBack}
+              leftSection={<IconArrowLeft size={14} />}
+            >
               Geri
             </Button>
           </Tooltip>
           <Text size="xs" c="dimmed">
             {currentIndex + 1} / {SECTION_ORDER.length}
           </Text>
-          <Tooltip label={`Sonraki: ${canGoForward ? SECTIONS[currentIndex + 1]?.label : ''}`} disabled={!canGoForward}>
-            <Button size="compact-xs" variant="subtle" disabled={!canGoForward} onClick={goForward} rightSection={<IconArrowRight size={14} />}>
+          <Tooltip
+            label={`Sonraki: ${canGoForward ? SECTIONS[currentIndex + 1]?.label : ''}`}
+            disabled={!canGoForward}
+          >
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              disabled={!canGoForward}
+              onClick={goForward}
+              rightSection={<IconArrowRight size={14} />}
+            >
               İleri
             </Button>
           </Tooltip>
@@ -149,7 +191,9 @@ export function TeklifMerkeziModal({
             size="compact-sm"
             variant={isDirty ? 'gradient' : 'light'}
             gradient={{ from: 'blue', to: 'cyan' }}
-            leftSection={saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={14} />}
+            leftSection={
+              saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={14} />
+            }
             onClick={handleSave}
             loading={saving}
             disabled={!isDirty && !saving}
@@ -198,15 +242,25 @@ export function TeklifMerkeziModal({
           >
             <Group justify="space-between">
               <div>
-                <Text size="md" fw={700}>{currentSectionInfo?.label}</Text>
-                <Text size="xs" c="dimmed">{currentSectionInfo?.description}</Text>
+                <Text size="md" fw={700}>
+                  {currentSectionInfo?.label}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {currentSectionInfo?.description}
+                </Text>
               </div>
               <Group gap={4}>
                 <Kbd size="xs">Ctrl+S</Kbd>
-                <Text size="xs" c="dimmed">kaydet</Text>
-                <Text size="xs" c="dimmed" mx={4}>•</Text>
+                <Text size="xs" c="dimmed">
+                  kaydet
+                </Text>
+                <Text size="xs" c="dimmed" mx={4}>
+                  •
+                </Text>
                 <Kbd size="xs">Alt+←→</Kbd>
-                <Text size="xs" c="dimmed">bölüm geçiş</Text>
+                <Text size="xs" c="dimmed">
+                  bölüm geçiş
+                </Text>
               </Group>
             </Group>
           </Box>
@@ -243,7 +297,9 @@ export function TeklifMerkeziModal({
                   variant="gradient"
                   gradient={{ from: 'green', to: 'teal' }}
                   size="sm"
-                  leftSection={saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={16} />}
+                  leftSection={
+                    saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={16} />
+                  }
                   onClick={handleSave}
                   loading={saving}
                 >

@@ -193,7 +193,11 @@ export default function FirmaFormModal({
       if (res.ok) {
         onSaved();
         closeBelgeModal();
-        notifications.show({ title: 'Yüklendi', message: 'Belge başarıyla yüklendi', color: 'green' });
+        notifications.show({
+          title: 'Yüklendi',
+          message: 'Belge başarıyla yüklendi',
+          color: 'green',
+        });
       }
     } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Belge yüklenemedi', color: 'red' });
@@ -246,7 +250,13 @@ export default function FirmaFormModal({
                   </Text>
                   <SimpleGrid cols={{ base: 2, sm: 3 }}>
                     {belgeTipleri.slice(0, 3).map((belge) => (
-                      <Paper key={belge.value} p="xs" radius="md" withBorder style={{ cursor: 'pointer' }}>
+                      <Paper
+                        key={belge.value}
+                        p="xs"
+                        radius="md"
+                        withBorder
+                        style={{ cursor: 'pointer' }}
+                      >
                         <Stack gap={4} align="center">
                           <Text size="xs" fw={500} ta="center">
                             {belge.label}
@@ -262,7 +272,12 @@ export default function FirmaFormModal({
                               }}
                               disabled={analyzingBelge}
                             />
-                            <Badge size="xs" variant="light" color="blue" style={{ cursor: 'pointer' }}>
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color="blue"
+                              style={{ cursor: 'pointer' }}
+                            >
                               {analyzingBelge ? 'Analiz...' : '📄 Yükle'}
                             </Badge>
                           </label>
@@ -341,7 +356,9 @@ export default function FirmaFormModal({
               label="Ticaret Sicil No"
               placeholder="123456"
               value={formData.ticaret_sicil_no || ''}
-              onChange={(e) => setFormData({ ...formData, ticaret_sicil_no: e.currentTarget.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, ticaret_sicil_no: e.currentTarget.value })
+              }
             />
 
             <Divider label="İletişim" labelPosition="center" />
@@ -355,73 +372,223 @@ export default function FirmaFormModal({
             />
 
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
-              <TextInput label="İl" placeholder="Ankara" value={formData.il || ''} onChange={(e) => setFormData({ ...formData, il: e.currentTarget.value })} />
-              <TextInput label="İlçe" placeholder="Çankaya" value={formData.ilce || ''} onChange={(e) => setFormData({ ...formData, ilce: e.currentTarget.value })} />
-              <TextInput label="Telefon" placeholder="0312 XXX XX XX" value={formData.telefon || ''} onChange={(e) => setFormData({ ...formData, telefon: e.currentTarget.value })} leftSection={<IconPhone size={16} />} />
+              <TextInput
+                label="İl"
+                placeholder="Ankara"
+                value={formData.il || ''}
+                onChange={(e) => setFormData({ ...formData, il: e.currentTarget.value })}
+              />
+              <TextInput
+                label="İlçe"
+                placeholder="Çankaya"
+                value={formData.ilce || ''}
+                onChange={(e) => setFormData({ ...formData, ilce: e.currentTarget.value })}
+              />
+              <TextInput
+                label="Telefon"
+                placeholder="0312 XXX XX XX"
+                value={formData.telefon || ''}
+                onChange={(e) => setFormData({ ...formData, telefon: e.currentTarget.value })}
+                leftSection={<IconPhone size={16} />}
+              />
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="E-posta" placeholder="info@firma.com.tr" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.currentTarget.value })} leftSection={<IconMail size={16} />} />
-              <TextInput label="Web Sitesi" placeholder="www.firma.com.tr" value={formData.web_sitesi || ''} onChange={(e) => setFormData({ ...formData, web_sitesi: e.currentTarget.value })} />
+              <TextInput
+                label="E-posta"
+                placeholder="info@firma.com.tr"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.currentTarget.value })}
+                leftSection={<IconMail size={16} />}
+              />
+              <TextInput
+                label="Web Sitesi"
+                placeholder="www.firma.com.tr"
+                value={formData.web_sitesi || ''}
+                onChange={(e) => setFormData({ ...formData, web_sitesi: e.currentTarget.value })}
+              />
             </SimpleGrid>
 
             <Divider label="Yetkili Bilgileri" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Yetkili Adı Soyadı" placeholder="Ad Soyad" value={formData.yetkili_adi || ''} onChange={(e) => setFormData({ ...formData, yetkili_adi: e.currentTarget.value })} leftSection={<IconUser size={16} />} />
-              <TextInput label="Yetkili Unvanı" placeholder="Şirket Müdürü" value={formData.yetkili_unvani || ''} onChange={(e) => setFormData({ ...formData, yetkili_unvani: e.currentTarget.value })} leftSection={<IconId size={16} />} />
+              <TextInput
+                label="Yetkili Adı Soyadı"
+                placeholder="Ad Soyad"
+                value={formData.yetkili_adi || ''}
+                onChange={(e) => setFormData({ ...formData, yetkili_adi: e.currentTarget.value })}
+                leftSection={<IconUser size={16} />}
+              />
+              <TextInput
+                label="Yetkili Unvanı"
+                placeholder="Şirket Müdürü"
+                value={formData.yetkili_unvani || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, yetkili_unvani: e.currentTarget.value })
+                }
+                leftSection={<IconId size={16} />}
+              />
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Yetkili TC Kimlik No" placeholder="12345678901" value={formData.yetkili_tc || ''} onChange={(e) => setFormData({ ...formData, yetkili_tc: e.currentTarget.value })} />
-              <TextInput label="Yetkili Telefon" placeholder="0532 XXX XX XX" value={formData.yetkili_telefon || ''} onChange={(e) => setFormData({ ...formData, yetkili_telefon: e.currentTarget.value })} />
+              <TextInput
+                label="Yetkili TC Kimlik No"
+                placeholder="12345678901"
+                value={formData.yetkili_tc || ''}
+                onChange={(e) => setFormData({ ...formData, yetkili_tc: e.currentTarget.value })}
+              />
+              <TextInput
+                label="Yetkili Telefon"
+                placeholder="0532 XXX XX XX"
+                value={formData.yetkili_telefon || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, yetkili_telefon: e.currentTarget.value })
+                }
+              />
             </SimpleGrid>
 
-            <TextInput label="İmza Yetkisi Açıklaması" placeholder="Şirketi her türlü konuda temsile yetkilidir" value={formData.imza_yetkisi || ''} onChange={(e) => setFormData({ ...formData, imza_yetkisi: e.currentTarget.value })} leftSection={<IconSignature size={16} />} />
+            <TextInput
+              label="İmza Yetkisi Açıklaması"
+              placeholder="Şirketi her türlü konuda temsile yetkilidir"
+              value={formData.imza_yetkisi || ''}
+              onChange={(e) => setFormData({ ...formData, imza_yetkisi: e.currentTarget.value })}
+              leftSection={<IconSignature size={16} />}
+            />
 
             <Divider label="Banka Bilgileri" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Banka Adı" placeholder="Ziraat Bankası" value={formData.banka_adi || ''} onChange={(e) => setFormData({ ...formData, banka_adi: e.currentTarget.value })} />
-              <TextInput label="Şube" placeholder="Kızılay Şubesi" value={formData.banka_sube || ''} onChange={(e) => setFormData({ ...formData, banka_sube: e.currentTarget.value })} />
+              <TextInput
+                label="Banka Adı"
+                placeholder="Ziraat Bankası"
+                value={formData.banka_adi || ''}
+                onChange={(e) => setFormData({ ...formData, banka_adi: e.currentTarget.value })}
+              />
+              <TextInput
+                label="Şube"
+                placeholder="Kızılay Şubesi"
+                value={formData.banka_sube || ''}
+                onChange={(e) => setFormData({ ...formData, banka_sube: e.currentTarget.value })}
+              />
             </SimpleGrid>
 
-            <TextInput label="IBAN" placeholder="TR00 0000 0000 0000 0000 0000 00" value={formData.iban || ''} onChange={(e) => setFormData({ ...formData, iban: e.currentTarget.value })} />
+            <TextInput
+              label="IBAN"
+              placeholder="TR00 0000 0000 0000 0000 0000 00"
+              value={formData.iban || ''}
+              onChange={(e) => setFormData({ ...formData, iban: e.currentTarget.value })}
+            />
 
             <Divider label="2. Yetkili Bilgileri (Opsiyonel)" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="2. Yetkili Adı Soyadı" placeholder="Ad Soyad" value={formData.yetkili2_adi || ''} onChange={(e) => setFormData({ ...formData, yetkili2_adi: e.currentTarget.value })} />
-              <TextInput label="2. Yetkili Unvanı" placeholder="Genel Müdür Yrd." value={formData.yetkili2_unvani || ''} onChange={(e) => setFormData({ ...formData, yetkili2_unvani: e.currentTarget.value })} />
+              <TextInput
+                label="2. Yetkili Adı Soyadı"
+                placeholder="Ad Soyad"
+                value={formData.yetkili2_adi || ''}
+                onChange={(e) => setFormData({ ...formData, yetkili2_adi: e.currentTarget.value })}
+              />
+              <TextInput
+                label="2. Yetkili Unvanı"
+                placeholder="Genel Müdür Yrd."
+                value={formData.yetkili2_unvani || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, yetkili2_unvani: e.currentTarget.value })
+                }
+              />
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="2. Yetkili TC" placeholder="12345678901" value={formData.yetkili2_tc || ''} onChange={(e) => setFormData({ ...formData, yetkili2_tc: e.currentTarget.value })} />
-              <TextInput label="2. Yetkili Telefon" placeholder="0532 XXX XX XX" value={formData.yetkili2_telefon || ''} onChange={(e) => setFormData({ ...formData, yetkili2_telefon: e.currentTarget.value })} />
+              <TextInput
+                label="2. Yetkili TC"
+                placeholder="12345678901"
+                value={formData.yetkili2_tc || ''}
+                onChange={(e) => setFormData({ ...formData, yetkili2_tc: e.currentTarget.value })}
+              />
+              <TextInput
+                label="2. Yetkili Telefon"
+                placeholder="0532 XXX XX XX"
+                value={formData.yetkili2_telefon || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, yetkili2_telefon: e.currentTarget.value })
+                }
+              />
             </SimpleGrid>
 
             <Divider label="2. Banka Hesabı (Opsiyonel)" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="2. Banka Adı" placeholder="İş Bankası" value={formData.banka2_adi || ''} onChange={(e) => setFormData({ ...formData, banka2_adi: e.currentTarget.value })} />
-              <TextInput label="2. Şube" placeholder="Ulus Şubesi" value={formData.banka2_sube || ''} onChange={(e) => setFormData({ ...formData, banka2_sube: e.currentTarget.value })} />
+              <TextInput
+                label="2. Banka Adı"
+                placeholder="İş Bankası"
+                value={formData.banka2_adi || ''}
+                onChange={(e) => setFormData({ ...formData, banka2_adi: e.currentTarget.value })}
+              />
+              <TextInput
+                label="2. Şube"
+                placeholder="Ulus Şubesi"
+                value={formData.banka2_sube || ''}
+                onChange={(e) => setFormData({ ...formData, banka2_sube: e.currentTarget.value })}
+              />
             </SimpleGrid>
 
-            <TextInput label="2. IBAN" placeholder="TR00 0000 0000 0000 0000 0000 00" value={formData.banka2_iban || ''} onChange={(e) => setFormData({ ...formData, banka2_iban: e.currentTarget.value })} />
+            <TextInput
+              label="2. IBAN"
+              placeholder="TR00 0000 0000 0000 0000 0000 00"
+              value={formData.banka2_iban || ''}
+              onChange={(e) => setFormData({ ...formData, banka2_iban: e.currentTarget.value })}
+            />
 
             <Divider label="SGK ve Resmi Bilgiler" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
-              <TextInput label="SGK Sicil No" placeholder="1234567890" value={formData.sgk_sicil_no || ''} onChange={(e) => setFormData({ ...formData, sgk_sicil_no: e.currentTarget.value })} />
-              <TextInput label="KEP Adresi" placeholder="firma@hs01.kep.tr" value={formData.kep_adresi || ''} onChange={(e) => setFormData({ ...formData, kep_adresi: e.currentTarget.value })} />
-              <TextInput label="NACE Kodu" placeholder="56.29.01" value={formData.nace_kodu || ''} onChange={(e) => setFormData({ ...formData, nace_kodu: e.currentTarget.value })} />
+              <TextInput
+                label="SGK Sicil No"
+                placeholder="1234567890"
+                value={formData.sgk_sicil_no || ''}
+                onChange={(e) => setFormData({ ...formData, sgk_sicil_no: e.currentTarget.value })}
+              />
+              <TextInput
+                label="KEP Adresi"
+                placeholder="firma@hs01.kep.tr"
+                value={formData.kep_adresi || ''}
+                onChange={(e) => setFormData({ ...formData, kep_adresi: e.currentTarget.value })}
+              />
+              <TextInput
+                label="NACE Kodu"
+                placeholder="56.29.01"
+                value={formData.nace_kodu || ''}
+                onChange={(e) => setFormData({ ...formData, nace_kodu: e.currentTarget.value })}
+              />
             </SimpleGrid>
 
             <Divider label="Kapasite Bilgileri" labelPosition="center" />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Günlük Üretim Kapasitesi (Porsiyon)" placeholder="5000" type="number" value={formData.gunluk_uretim_kapasitesi || ''} onChange={(e) => setFormData({ ...formData, gunluk_uretim_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined })} />
-              <TextInput label="Personel Kapasitesi" placeholder="50" type="number" value={formData.personel_kapasitesi || ''} onChange={(e) => setFormData({ ...formData, personel_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined })} />
+              <TextInput
+                label="Günlük Üretim Kapasitesi (Porsiyon)"
+                placeholder="5000"
+                type="number"
+                value={formData.gunluk_uretim_kapasitesi || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    gunluk_uretim_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined,
+                  })
+                }
+              />
+              <TextInput
+                label="Personel Kapasitesi"
+                placeholder="50"
+                type="number"
+                value={formData.personel_kapasitesi || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    personel_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined,
+                  })
+                }
+              />
             </SimpleGrid>
 
             {/* Belgeler - Sadece düzenleme modunda */}
@@ -435,16 +602,33 @@ export default function FirmaFormModal({
                     return (
                       <Paper key={belge.value} p="sm" radius="md" withBorder>
                         <Stack gap="xs">
-                          <Text size="xs" fw={500}>{belge.label}</Text>
+                          <Text size="xs" fw={500}>
+                            {belge.label}
+                          </Text>
                           {hasFile ? (
                             <Group gap="xs">
-                              <Badge size="xs" color="green" variant="light">Yüklü</Badge>
-                              <ActionIcon size="xs" variant="subtle" component="a" href={`${API_BASE_URL}${hasFile}`} target="_blank">
+                              <Badge size="xs" color="green" variant="light">
+                                Yüklü
+                              </Badge>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                component="a"
+                                href={`${API_BASE_URL}${hasFile}`}
+                                target="_blank"
+                              >
                                 <IconEye size={12} />
                               </ActionIcon>
                             </Group>
                           ) : (
-                            <Button size="xs" variant="light" onClick={() => { setSelectedBelgeTipi(belge.value); openBelgeModal(); }}>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              onClick={() => {
+                                setSelectedBelgeTipi(belge.value);
+                                openBelgeModal();
+                              }}
+                            >
                               Yükle
                             </Button>
                           )}
@@ -470,7 +654,12 @@ export default function FirmaFormModal({
               <Button variant="light" onClick={onClose}>
                 İptal
               </Button>
-              <Button color="teal" onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}>
+              <Button
+                color="teal"
+                onClick={handleSave}
+                loading={saving}
+                leftSection={<IconCheck size={16} />}
+              >
                 {firma ? 'Güncelle' : 'Ekle'}
               </Button>
             </Group>
@@ -479,13 +668,29 @@ export default function FirmaFormModal({
       </Modal>
 
       {/* Belge Yükleme Modalı */}
-      <Modal opened={belgeModalOpened} onClose={closeBelgeModal} title="Belge Yükle" size="sm" centered>
+      <Modal
+        opened={belgeModalOpened}
+        onClose={closeBelgeModal}
+        title="Belge Yükle"
+        size="sm"
+        centered
+      >
         <Stack gap="md">
           <Text size="sm">
-            <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong> yükleyin
+            <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong>{' '}
+            yükleyin
           </Text>
-          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleBelgeUpload} disabled={uploadingBelge} />
-          {uploadingBelge && <Text size="xs" c="dimmed">Yükleniyor...</Text>}
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleBelgeUpload}
+            disabled={uploadingBelge}
+          />
+          {uploadingBelge && (
+            <Text size="xs" c="dimmed">
+              Yükleniyor...
+            </Text>
+          )}
         </Stack>
       </Modal>
     </>

@@ -9,6 +9,7 @@
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -32,10 +33,7 @@ router.post('/:noteId', async (req, res) => {
     }
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      'SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2',
-      [noteId, userId]
-    );
+    const noteCheck = await pool.query('SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2', [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadi veya yetkiniz yok' });
@@ -61,7 +59,7 @@ router.post('/:noteId', async (req, res) => {
       message: 'Not paylasidi',
     });
   } catch (error) {
-    console.error('Note share error:', error);
+    logger.error('Note share error:', error);
     res.status(500).json({ success: false, message: 'Paylasim olusturulurken hata' });
   }
 });
@@ -76,10 +74,7 @@ router.get('/:noteId', async (req, res) => {
     const { noteId } = req.params;
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      'SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2',
-      [noteId, userId]
-    );
+    const noteCheck = await pool.query('SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2', [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadi veya yetkiniz yok' });
@@ -96,7 +91,7 @@ router.get('/:noteId', async (req, res) => {
 
     res.json({ success: true, shares: result.rows });
   } catch (error) {
-    console.error('Get shares error:', error);
+    logger.error('Get shares error:', error);
     res.status(500).json({ success: false, message: 'Paylasimlar yuklenirken hata' });
   }
 });
@@ -111,10 +106,10 @@ router.delete('/:shareId', async (req, res) => {
     const { shareId } = req.params;
 
     // Verify ownership (shared_by must be current user)
-    const result = await pool.query(
-      'DELETE FROM note_shares WHERE id = $1 AND shared_by = $2 RETURNING id',
-      [shareId, userId]
-    );
+    const result = await pool.query('DELETE FROM note_shares WHERE id = $1 AND shared_by = $2 RETURNING id', [
+      shareId,
+      userId,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Paylasim bulunamadi' });
@@ -122,7 +117,7 @@ router.delete('/:shareId', async (req, res) => {
 
     res.json({ success: true, message: 'Paylasim kaldirildi' });
   } catch (error) {
-    console.error('Delete share error:', error);
+    logger.error('Delete share error:', error);
     res.status(500).json({ success: false, message: 'Paylasim kaldirilirken hata' });
   }
 });
@@ -165,7 +160,7 @@ router.get('/', async (req, res) => {
       total: result.rows.length,
     });
   } catch (error) {
-    console.error('Shared with me error:', error);
+    logger.error('Shared with me error:', error);
     res.status(500).json({ success: false, message: 'Paylasilan notlar yuklenirken hata' });
   }
 });

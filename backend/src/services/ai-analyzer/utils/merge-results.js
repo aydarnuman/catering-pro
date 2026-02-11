@@ -1,7 +1,7 @@
 /**
  * Merge Results - Azure + Claude analiz sonuçlarını birleştirme
  * unified-pipeline.js'den extract edildi (refactoring)
- * 
+ *
  * Azure Document Intelligence ve Claude AI sonuçlarını akıllı merge eder:
  * - Confidence bazlı alan seçimi
  * - Claude öncelikli merge (Claude daha güvenilir semantic anlama)
@@ -49,10 +49,13 @@ export function mergeResults(azureResult, claudeAnalysis) {
     }
   }
   if (mergeDropped.length > 0) {
-    logger.info(`Merge confidence filtreleme: ${mergeDropped.length} alan conf < ${MIN_MERGE_CONFIDENCE} nedeniyle atılacak`, {
-      module: 'unified-pipeline',
-      droppedFields: mergeDropped.map(f => `${f.key}(${f.confidence}%)`).join(', '),
-    });
+    logger.info(
+      `Merge confidence filtreleme: ${mergeDropped.length} alan conf < ${MIN_MERGE_CONFIDENCE} nedeniyle atılacak`,
+      {
+        module: 'unified-pipeline',
+        droppedFields: mergeDropped.map((f) => `${f.key}(${f.confidence}%)`).join(', '),
+      }
+    );
   }
 
   // Azure tablolarından veri çıkar
@@ -185,10 +188,10 @@ export function mergeResults(azureResult, claudeAnalysis) {
       // Azure v5: ise_baslama_tarihi, is_bitis_tarihi
       start_date:
         getField('ise_baslama_tarihi', 'baslangic_tarihi', 'is_baslangic', 'start_date') ||
-        claudeAnalysis.dates?.start_date || null,
+        claudeAnalysis.dates?.start_date ||
+        null,
       end_date:
-        getField('is_bitis_tarihi', 'bitis_tarihi', 'is_bitis', 'end_date') ||
-        claudeAnalysis.dates?.end_date || null,
+        getField('is_bitis_tarihi', 'bitis_tarihi', 'is_bitis', 'end_date') || claudeAnalysis.dates?.end_date || null,
       tender_date: getField('ihale_tarihi', 'tender_date') || claudeAnalysis.dates?.tender_date || null,
     },
     financial: {
@@ -201,70 +204,50 @@ export function mergeResults(azureResult, claudeAnalysis) {
         getField('kisi_sayisi', 'toplam_kisi', 'total_persons') || claudeAnalysis.catering?.total_persons || null,
       daily_meals:
         getField('gunluk_toplam_ogun', 'gunluk_ogun', 'ogun_sayisi', 'daily_meals') ||
-        claudeAnalysis.catering?.daily_meals || null,
-      contract_duration:
-        getField('sozlesme_suresi', 'sure') || claudeAnalysis.catering?.contract_duration || null,
+        claudeAnalysis.catering?.daily_meals ||
+        null,
+      contract_duration: getField('sozlesme_suresi', 'sure') || claudeAnalysis.catering?.contract_duration || null,
       meal_types: getField('ogun_turleri', 'meal_types') || claudeAnalysis.catering?.meal_types || [],
       sample_menus: extractedTables.menus,
       gramaj: getField('gramaj_listesi', 'gramaj', 'gramaj_tablosu') || extractGramajData(extractedTables.gramaj),
 
       // ═══ AZURE v5 CATERİNG-SPESİFİK ALANLAR ═══
       // Kişi dağılımı (öğün bazlı)
-      breakfast_persons:
-        getField('kahvalti_kisi_sayisi') || claudeAnalysis.catering?.breakfast_persons || null,
-      lunch_persons:
-        getField('ogle_kisi_sayisi') || claudeAnalysis.catering?.lunch_persons || null,
-      dinner_persons:
-        getField('aksam_kisi_sayisi') || claudeAnalysis.catering?.dinner_persons || null,
-      diet_persons:
-        getField('diyet_kisi_sayisi') || claudeAnalysis.catering?.diet_persons || null,
+      breakfast_persons: getField('kahvalti_kisi_sayisi') || claudeAnalysis.catering?.breakfast_persons || null,
+      lunch_persons: getField('ogle_kisi_sayisi') || claudeAnalysis.catering?.lunch_persons || null,
+      dinner_persons: getField('aksam_kisi_sayisi') || claudeAnalysis.catering?.dinner_persons || null,
+      diet_persons: getField('diyet_kisi_sayisi') || claudeAnalysis.catering?.diet_persons || null,
 
       // Operasyonel bilgiler
-      service_days:
-        getField('hizmet_gun_sayisi') || claudeAnalysis.catering?.service_days || null,
-      kitchen_type:
-        getField('mutfak_tipi') || claudeAnalysis.catering?.kitchen_type || null,
-      service_type:
-        getField('servis_tipi') || claudeAnalysis.catering?.service_type || null,
-      meat_type:
-        getField('et_tipi') || claudeAnalysis.catering?.meat_type || null,
-      meal_variety:
-        getField('yemek_cesit_sayisi') || claudeAnalysis.catering?.meal_variety || null,
-      cooking_location:
-        getField('yemek_pisirilecek_yer') || claudeAnalysis.catering?.cooking_location || null,
-      labor_rate:
-        getField('iscilik_orani') || claudeAnalysis.catering?.labor_rate || null,
-      delivery_hours:
-        getField('dagitim_saatleri') || claudeAnalysis.catering?.delivery_hours || null,
-      quality_standards:
-        getField('kalite_standartlari') || claudeAnalysis.catering?.quality_standards || null,
-      food_safety_docs:
-        getField('gida_guvenligi_belgeleri') || claudeAnalysis.catering?.food_safety_docs || null,
+      service_days: getField('hizmet_gun_sayisi') || claudeAnalysis.catering?.service_days || null,
+      kitchen_type: getField('mutfak_tipi') || claudeAnalysis.catering?.kitchen_type || null,
+      service_type: getField('servis_tipi') || claudeAnalysis.catering?.service_type || null,
+      meat_type: getField('et_tipi') || claudeAnalysis.catering?.meat_type || null,
+      meal_variety: getField('yemek_cesit_sayisi') || claudeAnalysis.catering?.meal_variety || null,
+      cooking_location: getField('yemek_pisirilecek_yer') || claudeAnalysis.catering?.cooking_location || null,
+      labor_rate: getField('iscilik_orani') || claudeAnalysis.catering?.labor_rate || null,
+      delivery_hours: getField('dagitim_saatleri') || claudeAnalysis.catering?.delivery_hours || null,
+      quality_standards: getField('kalite_standartlari') || claudeAnalysis.catering?.quality_standards || null,
+      food_safety_docs: getField('gida_guvenligi_belgeleri') || claudeAnalysis.catering?.food_safety_docs || null,
 
       // Dağıtım ve ekipman
-      distribution_points:
-        getField('dagitim_noktalari') || claudeAnalysis.catering?.distribution_points || null,
-      equipment_list:
-        getField('ekipman_listesi') || claudeAnalysis.catering?.equipment_list || null,
-      material_list:
-        getField('malzeme_listesi') || claudeAnalysis.catering?.material_list || null,
+      distribution_points: getField('dagitim_noktalari') || claudeAnalysis.catering?.distribution_points || null,
+      equipment_list: getField('ekipman_listesi') || claudeAnalysis.catering?.equipment_list || null,
+      material_list: getField('malzeme_listesi') || claudeAnalysis.catering?.material_list || null,
 
       // Tablo verileri (Azure v5 custom model'den)
-      meal_distribution:
-        getField('ogun_dagilimi') || claudeAnalysis.catering?.meal_distribution || null,
-      unit_price_table:
-        getField('birim_fiyat_cetveli') || claudeAnalysis.catering?.unit_price_table || null,
-      menu_table:
-        getField('menu_tablosu') || claudeAnalysis.catering?.menu_table || null,
+      meal_distribution: getField('ogun_dagilimi') || claudeAnalysis.catering?.meal_distribution || null,
+      unit_price_table: getField('birim_fiyat_cetveli') || claudeAnalysis.catering?.unit_price_table || null,
+      menu_table: getField('menu_tablosu') || claudeAnalysis.catering?.menu_table || null,
     },
     personnel: {
       // Azure v5: toplam_personel_sayisi, personel_tablosu
       total_count:
         getField('toplam_personel_sayisi', 'personel_sayisi', 'toplam_personel') ||
-        claudeAnalysis.personnel?.total_count || null,
+        claudeAnalysis.personnel?.total_count ||
+        null,
       staff:
-        getField('personel_listesi', 'personel', 'personel_tablosu') ||
-        extractPersonnelData(extractedTables.personnel),
+        getField('personel_listesi', 'personel', 'personel_tablosu') || extractPersonnelData(extractedTables.personnel),
     },
     technical_requirements: getField('teknik_sartlar') || claudeAnalysis.technical_requirements || [],
     penalties: getField('ceza_kosullari', 'cezalar') || claudeAnalysis.penalties || [],

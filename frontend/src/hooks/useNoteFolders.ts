@@ -34,7 +34,16 @@ export function useNoteFolders() {
   );
 
   const updateFolder = useCallback(
-    async (id: number, params: { name?: string; color?: string; icon?: string; password?: string; remove_password?: boolean }) => {
+    async (
+      id: number,
+      params: {
+        name?: string;
+        color?: string;
+        icon?: string;
+        password?: string;
+        remove_password?: boolean;
+      }
+    ) => {
       const result = await noteFoldersAPI.update(id, params);
       if (result.success) {
         await mutate();
@@ -54,13 +63,10 @@ export function useNoteFolders() {
     [mutate]
   );
 
-  const unlockFolder = useCallback(
-    async (id: number, password: string) => {
-      const result = await noteFoldersAPI.unlock(id, password);
-      return result.success && result.unlocked;
-    },
-    []
-  );
+  const unlockFolder = useCallback(async (id: number, password: string) => {
+    const result = await noteFoldersAPI.unlock(id, password);
+    return result.success && result.unlocked;
+  }, []);
 
   const moveNote = useCallback(
     async (noteId: string, folderId: number | null) => {

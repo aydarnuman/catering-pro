@@ -110,9 +110,10 @@ export function EditableCell({
   // ─── Display mode (not editing) ───
   if (!editing) {
     // Number bar chart background
-    const barWidth = showBar && column.type === 'number' && columnMax > 0 && typeof value === 'number'
-      ? Math.min((value / columnMax) * 100, 100)
-      : 0;
+    const barWidth =
+      showBar && column.type === 'number' && columnMax > 0 && typeof value === 'number'
+        ? Math.min((value / columnMax) * 100, 100)
+        : 0;
 
     return (
       <Box
@@ -163,7 +164,9 @@ export function EditableCell({
             zIndex: 1,
           }}
         >
-          {column.type === 'number' && typeof value === 'number' ? fmtNum(value) : value || '\u00A0'}
+          {column.type === 'number' && typeof value === 'number'
+            ? fmtNum(value)
+            : value || '\u00A0'}
         </Text>
       </Box>
     );

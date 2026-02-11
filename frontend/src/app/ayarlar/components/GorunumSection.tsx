@@ -4,20 +4,16 @@ import {
   ColorSwatch,
   Divider,
   Group,
+  SegmentedControl,
   Slider,
   Stack,
   Switch,
   Text,
   Title,
   Tooltip,
+  useMantineColorScheme,
 } from '@mantine/core';
-import {
-  IconCheck,
-  IconDeviceDesktop,
-  IconMoon,
-  IconSun,
-} from '@tabler/icons-react';
-import { SegmentedControl, useMantineColorScheme } from '@mantine/core';
+import { IconCheck, IconDeviceDesktop, IconMoon, IconSun } from '@tabler/icons-react';
 import { SettingsCard } from '@/components/ui/cards';
 import type { UserPreferences } from './types';
 import { colorOptions } from './types';
@@ -123,9 +119,7 @@ export default function GorunumSection({
                 style={{ cursor: 'pointer' }}
                 size={36}
               >
-                {preferences.accentColor === option.value && (
-                  <IconCheck size={18} color="white" />
-                )}
+                {preferences.accentColor === option.value && <IconCheck size={18} color="white" />}
               </ColorSwatch>
             </Tooltip>
           ))}

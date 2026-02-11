@@ -16,14 +16,11 @@ import logger from '../utils/logger.js';
 // ─── CONSTANTS ───────────────────────────────────────────
 
 const HAL_URL = 'https://www.hal.gov.tr/Sayfalar/FiyatDetaylari.aspx';
-const TABLE_SELECTOR =
-  '#ctl00_ctl37_g_7e86b8d6_3aea_47cf_b1c1_939799a091e0_gvFiyatlar';
-const EVENT_TARGET =
-  'ctl00$ctl37$g_7e86b8d6_3aea_47cf_b1c1_939799a091e0$gvFiyatlar';
+const TABLE_SELECTOR = '#ctl00_ctl37_g_7e86b8d6_3aea_47cf_b1c1_939799a091e0_gvFiyatlar';
+const EVENT_TARGET = 'ctl00$ctl37$g_7e86b8d6_3aea_47cf_b1c1_939799a091e0$gvFiyatlar';
 const MAX_PAGES = 25; // Güvenlik sınırı
 const REQUEST_TIMEOUT = 20_000;
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
 // ─── SCRAPER ─────────────────────────────────────────────
 
@@ -67,9 +64,7 @@ function parseHalPage($) {
  */
 function parseBultenTarihi($) {
   const text = $.text();
-  const match = text.match(
-    /Bülten Tarihi\s*:\s*(\d{2})\.(\d{2})\.(\d{4})/
-  );
+  const match = text.match(/Bülten Tarihi\s*:\s*(\d{2})\.(\d{2})\.(\d{4})/);
   if (match) {
     return `${match[3]}-${match[2]}-${match[1]}`; // YYYY-MM-DD
   }
@@ -106,9 +101,7 @@ async function fetchAllHalPages() {
   }
 
   let html = await res1.text();
-  const cookies = (res1.headers.getSetCookie?.() || [])
-    .map((c) => c.split(';')[0])
-    .join('; ');
+  const cookies = (res1.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
 
   let $ = cheerio.load(html);
   const bultenTarihi = parseBultenTarihi($);
@@ -190,15 +183,7 @@ export async function syncHalFiyatlari() {
            islem_hacmi = EXCLUDED.islem_hacmi,
            updated_at = NOW()
          RETURNING (xmax = 0) AS is_insert`,
-        [
-          row.urunAdi,
-          row.urunCinsi,
-          row.urunTuru,
-          row.ortFiyat,
-          row.islemHacmi,
-          row.birim,
-          bultenTarihi,
-        ]
+        [row.urunAdi, row.urunCinsi, row.urunTuru, row.ortFiyat, row.islemHacmi, row.birim, bultenTarihi]
       );
 
       if (result.rows[0]?.is_insert) inserted++;
@@ -228,10 +213,7 @@ export async function syncHalFiyatlari() {
  * Türkçe karakter normalize (büyük harf + I/İ düzeltme)
  */
 function turkishUpper(str) {
-  return str
-    .replace(/i/g, 'İ')
-    .replace(/ı/g, 'I')
-    .toUpperCase();
+  return str.replace(/i/g, 'İ').replace(/ı/g, 'I').toUpperCase();
 }
 
 /**
@@ -308,9 +290,7 @@ export async function searchHalPrices(urunAdi) {
     // En güncel bülten tarihindeki verileri filtrele
     const latestDate = result.rows[0].bulten_tarihi;
     const latestRows = result.rows.filter(
-      (r) =>
-        new Date(r.bulten_tarihi).toISOString().split('T')[0] ===
-        new Date(latestDate).toISOString().split('T')[0]
+      (r) => new Date(r.bulten_tarihi).toISOString().split('T')[0] === new Date(latestDate).toISOString().split('T')[0]
     );
 
     // Cinslere göre grupla
@@ -328,10 +308,7 @@ export async function searchHalPrices(urunAdi) {
     const totalHacim = sonuclar.reduce((s, r) => s + (r.islemHacmi || 1), 0);
     const agirlikliOrt =
       totalHacim > 0
-        ? sonuclar.reduce(
-            (s, r) => s + r.fiyat * ((r.islemHacmi || 1) / totalHacim),
-            0
-          )
+        ? sonuclar.reduce((s, r) => s + r.fiyat * ((r.islemHacmi || 1) / totalHacim), 0)
         : sonuclar.reduce((s, r) => s + r.fiyat, 0) / sonuclar.length;
 
     const fiyatlar = sonuclar.map((r) => r.fiyat);

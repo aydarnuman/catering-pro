@@ -173,7 +173,7 @@ function hesaplaCalismaSuresi(iseGiris, cikisTarihi) {
 async function getKidemTavani(tarih) {
   const d = new Date(tarih);
   const yil = d.getFullYear();
-  const donem = (d.getMonth() + 1) <= 6 ? 1 : 2;
+  const donem = d.getMonth() + 1 <= 6 ? 1 : 2;
 
   const sql = `
     SELECT tavan_tutar 

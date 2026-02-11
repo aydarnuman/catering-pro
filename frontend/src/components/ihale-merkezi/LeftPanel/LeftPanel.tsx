@@ -298,12 +298,7 @@ export function LeftPanel({
           }}
         >
           <Tooltip label="Paneli Kapat" position="left" withArrow>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              onClick={onToggleCollapse}
-            >
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={onToggleCollapse}>
               <IconChevronLeft size={14} />
             </ActionIcon>
           </Tooltip>

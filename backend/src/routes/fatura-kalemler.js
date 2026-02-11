@@ -948,10 +948,9 @@ router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
     );
 
     // Özet bilgisi (IQR temizli tek satır)
-    const ozetResult = await query(
-      `SELECT * FROM urun_fiyat_ozet WHERE urun_kart_id = $1`,
-      [urunId]
-    ).catch(() => ({ rows: [] }));
+    const ozetResult = await query(`SELECT * FROM urun_fiyat_ozet WHERE urun_kart_id = $1`, [urunId]).catch(() => ({
+      rows: [],
+    }));
 
     res.json({
       success: true,

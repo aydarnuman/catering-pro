@@ -248,15 +248,22 @@ export function PiyasaFiyatlariSection({
   // Özet tablodan IQR temizli değerler (varsa)
   const minFiyat = fiyatOzet?.birim_fiyat_min
     ? Number(fiyatOzet.birim_fiyat_min)
-    : birimFiyatlar.length > 0 ? Math.min(...birimFiyatlar) : 0;
+    : birimFiyatlar.length > 0
+      ? Math.min(...birimFiyatlar)
+      : 0;
   const maxFiyat = fiyatOzet?.birim_fiyat_max
     ? Number(fiyatOzet.birim_fiyat_max)
-    : birimFiyatlar.length > 0 ? Math.max(...birimFiyatlar) : 0;
+    : birimFiyatlar.length > 0
+      ? Math.max(...birimFiyatlar)
+      : 0;
   const ortFiyat = fiyatOzet?.birim_fiyat_ekonomik
     ? Number(fiyatOzet.birim_fiyat_ekonomik)
-    : birimFiyatlar.length > 0 ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length : 0;
+    : birimFiyatlar.length > 0
+      ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length
+      : 0;
   const enYeniTarih = fiyatOzet?.son_guncelleme || rafFiyatlar[0]?.arastirma_tarihi;
-  const birimTipi = fiyatOzet?.birim_tipi || (rafFiyatlar.length > 0 ? parseBirimTipi(rafFiyatlar[0]) : 'kg');
+  const birimTipi =
+    fiyatOzet?.birim_tipi || (rafFiyatlar.length > 0 ? parseBirimTipi(rafFiyatlar[0]) : 'kg');
   const confidence = fiyatOzet?.confidence ? Number(fiyatOzet.confidence) : null;
 
   // Sıralı liste (birim fiyata göre artan)
@@ -520,7 +527,9 @@ export function PiyasaFiyatlariSection({
             {birimTipi} basina fiyat araligi
           </Text>
           {confidence !== null && (
-            <Tooltip label={`Güvenilirlik: %${Math.round(confidence * 100)} (kaynak çeşitliliği + fiyat tutarlılığı + güncellik)`}>
+            <Tooltip
+              label={`Güvenilirlik: %${Math.round(confidence * 100)} (kaynak çeşitliliği + fiyat tutarlılığı + güncellik)`}
+            >
               <Badge
                 size="xs"
                 variant="light"

@@ -254,20 +254,23 @@ export default function TeklifModal({
 
   // Generic maliyet detay güncelleme
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic nested path update
-  const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: string | number | boolean | any[]) => {
-    setTeklifData((prev) => {
-      const yeniDetay = JSON.parse(JSON.stringify(prev.maliyet_detay));
-      const keys = path.split('.');
-      let obj: Record<string, unknown> = yeniDetay[kalem].detay;
+  const updateMaliyetDetay = useCallback(
+    (kalem: MaliyetKalemKey, path: string, value: string | number | boolean | any[]) => {
+      setTeklifData((prev) => {
+        const yeniDetay = JSON.parse(JSON.stringify(prev.maliyet_detay));
+        const keys = path.split('.');
+        let obj: Record<string, unknown> = yeniDetay[kalem].detay;
 
-      for (let i = 0; i < keys.length - 1; i++) {
-        obj = obj[keys[i]] as Record<string, unknown>;
-      }
-      obj[keys[keys.length - 1]] = value;
+        for (let i = 0; i < keys.length - 1; i++) {
+          obj = obj[keys[i]] as Record<string, unknown>;
+        }
+        obj[keys[keys.length - 1]] = value;
 
-      return { ...prev, maliyet_detay: yeniDetay };
-    });
-  }, []);
+        return { ...prev, maliyet_detay: yeniDetay };
+      });
+    },
+    []
+  );
 
   // ========== MALZEME FORMU ==========
   const renderMalzemeForm = () => {

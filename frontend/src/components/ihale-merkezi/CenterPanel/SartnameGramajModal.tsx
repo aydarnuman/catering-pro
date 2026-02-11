@@ -86,7 +86,11 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                             {(tablo.headers ?? []).map((header, hIdx) => (
                               <Table.Th
                                 key={`modal-ogun-h-${tabloIdx}-${hIdx}`}
-                                style={hIdx > 0 ? { textAlign: 'right', whiteSpace: 'nowrap' } : undefined}
+                                style={
+                                  hIdx > 0
+                                    ? { textAlign: 'right', whiteSpace: 'nowrap' }
+                                    : undefined
+                                }
                               >
                                 {header}
                               </Table.Th>
@@ -95,19 +99,32 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                         </Table.Thead>
                         <Table.Tbody>
                           {(tablo.rows ?? []).map((row, rIdx) => {
-                            const firstCol = String(row[0] || '').toLowerCase().trim();
+                            const firstCol = String(row[0] || '')
+                              .toLowerCase()
+                              .trim();
                             const isToplam = firstCol === 'toplam';
                             return (
                               <Table.Tr
                                 key={`modal-ogun-r-${tabloIdx}-${rIdx}`}
-                                style={isToplam ? { fontWeight: 700, backgroundColor: 'var(--mantine-color-orange-0)' } : undefined}
+                                style={
+                                  isToplam
+                                    ? {
+                                        fontWeight: 700,
+                                        backgroundColor: 'var(--mantine-color-orange-0)',
+                                      }
+                                    : undefined
+                                }
                               >
                                 {row.map((cell, cIdx) => (
                                   <Table.Td
                                     key={`modal-ogun-c-${tabloIdx}-${rIdx}-${cIdx}`}
                                     style={cIdx > 0 ? { textAlign: 'right' } : undefined}
                                   >
-                                    <Text size="xs" fw={isToplam ? 700 : cIdx === 0 ? 500 : undefined} c={cIdx > 0 && !isToplam ? 'orange' : undefined}>
+                                    <Text
+                                      size="xs"
+                                      fw={isToplam ? 700 : cIdx === 0 ? 500 : undefined}
+                                      c={cIdx > 0 && !isToplam ? 'orange' : undefined}
+                                    >
                                       {cell}
                                     </Text>
                                   </Table.Td>
@@ -152,12 +169,11 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                 <Group gap="md" mt="md">
                   {analysisData.gunluk_ogun_sayisi &&
                     analysisData.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
-                    <Badge variant="outline" color="orange" size="md">
-                      Günlük: {analysisData.gunluk_ogun_sayisi} öğün
-                    </Badge>
-                  )}
-                  {analysisData.kisi_sayisi &&
-                    analysisData.kisi_sayisi !== 'Belirtilmemiş' && (
+                      <Badge variant="outline" color="orange" size="md">
+                        Günlük: {analysisData.gunluk_ogun_sayisi} öğün
+                      </Badge>
+                    )}
+                  {analysisData.kisi_sayisi && analysisData.kisi_sayisi !== 'Belirtilmemiş' && (
                     <Badge variant="outline" color="blue" size="md">
                       Kişi: {analysisData.kisi_sayisi}
                     </Badge>

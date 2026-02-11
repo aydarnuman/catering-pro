@@ -9,8 +9,8 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { createCariSchema, updateCariSchema } from '../validations/cariler.js';
 import { logAPI, logError } from '../utils/logger.js';
+import { createCariSchema, updateCariSchema } from '../validations/cariler.js';
 
 const router = express.Router();
 
@@ -189,39 +189,15 @@ router.get('/:id', async (req, res) => {
  *       400:
  *         description: Geçersiz veri
  */
-router.post('/', authenticate, validate(createCariSchema), requirePermission('cari', 'create'), auditLog('cari'), async (req, res) => {
-  try {
-    const {
-      tip,
-      unvan,
-      yetkili,
-      vergi_no,
-      vergi_dairesi,
-      telefon,
-      email,
-      adres,
-      il,
-      ilce,
-      borc = 0,
-      alacak = 0,
-      kredi_limiti = 0,
-      banka_adi,
-      iban,
-      notlar,
-      etiket,
-    } = req.body;
-
-    const result = await query(
-      `
-      INSERT INTO cariler (
-        tip, unvan, yetkili, vergi_no, vergi_dairesi,
-        telefon, email, adres, il, ilce,
-        borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
-      ) RETURNING *
-    `,
-      [
+router.post(
+  '/',
+  authenticate,
+  validate(createCariSchema),
+  requirePermission('cari', 'create'),
+  auditLog('cari'),
+  async (req, res) => {
+    try {
+      const {
         tip,
         unvan,
         yetkili,
@@ -232,36 +208,67 @@ router.post('/', authenticate, validate(createCariSchema), requirePermission('ca
         adres,
         il,
         ilce,
-        borc,
-        alacak,
-        kredi_limiti,
+        borc = 0,
+        alacak = 0,
+        kredi_limiti = 0,
         banka_adi,
         iban,
         notlar,
         etiket,
-      ]
-    );
+      } = req.body;
 
-    logAPI('Cariler', 'Yeni cari oluşturuldu', { cariId: result.rows[0].id, unvan });
+      const result = await query(
+        `
+      INSERT INTO cariler (
+        tip, unvan, yetkili, vergi_no, vergi_dairesi,
+        telefon, email, adres, il, ilce,
+        borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+      ) RETURNING *
+    `,
+        [
+          tip,
+          unvan,
+          yetkili,
+          vergi_no,
+          vergi_dairesi,
+          telefon,
+          email,
+          adres,
+          il,
+          ilce,
+          borc,
+          alacak,
+          kredi_limiti,
+          banka_adi,
+          iban,
+          notlar,
+          etiket,
+        ]
+      );
 
-    res.status(201).json({
-      success: true,
-      data: result.rows[0],
-      message: 'Cari başarıyla oluşturuldu',
-    });
-  } catch (error) {
-    logError('Cari Oluşturma', error, { unvan: req.body.unvan });
+      logAPI('Cariler', 'Yeni cari oluşturuldu', { cariId: result.rows[0].id, unvan });
 
-    if (error.code === '23505') {
-      return res.status(400).json({
-        success: false,
-        error: 'Bu vergi numarası zaten kayıtlı',
+      res.status(201).json({
+        success: true,
+        data: result.rows[0],
+        message: 'Cari başarıyla oluşturuldu',
       });
-    }
+    } catch (error) {
+      logError('Cari Oluşturma', error, { unvan: req.body.unvan });
 
-    res.status(500).json({ success: false, error: error.message });
+      if (error.code === '23505') {
+        return res.status(400).json({
+          success: false,
+          error: 'Bu vergi numarası zaten kayıtlı',
+        });
+      }
+
+      res.status(500).json({ success: false, error: error.message });
+    }
   }
-});
+);
 
 /**
  * @swagger
@@ -281,51 +288,58 @@ router.post('/', authenticate, validate(createCariSchema), requirePermission('ca
  *       404:
  *         description: Cari bulunamadı
  */
-router.put('/:id', authenticate, validate(updateCariSchema), requirePermission('cari', 'edit'), auditLog('cari'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+router.put(
+  '/:id',
+  authenticate,
+  validate(updateCariSchema),
+  requirePermission('cari', 'edit'),
+  auditLog('cari'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
 
-    updates.id = undefined;
-    updates.bakiye = undefined;
-    updates.created_at = undefined;
-    updates.updated_at = undefined;
+      updates.id = undefined;
+      updates.bakiye = undefined;
+      updates.created_at = undefined;
+      updates.updated_at = undefined;
 
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Güncellenecek alan bulunamadı',
-      });
-    }
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Güncellenecek alan bulunamadı',
+        });
+      }
 
-    const setClause = Object.keys(updates)
-      .map((key, index) => `${key} = $${index + 2}`)
-      .join(', ');
+      const setClause = Object.keys(updates)
+        .map((key, index) => `${key} = $${index + 2}`)
+        .join(', ');
 
-    const values = [id, ...Object.values(updates)];
+      const values = [id, ...Object.values(updates)];
 
-    const result = await query(
-      `UPDATE cariler SET ${setClause}, updated_at = NOW() 
+      const result = await query(
+        `UPDATE cariler SET ${setClause}, updated_at = NOW() 
        WHERE id = $1 RETURNING *`,
-      values
-    );
+        values
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Cari bulunamadı' });
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Cari bulunamadı' });
+      }
+
+      logAPI('Cariler', 'Cari güncellendi', { cariId: id });
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Cari güncellendi',
+      });
+    } catch (error) {
+      logError('Cari Güncelleme', error, { cariId: req.params.id });
+      res.status(500).json({ success: false, error: error.message });
     }
-
-    logAPI('Cariler', 'Cari güncellendi', { cariId: id });
-
-    res.json({
-      success: true,
-      data: result.rows[0],
-      message: 'Cari güncellendi',
-    });
-  } catch (error) {
-    logError('Cari Güncelleme', error, { cariId: req.params.id });
-    res.status(500).json({ success: false, error: error.message });
   }
-});
+);
 
 /**
  * @swagger

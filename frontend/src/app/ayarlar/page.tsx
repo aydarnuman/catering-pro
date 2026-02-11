@@ -192,17 +192,11 @@ function AyarlarContent() {
         );
 
       case 'bildirimler':
-        return (
-          <BildirimlerSection preferences={preferences} savePreferences={savePreferences} />
-        );
+        return <BildirimlerSection preferences={preferences} savePreferences={savePreferences} />;
 
       case 'sistem':
         return (
-          <SistemSection
-            preferences={preferences}
-            savePreferences={savePreferences}
-            user={user}
-          />
+          <SistemSection preferences={preferences} savePreferences={savePreferences} user={user} />
         );
 
       case 'kisayollar':

@@ -50,12 +50,7 @@ export function MobileMenuNav({ activeCategory, onCategoryChange }: MobileMenuNa
               >
                 {item.icon}
               </ThemeIcon>
-              <Text
-                size="10px"
-                mt={2}
-                c={isActive ? 'blue' : 'dimmed'}
-                fw={isActive ? 600 : 400}
-              >
+              <Text size="10px" mt={2} c={isActive ? 'blue' : 'dimmed'} fw={isActive ? 600 : 400}>
                 {item.label}
               </Text>
             </UnstyledButton>

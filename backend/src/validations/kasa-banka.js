@@ -18,11 +18,7 @@ export const createHesapSchema = z.object({
   banka_adi: z.string().max(100).optional(),
   sube: z.string().max(100).optional(),
   hesap_no: z.string().max(50).optional(),
-  iban: z
-    .string()
-    .max(34, 'IBAN 34 karakterden uzun olamaz')
-    .optional()
-    .or(z.literal('')),
+  iban: z.string().max(34, 'IBAN 34 karakterden uzun olamaz').optional().or(z.literal('')),
   para_birimi: z.enum(['TRY', 'USD', 'EUR', 'GBP']).optional().default('TRY'),
   bakiye: z.number().default(0),
   kredi_limiti: z.number().min(0, 'Kredi limiti negatif olamaz').default(0),
@@ -43,7 +39,7 @@ const hareketTipiEnum = z.enum(['giris', 'cikis'], {
 export const createHareketSchema = z.object({
   hesap_id: z.number({ required_error: 'Hesap ID gerekli' }).int().positive('Geçerli bir hesap ID gerekli'),
   hareket_tipi: hareketTipiEnum,
-  tutar: z.number({ required_error: 'Tutar gerekli' }).positive('Tutar 0\'dan büyük olmalı'),
+  tutar: z.number({ required_error: 'Tutar gerekli' }).positive("Tutar 0'dan büyük olmalı"),
   aciklama: z.string().max(500).optional(),
   belge_no: z.string().max(50).optional(),
   tarih: z.string().optional(),
@@ -56,7 +52,7 @@ export const createTransferSchema = z
   .object({
     kaynak_hesap_id: z.number({ required_error: 'Kaynak hesap ID gerekli' }).int().positive(),
     hedef_hesap_id: z.number({ required_error: 'Hedef hesap ID gerekli' }).int().positive(),
-    tutar: z.number({ required_error: 'Tutar gerekli' }).positive('Tutar 0\'dan büyük olmalı'),
+    tutar: z.number({ required_error: 'Tutar gerekli' }).positive("Tutar 0'dan büyük olmalı"),
     aciklama: z.string().max(500).optional(),
     tarih: z.string().optional(),
   })
@@ -80,7 +76,7 @@ export const createCekSenetSchema = z.object({
   yonu: cekSenetYonuEnum,
   belge_no: z.string().max(50).optional(),
   seri_no: z.string().max(50).optional(),
-  tutar: z.number({ required_error: 'Tutar gerekli' }).positive('Tutar 0\'dan büyük olmalı'),
+  tutar: z.number({ required_error: 'Tutar gerekli' }).positive("Tutar 0'dan büyük olmalı"),
   doviz: z.enum(['TRY', 'USD', 'EUR', 'GBP']).optional().default('TRY'),
   kesim_tarihi: z.string().optional(),
   vade_tarihi: z.string().optional(),

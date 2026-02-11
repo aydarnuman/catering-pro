@@ -14,9 +14,19 @@ router.use(authenticate);
 
 // Valid context types
 const VALID_CONTEXT_TYPES = [
-  'tender', 'customer', 'event', 'project', 'contractor',
-  'invoice', 'stock', 'personnel', 'purchasing', 'asset',
-  'finance', 'menu', 'recipe',
+  'tender',
+  'customer',
+  'event',
+  'project',
+  'contractor',
+  'invoice',
+  'stock',
+  'personnel',
+  'purchasing',
+  'asset',
+  'finance',
+  'menu',
+  'recipe',
 ];
 
 /**
