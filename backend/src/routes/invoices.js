@@ -35,6 +35,7 @@ router.get('/stats', async (_req, res) => {
     const stats = result.rows[0];
 
     res.json({
+      success: true,
       toplam_fatura: parseInt(stats.toplam_fatura, 10) || 0,
       bekleyen_fatura: parseInt(stats.bekleyen_fatura, 10) || 0,
       onaylanan_fatura: parseInt(stats.onaylanan_fatura, 10) || 0,
@@ -45,7 +46,7 @@ router.get('/stats', async (_req, res) => {
       bekleyen_tutar: Math.round(parseFloat(stats.bekleyen_tutar)) || 0,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

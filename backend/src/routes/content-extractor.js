@@ -29,7 +29,7 @@ router.get('/announcement/:tenderId', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     const tender = result.rows[0];
@@ -37,7 +37,7 @@ router.get('/announcement/:tenderId', async (req, res) => {
     if (!tender.announcement_content) {
       return res
         .status(404)
-        .json({ error: 'Bu ihale için ilan içeriği henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
+        .json({ success: false, error: 'Bu ihale için ilan içeriği henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
     }
 
     // PDF oluştur - Türkçe font ile
@@ -88,7 +88,7 @@ router.get('/announcement/:tenderId', async (req, res) => {
 
     doc.end();
   } catch (_error) {
-    res.status(500).json({ error: 'PDF oluşturulamadı' });
+    res.status(500).json({ success: false, error: 'PDF oluşturulamadı' });
   }
 });
 
@@ -105,7 +105,7 @@ router.get('/goods-services/:tenderId', async (req, res) => {
     const result = await query('SELECT id, title, goods_services_content FROM tenders WHERE id = $1', [tenderId]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     const tender = result.rows[0];
@@ -113,7 +113,7 @@ router.get('/goods-services/:tenderId', async (req, res) => {
     if (!tender.goods_services_content) {
       return res
         .status(404)
-        .json({ error: 'Bu ihale için mal/hizmet listesi henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
+        .json({ success: false, error: 'Bu ihale için mal/hizmet listesi henüz çekilmemiş. Scraper yeniden çalıştırılmalı.' });
     }
 
     const serviceData = tender.goods_services_content;
@@ -147,7 +147,7 @@ router.get('/goods-services/:tenderId', async (req, res) => {
     res.write(csvContent);
     res.end();
   } catch (_error) {
-    res.status(500).json({ error: 'CSV oluşturulamadı' });
+    res.status(500).json({ success: false, error: 'CSV oluşturulamadı' });
   }
 });
 
@@ -174,12 +174,12 @@ router.get('/status/:tenderId', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (_error) {
-    res.status(500).json({ error: 'Durum kontrol edilemedi' });
+    res.status(500).json({ success: false, error: 'Durum kontrol edilemedi' });
   }
 });
 

@@ -833,12 +833,12 @@ router.put('/gorevler/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Görev bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Görev bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

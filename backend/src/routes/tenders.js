@@ -202,7 +202,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logger.error('İhale listesi hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -237,7 +237,7 @@ router.get('/stats', async (_req, res) => {
     });
   } catch (error) {
     logger.error('İstatistik hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -258,7 +258,7 @@ router.get('/cities', async (_req, res) => {
     });
   } catch (error) {
     logger.error('Şehir listesi hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -270,7 +270,7 @@ router.get('/:id', async (req, res) => {
     const result = await query('SELECT * FROM tenders WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     // İhaleye ait dökümanları getir
@@ -285,7 +285,7 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('İhale detay hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -326,7 +326,7 @@ router.patch('/:id', async (req, res) => {
     }
 
     if (updates.length === 0) {
-      return res.status(400).json({ error: 'Güncellenecek alan belirtilmedi' });
+      return res.status(400).json({ success: false, error: 'Güncellenecek alan belirtilmedi' });
     }
 
     updates.push(`updated_at = NOW()`);
@@ -338,7 +338,7 @@ router.patch('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     res.json({
@@ -348,7 +348,7 @@ router.patch('/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('İhale güncelleme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -360,7 +360,7 @@ router.delete('/:id', async (req, res) => {
     const result = await query('DELETE FROM tenders WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     res.json({
@@ -369,7 +369,7 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('İhale silme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

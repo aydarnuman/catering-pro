@@ -281,9 +281,9 @@ router.post('/avans', async (req, res) => {
       );
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

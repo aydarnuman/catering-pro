@@ -18,15 +18,15 @@ router.get('/download/:tenderId/:type', async (req, res) => {
     // İhale döküman linklerini database'den al
     const result = await query(
       `
-            SELECT document_links, title 
-            FROM tenders 
+            SELECT document_links, title
+            FROM tenders
             WHERE id = $1
         `,
       [tenderId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     const tender = result.rows[0];
@@ -74,6 +74,7 @@ router.get('/download/:tenderId/:type', async (req, res) => {
 
     if (!downloadUrl) {
       return res.status(404).json({
+        success: false,
         error: 'Bu tip döküman bulunamadı',
         availableTypes: Object.keys(documentLinks),
       });
@@ -112,6 +113,7 @@ router.get('/download/:tenderId/:type', async (req, res) => {
   } catch (error) {
     logger.error('Döküman proxy hatası', { error: error.message, stack: error.stack, tenderId, type });
     res.status(500).json({
+      success: false,
       error: 'Döküman indirme hatası',
       message: error.message,
     });
@@ -128,15 +130,15 @@ router.get('/list/:tenderId', async (req, res) => {
 
     const result = await query(
       `
-            SELECT document_links, title 
-            FROM tenders 
+            SELECT document_links, title
+            FROM tenders
             WHERE id = $1
         `,
       [tenderId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     const tender = result.rows[0];
@@ -163,6 +165,7 @@ router.get('/list/:tenderId', async (req, res) => {
     }
 
     res.json({
+      success: true,
       tenderId: parseInt(tenderId, 10),
       tenderTitle: tender.title,
       documents: availableDocuments,
@@ -170,7 +173,7 @@ router.get('/list/:tenderId', async (req, res) => {
     });
   } catch (error) {
     logger.error('Döküman listeleme hatası', { error: error.message, stack: error.stack, tenderId });
-    res.status(500).json({ error: 'Döküman listeleme hatası' });
+    res.status(500).json({ success: false, error: 'Döküman listeleme hatası' });
   }
 });
 
@@ -237,7 +240,7 @@ router.post('/scrape/:tenderId', async (req, res) => {
     const result = await query('SELECT id, url, title FROM tenders WHERE id = $1', [tenderId]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İhale bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
 
     const tender = result.rows[0];
@@ -268,6 +271,7 @@ router.post('/scrape/:tenderId', async (req, res) => {
   } catch (error) {
     logger.error('On-demand scraping hatası', { error: error.message, stack: error.stack, tenderId });
     res.status(500).json({
+      success: false,
       error: 'Döküman çekme hatası',
       message: error.message,
     });

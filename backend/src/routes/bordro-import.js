@@ -75,9 +75,9 @@ router.get('/projeler', async (_req, res) => {
     `;
 
     const result = await query(sql);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -89,9 +89,9 @@ router.get('/proje/:projeId/personeller', async (req, res) => {
   try {
     const { projeId } = req.params;
     const personeller = await getProjePersonelleri(projeId);
-    res.json(personeller);
+    res.json({ success: true, data: personeller });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -113,7 +113,7 @@ router.get('/check/:projeId/:yil/:ay', async (req, res) => {
       toplam_net: parseFloat(existing.toplam_net) || 0,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -125,13 +125,13 @@ router.get('/check/:projeId/:yil/:ay', async (req, res) => {
 router.post('/analyze', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Dosya yüklenmedi' });
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
 
     const { projeId, yil, ay, forceAI, templateId } = req.body;
 
     if (!yil || !ay) {
-      return res.status(400).json({ error: 'Yıl ve ay bilgisi gerekli' });
+      return res.status(400).json({ success: false, error: 'Yıl ve ay bilgisi gerekli' });
     }
 
     const result = await analyzeBordroFile(
@@ -149,9 +149,9 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     result.tempFile = req.file.path;
     result.originalFilename = req.file.originalname;
 
-    res.json(result);
+    res.json({ success: true, ...result });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -165,11 +165,11 @@ router.post('/confirm', async (req, res) => {
     const { projeId, yil, ay, records, tempFile, originalFilename, createMissing: _createMissing, tahakkuk } = req.body;
 
     if (!records || !Array.isArray(records) || records.length === 0) {
-      return res.status(400).json({ error: 'Kayıt bulunamadı' });
+      return res.status(400).json({ success: false, error: 'Kayıt bulunamadı' });
     }
 
     if (!yil || !ay) {
-      return res.status(400).json({ error: 'Yıl ve ay bilgisi gerekli' });
+      return res.status(400).json({ success: false, error: 'Yıl ve ay bilgisi gerekli' });
     }
 
     // Eşleşen kayıtları filtrele
@@ -200,9 +200,9 @@ router.post('/confirm', async (req, res) => {
       fs.unlinkSync(tempFile);
     }
 
-    res.json(result);
+    res.json({ success: true, ...result });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -215,7 +215,7 @@ router.post('/create-personel', async (req, res) => {
     const { personel_adi, tc_kimlik, sgk_no, brut_maas, projeId } = req.body;
 
     if (!personel_adi) {
-      return res.status(400).json({ error: 'Personel adı gerekli' });
+      return res.status(400).json({ success: false, error: 'Personel adı gerekli' });
     }
 
     // Record objesi oluştur
@@ -231,10 +231,10 @@ router.post('/create-personel', async (req, res) => {
     if (result.success) {
       res.json(result);
     } else {
-      res.status(400).json({ error: result.error || 'Personel oluşturulamadı' });
+      res.status(400).json({ success: false, error: result.error || 'Personel oluşturulamadı' });
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -252,7 +252,7 @@ router.post('/cancel', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -279,7 +279,7 @@ router.get('/tahakkuk/:projeId/:yil/:ay', async (req, res) => {
 
     res.json({ exists: true, ...tahakkuk });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -314,9 +314,9 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
       parseInt(ay, 10),
     ]);
 
-    res.json(result.rows[0] || {});
+    res.json({ success: true, data: result.rows[0] || {} });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -332,9 +332,9 @@ router.get('/templates', async (req, res) => {
   try {
     const { projeId } = req.query;
     const templates = await listTemplates(projeId ? parseInt(projeId, 10) : null);
-    res.json(templates);
+    res.json({ success: true, data: templates });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -348,12 +348,12 @@ router.get('/templates/:id', async (req, res) => {
     const result = await query('SELECT * FROM bordro_templates WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Template bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Template bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -366,11 +366,11 @@ router.post('/templates', async (req, res) => {
     const { ad, aciklama, proje_id, kolon_mapping, baslik_satiri, veri_baslangic_satiri, format_imza } = req.body;
 
     if (!ad) {
-      return res.status(400).json({ error: 'Template adı gerekli' });
+      return res.status(400).json({ success: false, error: 'Template adı gerekli' });
     }
 
     if (!kolon_mapping || Object.keys(kolon_mapping).length === 0) {
-      return res.status(400).json({ error: 'Kolon eşleştirmesi gerekli' });
+      return res.status(400).json({ success: false, error: 'Kolon eşleştirmesi gerekli' });
     }
 
     const template = await saveTemplate({
@@ -383,9 +383,9 @@ router.post('/templates', async (req, res) => {
       format_imza,
     });
 
-    res.json(template);
+    res.json({ success: true, data: template });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -422,12 +422,12 @@ router.put('/templates/:id', async (req, res) => {
     const result = await query(sql, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Template bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Template bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -443,7 +443,7 @@ router.delete('/templates/:id', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -456,13 +456,13 @@ router.post('/templates/from-analysis', async (req, res) => {
     const { ad, aciklama, proje_id, suggestedMapping, formatSignature } = req.body;
 
     if (!ad) {
-      return res.status(400).json({ error: 'Template adı gerekli' });
+      return res.status(400).json({ success: false, error: 'Template adı gerekli' });
     }
 
     if (!suggestedMapping || Object.keys(suggestedMapping).length === 0) {
       return res
         .status(400)
-        .json({ error: 'Kolon eşleştirmesi bulunamadı. AI analizi sonrasında template kaydedebilirsiniz.' });
+        .json({ success: false, error: 'Kolon eşleştirmesi bulunamadı. AI analizi sonrasında template kaydedebilirsiniz.' });
     }
 
     const template = await saveTemplate({
@@ -475,9 +475,9 @@ router.post('/templates/from-analysis', async (req, res) => {
       format_imza: formatSignature || null,
     });
 
-    res.json(template);
+    res.json({ success: true, data: template });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

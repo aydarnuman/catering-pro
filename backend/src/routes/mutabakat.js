@@ -25,7 +25,7 @@ router.get('/ekstre/:cariId', async (req, res) => {
     // Cari bilgisi
     const cariResult = await query('SELECT * FROM cariler WHERE id = $1', [cariId]);
     if (cariResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Cari bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Cari bulunamadı' });
     }
     const cari = cariResult.rows[0];
 
@@ -160,19 +160,22 @@ router.get('/ekstre/:cariId', async (req, res) => {
     const toplamAlacak = hareketler.reduce((sum, h) => sum + h.alacak, 0);
 
     res.json({
-      cari,
-      donem: {
-        baslangic: baslangicTarihi,
-        bitis: bitisTarihi,
+      success: true,
+      data: {
+        cari,
+        donem: {
+          baslangic: baslangicTarihi,
+          bitis: bitisTarihi,
+        },
+        acilis_bakiyesi: acilisBakiyesi,
+        hareketler,
+        toplam_borc: toplamBorc,
+        toplam_alacak: toplamAlacak,
+        kapanis_bakiyesi: bakiye,
       },
-      acilis_bakiyesi: acilisBakiyesi,
-      hareketler,
-      toplam_borc: toplamBorc,
-      toplam_alacak: toplamAlacak,
-      kapanis_bakiyesi: bakiye,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -188,7 +191,7 @@ router.get('/fatura-bazli/:cariId', async (req, res) => {
     // Cari bilgisi
     const cariResult = await query('SELECT * FROM cariler WHERE id = $1', [cariId]);
     if (cariResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Cari bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Cari bulunamadı' });
     }
     const cari = cariResult.rows[0];
 
@@ -290,12 +293,15 @@ router.get('/fatura-bazli/:cariId', async (req, res) => {
     };
 
     res.json({
-      cari,
-      faturalar,
-      ozet,
+      success: true,
+      data: {
+        cari,
+        faturalar,
+        ozet,
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -320,7 +326,7 @@ router.get('/donemsel/:cariId', async (req, res) => {
     // Cari bilgisi
     const cariResult = await query('SELECT * FROM cariler WHERE id = $1', [cariId]);
     if (cariResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Cari bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Cari bulunamadı' });
     }
     const cari = cariResult.rows[0];
 
@@ -421,25 +427,28 @@ router.get('/donemsel/:cariId', async (req, res) => {
     const kapanisBakiyesi = acilisBakiyesi + donemBorc - donemAlacak;
 
     res.json({
-      cari,
-      donem: {
-        yil: year,
-        ay: month,
-        ay_adi: new Date(year, month - 1).toLocaleString('tr-TR', { month: 'long' }),
-        baslangic,
-        bitis,
+      success: true,
+      data: {
+        cari,
+        donem: {
+          yil: year,
+          ay: month,
+          ay_adi: new Date(year, month - 1).toLocaleString('tr-TR', { month: 'long' }),
+          baslangic,
+          bitis,
+        },
+        acilis_bakiyesi: acilisBakiyesi,
+        satis_faturalari: satisFatura,
+        alis_faturalari: alisFatura,
+        tahsilatlar: tahsilat,
+        odemeler: odeme,
+        donem_borc: donemBorc,
+        donem_alacak: donemAlacak,
+        kapanis_bakiyesi: kapanisBakiyesi,
       },
-      acilis_bakiyesi: acilisBakiyesi,
-      satis_faturalari: satisFatura,
-      alis_faturalari: alisFatura,
-      tahsilatlar: tahsilat,
-      odemeler: odeme,
-      donem_borc: donemBorc,
-      donem_alacak: donemAlacak,
-      kapanis_bakiyesi: kapanisBakiyesi,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -454,7 +463,7 @@ router.post('/fatura-odeme', async (req, res) => {
     // Fatura kontrol
     const faturaResult = await query('SELECT * FROM invoices WHERE id = $1', [fatura_id]);
     if (faturaResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Fatura bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Fatura bulunamadı' });
     }
 
     // Mevcut ödemeleri kontrol
@@ -467,6 +476,7 @@ router.post('/fatura-odeme', async (req, res) => {
 
     if (mevcutOdeme + parseFloat(tutar) > faturaTutari) {
       return res.status(400).json({
+        success: false,
         error: 'Ödeme tutarı fatura tutarını aşamaz',
         fatura_tutari: faturaTutari,
         mevcut_odeme: mevcutOdeme,
@@ -483,9 +493,9 @@ router.post('/fatura-odeme', async (req, res) => {
       [fatura_id, tutar, tarih || new Date().toISOString().split('T')[0], aciklama, belge_no, hareket_id, cek_senet_id]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -515,9 +525,9 @@ router.get('/fatura-odemeler/:faturaId', async (req, res) => {
       [faturaId]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

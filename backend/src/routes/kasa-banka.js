@@ -192,7 +192,7 @@ router.delete('/hesaplar/:id', async (req, res) => {
   try {
     const { id } = req.params;
     await query('DELETE FROM kasa_banka_hesaplari WHERE id = $1', [id]);
-    res.json({ success: true, message: 'Hesap silindi' });
+    res.json({ success: true, data: { message: 'Hesap silindi' } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -488,11 +488,11 @@ router.post('/cek-senet/:id/tahsil', async (req, res) => {
     const cekSenet = cekSenetResult.rows[0];
 
     if (!cekSenet) {
-      return res.status(404).json({ error: 'Çek/Senet bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Çek/Senet bulunamadı' });
     }
 
     if (cekSenet.durum !== 'beklemede') {
-      return res.status(400).json({ error: 'Sadece beklemedeki çek/senetler tahsil edilebilir' });
+      return res.status(400).json({ success: false, error: 'Sadece beklemedeki çek/senetler tahsil edilebilir' });
     }
 
     const yeniDurum = cekSenet.yonu === 'alinan' ? 'tahsil_edildi' : 'odendi';
@@ -559,15 +559,15 @@ router.post('/cek-senet/:id/ciro', async (req, res) => {
     const cekSenet = cekSenetResult.rows[0];
 
     if (!cekSenet) {
-      return res.status(404).json({ error: 'Çek/Senet bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Çek/Senet bulunamadı' });
     }
 
     if (cekSenet.durum !== 'beklemede') {
-      return res.status(400).json({ error: 'Sadece beklemedeki çek/senetler ciro edilebilir' });
+      return res.status(400).json({ success: false, error: 'Sadece beklemedeki çek/senetler ciro edilebilir' });
     }
 
     if (cekSenet.yonu !== 'alinan') {
-      return res.status(400).json({ error: 'Sadece alınan çek/senetler ciro edilebilir' });
+      return res.status(400).json({ success: false, error: 'Sadece alınan çek/senetler ciro edilebilir' });
     }
 
     // Çek/seneti güncelle
@@ -601,7 +601,7 @@ router.post('/cek-senet/:id/iade', async (req, res) => {
     const cekSenet = cekSenetResult.rows[0];
 
     if (!cekSenet) {
-      return res.status(404).json({ error: 'Çek/Senet bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Çek/Senet bulunamadı' });
     }
 
     // Çek/seneti güncelle
@@ -629,7 +629,7 @@ router.delete('/cek-senet/:id', async (req, res) => {
   try {
     const { id } = req.params;
     await query('DELETE FROM cek_senetler WHERE id = $1', [id]);
-    res.json({ success: true, message: 'Çek/Senet silindi' });
+    res.json({ success: true, data: { message: 'Çek/Senet silindi' } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

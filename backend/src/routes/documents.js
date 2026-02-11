@@ -52,7 +52,7 @@ const upload = multer({
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Dosya yüklenmedi' });
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
 
     const { tender_id, uploaded_by } = req.body;
@@ -119,7 +119,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       data: document,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -130,7 +130,7 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     const file = req.file;
 
     if (!file) {
-      return res.status(400).json({ error: 'Dosya gerekli' });
+      return res.status(400).json({ success: false, error: 'Dosya gerekli' });
     }
 
     const ext = path.extname(file.originalname).toLowerCase();
@@ -298,7 +298,7 @@ router.get('/', async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -335,7 +335,7 @@ router.get('/:id', async (req, res) => {
     const result = await query('SELECT * FROM documents WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Döküman bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
 
     res.json({
@@ -343,7 +343,7 @@ router.get('/:id', async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -355,7 +355,7 @@ router.delete('/:id', async (req, res) => {
     const result = await query('SELECT * FROM documents WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Döküman bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
 
     const document = result.rows[0];
@@ -373,7 +373,7 @@ router.delete('/:id', async (req, res) => {
       message: 'Döküman silindi',
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

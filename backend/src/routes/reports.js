@@ -22,10 +22,10 @@ router.get('/catalog/:module?', (req, res) => {
   try {
     const { module } = req.params;
     const catalog = reportRegistry.getCatalog(module || null);
-    res.json(catalog);
+    res.json({ success: true, data: catalog });
   } catch (error) {
     logger.error('[Reports] Catalog error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -38,7 +38,7 @@ router.post('/generate', async (req, res) => {
     const { reportId, format = 'pdf', context = {} } = req.body;
 
     if (!reportId) {
-      return res.status(400).json({ error: 'reportId gerekli' });
+      return res.status(400).json({ success: false, error: 'reportId gerekli' });
     }
 
     const result = await reportRegistry.generateReport(reportId, format, {
@@ -51,7 +51,7 @@ router.post('/generate', async (req, res) => {
     res.send(result.buffer);
   } catch (error) {
     logger.error('[Reports] Generate error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -65,7 +65,7 @@ router.post('/preview', async (req, res) => {
     const { reportId, format = 'pdf', context = {} } = req.body;
 
     if (!reportId) {
-      return res.status(400).json({ error: 'reportId gerekli' });
+      return res.status(400).json({ success: false, error: 'reportId gerekli' });
     }
 
     const result = await reportRegistry.previewReport(reportId, format, {
@@ -78,11 +78,11 @@ router.post('/preview', async (req, res) => {
       res.send(result.data);
     } else {
       // JSON tablo verisi
-      res.json(result.data);
+      res.json({ success: true, data: result.data });
     }
   } catch (error) {
     logger.error('[Reports] Preview error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -95,11 +95,11 @@ router.post('/bulk', async (req, res) => {
     const { reports = [] } = req.body;
 
     if (!reports.length) {
-      return res.status(400).json({ error: 'En az bir rapor seçin' });
+      return res.status(400).json({ success: false, error: 'En az bir rapor seçin' });
     }
 
     if (reports.length > 20) {
-      return res.status(400).json({ error: 'Tek seferde en fazla 20 rapor indirilebilir' });
+      return res.status(400).json({ success: false, error: 'Tek seferde en fazla 20 rapor indirilebilir' });
     }
 
     const files = [];
@@ -122,7 +122,7 @@ router.post('/bulk', async (req, res) => {
     }
 
     if (files.length === 0) {
-      return res.status(500).json({ error: 'Hiçbir rapor üretilemedi', details: errors });
+      return res.status(500).json({ success: false, error: 'Hiçbir rapor üretilemedi', details: errors });
     }
 
     const zipBuffer = await createBulkZip(files);
@@ -138,7 +138,7 @@ router.post('/bulk', async (req, res) => {
     res.send(zipBuffer);
   } catch (error) {
     logger.error('[Reports] Bulk error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -151,11 +151,11 @@ router.post('/mail', async (req, res) => {
     const { reports = [], email, subject } = req.body;
 
     if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'Geçerli e-posta adresi gerekli' });
+      return res.status(400).json({ success: false, error: 'Geçerli e-posta adresi gerekli' });
     }
 
     if (!reports.length) {
-      return res.status(400).json({ error: 'En az bir rapor seçin' });
+      return res.status(400).json({ success: false, error: 'En az bir rapor seçin' });
     }
 
     // Tek rapor ise direkt ek olarak gönder
@@ -191,7 +191,7 @@ router.post('/mail', async (req, res) => {
     }
 
     if (files.length === 0) {
-      return res.status(500).json({ error: 'Rapor üretilemedi' });
+      return res.status(500).json({ success: false, error: 'Rapor üretilemedi' });
     }
 
     const zipBuffer = await createBulkZip(files);
@@ -208,7 +208,7 @@ router.post('/mail', async (req, res) => {
     res.json({ success: true, message: `${files.length} rapor mail olarak gönderildi` });
   } catch (error) {
     logger.error('[Reports] Mail error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

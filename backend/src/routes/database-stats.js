@@ -64,7 +64,7 @@ router.get('/summary', async (_req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message, success: false });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

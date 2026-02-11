@@ -13,9 +13,9 @@ router.get('/turler', async (_req, res) => {
     const result = await query(`
       SELECT * FROM izin_turleri WHERE aktif = TRUE ORDER BY ad
     `);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -73,9 +73,9 @@ router.get('/talepler', async (req, res) => {
     sql += ` ORDER BY it.created_at DESC`;
 
     const result = await query(sql, params);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -94,7 +94,7 @@ router.post('/talepler', async (req, res) => {
     } = req.body;
 
     if (!personel_id || !izin_turu_id || !baslangic_tarihi || !bitis_tarihi) {
-      return res.status(400).json({ error: 'Personel, izin türü, başlangıç ve bitiş tarihi zorunludur' });
+      return res.status(400).json({ success: false, error: 'Personel, izin türü, başlangıç ve bitiş tarihi zorunludur' });
     }
 
     // Çakışma kontrolü
@@ -113,7 +113,7 @@ router.post('/talepler', async (req, res) => {
     );
 
     if (cakismaKontrol.rows.length > 0) {
-      return res.status(400).json({ error: 'Bu tarih aralığında zaten bir izin talebi mevcut' });
+      return res.status(400).json({ success: false, error: 'Bu tarih aralığında zaten bir izin talebi mevcut' });
     }
 
     const result = await query(
@@ -136,9 +136,9 @@ router.post('/talepler', async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -149,7 +149,7 @@ router.patch('/talepler/:id/durum', async (req, res) => {
     const { durum, onaylayan_id, red_nedeni } = req.body;
 
     if (!['onaylandi', 'reddedildi', 'iptal'].includes(durum)) {
-      return res.status(400).json({ error: 'Geçersiz durum' });
+      return res.status(400).json({ success: false, error: 'Geçersiz durum' });
     }
 
     const result = await query(
@@ -167,12 +167,12 @@ router.patch('/talepler/:id/durum', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'İzin talebi bulunamadı' });
+      return res.status(404).json({ success: false, error: 'İzin talebi bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -189,12 +189,12 @@ router.delete('/talepler/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Sadece bekleyen talepler silinebilir' });
+      return res.status(400).json({ success: false, error: 'Sadece bekleyen talepler silinebilir' });
     }
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -221,7 +221,7 @@ router.get('/personel/:id/ozet', async (req, res) => {
     );
 
     if (personelResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Personel bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Personel bulunamadı' });
     }
 
     const personel = personelResult.rows[0];
@@ -290,7 +290,7 @@ router.get('/personel/:id/ozet', async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -303,7 +303,7 @@ router.post('/kidem-hesapla', async (req, res) => {
     const { personel_id, cikis_tarihi, cikis_nedeni } = req.body;
 
     if (!personel_id) {
-      return res.status(400).json({ error: 'Personel ID zorunludur' });
+      return res.status(400).json({ success: false, error: 'Personel ID zorunludur' });
     }
 
     const cikisTarihi = cikis_tarihi ? new Date(cikis_tarihi) : new Date();
@@ -317,7 +317,7 @@ router.post('/kidem-hesapla', async (req, res) => {
     );
 
     if (personelResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Personel bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Personel bulunamadı' });
     }
 
     const personel = personelResult.rows[0];
@@ -428,7 +428,7 @@ router.post('/kidem-hesapla', async (req, res) => {
       toplam_tazminat: Math.round(toplamTazminat * 100) / 100,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -449,9 +449,9 @@ router.get('/stats', async (_req, res) => {
          AND EXTRACT(YEAR FROM baslangic_tarihi) = EXTRACT(YEAR FROM CURRENT_DATE)) as bu_yil_toplam_gun
     `);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -471,9 +471,9 @@ router.get('/bugun-izinli', async (_req, res) => {
       ORDER BY it.bitis_tarihi
     `);
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

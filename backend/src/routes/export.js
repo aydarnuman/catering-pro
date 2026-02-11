@@ -56,7 +56,7 @@ router.get('/personel/excel', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -90,7 +90,7 @@ router.get('/personel/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -103,7 +103,7 @@ router.post('/personel/mail', async (req, res) => {
     const { email, format = 'excel', departman, durum } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+      return res.status(400).json({ success: false, error: 'E-posta adresi gerekli' });
     }
 
     let sql = 'SELECT * FROM personeller WHERE 1=1';
@@ -156,7 +156,7 @@ router.post('/personel/mail', async (req, res) => {
 
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -201,7 +201,7 @@ router.get('/fatura/excel', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -242,7 +242,7 @@ router.get('/fatura/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -254,7 +254,7 @@ router.post('/fatura/mail', async (req, res) => {
     const { email, format = 'excel', type, status, startDate, endDate } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+      return res.status(400).json({ success: false, error: 'E-posta adresi gerekli' });
     }
 
     let sql = 'SELECT * FROM invoices WHERE 1=1';
@@ -315,7 +315,7 @@ router.post('/fatura/mail', async (req, res) => {
 
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -352,7 +352,7 @@ router.get('/cari/excel', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -385,7 +385,7 @@ router.get('/cari/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -398,7 +398,7 @@ router.post('/cari/mail', async (req, res) => {
     const { email, format = 'excel', tip, aktif } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+      return res.status(400).json({ success: false, error: 'E-posta adresi gerekli' });
     }
 
     let sql = 'SELECT * FROM cariler WHERE 1=1';
@@ -451,7 +451,7 @@ router.post('/cari/mail', async (req, res) => {
 
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -487,7 +487,7 @@ router.get('/stok/excel', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -519,7 +519,7 @@ router.get('/stok/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -532,7 +532,7 @@ router.post('/stok/mail', async (req, res) => {
     const { email, format = 'excel', kategori, kritik } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+      return res.status(400).json({ success: false, error: 'E-posta adresi gerekli' });
     }
 
     let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
@@ -584,7 +584,7 @@ router.post('/stok/mail', async (req, res) => {
 
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -651,7 +651,7 @@ router.get('/personel/proje/:projeId', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -730,7 +730,7 @@ router.get('/bordro/:donem', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -846,7 +846,7 @@ router.get('/izin-raporu', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -896,7 +896,7 @@ router.get('/fatura/vadesi-gecen', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -952,7 +952,7 @@ router.get('/stok/kritik', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1001,7 +1001,7 @@ router.get('/cari/bakiye', async (req, res) => {
       res.send(buffer);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1018,7 +1018,7 @@ router.post('/dilekce/pdf', async (req, res) => {
     const { title, type, content, ihale } = req.body;
 
     if (!content) {
-      return res.status(400).json({ error: 'Dilekçe içeriği gerekli' });
+      return res.status(400).json({ success: false, error: 'Dilekçe içeriği gerekli' });
     }
 
     const buffer = await createDilekcePDF({
@@ -1042,7 +1042,7 @@ router.post('/dilekce/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1055,7 +1055,7 @@ router.post('/dilekce/docx', async (req, res) => {
     const { title, type, content, ihale } = req.body;
 
     if (!content) {
-      return res.status(400).json({ error: 'Dilekçe içeriği gerekli' });
+      return res.status(400).json({ success: false, error: 'Dilekçe içeriği gerekli' });
     }
 
     // Basit metin olarak oluştur (Word açabilir)
@@ -1086,7 +1086,7 @@ router.post('/dilekce/docx', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(fullContent);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1125,7 +1125,7 @@ router.get('/rapor-tipleri/:modul', (req, res) => {
     ],
   };
 
-  res.json(raporlar[modul] || []);
+  res.json({ success: true, data: raporlar[modul] || [] });
 });
 
 export default router;

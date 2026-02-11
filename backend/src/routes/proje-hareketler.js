@@ -57,12 +57,15 @@ router.get('/ozet/:projeId', async (req, res) => {
     const giderler = kategoriResult.rows.filter((k) => k.tip === 'gider');
 
     res.json({
-      ozet: ozetResult.rows[0],
-      gelirler,
-      giderler,
+      success: true,
+      data: {
+        ozet: ozetResult.rows[0],
+        gelirler,
+        giderler,
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -114,9 +117,9 @@ router.get('/:projeId', async (req, res) => {
       [...params, limit, offset]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -138,9 +141,9 @@ router.post('/', async (req, res) => {
       [proje_id, tip, kategori, tutar, tarih, aciklama, odendi || false]
     );
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -202,7 +205,7 @@ router.post('/personel-gideri', async (req, res) => {
 
     res.json({ success: true, hareketler });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -230,9 +233,9 @@ router.patch('/:id', async (req, res) => {
       [tutar, aciklama, odendi, id, proje_id]
     );
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -254,12 +257,12 @@ router.delete('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Sadece manuel eklenen hareketler silinebilir' });
+      return res.status(400).json({ success: false, error: 'Sadece manuel eklenen hareketler silinebilir' });
     }
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -297,9 +300,9 @@ router.get('/atanmamis', async (req, res) => {
       params
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -351,11 +354,14 @@ router.get('/tum-projeler/ozet', async (req, res) => {
     );
 
     res.json({
-      projeler: result.rows,
-      genel: genelToplam,
+      success: true,
+      data: {
+        projeler: result.rows,
+        genel: genelToplam,
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

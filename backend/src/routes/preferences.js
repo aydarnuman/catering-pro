@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercihler getirme hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -80,7 +80,7 @@ router.put('/', async (req, res) => {
     const preferences = req.body;
 
     if (!preferences || typeof preferences !== 'object') {
-      return res.status(400).json({ error: 'Geçersiz tercih formatı' });
+      return res.status(400).json({ success: false, error: 'Geçersiz tercih formatı' });
     }
 
     const updates = [];
@@ -113,7 +113,7 @@ router.put('/', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercihler güncelleme hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -151,7 +151,7 @@ router.get('/:key', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Tercih bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Tercih bulunamadı' });
     }
 
     res.json({
@@ -162,7 +162,7 @@ router.get('/:key', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercih getirme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -199,7 +199,7 @@ router.put('/:key', async (req, res) => {
     const { value } = req.body;
 
     if (value === undefined) {
-      return res.status(400).json({ error: 'value alanı gerekli' });
+      return res.status(400).json({ success: false, error: 'value alanı gerekli' });
     }
 
     await query(
@@ -220,7 +220,7 @@ router.put('/:key', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercih güncelleme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -256,7 +256,7 @@ router.delete('/:key', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Tercih bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Tercih bulunamadı' });
     }
 
     res.json({
@@ -266,7 +266,7 @@ router.delete('/:key', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercih silme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -312,7 +312,7 @@ router.get('/export/all', async (req, res) => {
     res.json(exportData);
   } catch (error) {
     logger.error('Tercih export hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -345,7 +345,7 @@ router.post('/import/all', async (req, res) => {
     const { preferences, merge = true } = req.body;
 
     if (!preferences || typeof preferences !== 'object') {
-      return res.status(400).json({ error: 'Geçersiz import formatı' });
+      return res.status(400).json({ success: false, error: 'Geçersiz import formatı' });
     }
 
     // Eğer merge değilse önce mevcut tercihleri sil
@@ -388,7 +388,7 @@ router.post('/import/all', async (req, res) => {
     });
   } catch (error) {
     logger.error('Tercih import hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

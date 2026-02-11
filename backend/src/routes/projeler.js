@@ -91,12 +91,12 @@ router.get('/:id', async (req, res) => {
     );
 
     if (projeResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Proje bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
     }
 
-    res.json(projeResult.rows[0]);
+    res.json({ success: true, data: projeResult.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -151,9 +151,9 @@ router.get('/:id/siparisler', async (req, res) => {
       [id]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -184,9 +184,9 @@ router.get('/:id/hareketler', async (req, res) => {
     sql += ' ORDER BY tarih DESC';
 
     const result = await query(sql, params);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -252,7 +252,7 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     if (!ad) {
-      return res.status(400).json({ error: 'Proje adı zorunludur' });
+      return res.status(400).json({ success: false, error: 'Proje adı zorunludur' });
     }
 
     const result = await query(
@@ -327,9 +327,9 @@ router.post('/', async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -496,12 +496,12 @@ router.put('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Proje bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -517,7 +517,7 @@ router.delete('/:id', async (req, res) => {
     if (hard === 'true') {
       const result = await query('DELETE FROM projeler WHERE id = $1 RETURNING *', [id]);
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Proje bulunamadı' });
+        return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
       }
       res.json({ success: true, deleted: result.rows[0] });
     } else {
@@ -530,12 +530,12 @@ router.delete('/:id', async (req, res) => {
         [id]
       );
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Proje bulunamadı' });
+        return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
       }
       res.json({ success: true, deactivated: result.rows[0] });
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -596,12 +596,15 @@ router.get('/:id/ozet', async (req, res) => {
     );
 
     res.json({
-      personel: personelOzet.rows[0],
-      siparis: siparisOzet.rows[0],
-      hareket: hareketOzet.rows[0],
+      success: true,
+      data: {
+        personel: personelOzet.rows[0],
+        siparis: siparisOzet.rows[0],
+        hareket: hareketOzet.rows[0],
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -626,7 +629,7 @@ router.get('/:id/tam-ozet', async (req, res) => {
     );
 
     if (projeResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Proje bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
     }
     const proje = projeResult.rows[0];
 
@@ -760,9 +763,11 @@ router.get('/:id/tam-ozet', async (req, res) => {
 
     // Response
     res.json({
-      proje,
+      success: true,
+      data: {
+        proje,
 
-      personel: {
+        personel: {
         aktif_sayisi: parseInt(personelResult.rows[0].aktif_sayisi, 10) || 0,
         toplam_net_maas: parseFloat(personelResult.rows[0].toplam_net_maas) || 0,
         toplam_bordro_maas: parseFloat(personelResult.rows[0].toplam_bordro_maas) || 0,
@@ -814,14 +819,15 @@ router.get('/:id/tam-ozet', async (req, res) => {
       demirbas,
       cek_senet: cekSenet,
 
-      _meta: {
-        tarih: now.toISOString(),
-        yil,
-        ay,
+        _meta: {
+          tarih: now.toISOString(),
+          yil,
+          ay,
+        },
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -908,7 +914,9 @@ router.get('/stats/genel-ozet', async (_req, res) => {
     `);
 
     res.json({
-      projeler: {
+      success: true,
+      data: {
+        projeler: {
         toplam: parseInt(projeSayilari.rows[0].toplam, 10) || 0,
         aktif: parseInt(projeSayilari.rows[0].aktif, 10) || 0,
         tamamlanan: parseInt(projeSayilari.rows[0].tamamlanan, 10) || 0,
@@ -950,14 +958,15 @@ router.get('/stats/genel-ozet', async (_req, res) => {
         maas_yuku: parseFloat(p.maas_yuku) || 0,
       })),
 
-      _meta: {
-        tarih: new Date().toISOString(),
-        yil,
-        ay,
+        _meta: {
+          tarih: new Date().toISOString(),
+          yil,
+          ay,
+        },
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -975,7 +984,7 @@ router.post('/:id/personeller', async (req, res) => {
     const { personel_id, gorev, baslangic_tarihi, bitis_tarihi, notlar } = req.body;
 
     if (!personel_id) {
-      return res.status(400).json({ error: 'Personel ID zorunludur' });
+      return res.status(400).json({ success: false, error: 'Personel ID zorunludur' });
     }
 
     // Mevcut aktif atamayı kontrol et
@@ -988,7 +997,7 @@ router.post('/:id/personeller', async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Bu personel zaten bu projede görevli' });
+      return res.status(400).json({ success: false, error: 'Bu personel zaten bu projede görevli' });
     }
 
     const result = await query(
@@ -1007,9 +1016,9 @@ router.post('/:id/personeller', async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1023,7 +1032,7 @@ router.post('/:id/personeller/bulk', async (req, res) => {
     const { personel_ids, gorev, baslangic_tarihi } = req.body;
 
     if (!personel_ids || !Array.isArray(personel_ids) || personel_ids.length === 0) {
-      return res.status(400).json({ error: 'En az bir personel seçmelisiniz' });
+      return res.status(400).json({ success: false, error: 'En az bir personel seçmelisiniz' });
     }
 
     const results = [];
@@ -1060,9 +1069,9 @@ router.post('/:id/personeller/bulk', async (req, res) => {
       }
     }
 
-    res.status(201).json({ success: results, errors });
+    res.status(201).json({ success: true, data: { success: results, errors } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1091,12 +1100,12 @@ router.put('/personel-atama/:atamaId', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Atama bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Atama bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1122,12 +1131,12 @@ router.delete('/personel-atama/:atamaId', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Atama bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Atama bulunamadı' });
     }
 
     res.json({ success: true, deactivated: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1171,7 +1180,7 @@ router.get('/raporlar/harcama-ozeti', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1256,7 +1265,7 @@ router.get('/raporlar/maliyet-analizi', async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1282,9 +1291,9 @@ router.get('/:id/atamasiz-personeller', async (req, res) => {
       [id]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

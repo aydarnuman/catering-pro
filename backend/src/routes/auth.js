@@ -67,7 +67,7 @@ router.post('/login', async (req, res) => {
     const userAgent = req.headers['user-agent'] || 'unknown';
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email ve şifre gerekli' });
+      return res.status(400).json({ success: false, error: 'Email ve şifre gerekli' });
     }
 
     // Kilit durumunu kontrol et
@@ -75,6 +75,7 @@ router.post('/login', async (req, res) => {
     if (lockStatus.isLocked) {
       const minutesRemaining = Math.ceil((lockStatus.lockedUntil.getTime() - Date.now()) / 60000);
       return res.status(423).json({
+        success: false,
         error: `Hesabınız kilitlendi. ${minutesRemaining} dakika sonra tekrar deneyin.`,
         code: 'ACCOUNT_LOCKED',
         lockedUntil: lockStatus.lockedUntil.toISOString(),
@@ -87,7 +88,7 @@ router.post('/login', async (req, res) => {
 
     if (result.rows.length === 0) {
       await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
-      return res.status(401).json({ error: 'Geçersiz email veya şifre' });
+      return res.status(401).json({ success: false, error: 'Geçersiz email veya şifre' });
     }
 
     const user = result.rows[0];
@@ -95,6 +96,7 @@ router.post('/login', async (req, res) => {
     // password_hash kontrolü
     if (!user.password_hash) {
       return res.status(401).json({
+        success: false,
         error: 'Bu kullanıcı için şifre tanımlanmamış. Lütfen yöneticinizle iletişime geçin.',
         code: 'PASSWORD_NOT_SET',
       });
@@ -111,6 +113,7 @@ router.post('/login', async (req, res) => {
           : 0;
 
         return res.status(423).json({
+          success: false,
           error: `Çok fazla başarısız deneme. Hesabınız ${minutesRemaining} dakika kilitlendi.`,
           code: 'ACCOUNT_LOCKED',
           minutesRemaining,
@@ -118,6 +121,7 @@ router.post('/login', async (req, res) => {
       }
 
       return res.status(401).json({
+        success: false,
         error: 'Geçersiz email veya şifre',
         remainingAttempts: attemptResult.remainingAttempts,
       });
@@ -187,7 +191,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     logger.error('Login hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -199,13 +203,13 @@ router.post('/register', async (req, res) => {
     const { email, password, name, role = 'user', user_type } = req.body;
 
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Tüm alanlar gerekli' });
+      return res.status(400).json({ success: false, error: 'Tüm alanlar gerekli' });
     }
 
     // Email kontrolü
     const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Bu email zaten kullanılıyor' });
+      return res.status(400).json({ success: false, error: 'Bu email zaten kullanılıyor' });
     }
 
     // Şifre hash
@@ -231,7 +235,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     logger.error('Register hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -247,7 +251,7 @@ router.get('/me', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     let decoded;
@@ -255,9 +259,9 @@ router.get('/me', async (req, res) => {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtError) {
       if (jwtError.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token süresi dolmuş', code: 'TOKEN_EXPIRED' });
+        return res.status(401).json({ success: false, error: 'Token süresi dolmuş', code: 'TOKEN_EXPIRED' });
       }
-      return res.status(401).json({ error: 'Geçersiz token' });
+      return res.status(401).json({ success: false, error: 'Geçersiz token' });
     }
 
     const result = await query(
@@ -266,7 +270,7 @@ router.get('/me', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
     }
 
     const user = result.rows[0];
@@ -283,7 +287,7 @@ router.get('/me', async (req, res) => {
     });
   } catch (error) {
     logger.error('Auth hatası', { error: error.message });
-    res.status(401).json({ error: 'Geçersiz token' });
+    res.status(401).json({ success: false, error: 'Geçersiz token' });
   }
 });
 
@@ -298,14 +302,14 @@ router.put('/profile', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const { name } = req.body;
 
     if (!name || name.trim().length < 2) {
-      return res.status(400).json({ error: 'Geçerli bir isim girin (en az 2 karakter)' });
+      return res.status(400).json({ success: false, error: 'Geçerli bir isim girin (en az 2 karakter)' });
     }
 
     const result = await query(
@@ -318,7 +322,7 @@ router.put('/profile', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
     }
 
     res.json({
@@ -328,7 +332,7 @@ router.put('/profile', async (req, res) => {
     });
   } catch (error) {
     logger.error('Profil güncelleme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -343,19 +347,20 @@ router.put('/password', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Mevcut ve yeni şifre gerekli' });
+      return res.status(400).json({ success: false, error: 'Mevcut ve yeni şifre gerekli' });
     }
 
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.valid) {
       return res.status(400).json({
+        success: false,
         error: 'Şifre güvenlik gereksinimlerini karşılamıyor',
         details: passwordValidation.errors,
       });
@@ -366,14 +371,14 @@ router.put('/password', async (req, res) => {
     ]);
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
     }
 
     const user = userResult.rows[0];
     const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
 
     if (!validPassword) {
-      return res.status(400).json({ error: 'Mevcut şifre yanlış' });
+      return res.status(400).json({ success: false, error: 'Mevcut şifre yanlış' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -393,7 +398,7 @@ router.put('/password', async (req, res) => {
     });
   } catch (error) {
     logger.error('Şifre değiştirme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -418,7 +423,7 @@ router.post('/logout', async (req, res) => {
     res.json({ success: true, message: 'Çıkış yapıldı' });
   } catch (error) {
     logger.error('Logout hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -430,7 +435,7 @@ router.post('/refresh', async (req, res) => {
     const refreshToken = req.cookies?.refresh_token;
 
     if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token bulunamadı' });
+      return res.status(401).json({ success: false, error: 'Refresh token bulunamadı' });
     }
 
     const tokenHash = hashToken(refreshToken);
@@ -452,12 +457,12 @@ router.post('/refresh', async (req, res) => {
       tokenRecord = result.rows[0];
     } catch (dbError) {
       logger.warn('Refresh tokens tablosu mevcut değil', { error: dbError.message });
-      return res.status(401).json({ error: 'Token yenileme henüz aktif değil' });
+      return res.status(401).json({ success: false, error: 'Token yenileme henüz aktif değil' });
     }
 
     if (!tokenRecord) {
       res.clearCookie('refresh_token', { path: '/' });
-      return res.status(401).json({ error: 'Geçersiz veya süresi dolmuş refresh token' });
+      return res.status(401).json({ success: false, error: 'Geçersiz veya süresi dolmuş refresh token' });
     }
 
     // Session activity güncelle
@@ -489,7 +494,7 @@ router.post('/refresh', async (req, res) => {
     });
   } catch (error) {
     logger.error('Token refresh hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -504,7 +509,7 @@ router.post('/revoke-all', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -527,7 +532,7 @@ router.post('/revoke-all', async (req, res) => {
     res.json({ success: true, message: 'Tüm oturumlar kapatıldı' });
   } catch (error) {
     logger.error('Revoke all hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -538,7 +543,7 @@ router.post('/validate-password', (req, res) => {
   const { password } = req.body;
 
   if (!password) {
-    return res.status(400).json({ error: 'Şifre gerekli' });
+    return res.status(400).json({ success: false, error: 'Şifre gerekli' });
   }
 
   const result = validatePassword(password);
@@ -563,19 +568,19 @@ router.get('/users', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (_jwtError) {
-      return res.status(401).json({ error: 'Geçersiz token' });
+      return res.status(401).json({ success: false, error: 'Geçersiz token' });
     }
 
     const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
     if (!isAdmin) {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     let result;
@@ -611,7 +616,7 @@ router.get('/users', async (req, res) => {
     });
   } catch (error) {
     logger.error('Kullanıcı listeleme hatası', { error: error.message });
-    res.status(500).json({ error: 'Kullanıcılar yüklenemedi' });
+    res.status(500).json({ success: false, error: 'Kullanıcılar yüklenemedi' });
   }
 });
 
@@ -626,14 +631,14 @@ router.put('/users/:id', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
     if (!isAdmin) {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -704,7 +709,7 @@ router.put('/users/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
     }
 
     res.json({
@@ -714,7 +719,7 @@ router.put('/users/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('Kullanıcı güncelleme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -729,25 +734,25 @@ router.delete('/users/:id', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
 
     if (parseInt(id, 10) === decoded.id) {
-      return res.status(400).json({ error: 'Kendinizi silemezsiniz' });
+      return res.status(400).json({ success: false, error: 'Kendinizi silemezsiniz' });
     }
 
     const result = await query('DELETE FROM users WHERE id = $1 RETURNING id, email', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
     }
 
     res.json({
@@ -757,7 +762,7 @@ router.delete('/users/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('Kullanıcı silme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -793,7 +798,7 @@ router.post('/setup-super-admin', async (_req, res) => {
     });
   } catch (error) {
     logger.error('Super admin setup hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -808,13 +813,13 @@ router.put('/users/:id/lock', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -824,7 +829,7 @@ router.put('/users/:id/lock', async (req, res) => {
     const success = await loginAttemptService.lockAccount(parseInt(id, 10), lockMinutes);
 
     if (!success) {
-      return res.status(500).json({ error: 'Hesap kilitlenemedi' });
+      return res.status(500).json({ success: false, error: 'Hesap kilitlenemedi' });
     }
 
     const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
@@ -836,7 +841,7 @@ router.put('/users/:id/lock', async (req, res) => {
     });
   } catch (error) {
     logger.error('Hesap kilitleme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -851,13 +856,13 @@ router.put('/users/:id/unlock', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -865,7 +870,7 @@ router.put('/users/:id/unlock', async (req, res) => {
     const success = await loginAttemptService.unlockAccount(parseInt(id, 10));
 
     if (!success) {
-      return res.status(500).json({ error: 'Hesap açılamadı' });
+      return res.status(500).json({ success: false, error: 'Hesap açılamadı' });
     }
 
     const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
@@ -877,7 +882,7 @@ router.put('/users/:id/unlock', async (req, res) => {
     });
   } catch (error) {
     logger.error('Hesap açma hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -892,13 +897,13 @@ router.get('/users/:id/login-attempts', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -914,7 +919,7 @@ router.get('/users/:id/login-attempts', async (req, res) => {
     });
   } catch (error) {
     logger.error('Login attempt geçmişi hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -961,14 +966,14 @@ router.get('/sessions', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (_jwtError) {
-      return res.status(401).json({ error: 'Geçersiz token' });
+      return res.status(401).json({ success: false, error: 'Geçersiz token' });
     }
 
     const refreshToken = req.cookies?.refresh_token;
@@ -990,7 +995,7 @@ router.get('/sessions', async (req, res) => {
     });
   } catch (error) {
     logger.error('Get sessions error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1005,7 +1010,7 @@ router.delete('/sessions/:id', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -1017,7 +1022,7 @@ router.delete('/sessions/:id', async (req, res) => {
     const session = sessions.find((s) => s.id === sessionId);
 
     if (!session) {
-      return res.status(404).json({ error: 'Oturum bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Oturum bulunamadı' });
     }
 
     const refreshToken = req.cookies?.refresh_token;
@@ -1025,14 +1030,14 @@ router.delete('/sessions/:id', async (req, res) => {
       const tokenHash = hashToken(refreshToken);
       const currentSession = await sessionService.getSessionByToken(tokenHash);
       if (currentSession && currentSession.id === sessionId) {
-        return res.status(400).json({ error: 'Mevcut oturumu sonlandıramazsınız. Çıkış yapın.' });
+        return res.status(400).json({ success: false, error: 'Mevcut oturumu sonlandıramazsınız. Çıkış yapın.' });
       }
     }
 
     const success = await sessionService.terminateSession(sessionId);
 
     if (!success) {
-      return res.status(500).json({ error: 'Oturum sonlandırılamadı' });
+      return res.status(500).json({ success: false, error: 'Oturum sonlandırılamadı' });
     }
 
     res.json({
@@ -1041,7 +1046,7 @@ router.delete('/sessions/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('Terminate session error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1056,7 +1061,7 @@ router.delete('/sessions/other', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -1064,7 +1069,7 @@ router.delete('/sessions/other', async (req, res) => {
 
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
-      return res.status(400).json({ error: 'Refresh token bulunamadı' });
+      return res.status(400).json({ success: false, error: 'Refresh token bulunamadı' });
     }
 
     const tokenHash = hashToken(refreshToken);
@@ -1077,7 +1082,7 @@ router.delete('/sessions/other', async (req, res) => {
     });
   } catch (error) {
     logger.error('Terminate other sessions error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1092,13 +1097,13 @@ router.get('/admin/ip-rules', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { type, active } = req.query;
@@ -1139,7 +1144,7 @@ router.get('/admin/ip-rules', async (req, res) => {
     });
   } catch (error) {
     logger.error('Get IP rules error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1154,23 +1159,23 @@ router.post('/admin/ip-rules', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { ipAddress, type, description } = req.body;
 
     if (!ipAddress || !type) {
-      return res.status(400).json({ error: 'IP adresi ve tip gerekli' });
+      return res.status(400).json({ success: false, error: 'IP adresi ve tip gerekli' });
     }
 
     if (!['whitelist', 'blacklist'].includes(type)) {
-      return res.status(400).json({ error: 'Tip whitelist veya blacklist olmalı' });
+      return res.status(400).json({ success: false, error: 'Tip whitelist veya blacklist olmalı' });
     }
 
     try {
@@ -1195,6 +1200,7 @@ router.post('/admin/ip-rules', async (req, res) => {
     } catch (dbError) {
       if (dbError.message.includes('invalid input syntax for type cidr')) {
         return res.status(400).json({
+          success: false,
           error: 'Geçersiz IP adresi veya CIDR formatı. Örnek: 192.168.1.0/24 veya 10.0.0.1/32',
         });
       }
@@ -1202,7 +1208,7 @@ router.post('/admin/ip-rules', async (req, res) => {
     }
   } catch (error) {
     logger.error('Create IP rule error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1217,13 +1223,13 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -1240,7 +1246,7 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
 
     if (type) {
       if (!['whitelist', 'blacklist'].includes(type)) {
-        return res.status(400).json({ error: 'Tip whitelist veya blacklist olmalı' });
+        return res.status(400).json({ success: false, error: 'Tip whitelist veya blacklist olmalı' });
       }
       updateFields.push(`type = $${paramCount++}`);
       values.push(type);
@@ -1267,7 +1273,7 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'IP kuralı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'IP kuralı bulunamadı' });
     }
 
     res.json({
@@ -1284,7 +1290,7 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('Update IP rule error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1299,13 +1305,13 @@ router.delete('/admin/ip-rules/:id', async (req, res) => {
     }
 
     if (!token) {
-      return res.status(401).json({ error: 'Token gerekli' });
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
     }
 
     const { id } = req.params;
@@ -1313,7 +1319,7 @@ router.delete('/admin/ip-rules/:id', async (req, res) => {
     const result = await query('DELETE FROM ip_access_rules WHERE id = $1 RETURNING id', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'IP kuralı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'IP kuralı bulunamadı' });
     }
 
     res.json({
@@ -1322,7 +1328,7 @@ router.delete('/admin/ip-rules/:id', async (req, res) => {
     });
   } catch (error) {
     logger.error('Delete IP rule error', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -64,6 +64,7 @@ const upload = multer({
  */
 router.get('/info', (_req, res) => {
   res.json({
+    success: true,
     supportedFormats: getSupportedFormats(),
     targetTypes: Object.keys(getAllSchemas()),
     schemas: getAllSchemas(),
@@ -80,12 +81,13 @@ router.get('/schema/:type', (req, res) => {
 
   if (!schema) {
     return res.status(400).json({
+      success: false,
       error: 'Geçersiz tip',
       validTypes: Object.keys(getAllSchemas()),
     });
   }
 
-  res.json(schema);
+  res.json({ success: true, data: schema });
 });
 
 /**
@@ -95,7 +97,7 @@ router.get('/schema/:type', (req, res) => {
 router.post('/analyze', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Dosya yüklenmedi' });
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
 
     const { targetType } = req.body;
@@ -103,6 +105,7 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
       // Dosyayı sil
       fs.unlinkSync(req.file.path);
       return res.status(400).json({
+        success: false,
         error: 'Hedef tip belirtilmedi',
         validTypes: Object.keys(getAllSchemas()),
       });
@@ -114,13 +117,13 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     // Geçici dosya bilgisini ekle (onay için)
     result.tempFile = req.file.filename;
 
-    res.json(result);
+    res.json({ success: true, ...result });
   } catch (error) {
     // Hata durumunda dosyayı sil
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -133,11 +136,11 @@ router.post('/confirm', async (req, res) => {
     const { targetType, records, tempFile } = req.body;
 
     if (!targetType || !records || !Array.isArray(records)) {
-      return res.status(400).json({ error: 'targetType ve records gerekli' });
+      return res.status(400).json({ success: false, error: 'targetType ve records gerekli' });
     }
 
     if (records.length === 0) {
-      return res.status(400).json({ error: 'Kaydedilecek veri yok' });
+      return res.status(400).json({ success: false, error: 'Kaydedilecek veri yok' });
     }
 
     // Veritabanına kaydet
@@ -157,7 +160,7 @@ router.post('/confirm', async (req, res) => {
       ...result,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -178,7 +181,7 @@ router.post('/cancel', (req, res) => {
 
     res.json({ success: true, message: 'İçe aktarım iptal edildi' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -189,7 +192,7 @@ router.post('/cancel', (req, res) => {
 router.post('/menu-analyze', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Dosya yüklenmedi' });
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
 
     // AI ile menü analizi
@@ -198,13 +201,13 @@ router.post('/menu-analyze', upload.single('file'), async (req, res) => {
     // Geçici dosya bilgisini ekle
     result.tempFile = req.file.filename;
 
-    res.json(result);
+    res.json({ success: true, ...result });
   } catch (error) {
     // Hata durumunda dosyayı sil
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -217,7 +220,7 @@ router.post('/menu-save', async (req, res) => {
     const { yemekler, tempFile, options = {} } = req.body;
 
     if (!yemekler || !Array.isArray(yemekler) || yemekler.length === 0) {
-      return res.status(400).json({ error: 'Kaydedilecek yemek listesi gerekli' });
+      return res.status(400).json({ success: false, error: 'Kaydedilecek yemek listesi gerekli' });
     }
 
     // Reçetelere kaydet
@@ -237,7 +240,7 @@ router.post('/menu-save', async (req, res) => {
       ...result,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -251,7 +254,7 @@ router.get('/template/:type', async (req, res) => {
     const schema = getSchema(type);
 
     if (!schema) {
-      return res.status(400).json({ error: 'Geçersiz tip' });
+      return res.status(400).json({ success: false, error: 'Geçersiz tip' });
     }
 
     // Excel şablonu oluştur
@@ -296,7 +299,7 @@ router.get('/template/:type', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

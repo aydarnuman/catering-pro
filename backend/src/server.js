@@ -478,7 +478,7 @@ app.get('/api/logs/recent', async (_req, res) => {
     }
   } catch (error) {
     logError('Logs API', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
