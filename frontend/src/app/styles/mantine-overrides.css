@@ -1,0 +1,1003 @@
+/* =============================================
+   Mantine Component Overrides
+   - Tabs, Containers, Navbar, Touch, Mobile, etc.
+   ============================================= */
+
+/* Mantine Tabs active state */
+.mantine-Tabs-tab[data-active] {
+  border-color: #3b82f6 !important;
+}
+
+/* Full width containers - improved spacing */
+.main-content .mantine-Container-root {
+  max-width: 100%;
+  width: 100%;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+@media (min-width: 1600px) {
+  .main-content .mantine-Container-root {
+    max-width: 1920px;
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content .mantine-Container-root {
+    max-width: 100%;
+    width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* Main content padding - Navbar alti icin */
+.main-content {
+  padding-top: 0;
+  transition: padding-top 0.3s ease;
+  background-color: var(--background);
+  position: relative;
+  z-index: 1; /* Icerigin overlay'lerin ustunde gorunmesi icin */
+}
+
+/* Ana icerik alani - subtle gradient (no animation for better readability) */
+.main-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.03) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-mantine-color-scheme="light"] .main-content::before {
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    transparent 100%
+  );
+}
+
+.main-content.has-navbar {
+  padding-top: 152px;
+}
+
+@media (max-width: 1024px) {
+  .main-content.has-navbar {
+    padding-top: 116px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content.has-navbar {
+    padding-top: 108px;
+  }
+}
+
+/* ===== Navbar Micro-interactions ===== */
+.mantine-ActionIcon-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mantine-ActionIcon-root:hover {
+  transform: scale(1.05);
+}
+
+.mantine-ActionIcon-root:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .navbar-action-icon {
+    background: transparent;
+    border: none;
+  }
+
+  .navbar-action-icon:hover {
+    background: rgba(128, 128, 128, 0.1);
+  }
+}
+
+.mantine-Button-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mantine-Button-root:active {
+  transform: scale(0.97);
+}
+
+.mantine-Burger-root {
+  transition: all 0.2s ease;
+}
+
+.mantine-Burger-root:hover {
+  transform: scale(1.05);
+}
+
+.mantine-Burger-root:active {
+  transform: scale(0.95);
+}
+
+.mantine-Tooltip-tooltip {
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mantine-Avatar-root {
+  transition: all 0.2s ease;
+}
+
+.mantine-Avatar-root:hover {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* FAB button clearance */
+@media (max-width: 768px) {
+  .main-content .mantine-Container-root,
+  main {
+    padding-bottom: 80px;
+  }
+
+  .mantine-ScrollArea-viewport {
+    padding-bottom: 70px;
+  }
+}
+
+/* Touch-friendly sizes for mobile */
+@media (max-width: 768px) {
+  .mantine-Button-root,
+  .mantine-ActionIcon-root,
+  .mantine-UnstyledButton-root {
+    min-height: 44px;
+  }
+
+  .mantine-Button-root[data-size="xs"],
+  .mantine-Button-root[data-size="compact-xs"],
+  .mantine-Button-root[data-size="compact-sm"] {
+    min-height: 40px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 13px;
+  }
+
+  .mantine-ActionIcon-root[data-size="sm"],
+  .mantine-ActionIcon-root[data-size="xs"] {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .mantine-Input-input,
+  .mantine-TextInput-input,
+  .mantine-Select-input,
+  .mantine-NumberInput-input,
+  .mantine-Textarea-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .mantine-Checkbox-input,
+  .mantine-Radio-input {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mantine-Menu-item {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  .mantine-Tabs-tab {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+
+  .mantine-ScrollArea-root {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mantine-Table-root {
+    font-size: 13px;
+  }
+
+  .mantine-Table-th,
+  .mantine-Table-td {
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+
+  .mantine-Table-tr {
+    min-height: 48px;
+  }
+
+  .mantine-Table-td {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mantine-Table-td[data-multiline="true"] {
+    white-space: normal;
+    max-width: none;
+  }
+
+  .mantine-Table-th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+}
+
+/* Settings page layout */
+.settings-main-content {
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .settings-main-content {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Search & Menu Styles */
+.search-trigger:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.user-menu-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.search-result-item:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.notification-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Premium Mobile Sidebar Styles */
+.sidebar-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.sidebar-close-btn:active {
+  transform: scale(0.95);
+}
+
+.menu-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item:hover {
+  transform: translateX(-2px);
+}
+
+.menu-item:hover .menu-chevron {
+  transform: translateX(4px);
+  opacity: 0.8;
+}
+
+.menu-item:active {
+  transform: scale(0.98);
+}
+
+.user-action-btn:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Stagger animation for menu items */
+@keyframes menuItemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.menu-item {
+  animation: menuItemSlideIn 0.3s ease-out forwards;
+}
+
+/* Kbd styling for search */
+.mantine-Kbd-root {
+  font-size: 10px;
+  padding: 2px 6px;
+  min-width: auto;
+}
+
+/* AI Chat Mobile Improvements */
+.mantine-ScrollArea-viewport {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+  transform: translateZ(0);
+}
+
+@media (max-width: 768px) {
+  .mantine-TextInput-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .mantine-ActionIcon-root {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .mantine-Paper-root .mantine-Text-root {
+    line-height: 1.5;
+  }
+
+  .ai-chat-input-area {
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+}
+
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.no-pull-refresh {
+  overscroll-behavior-y: none;
+}
+
+/* Mobil Uyumluluk */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .main-content .mantine-Container-root {
+    max-width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .mantine-Paper-root,
+  .mantine-Card-root {
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  .mobile-wrap .mantine-Group-root {
+    flex-wrap: wrap;
+  }
+
+  .mantine-Grid-col {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+
+  .mantine-SimpleGrid-root {
+    grid-template-columns: 1fr;
+  }
+
+  .mantine-Modal-content {
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .mantine-Modal-body {
+    max-height: calc(95vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .mantine-Drawer-content {
+    border-radius: 16px 16px 0 0;
+  }
+
+  .mantine-Group-root[data-wrap] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .mantine-Badge-root {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .mantine-Tabs-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .mantine-Tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mantine-Tabs-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .mantine-Tooltip-tooltip {
+    display: none;
+  }
+
+  .mantine-NumberInput-root,
+  .mantine-Select-root,
+  .mantine-TextInput-root,
+  .mantine-Textarea-root {
+    width: 100%;
+  }
+
+  .mantine-ActionIcon-root {
+    touch-action: manipulation;
+  }
+
+  .mantine-SegmentedControl-root {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mantine-DatePickerInput-root,
+  .mantine-DateInput-root {
+    width: 100%;
+  }
+}
+
+/* Tarih secici */
+html body .mantine-Popover-dropdown[data-dates-dropdown="true"],
+html body [data-dates-dropdown="true"] {
+  max-width: 320px;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-day {
+  font-size: 13px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-weekday {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-header {
+  margin-bottom: 8px;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-headerLevel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-section {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .hover-card:hover,
+  .hover-lift:hover,
+  .ihale-card:hover,
+  .kpi-card:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content .mantine-Container-root {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .mantine-Title-root[data-order="1"] {
+    font-size: 1.5rem;
+  }
+
+  .mantine-Title-root[data-order="2"] {
+    font-size: 1.25rem;
+  }
+
+  .mantine-Title-root[data-order="3"] {
+    font-size: 1.1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-full-width .mantine-Button-root {
+    width: 100%;
+  }
+
+  .mantine-Avatar-root {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+}
+
+/* Touch cihazlar */
+@media (pointer: coarse) {
+  .mantine-Button-root,
+  .mantine-ActionIcon-root,
+  .mantine-CloseButton-root {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .mantine-Checkbox-input,
+  .mantine-Radio-radio {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mantine-Switch-track {
+    min-width: 46px;
+    min-height: 24px;
+  }
+
+  .mantine-Menu-item {
+    min-height: 48px;
+    padding: 12px 16px;
+  }
+
+  .mantine-Accordion-control {
+    min-height: 52px;
+  }
+
+  .mantine-NavLink-root {
+    min-height: 48px;
+  }
+}
+
+/* Landscape mobil */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mantine-Modal-content {
+    max-height: 90vh;
+  }
+
+  .mantine-Drawer-content {
+    max-width: 50vw;
+  }
+}
+
+/* Safe area (iPhone notch) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    .navbar-header {
+      padding-top: calc(env(safe-area-inset-top) + 8px);
+    }
+
+    .mobile-bottom-bar,
+    .fab-button-container {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+    }
+
+    .mantine-Modal-body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+}
+
+/* Mobil tablo */
+@media (max-width: 768px) {
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+
+  .table-responsive .mantine-Table-root {
+    min-width: 600px;
+  }
+
+  .table-cards .mantine-Table-root {
+    display: none;
+  }
+
+  .table-responsive .mantine-Table-th:last-child,
+  .table-responsive .mantine-Table-td:last-child {
+    position: sticky;
+    right: 0;
+    background: inherit;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.15);
+  }
+}
+
+/* Floating Action Button */
+.fab-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .fab-button {
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+  }
+}
+
+/* Form layout mobil */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-row > * {
+    width: 100%;
+  }
+
+  .mantine-InputWrapper-root {
+    flex-direction: column;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .form-actions .mantine-Button-root {
+    width: 100%;
+  }
+}
+
+/* Mobil Modal - Tam Ekran */
+@media (max-width: 768px) {
+  .mantine-Modal-root .mantine-Modal-content {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 92vh;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    transform: none;
+  }
+
+  .mantine-Modal-inner {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .mantine-Modal-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
+  }
+
+  .mantine-Modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: calc(92vh - 70px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .mantine-Modal-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--secondary);
+  }
+
+  .mantine-Modal-title {
+    padding-top: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .mantine-Modal-close {
+    position: absolute;
+    right: 12px;
+    top: 16px;
+  }
+
+  .mantine-Modal-overlay {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+  }
+}
+
+/* Drawer mobil */
+@media (max-width: 768px) {
+  .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-content {
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .mantine-Drawer-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--secondary);
+  }
+
+  .mantine-Drawer-body {
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Touch cihazlarda hover efektlerini kaldir */
+@media (hover: none) and (pointer: coarse) {
+  .hover-card:hover,
+  .hover-lift:hover,
+  .ihale-card:hover,
+  .kpi-card:hover,
+  .card-hover:hover,
+  .settings-card:hover,
+  .admin-card-hover:hover,
+  .cari-card:hover,
+  .price-row:hover,
+  .teknik-sart-item:hover,
+  .ai-note-compact:hover,
+  .menu-item:hover {
+    transform: none;
+    box-shadow: inherit;
+  }
+
+  .mantine-ActionIcon-root:hover,
+  .mantine-Button-root:hover {
+    transform: none;
+  }
+
+  .mantine-Button-root:active,
+  .mantine-ActionIcon-root:active {
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* iOS form zoom sorunu */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  textarea,
+  select,
+  .mantine-Input-input,
+  .mantine-TextInput-input,
+  .mantine-NumberInput-input,
+  .mantine-Select-input,
+  .mantine-Textarea-input,
+  .mantine-PasswordInput-input,
+  .mantine-DateInput-input,
+  .mantine-DatePickerInput-input {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Responsive Table - Kart Gorunumu */
+@media (max-width: 768px) {
+  .responsive-table-desktop {
+    display: none;
+  }
+
+  .responsive-table-mobile {
+    display: block;
+  }
+
+  .mobile-data-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s ease;
+  }
+
+  .mobile-data-card:active {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
+  }
+}
+
+@media (min-width: 769px) {
+  .responsive-table-desktop {
+    display: block;
+  }
+
+  .responsive-table-mobile {
+    display: none;
+  }
+}
+
+/* Mobil Detay Modal */
+@media (max-width: 768px) {
+  .detail-modal .mantine-Modal-content {
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .detail-modal .mantine-Modal-body {
+    max-height: calc(100vh - 60px);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .detail-modal .mantine-Modal-body::after {
+    content: '';
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0);
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--card));
+    pointer-events: none;
+  }
+}
+
+/* Mobil buton gruplari */
+.mobile-button-stack {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .mobile-button-stack {
+    flex-direction: column;
+  }
+
+  .mobile-button-stack > * {
+    width: 100%;
+  }
+}
+
+/* Sticky footer buttons */
+.sticky-footer-buttons {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  margin: 0 -16px -16px -16px;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .sticky-footer-buttons {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Loading overlay mobil */
+@media (max-width: 768px) {
+  .mantine-LoadingOverlay-root {
+    border-radius: inherit;
+  }
+}
+
+/* Tabs scroll indicator */
+@media (max-width: 768px) {
+  .mantine-Tabs-list::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(to right, transparent, var(--card));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .mantine-Tabs-list:not(:has([data-active]:last-child))::after {
+    opacity: 1;
+  }
+}
+
+/* Swipe hint animation */
+@keyframes swipeHint {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-10px); }
+}
+
+.swipe-hint {
+  animation: swipeHint 1.5s ease-in-out 2;
+}

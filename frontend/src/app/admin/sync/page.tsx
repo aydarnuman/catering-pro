@@ -1375,7 +1375,7 @@ export default function SyncControlPage() {
                           {log.status}
                         </Badge>
                       </Table.Td>
-                      <Table.Td>{format(new Date(log.started_at), 'dd.MM HH:mm')}</Table.Td>
+                      <Table.Td>{log.started_at ? format(new Date(log.started_at), 'dd.MM HH:mm') : '-'}</Table.Td>
                       <Table.Td>
                         {log.finished_at && log.started_at
                           ? `${Math.round((new Date(log.finished_at).getTime() - new Date(log.started_at).getTime()) / 1000)}s`
