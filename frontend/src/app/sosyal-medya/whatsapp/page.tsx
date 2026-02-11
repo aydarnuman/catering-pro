@@ -1,6 +1,5 @@
 'use client';
 
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import {
   ActionIcon,
   Avatar,
@@ -15,7 +14,6 @@ import {
   Indicator,
   Loader,
   Menu,
-  Modal,
   Paper,
   Popover,
   RingProgress,
@@ -39,14 +37,7 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconCloudUpload,
-  IconDeviceFloppy,
-  IconDownload,
-  IconEye,
   IconFile,
-  IconFileTypeDoc,
-  IconFileTypePdf,
-  IconFileTypeXls,
-  IconFileTypeZip,
   IconLogin,
   IconMessage,
   IconMessageCircle,
@@ -55,7 +46,6 @@ import {
   IconPaperclip,
   IconPhone,
   IconPhoto,
-  IconPlayerPlay,
   IconPlayerStop,
   IconPlugConnected,
   IconPlugOff,
@@ -71,78 +61,18 @@ import {
   IconVideo,
   IconX,
 } from '@tabler/icons-react';
-import mammoth from 'mammoth';
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
-interface Chat {
-  id: string;
-  name: string;
-  lastMessage: string;
-  timestamp: string;
-  unreadCount: number;
-  isGroup: boolean;
-  isArchived?: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  timestamp: string;
-  fromMe: boolean;
-  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'ptt';
-  status?: 'sending' | 'sent' | 'failed';
-  // Media properties
-  hasMedia?: boolean;
-  mediaUrl?: string;
-  mimetype?: string;
-  filename?: string;
-  filesize?: number;
-  caption?: string;
-  isDownloading?: boolean;
-}
-
-/** API chat list item shape */
-interface ApiChat {
-  id: string;
-  name?: string;
-  lastMessage?: string;
-  timestamp?: number;
-  unreadCount?: number;
-  isGroup?: boolean;
-  archived?: boolean;
-}
-
-/** API message shape */
-interface ApiMessage {
-  id: string;
-  body?: string;
-  caption?: string;
-  timestamp?: number;
-  fromMe?: boolean;
-  type?: string;
-  hasMedia?: boolean;
-  mediaUrl?: string;
-  mimetype?: string;
-  filename?: string;
-  filesize?: number;
-}
-
-/** Renders sanitized docx HTML from mammoth. Sandboxed in modal. */
-function DocxHtmlBody({ html }: { html: string }) {
-  return (
-    <div
-      dangerouslySetInnerHTML={{ __html: html }}
-      style={{
-        color: '#333',
-        fontSize: 14,
-        lineHeight: 1.6,
-      }}
-    />
-  );
-}
+import type { ApiChat, ApiMessage, Chat, Message } from './types';
+import { commonEmojis, fileToBase64, formatRecordingTime } from './utils';
+import { CaptionModal } from './components/CaptionModal';
+import { DocumentPreviewModal } from './components/DocumentPreviewModal';
+import { MediaViewerModal } from './components/MediaViewerModal';
+import { MessageContent } from './components/MessageContent';
+import { useVoiceRecorder } from './hooks/useVoiceRecorder';
 
 export default function WhatsAppPage() {
   const { colorScheme } = useMantineColorScheme();
@@ -167,10 +97,7 @@ export default function WhatsAppPage() {
   const [downloadingMedia, setDownloadingMedia] = useState<Set<string>>(new Set());
   const [savingMedia, setSavingMedia] = useState<Set<string>>(new Set());
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewFilename, setPreviewFilename] = useState<string>('');
-  const [docxHtml, setDocxHtml] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
   const [sendingMedia, setSendingMedia] = useState(false);
 
   // Caption modal state
@@ -182,13 +109,16 @@ export default function WhatsAppPage() {
   } | null>(null);
   const [captionText, setCaptionText] = useState('');
 
-  // Voice recording state
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  // Voice recording hook
+  const {
+    isRecording,
+    recordingTime,
+    audioBlob,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    clearAudio,
+  } = useVoiceRecorder();
 
   // Emoji picker state
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -201,138 +131,6 @@ export default function WhatsAppPage() {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
-  // Common emojis for quick access
-  const commonEmojis = [
-    '😀',
-    '😂',
-    '🥰',
-    '😍',
-    '🤩',
-    '😎',
-    '🤔',
-    '😅',
-    '👍',
-    '👎',
-    '👏',
-    '🙏',
-    '💪',
-    '🤝',
-    '✌️',
-    '👋',
-    '❤️',
-    '💕',
-    '💯',
-    '🔥',
-    '⭐',
-    '✨',
-    '🎉',
-    '🎊',
-    '✅',
-    '❌',
-    '⚠️',
-    '📌',
-    '📎',
-    '📝',
-    '📅',
-    '⏰',
-    '🍽️',
-    '🍴',
-    '🥗',
-    '🍲',
-    '🍛',
-    '🥘',
-    '🍜',
-    '🍝',
-  ];
-
-  // Base64 data URL'i Blob URL'e çevir (DocViewer için gerekli)
-  const convertToBlob = useCallback(async (dataUrl: string, _filename: string) => {
-    try {
-      // Base64 data URL'i parse et
-      const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-      if (!matches) {
-        console.log('Not a base64 data URL, using directly');
-        return dataUrl;
-      }
-
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-
-      // Base64'ü binary'e çevir
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-
-      // Blob oluştur
-      const blob = new Blob([byteArray], { type: mimeType });
-
-      // Blob URL oluştur
-      const blobUrl = URL.createObjectURL(blob);
-      console.log('Created blob URL:', blobUrl);
-      return blobUrl;
-    } catch (error) {
-      console.error('Blob conversion error:', error);
-      return dataUrl;
-    }
-  }, []);
-
-  // Preview açıldığında blob URL oluştur ve DOCX için HTML'e çevir
-  useEffect(() => {
-    const processPreview = async () => {
-      if (!previewUrl) return;
-
-      setPreviewLoading(true);
-      setDocxHtml(null);
-
-      try {
-        // DOCX dosyası için Mammoth.js ile HTML'e çevir
-        if (previewFilename.match(/\.docx?$/i)) {
-          console.log('Processing DOCX with Mammoth.js...');
-
-          // Base64'ü ArrayBuffer'a çevir
-          const matches = previewUrl.match(/^data:(.+);base64,(.+)$/);
-          if (matches) {
-            const base64Data = matches[2];
-            const binaryString = atob(base64Data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            const arrayBuffer = bytes.buffer;
-
-            // Mammoth.js ile HTML'e çevir
-            const result = await mammoth.convertToHtml({ arrayBuffer });
-            console.log('Mammoth conversion successful');
-            setDocxHtml(result.value);
-          }
-        } else {
-          // Diğer dosyalar için blob URL oluştur
-          if (!previewUrl.startsWith('blob:')) {
-            const blobUrl = await convertToBlob(previewUrl, previewFilename);
-            setPreviewBlobUrl(blobUrl);
-          } else {
-            setPreviewBlobUrl(previewUrl);
-          }
-        }
-      } catch (error) {
-        console.error('Preview processing error:', error);
-      } finally {
-        setPreviewLoading(false);
-      }
-    };
-
-    processPreview();
-
-    // Cleanup - modal kapandığında blob URL'i temizle
-    return () => {
-      if (previewBlobUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(previewBlobUrl);
-      }
-    };
-  }, [previewUrl, previewFilename, convertToBlob, previewBlobUrl]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
 
@@ -707,16 +505,6 @@ export default function WhatsAppPage() {
     }
   };
 
-  // File to Base64 converter
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   // Handle photo/video/document selection - Opens caption modal for images/videos
   const handleFileSelect = async (
     e: ChangeEvent<HTMLInputElement>,
@@ -906,71 +694,6 @@ export default function WhatsAppPage() {
     setCaptionModalOpen(false);
   };
 
-  // ============ VOICE RECORDING ============
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
-        for (const track of stream.getTracks()) track.stop();
-      };
-
-      mediaRecorder.start(100);
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      // Start timer
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
-    } catch (error) {
-      console.error('Mikrofon erişimi hatası:', error);
-      notifications.show({
-        title: 'Mikrofon Hatası',
-        message: 'Mikrofon erişimi sağlanamadı. Lütfen tarayıcı izinlerini kontrol edin.',
-        color: 'red',
-      });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-    }
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      for (const track of mediaRecorderRef.current.stream.getTracks()) track.stop();
-    }
-    setIsRecording(false);
-    setAudioBlob(null);
-    setRecordingTime(0);
-
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-  };
-
   const sendVoiceMessage = async () => {
     if (!audioBlob || !selectedChat) return;
 
@@ -1032,16 +755,9 @@ export default function WhatsAppPage() {
     } catch (_error) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
     } finally {
-      setAudioBlob(null);
-      setRecordingTime(0);
+      clearAudio();
       setSendingMedia(false);
     }
-  };
-
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Insert emoji into message input
@@ -1175,20 +891,6 @@ export default function WhatsAppPage() {
     }
   };
 
-  // Döküman önizleme fonksiyonu
-  const _previewDocument = async (msg: Message) => {
-    // Önce medyayı indir
-    if (!msg.mediaUrl) {
-      await downloadMedia(msg.id);
-      // State güncellenene kadar bekle
-      return;
-    }
-
-    // PDF için iframe, resim için img
-    setPreviewUrl(msg.mediaUrl);
-    setPreviewFilename(msg.filename || 'Döküman');
-  };
-
   // Medya görüntüleyici aç
   const openMediaViewer = (msg: Message) => {
     if (msg.mediaUrl) {
@@ -1198,493 +900,6 @@ export default function WhatsAppPage() {
       // Önce indir
       downloadMedia(msg.id);
     }
-  };
-
-  // Dosya ikonu döndür
-  const _getFileIcon = (mimetype?: string, filename?: string) => {
-    if (!mimetype && !filename) return <IconFile size={32} />;
-
-    const ext = filename?.split('.').pop()?.toLowerCase();
-
-    if (mimetype?.includes('pdf') || ext === 'pdf') {
-      return <IconFileTypePdf size={32} color="#ef4444" />;
-    }
-    if (mimetype?.includes('word') || ext === 'doc' || ext === 'docx') {
-      return <IconFileTypeDoc size={32} color="#3b82f6" />;
-    }
-    if (
-      mimetype?.includes('excel') ||
-      mimetype?.includes('spreadsheet') ||
-      ext === 'xls' ||
-      ext === 'xlsx'
-    ) {
-      return <IconFileTypeXls size={32} color="#22c55e" />;
-    }
-    if (mimetype?.includes('zip') || mimetype?.includes('rar') || mimetype?.includes('archive')) {
-      return <IconFileTypeZip size={32} color="#f59e0b" />;
-    }
-
-    return <IconFile size={32} />;
-  };
-
-  // Dosya boyutunu formatla
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  // Mesaj içeriğini render et
-  const renderMessageContent = (msg: Message) => {
-    const isDownloading = downloadingMedia.has(msg.id);
-
-    // Image mesajı
-    if (msg.type === 'image' || (msg.hasMedia && msg.mimetype?.startsWith('image/'))) {
-      // Tek tıkla indir ve aç
-      const handleImageClick = async () => {
-        if (isDownloading) return;
-
-        if (msg.mediaUrl) {
-          openMediaViewer(msg);
-          return;
-        }
-
-        // Medya yoksa indir ve aç
-        const success = await downloadMedia(msg.id);
-        if (success) {
-          setTimeout(() => {
-            const updatedMsg = messages.find((m) => m.id === msg.id);
-            if (updatedMsg?.mediaUrl) {
-              openMediaViewer(updatedMsg);
-            }
-          }, 100);
-        }
-      };
-
-      return (
-        <Box>
-          {msg.mediaUrl ? (
-            <Box
-              style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden' }}
-              onClick={() => openMediaViewer(msg)}
-            >
-              <Image
-                src={msg.mediaUrl ?? ''}
-                alt=""
-                style={{
-                  maxWidth: 'min(280px, 85vw)',
-                  maxHeight: 300,
-                  borderRadius: 8,
-                  display: 'block',
-                }}
-              />
-            </Box>
-          ) : (
-            <Box
-              p="xl"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(0,0,0,0.2) 100%)',
-                borderRadius: 12,
-                cursor: 'pointer',
-                minWidth: 200,
-                border: '1px solid rgba(37,211,102,0.2)',
-                transition: 'transform 0.1s, box-shadow 0.1s',
-              }}
-              onClick={handleImageClick}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(37,211,102,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <Stack align="center" gap="xs">
-                {isDownloading ? (
-                  <Loader size="md" color="green" />
-                ) : (
-                  <ThemeIcon size={60} radius="xl" variant="light" color="green">
-                    <IconPhoto size={32} />
-                  </ThemeIcon>
-                )}
-                <Text size="sm" c="white" fw={500}>
-                  {isDownloading ? 'Yükleniyor...' : '🖼️ Fotoğraf'}
-                </Text>
-                <Text size="xs" c="gray.5">
-                  Görüntülemek için tıkla
-                </Text>
-              </Stack>
-            </Box>
-          )}
-          {msg.caption && (
-            <Text size="sm" mt={6} style={{ wordBreak: 'break-word' }}>
-              {msg.caption}
-            </Text>
-          )}
-        </Box>
-      );
-    }
-
-    // Video mesajı
-    if (msg.type === 'video' || (msg.hasMedia && msg.mimetype?.startsWith('video/'))) {
-      return (
-        <Box>
-          {msg.mediaUrl ? (
-            <Box style={{ borderRadius: 8, overflow: 'hidden' }}>
-              <video
-                src={msg.mediaUrl}
-                controls
-                style={{
-                  maxWidth: 'min(280px, 85vw)',
-                  maxHeight: 300,
-                  borderRadius: 8,
-                  display: 'block',
-                }}
-              >
-                <track kind="captions" />
-              </video>
-            </Box>
-          ) : (
-            <Box
-              p="xl"
-              style={{
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                minWidth: 200,
-              }}
-              onClick={() => downloadMedia(msg.id)}
-            >
-              <Stack align="center" gap="xs">
-                {isDownloading ? (
-                  <Loader size="sm" color="white" />
-                ) : (
-                  <Box style={{ position: 'relative' }}>
-                    <IconVideo size={48} style={{ opacity: 0.5 }} />
-                    <IconPlayerPlay
-                      size={20}
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    />
-                  </Box>
-                )}
-                <Text size="xs" c="gray.5">
-                  {isDownloading ? 'İndiriliyor...' : 'Videoyu izlemek için tıkla'}
-                </Text>
-              </Stack>
-            </Box>
-          )}
-          {msg.caption && (
-            <Text size="sm" mt={6} style={{ wordBreak: 'break-word' }}>
-              {msg.caption}
-            </Text>
-          )}
-        </Box>
-      );
-    }
-
-    // Ses mesajı (ptt = push to talk)
-    if (
-      msg.type === 'audio' ||
-      msg.type === 'ptt' ||
-      (msg.hasMedia && msg.mimetype?.startsWith('audio/'))
-    ) {
-      return (
-        <Box>
-          {msg.mediaUrl ? (
-            <audio src={msg.mediaUrl} controls style={{ maxWidth: 'min(250px, 85vw)' }}>
-              <track kind="captions" />
-            </audio>
-          ) : (
-            <Box
-              p="md"
-              style={{
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                minWidth: 180,
-              }}
-              onClick={() => downloadMedia(msg.id)}
-            >
-              <Group gap="sm">
-                {isDownloading ? (
-                  <Loader size="sm" color="white" />
-                ) : (
-                  <IconMicrophone size={24} style={{ opacity: 0.5 }} />
-                )}
-                <Text size="xs" c="gray.5">
-                  {isDownloading ? 'İndiriliyor...' : '🎤 Sesli mesaj'}
-                </Text>
-              </Group>
-            </Box>
-          )}
-        </Box>
-      );
-    }
-
-    // Döküman mesajı
-    if (
-      msg.type === 'document' ||
-      (msg.hasMedia &&
-        !msg.mimetype?.startsWith('image/') &&
-        !msg.mimetype?.startsWith('video/') &&
-        !msg.mimetype?.startsWith('audio/'))
-    ) {
-      const isSaving = savingMedia.has(msg.id);
-      const isPdf = msg.mimetype?.includes('pdf') || msg.filename?.toLowerCase().endsWith('.pdf');
-      const isImage = msg.mimetype?.startsWith('image/');
-      const canPreview = isPdf || isImage;
-      const isExcel = msg.filename?.match(/\.(xlsx?|csv)$/i);
-      const isWord = msg.filename?.match(/\.(docx?|rtf)$/i);
-
-      // Dosya türüne göre renk ve ikon
-      const getDocStyle = () => {
-        if (isPdf)
-          return {
-            color: '#e74c3c',
-            bg: 'rgba(231, 76, 60, 0.1)',
-            icon: <IconFileTypePdf size={32} color="#e74c3c" />,
-          };
-        if (isExcel)
-          return {
-            color: '#27ae60',
-            bg: 'rgba(39, 174, 96, 0.1)',
-            icon: <IconFileTypeXls size={32} color="#27ae60" />,
-          };
-        if (isWord)
-          return {
-            color: '#3498db',
-            bg: 'rgba(52, 152, 219, 0.1)',
-            icon: <IconFileTypeDoc size={32} color="#3498db" />,
-          };
-        return {
-          color: '#95a5a6',
-          bg: 'rgba(149, 165, 166, 0.1)',
-          icon: <IconFile size={32} color="#95a5a6" />,
-        };
-      };
-      const docStyle = getDocStyle();
-
-      // Tek tıkla aç fonksiyonu
-      const handleDocumentClick = async () => {
-        if (isDownloading) return;
-
-        // Medya zaten yüklüyse
-        if (msg.mediaUrl) {
-          if (canPreview) {
-            // PDF/resim önizlenebilir
-            setPreviewUrl(msg.mediaUrl);
-            setPreviewFilename(msg.filename || 'Döküman');
-          } else {
-            // Word/Excel için dosya bilgi modalı aç (önizleme URL'si dosya adı ile)
-            setPreviewUrl(msg.mediaUrl);
-            setPreviewFilename(msg.filename || 'Döküman');
-          }
-          return;
-        }
-
-        // Medya yoksa önce indir, sonra aç/göster
-        const success = await downloadMedia(msg.id);
-        if (success) {
-          setTimeout(() => {
-            const updatedMsg = messages.find((m) => m.id === msg.id);
-            if (updatedMsg?.mediaUrl) {
-              setPreviewUrl(updatedMsg.mediaUrl);
-              setPreviewFilename(updatedMsg.filename || 'Döküman');
-            }
-          }, 100);
-        }
-      };
-
-      return (
-        <Paper
-          p="md"
-          radius="lg"
-          style={{
-            background: `linear-gradient(135deg, ${docStyle.bg} 0%, rgba(0,0,0,0.2) 100%)`,
-            border: `1px solid ${docStyle.color}30`,
-            minWidth: 280,
-            maxWidth: 320,
-            cursor: 'pointer',
-            transition: 'transform 0.1s, box-shadow 0.1s',
-          }}
-          onClick={handleDocumentClick}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.02)';
-            e.currentTarget.style.boxShadow = `0 4px 20px ${docStyle.color}40`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          {/* Üst kısım - İkon ve dosya bilgisi */}
-          <Group gap="md" wrap="nowrap" mb="sm">
-            <ThemeIcon
-              size={50}
-              radius="md"
-              variant="light"
-              style={{ background: docStyle.bg, border: `1px solid ${docStyle.color}40` }}
-            >
-              {isDownloading ? <Loader size="sm" color={docStyle.color} /> : docStyle.icon}
-            </ThemeIcon>
-            <Box style={{ flex: 1, minWidth: 0 }}>
-              <Text size="sm" fw={600} truncate style={{ color: 'white' }}>
-                {msg.filename || 'Dosya'}
-              </Text>
-              <Group gap={6}>
-                {msg.filesize && (
-                  <Badge size="xs" variant="light" color="gray">
-                    {formatFileSize(msg.filesize)}
-                  </Badge>
-                )}
-                {isPdf && (
-                  <Badge size="xs" color="red" variant="light">
-                    PDF
-                  </Badge>
-                )}
-                {isExcel && (
-                  <Badge size="xs" color="green" variant="light">
-                    Excel
-                  </Badge>
-                )}
-                {isWord && (
-                  <Badge size="xs" color="blue" variant="light">
-                    Word
-                  </Badge>
-                )}
-              </Group>
-            </Box>
-          </Group>
-
-          {/* Alt kısım - Aksiyon butonları */}
-          <Group gap={6} justify="flex-end">
-            {/* İndir butonu */}
-            {msg.mediaUrl && (
-              <Tooltip label="Bilgisayara İndir" position="top">
-                <ActionIcon
-                  variant="light"
-                  color="teal"
-                  size="md"
-                  radius="md"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const url = msg.mediaUrl;
-                    if (url) {
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = msg.filename || 'document';
-                      link.click();
-                    }
-                  }}
-                >
-                  <IconDownload size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-
-            {/* Önizle butonu - sadece PDF/resim için ve medya yüklüyse */}
-            {canPreview && msg.mediaUrl && (
-              <Tooltip label="Önizle" position="top">
-                <ActionIcon
-                  variant="light"
-                  color="violet"
-                  size="md"
-                  radius="md"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const url = msg.mediaUrl;
-                    if (url) {
-                      setPreviewUrl(url);
-                      setPreviewFilename(msg.filename || 'Döküman');
-                    }
-                  }}
-                >
-                  <IconEye size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-
-            {/* Sunucuya Kaydet */}
-            <Tooltip label="Sunucuya Kaydet" position="top">
-              <ActionIcon
-                variant="light"
-                color="orange"
-                size="md"
-                radius="md"
-                loading={isSaving}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  saveMediaToServer(msg.id);
-                }}
-              >
-                <IconDeviceFloppy size={16} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-
-          {msg.caption && (
-            <Text size="sm" mt="sm" style={{ wordBreak: 'break-word', opacity: 0.9 }}>
-              {msg.caption}
-            </Text>
-          )}
-        </Paper>
-      );
-    }
-
-    // Sticker mesajı
-    if (msg.type === 'sticker') {
-      return (
-        <Box>
-          {msg.mediaUrl ? (
-            <Image
-              src={msg.mediaUrl}
-              alt="Sticker"
-              style={{ width: 128, height: 128, objectFit: 'contain' }}
-            />
-          ) : (
-            <Box
-              p="md"
-              style={{
-                width: 128,
-                height: 128,
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              onClick={() => downloadMedia(msg.id)}
-            >
-              {isDownloading ? <Loader size="sm" color="white" /> : <Text size="xl">🎨</Text>}
-            </Box>
-          )}
-        </Box>
-      );
-    }
-
-    // Text mesajı (default)
-    return (
-      <span
-        style={{
-          fontSize: 14,
-          color: msg.fromMe ? 'white' : '#e0e0e0',
-          wordBreak: 'break-word',
-          lineHeight: 1.4,
-          whiteSpace: 'pre-wrap',
-        }}
-      >
-        {msg.content || (msg.hasMedia ? '📎 Medya' : '')}
-      </span>
-    );
   };
 
   const filteredChats = chats.filter((chat) =>
@@ -2621,7 +1836,17 @@ export default function WhatsAppPage() {
                                   opacity: msg.status === 'sending' ? 0.7 : 1,
                                 }}
                               >
-                                {renderMessageContent(msg)}
+                                <MessageContent
+                                  msg={msg}
+                                  messages={messages}
+                                  downloadingMedia={downloadingMedia}
+                                  savingMedia={savingMedia}
+                                  onDownloadMedia={downloadMedia}
+                                  onSaveMedia={saveMediaToServer}
+                                  onOpenMediaViewer={openMediaViewer}
+                                  onSetPreviewUrl={setPreviewUrl}
+                                  onSetPreviewFilename={setPreviewFilename}
+                                />
                                 <div
                                   style={{
                                     display: 'flex',
@@ -2948,453 +2173,35 @@ export default function WhatsAppPage() {
       </Container>
 
       {/* Media Viewer Modal */}
-      <Modal
+      <MediaViewerModal
         opened={mediaViewerOpen}
         onClose={() => {
           setMediaViewerOpen(false);
           setViewingMedia(null);
         }}
-        size="xl"
-        centered
-        withCloseButton
-        title={
-          <Group gap="sm">
-            {viewingMedia?.type === 'image' && <IconPhoto size={20} />}
-            {viewingMedia?.type === 'video' && <IconVideo size={20} />}
-            <Text>Medya Görüntüleyici</Text>
-          </Group>
-        }
-        styles={{
-          content: {
-            background: 'rgba(0,0,0,0.95)',
-          },
-          header: {
-            background: 'rgba(0,0,0,0.95)',
-          },
-          title: {
-            color: 'white',
-          },
-        }}
-      >
-        <Stack align="center" gap="md">
-          {viewingMedia?.mediaUrl && (
-            <>
-              {viewingMedia.type === 'image' || viewingMedia.mimetype?.startsWith('image/') ? (
-                <Image
-                  src={viewingMedia.mediaUrl}
-                  alt="Tam boy"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '70vh',
-                    objectFit: 'contain',
-                    borderRadius: 8,
-                  }}
-                />
-              ) : viewingMedia.type === 'video' || viewingMedia.mimetype?.startsWith('video/') ? (
-                <video
-                  src={viewingMedia.mediaUrl}
-                  controls
-                  autoPlay
-                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }}
-                >
-                  <track kind="captions" />
-                </video>
-              ) : null}
-
-              {viewingMedia.caption && (
-                <Text c="white" ta="center" style={{ maxWidth: 500 }}>
-                  {viewingMedia.caption}
-                </Text>
-              )}
-
-              <Button
-                variant="light"
-                color="green"
-                leftSection={<IconDownload size={18} />}
-                onClick={() => {
-                  if (viewingMedia.mediaUrl) {
-                    const link = document.createElement('a');
-                    link.href = viewingMedia.mediaUrl;
-                    link.download = viewingMedia.filename || `media-${Date.now()}`;
-                    link.click();
-                  }
-                }}
-              >
-                İndir
-              </Button>
-            </>
-          )}
-        </Stack>
-      </Modal>
+        viewingMedia={viewingMedia}
+      />
 
       {/* Caption Modal - Fotoğraf/Video gönderirken açıklama ekleme */}
-      <Modal
+      <CaptionModal
         opened={captionModalOpen}
-        onClose={handleCancelCaption}
-        size="lg"
-        centered
-        title={
-          <Group gap="sm">
-            {pendingFile?.type === 'image' && <IconPhoto size={20} color="#25D366" />}
-            {pendingFile?.type === 'video' && <IconVideo size={20} color="#3B82F6" />}
-            <Text fw={600}>
-              {pendingFile?.type === 'image' ? 'Fotoğraf Gönder' : 'Video Gönder'}
-            </Text>
-          </Group>
-        }
-        styles={{
-          content: {
-            background: 'linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%)',
-          },
-          header: {
-            background: 'transparent',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-          },
-          title: {
-            color: 'white',
-          },
-        }}
-      >
-        <Stack gap="md">
-          {/* Preview */}
-          {pendingFile?.preview && (
-            <Box
-              style={{
-                borderRadius: 12,
-                overflow: 'hidden',
-                background: 'rgba(0,0,0,0.3)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                maxHeight: 400,
-              }}
-            >
-              {pendingFile.type === 'image' ? (
-                <Image
-                  src={pendingFile.preview}
-                  alt="Önizleme"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: 400,
-                    objectFit: 'contain',
-                  }}
-                />
-              ) : (
-                <video
-                  src={pendingFile.preview}
-                  controls
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: 400,
-                  }}
-                >
-                  <track kind="captions" />
-                </video>
-              )}
-            </Box>
-          )}
-
-          {/* File info */}
-          <Group gap="xs">
-            <Badge size="sm" variant="light" color="gray">
-              {pendingFile?.file.name}
-            </Badge>
-            <Badge size="sm" variant="light" color="blue">
-              {pendingFile?.file.size
-                ? `${(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB`
-                : ''}
-            </Badge>
-          </Group>
-
-          {/* Caption input */}
-          <Textarea
-            placeholder="Açıklama ekleyin (isteğe bağlı)..."
-            value={captionText}
-            onChange={(e) => setCaptionText(e.target.value)}
-            minRows={2}
-            maxRows={4}
-            radius="md"
-            styles={{
-              input: {
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--surface-border)',
-                color: 'white',
-              },
-            }}
-          />
-
-          {/* Actions */}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="subtle" color="gray" onClick={handleCancelCaption}>
-              İptal
-            </Button>
-            <Button
-              variant="gradient"
-              gradient={{ from: '#25D366', to: '#128C7E' }}
-              leftSection={<IconSend size={18} />}
-              onClick={handleSendWithCaption}
-              loading={sendingMedia}
-            >
-              Gönder
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        pendingFile={pendingFile}
+        captionText={captionText}
+        sendingMedia={sendingMedia}
+        onCaptionChange={setCaptionText}
+        onSend={handleSendWithCaption}
+        onCancel={handleCancelCaption}
+      />
 
       {/* Döküman Önizleme Modal - DocViewer ile tüm formatları destekler */}
-      <Modal
-        opened={!!previewUrl}
+      <DocumentPreviewModal
+        previewUrl={previewUrl}
+        previewFilename={previewFilename}
         onClose={() => {
-          // Blob URL'i temizle
-          if (previewBlobUrl?.startsWith('blob:')) {
-            URL.revokeObjectURL(previewBlobUrl);
-          }
           setPreviewUrl(null);
-          setPreviewBlobUrl(null);
           setPreviewFilename('');
-          setDocxHtml(null);
-          setPreviewLoading(false);
         }}
-        size="xl"
-        fullScreen
-        withCloseButton
-        title={
-          <Group gap="sm">
-            {previewFilename.match(/\.pdf$/i) ? (
-              <IconFileTypePdf size={20} color="#e74c3c" />
-            ) : previewFilename.match(/\.docx?$/i) ? (
-              <IconFileTypeDoc size={20} color="#3498db" />
-            ) : previewFilename.match(/\.xlsx?$/i) ? (
-              <IconFileTypeXls size={20} color="#27ae60" />
-            ) : previewFilename.match(/\.(jpe?g|png|gif|webp)$/i) ? (
-              <IconPhoto size={20} color="#9b59b6" />
-            ) : (
-              <IconFile size={20} />
-            )}
-            <Text>{previewFilename}</Text>
-            <Badge size="sm" variant="light" color="gray">
-              {previewFilename.split('.').pop()?.toUpperCase()}
-            </Badge>
-          </Group>
-        }
-        styles={{
-          content: {
-            background: '#1a1a2e',
-          },
-          header: {
-            background: '#1a1a2e',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-          },
-          title: {
-            color: 'white',
-          },
-          body: {
-            height: 'calc(100vh - 60px)',
-            padding: 0,
-          },
-        }}
-      >
-        <Box style={{ height: '100%', width: '100%', position: 'relative' }}>
-          {/* Yükleniyor */}
-          {previewLoading && (
-            <Box
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100%',
-              }}
-            >
-              <Stack align="center" gap="md">
-                <Loader size="xl" color="green" />
-                <Text c="gray.4">Dosya işleniyor...</Text>
-              </Stack>
-            </Box>
-          )}
-
-          {/* DOCX için Mammoth.js HTML çıktısı */}
-          {!previewLoading && docxHtml && (
-            <>
-              <ScrollArea style={{ height: '100%', padding: 20 }}>
-                <Paper
-                  p="xl"
-                  radius="md"
-                  style={{
-                    background: 'white',
-                    maxWidth: 900,
-                    margin: '0 auto',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  <DocxHtmlBody html={docxHtml} />
-                </Paper>
-              </ScrollArea>
-
-              {/* İndirme butonu */}
-              <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                <Tooltip label="Dosyayı İndir">
-                  <ActionIcon
-                    size="xl"
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: 'blue', to: 'cyan' }}
-                    onClick={() => {
-                      if (previewUrl) {
-                        const link = document.createElement('a');
-                        link.href = previewUrl;
-                        link.download = previewFilename || 'document.docx';
-                        link.click();
-                      }
-                    }}
-                  >
-                    <IconDownload size={24} />
-                  </ActionIcon>
-                </Tooltip>
-              </Box>
-            </>
-          )}
-
-          {/* Resim dosyaları */}
-          {!previewLoading &&
-            !docxHtml &&
-            previewBlobUrl &&
-            (previewFilename.match(/\.(jpe?g|png|gif|webp|bmp)$/i) ||
-              previewUrl?.startsWith('data:image/')) && (
-              <>
-                <Box
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                    background: '#0d0d1a',
-                  }}
-                >
-                  <Image
-                    src={previewBlobUrl}
-                    alt={previewFilename}
-                    style={{
-                      maxWidth: '95%',
-                      maxHeight: '95%',
-                      objectFit: 'contain',
-                      borderRadius: 8,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                    }}
-                  />
-                </Box>
-                <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                  <Tooltip label="Dosyayı İndir">
-                    <ActionIcon
-                      size="xl"
-                      radius="xl"
-                      variant="gradient"
-                      gradient={{ from: 'teal', to: 'green' }}
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = previewBlobUrl;
-                        link.download = previewFilename || 'image';
-                        link.click();
-                      }}
-                    >
-                      <IconDownload size={24} />
-                    </ActionIcon>
-                  </Tooltip>
-                </Box>
-              </>
-            )}
-
-          {/* PDF için native iframe (daha güvenilir) */}
-          {!previewLoading && !docxHtml && previewBlobUrl && previewFilename.match(/\.pdf$/i) && (
-            <>
-              <iframe
-                src={previewBlobUrl}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  background: 'white',
-                }}
-                title={previewFilename}
-              />
-              <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                <Tooltip label="Dosyayı İndir">
-                  <ActionIcon
-                    size="xl"
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: 'red', to: 'orange' }}
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = previewBlobUrl;
-                      link.download = previewFilename || 'document.pdf';
-                      link.click();
-                    }}
-                  >
-                    <IconDownload size={24} />
-                  </ActionIcon>
-                </Tooltip>
-              </Box>
-            </>
-          )}
-
-          {/* Diğer dosyalar için DocViewer (Excel vb.) */}
-          {!previewLoading &&
-            !docxHtml &&
-            previewBlobUrl &&
-            !previewFilename.match(/\.(jpe?g|png|gif|webp|bmp|pdf)$/i) &&
-            !previewUrl?.startsWith('data:image/') && (
-              <>
-                <DocViewer
-                  documents={[
-                    {
-                      uri: previewBlobUrl,
-                      fileName: previewFilename,
-                    },
-                  ]}
-                  pluginRenderers={DocViewerRenderers}
-                  config={{
-                    header: {
-                      disableHeader: true,
-                      disableFileName: true,
-                    },
-                  }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: '#1a1a2e',
-                  }}
-                  theme={{
-                    primary: '#25D366',
-                    secondary: '#1a1a2e',
-                    tertiary: '#2d2d44',
-                    textPrimary: '#ffffff',
-                    textSecondary: '#a0a0a0',
-                    textTertiary: '#666666',
-                    disableThemeScrollbar: false,
-                  }}
-                />
-                <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                  <Tooltip label="Dosyayı İndir">
-                    <ActionIcon
-                      size="xl"
-                      radius="xl"
-                      variant="gradient"
-                      gradient={{ from: 'teal', to: 'green' }}
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = previewBlobUrl;
-                        link.download = previewFilename || 'document';
-                        link.click();
-                      }}
-                    >
-                      <IconDownload size={24} />
-                    </ActionIcon>
-                  </Tooltip>
-                </Box>
-              </>
-            )}
-        </Box>
-      </Modal>
+      />
     </Box>
   );
 }

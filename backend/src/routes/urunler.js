@@ -2,7 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate } from '../middleware/auth.js';
 import logger from '../utils/logger.js';
-import { hesaplaReceteMaliyet } from './menu-planlama.js';
+import { hesaplaReceteMaliyet } from '../services/maliyet-hesaplama-service.js';
 
 const router = express.Router();
 
