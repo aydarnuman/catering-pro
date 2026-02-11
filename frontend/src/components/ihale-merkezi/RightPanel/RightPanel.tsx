@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Button, ScrollArea, Tabs, Text, ThemeIcon } from '@mantine/core';
-import { IconChecklist, IconGavel, IconSparkles, IconUsers, IconWand } from '@tabler/icons-react';
+import { IconChecklist, IconGavel, IconSparkles, IconTable, IconUsers, IconWand } from '@tabler/icons-react';
 import { AraclarSection } from '../shared/AraclarSection';
 import { DilekceSection } from '../shared/DilekceSection';
 import { KontrolSection } from '../shared/KontrolSection';
@@ -126,7 +126,34 @@ export function RightPanel({
         {(!isMobile || mobileActiveTab === 'tools') && isSavedTender && (
           <Box p="sm">
             {activeRightTab === 'araclar' && (
-              <AraclarSection tender={selectedTender as SavedTender} onRefresh={onRefreshData} />
+              <>
+                {/* Sanal İhale Masası trigger */}
+                {(selectedTender as SavedTender).analysis_summary && (
+                  <Button
+                    variant="gradient"
+                    gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
+                    leftSection={<IconTable size={16} />}
+                    fullWidth
+                    mb="sm"
+                    onClick={() => onStateChange({ sanalMasaOpen: true })}
+                    style={{
+                      boxShadow: '0 2px 12px rgba(139, 92, 246, 0.2)',
+                      transition: 'all 0.2s ease',
+                    }}
+                    styles={{
+                      root: {
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)',
+                        },
+                      },
+                    }}
+                  >
+                    Sanal İhale Masası
+                  </Button>
+                )}
+                <AraclarSection tender={selectedTender as SavedTender} onRefresh={onRefreshData} />
+              </>
             )}
 
             {activeRightTab === 'dilekce' && (

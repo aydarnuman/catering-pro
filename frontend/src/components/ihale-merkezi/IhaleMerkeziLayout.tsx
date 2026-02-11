@@ -24,6 +24,12 @@ const TeklifMerkeziModal = dynamic(
   { ssr: false, loading: () => null }
 );
 
+const SanalIhaleMasasiModal = dynamic(
+  () =>
+    import('./SanalIhaleMasasi').then((m) => ({ default: m.SanalIhaleMasasiModal })),
+  { ssr: false, loading: () => null }
+);
+
 // CSS variables for panel widths
 const PANEL_WIDTHS = {
   left: 300,
@@ -234,6 +240,14 @@ function IhaleMerkeziLayoutInner() {
             onRefresh={refreshAll}
           />
         )}
+
+        {state.selectedTender && 'tender_id' in state.selectedTender && (
+          <SanalIhaleMasasiModal
+            opened={state.sanalMasaOpen}
+            onClose={() => updateState({ sanalMasaOpen: false })}
+            tender={state.selectedTender as import('./types').SavedTender}
+          />
+        )}
       </Box>
     );
   }
@@ -309,6 +323,14 @@ function IhaleMerkeziLayoutInner() {
             refreshAll();
             refreshAndUpdateSelected();
           }}
+        />
+      )}
+
+      {state.selectedTender && 'tender_id' in state.selectedTender && (
+        <SanalIhaleMasasiModal
+          opened={state.sanalMasaOpen}
+          onClose={() => updateState({ sanalMasaOpen: false })}
+          tender={state.selectedTender as import('./types').SavedTender}
         />
       )}
 

@@ -353,6 +353,7 @@ export interface IhaleMerkeziState {
   mapModalOpen: boolean;
   addUrlModalOpen: boolean;
   teklifModalOpen: boolean;
+  sanalMasaOpen: boolean;
 }
 
 // HITL Düzeltme tipleri

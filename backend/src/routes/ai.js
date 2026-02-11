@@ -1979,6 +1979,299 @@ router.get('/dashboard', async (_req, res) => {
 });
 
 // ============================================
+// SANAL İHALE MASASI — Agent Action Endpoint
+// ============================================
+
+const IHALE_AGENT_SYSTEM_PROMPTS = {
+  mevzuat: `Sen bir kamu ihale mevzuatı uzmanısın. 4734 sayılı Kamu İhale Kanunu, 4735 sayılı Kamu İhale Sözleşmeleri Kanunu, KİK kararları ve Danıştay içtihatlarına hakimsin. Görevin ihale şartnamelerindeki hukuki riskleri tespit etmek ve teklif veren lehine öneriler sunmaktır. Türkçe yanıt ver.`,
+
+  maliyet: `Sen bir catering maliyetlendirme uzmanısın. Yemek hizmet alımı ihalelerinde maliyet analizi, birim fiyat hesaplama, kâr marjı optimizasyonu konularında uzmansın. Mevcut piyasa fiyatları ve fatura verileriyle gerçekçi maliyet hesabı yaparsın. Türkçe yanıt ver.`,
+
+  teknik: `Sen bir yemek hizmeti teknik şartname uzmanısın. Personel yeterliliği, ekipman gereksinimleri, menü planlaması, kapasite analizi konularında uzmansın. Şartnameyi teknik açıdan değerlendirip firmanın karşılayıp karşılayamayacağını analiz edersin. Türkçe yanıt ver.`,
+
+  rekabet: `Sen bir ihale rekabet analisti ve istihbaratçısın. Rakip firma analizleri, geçmiş ihale sonuçları, teklif stratejileri konularında uzmansın. Piyasadaki rekabet durumunu değerlendirip optimal teklif stratejisi önerirsin. Türkçe yanıt ver.`,
+};
+
+function buildToolPrompt(toolId, input, context) {
+  const ctx = context || {};
+  switch (toolId) {
+    case 'redline':
+      return `Aşağıdaki ihale şartname maddesini teklif veren lehine revize et. Orijinal metni, revize metni ve değişiklik gerekçesini ayrı ayrı belirt.
+
+Orijinal Madde:
+"${input || ''}"
+
+İhale Bilgileri:
+${JSON.stringify(ctx, null, 2)}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "redline",
+  "originalText": "orijinal madde metni",
+  "revisedText": "revize edilmiş metin",
+  "explanation": "değişiklik gerekçesi ve hukuki dayanaklar"
+}`;
+
+    case 'emsal':
+      return `Bu ihale şartnamesi konusuyla ilgili KİK kararları ve Danıştay içtihatlarını ara. Emsal kararları önem sırasına göre listele.
+
+İhale Konusu: ${ctx.ihale_basligi || ''}
+İhale Usulü: ${ctx.ihale_usulu || ''}
+Araştırma Konusu: ${input || 'Genel şartname analizi'}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "precedent",
+  "citations": [
+    {
+      "reference": "KİK Kararı veya Danıştay kararı referans numarası",
+      "summary": "Kararın özeti ve ilgisi",
+      "relevance": "Yüksek/Orta/Düşük"
+    }
+  ]
+}`;
+
+    case 'zeyilname':
+      return `Bu ihale için idareye resmi zeyilname talep mektubu hazırla. Hukuki dayanakları ve talep edilen değişiklikleri belirt.
+
+İhale: ${ctx.ihale_basligi || ''}
+Kurum: ${ctx.kurum || ''}
+Konu: ${input || 'Genel şartname itirazı'}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "draft",
+  "draftTitle": "mektup başlığı",
+  "addressee": "hitap",
+  "draftDate": "${new Date().toLocaleDateString('tr-TR')}",
+  "draftBody": "mektup tam metni"
+}`;
+
+    case 'maliyet_hesapla':
+      return `Bu ihale şartnamesindeki menü/yemek gereksinimlerine göre tahmini maliyet hesabı yap.
+
+İhale: ${ctx.ihale_basligi || ''}
+Tahmini Bedel: ${ctx.tahmini_bedel || 'Belirtilmemiş'}
+Kişi Sayısı: ${ctx.kisi_sayisi || 'Belirtilmemiş'}
+Süre: ${ctx.sure || 'Belirtilmemiş'}
+Öğün Bilgileri: ${JSON.stringify(ctx.ogun_bilgileri || [], null, 2)}
+Birim Fiyatlar: ${JSON.stringify(ctx.birim_fiyatlar || [], null, 2)}
+${input ? `Ek Not: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "calculation",
+  "content": "detaylı maliyet hesabı (markdown formatında)"
+}`;
+
+    case 'piyasa_karsilastir':
+      return `Bu ihale için piyasa fiyat karşılaştırması yap. Şartnamedeki birim fiyatları güncel piyasa ile karşılaştır.
+
+Birim Fiyatlar: ${JSON.stringify(ctx.birim_fiyatlar || [], null, 2)}
+Tahmini Bedel: ${ctx.tahmini_bedel || 'Belirtilmemiş'}
+${input ? `Özel Analiz: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "calculation",
+  "content": "piyasa karşılaştırma analizi (markdown formatında)"
+}`;
+
+    case 'teminat_hesapla':
+      return `Bu ihale için teminat hesaplaması yap.
+
+Tahmini Bedel: ${ctx.tahmini_bedel || 'Belirtilmemiş'}
+Geçici Teminat: ${ctx.teminat_oranlari?.gecici || ctx.teminat_oranlari?.gecici_teminat || '%3'}
+Kesin Teminat: ${ctx.teminat_oranlari?.kesin || ctx.teminat_oranlari?.kesin_teminat || '%6'}
+${input ? `Ek: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "calculation",
+  "content": "teminat hesaplama detayları (markdown formatında)"
+}`;
+
+    case 'personel_karsilastir':
+      return `İhale şartnamesindeki personel gereksinimlerini analiz et ve firmanın mevcut kadrosuyla karşılaştırma önerisi yap.
+
+Şartnamedeki Personel Gereksinimleri: ${JSON.stringify(ctx.personel_detaylari || [], null, 2)}
+Kişi Sayısı: ${ctx.kisi_sayisi || 'Belirtilmemiş'}
+${input ? `Ek Not: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "generic",
+  "content": "personel analizi ve öneriler (markdown formatında)"
+}`;
+
+    case 'menu_uygunluk':
+      return `İhale şartnamesindeki menü/yemek gereksinimlerini değerlendir.
+
+Öğün Bilgileri: ${JSON.stringify(ctx.ogun_bilgileri || [], null, 2)}
+Teknik Şartlar: ${JSON.stringify((ctx.teknik_sartlar || []).slice(0, 10), null, 2)}
+Servis Saatleri: ${JSON.stringify(ctx.servis_saatleri || {}, null, 2)}
+${input ? `Ek Not: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "generic",
+  "content": "menü uygunluk analizi (markdown formatında)"
+}`;
+
+    case 'kapasite_kontrol':
+      return `İhale için kapasite yeterlilik analizi yap.
+
+Kişi Sayısı: ${ctx.kisi_sayisi || 'Belirtilmemiş'}
+Süre: ${ctx.sure || 'Belirtilmemiş'}
+Öğün Bilgileri: ${JSON.stringify(ctx.ogun_bilgileri || [], null, 2)}
+Kapasite Gereksinimi: ${ctx.kapasite_gereksinimi || 'Belirtilmemiş'}
+${input ? `Ek Not: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "generic",
+  "content": "kapasite analizi ve değerlendirme (markdown formatında)"
+}`;
+
+    case 'benzer_ihale':
+      return `Bu ihaleye benzer geçmiş ihaleleri analiz et ve rekabet durumunu değerlendir.
+
+İhale: ${ctx.ihale_basligi || ''}
+Kurum: ${ctx.kurum || ''}
+İl: ${ctx.il || ''}
+Tahmini Bedel: ${ctx.tahmini_bedel || 'Belirtilmemiş'}
+İhale Usulü: ${ctx.ihale_usulu || ''}
+${input ? `Ek: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "generic",
+  "content": "rekabet analizi ve strateji önerileri (markdown formatında)"
+}`;
+
+    case 'teklif_stratejisi':
+      return `Bu ihale için optimal teklif stratejisi öner.
+
+Tahmini Bedel: ${ctx.tahmini_bedel || 'Belirtilmemiş'}
+Sınır Değer Katsayısı: ${ctx.sinir_deger_katsayisi || 'Belirtilmemiş'}
+Teklif Türü: ${ctx.teklif_turu || 'Belirtilmemiş'}
+Benzer İş Tanımı: ${ctx.benzer_is_tanimi || 'Belirtilmemiş'}
+${input ? `Ek Bilgi: ${input}` : ''}
+
+YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
+{
+  "type": "generic",
+  "content": "teklif stratejisi analizi (markdown formatında, senaryolu)"
+}`;
+
+    default:
+      return input || 'Bu ihale hakkında genel bir değerlendirme yap.';
+  }
+}
+
+function parseAIResponseToToolResult(aiResponse, toolId) {
+  try {
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      // Ensure type field exists
+      if (!parsed.type) {
+        parsed.type = 'generic';
+      }
+      return { success: true, result: parsed };
+    }
+    return {
+      success: true,
+      result: { type: 'generic', content: aiResponse },
+    };
+  } catch (_e) {
+    return {
+      success: true,
+      result: { type: 'generic', content: aiResponse },
+    };
+  }
+}
+
+/**
+ * POST /api/ai/ihale-masasi/agent-action
+ * Sanal İhale Masası — Agent bazlı AI aksiyonu
+ */
+router.post('/ihale-masasi/agent-action', optionalAuth, async (req, res) => {
+  try {
+    const { agentId, toolId, tenderId, input, analysisContext } = req.body;
+
+    if (!agentId || !toolId) {
+      return res.status(400).json({
+        success: false,
+        error: 'agentId ve toolId zorunludur',
+      });
+    }
+
+    const systemPrompt = IHALE_AGENT_SYSTEM_PROMPTS[agentId];
+    if (!systemPrompt) {
+      return res.status(400).json({
+        success: false,
+        error: `Geçersiz agent: ${agentId}`,
+      });
+    }
+
+    logger.info(`[İhale Masası] Agent: ${agentId}, Tool: ${toolId}, Tender: ${tenderId || 'N/A'}`, {
+      agentId,
+      toolId,
+      tenderId,
+    });
+
+    // Build context from analysisContext (comes from frontend analysis_summary)
+    const context = analysisContext || {};
+
+    // Build the user message based on tool type
+    const userMessage = buildToolPrompt(toolId, input, context);
+
+    // Call AI agent with specialized system prompt
+    const result = await aiAgent.processQuery(userMessage, [], {
+      sessionId: `ihale-masasi-${agentId}-${Date.now()}`,
+      userId: req.user?.id || 'ihale-masasi',
+      department: 'İHALE',
+      systemContext: systemPrompt,
+      pageContext: {
+        type: 'ihale-masasi',
+        agentId,
+        toolId,
+        tenderId,
+      },
+    });
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error || 'AI yanıtı alınamadı',
+      });
+    }
+
+    // Parse AI response to structured ToolResult
+    const parsed = parseAIResponseToToolResult(result.response, toolId);
+
+    return res.json({
+      success: true,
+      result: parsed.result,
+      toolsUsed: result.toolsUsed || [],
+      iterations: result.iterations || 0,
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] Agent Action Hata', {
+      error: error.message,
+      stack: error.stack,
+      agentId: req.body?.agentId,
+      toolId: req.body?.toolId,
+    });
+    return res.status(500).json({
+      success: false,
+      error: 'Agent aksiyonu çalıştırılamadı',
+    });
+  }
+});
+
+// ============================================
 // GOD MODE ENDPOINTS (Super Admin Only)
 // ============================================
 // NOT: Daha spesifik route'lar önce tanımlanmalı (Express route matching için)
@@ -2265,6 +2558,56 @@ router.get('/errors/recent', authenticate, requireAdmin, async (req, res) => {
       success: false,
       error: 'Hatalar yüklenemedi',
     });
+  }
+});
+
+// ─── İhale Masası Session Kayıt ─────────────────────────────
+
+/**
+ * POST /api/ai/ihale-masasi/session/save
+ * İhale masası oturumunu kaydet
+ */
+router.post('/ihale-masasi/session/save', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId, sessionData } = req.body;
+
+    if (!tenderId || !sessionData) {
+      return res.status(400).json({ success: false, error: 'tenderId ve sessionData zorunludur' });
+    }
+
+    const result = await query(
+      `INSERT INTO ihale_masasi_sessions (tender_id, session_data, user_id)
+       VALUES ($1, $2, $3)
+       RETURNING id, created_at`,
+      [tenderId, JSON.stringify(sessionData), req.user?.id || 'default']
+    );
+
+    return res.json({ success: true, sessionId: result.rows[0].id, createdAt: result.rows[0].created_at });
+  } catch (error) {
+    logger.error('[İhale Masası Session Save] Hata', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Oturum kaydedilemedi' });
+  }
+});
+
+/**
+ * GET /api/ai/ihale-masasi/session/:tenderId
+ * İhale masası geçmiş oturumlarını getir
+ */
+router.get('/ihale-masasi/session/:tenderId', optionalAuth, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, session_data, created_at
+       FROM ihale_masasi_sessions
+       WHERE tender_id = $1
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [req.params.tenderId]
+    );
+
+    return res.json({ success: true, sessions: result.rows });
+  } catch (error) {
+    logger.error('[İhale Masası Session List] Hata', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Oturumlar yüklenemedi' });
   }
 });
 

@@ -88,6 +88,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     mapModalOpen: false,
     addUrlModalOpen: false,
     teklifModalOpen: false,
+    sanalMasaOpen: false,
   });
 
   // ========== DATA FETCHING (TanStack Query) ==========

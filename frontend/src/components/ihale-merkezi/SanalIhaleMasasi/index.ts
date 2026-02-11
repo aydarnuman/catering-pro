@@ -1,0 +1,1 @@
+export { SanalIhaleMasasiModal } from './SanalIhaleMasasiModal';
