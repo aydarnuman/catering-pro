@@ -1,6 +1,8 @@
 import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { createPersonelSchema, updatePersonelSchema, createProjeSchema, updateProjeSchema, atamaSchema, topluAtamaSchema, updateAtamaSchema, createGorevSchema, updateGorevSchema, tazminatHesaplaSchema, tazminatKaydetSchema, izinGunSchema } from '../validations/personel.js';
 
 const router = express.Router();
 
@@ -132,13 +134,9 @@ router.get('/projeler/:id', async (req, res) => {
 // =====================================================
 // YENİ PROJE EKLE
 // =====================================================
-router.post('/projeler', async (req, res) => {
+router.post('/projeler', validate(createProjeSchema), async (req, res) => {
   try {
     const { ad, kod, aciklama, musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum } = req.body;
-
-    if (!ad) {
-      return res.status(400).json({ success: false, error: 'Proje adı zorunludur' });
-    }
 
     const result = await query(
       `
@@ -171,7 +169,7 @@ router.post('/projeler', async (req, res) => {
 // =====================================================
 // PROJE GÜNCELLE
 // =====================================================
-router.put('/projeler/:id', async (req, res) => {
+router.put('/projeler/:id', validate(updateProjeSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { ad, kod, aciklama, musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum } = req.body;
@@ -336,7 +334,7 @@ router.get('/:id', async (req, res) => {
 // =====================================================
 // YENİ PERSONEL EKLE
 // =====================================================
-router.post('/', authenticate, requirePermission('personel', 'create'), auditLog('personel'), async (req, res) => {
+router.post('/', authenticate, requirePermission('personel', 'create'), validate(createPersonelSchema), auditLog('personel'), async (req, res) => {
   try {
     const {
       ad,
@@ -367,10 +365,6 @@ router.post('/', authenticate, requirePermission('personel', 'create'), auditLog
       yemek_yardimi,
       yol_yardimi,
     } = req.body;
-
-    if (!ad || !soyad || !tc_kimlik || !ise_giris_tarihi) {
-      return res.status(400).json({ success: false, error: 'Ad, soyad, TC kimlik ve işe giriş tarihi zorunludur' });
-    }
 
     const result = await query(
       `
@@ -431,7 +425,7 @@ router.post('/', authenticate, requirePermission('personel', 'create'), auditLog
 // =====================================================
 // PERSONEL GÜNCELLE
 // =====================================================
-router.put('/:id', authenticate, requirePermission('personel', 'edit'), auditLog('personel'), async (req, res) => {
+router.put('/:id', authenticate, requirePermission('personel', 'edit'), validate(updatePersonelSchema), auditLog('personel'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -562,14 +556,10 @@ router.delete('/:id', authenticate, requirePermission('personel', 'delete'), aud
 // =====================================================
 // PROJEye PERSONEL ATA
 // =====================================================
-router.post('/projeler/:projeId/personel', async (req, res) => {
+router.post('/projeler/:projeId/personel', validate(atamaSchema), async (req, res) => {
   try {
     const { projeId } = req.params;
     const { personel_id, gorev, baslangic_tarihi, bitis_tarihi, notlar } = req.body;
-
-    if (!personel_id) {
-      return res.status(400).json({ success: false, error: 'Personel ID zorunludur' });
-    }
 
     // Önce mevcut aktif atamayı kontrol et
     const existing = await query(
@@ -609,14 +599,10 @@ router.post('/projeler/:projeId/personel', async (req, res) => {
 // =====================================================
 // TOPLU PERSONEL ATA
 // =====================================================
-router.post('/projeler/:projeId/personel/bulk', async (req, res) => {
+router.post('/projeler/:projeId/personel/bulk', validate(topluAtamaSchema), async (req, res) => {
   try {
     const { projeId } = req.params;
     const { personel_ids, gorev, baslangic_tarihi } = req.body;
-
-    if (!personel_ids || !Array.isArray(personel_ids) || personel_ids.length === 0) {
-      return res.status(400).json({ success: false, error: 'En az bir personel seçmelisiniz' });
-    }
 
     const results = [];
     const errors = [];
@@ -661,7 +647,7 @@ router.post('/projeler/:projeId/personel/bulk', async (req, res) => {
 // =====================================================
 // PROJE ATAMASI GÜNCELLE
 // =====================================================
-router.put('/atama/:atamaId', async (req, res) => {
+router.put('/atama/:atamaId', validate(updateAtamaSchema), async (req, res) => {
   try {
     const { atamaId } = req.params;
     const { gorev, baslangic_tarihi, bitis_tarihi, notlar, aktif } = req.body;
@@ -779,13 +765,9 @@ router.get('/gorevler', async (_req, res) => {
 // =====================================================
 // GÖREVLER - EKLE
 // =====================================================
-router.post('/gorevler', async (req, res) => {
+router.post('/gorevler', validate(createGorevSchema), async (req, res) => {
   try {
     const { ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira } = req.body;
-
-    if (!ad) {
-      return res.status(400).json({ success: false, error: 'Görev adı zorunludur' });
-    }
 
     const result = await query(
       `
@@ -808,7 +790,7 @@ router.post('/gorevler', async (req, res) => {
 // =====================================================
 // GÖREVLER - GÜNCELLE
 // =====================================================
-router.put('/gorevler/:id', async (req, res) => {
+router.put('/gorevler/:id', validate(updateGorevSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira, aktif } = req.body;
@@ -904,13 +886,9 @@ router.get('/tazminat/yasal-bilgiler', async (_req, res) => {
 // =====================================================
 // TAZMİNAT - HESAPLA
 // =====================================================
-router.post('/tazminat/hesapla', async (req, res) => {
+router.post('/tazminat/hesapla', validate(tazminatHesaplaSchema), async (req, res) => {
   try {
     const { personelId, cikisTarihi, cikisSebebi, kalanIzinGun } = req.body;
-
-    if (!personelId || !cikisTarihi || !cikisSebebi) {
-      return res.status(400).json({ success: false, error: 'personelId, cikisTarihi ve cikisSebebi gerekli' });
-    }
 
     const hesap = await hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kalanIzinGun);
     res.json({ success: true, data: hesap });
@@ -922,7 +900,7 @@ router.post('/tazminat/hesapla', async (req, res) => {
 // =====================================================
 // TAZMİNAT - KAYDET VE İŞTEN ÇIKAR
 // =====================================================
-router.post('/tazminat/kaydet', async (req, res) => {
+router.post('/tazminat/kaydet', validate(tazminatKaydetSchema), async (req, res) => {
   try {
     const { personelId, cikisTarihi, cikisSebebi, kalanIzinGun, notlar, istenCikar } = req.body;
 
@@ -999,7 +977,7 @@ router.get('/tazminat/gecmis', async (req, res) => {
 // =====================================================
 // TAZMİNAT - KALAN İZİN GÜNCELLE
 // =====================================================
-router.put('/:id/izin-gun', async (req, res) => {
+router.put('/:id/izin-gun', validate(izinGunSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { kalanIzinGun } = req.body;

@@ -6,6 +6,8 @@
 import express from 'express';
 import { query, transaction } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { createInvoiceSchema, updateInvoiceSchema, updateInvoiceStatusSchema } from '../validations/invoices.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
 
 const router = express.Router();
@@ -206,7 +208,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/invoices
  * Yeni fatura oluştur
  */
-router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('fatura'), async (req, res) => {
+router.post('/', authenticate, validate(createInvoiceSchema), requirePermission('fatura', 'create'), auditLog('fatura'), async (req, res) => {
   try {
     const {
       invoice_type,
@@ -297,7 +299,7 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
  * PUT /api/invoices/:id
  * Fatura güncelle
  */
-router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('fatura'), async (req, res) => {
+router.put('/:id', authenticate, validate(updateInvoiceSchema), requirePermission('fatura', 'edit'), auditLog('fatura'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -396,7 +398,7 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
  * PATCH /api/invoices/:id/status
  * Fatura durumunu güncelle
  */
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', validate(updateInvoiceStatusSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;

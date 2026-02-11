@@ -1,5 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
+import { validate } from '../middleware/validate.js';
+import { netBrutSchema, hesaplaSchema, kaydetSchema, topluHesaplaSchema, odemeSchema, topluOdemeSchema, donemSilSchema } from '../validations/bordro.js';
 
 const router = express.Router();
 
@@ -211,7 +213,7 @@ function _hesaplaEngelliIndirimi(engelDerecesi) {
 // =====================================================
 // NET'TEN BRÜT VE MALİYET HESAPLA (Önizleme için)
 // =====================================================
-router.post('/net-brut-hesapla', async (req, res) => {
+router.post('/net-brut-hesapla', validate(netBrutSchema), async (req, res) => {
   try {
     const {
       net_maas,
@@ -221,10 +223,6 @@ router.post('/net-brut-hesapla', async (req, res) => {
       yemek_yardimi = 0,
       yol_yardimi = 0,
     } = req.body;
-
-    if (!net_maas || net_maas <= 0) {
-      return res.status(400).json({ success: false, error: 'Net maaş zorunludur' });
-    }
 
     const yil = new Date().getFullYear();
 
@@ -292,7 +290,7 @@ router.post('/net-brut-hesapla', async (req, res) => {
 // =====================================================
 // BORDRO HESAPLA
 // =====================================================
-router.post('/hesapla', async (req, res) => {
+router.post('/hesapla', validate(hesaplaSchema), async (req, res) => {
   try {
     const {
       personel_id,
@@ -308,10 +306,6 @@ router.post('/hesapla', async (req, res) => {
       diger_kazanc = 0,
       calisma_gunu = 30,
     } = req.body;
-
-    if (!personel_id || !yil || !ay || !brut_maas) {
-      return res.status(400).json({ success: false, error: 'Personel, yıl, ay ve brüt maaş zorunludur' });
-    }
 
     // Personel bilgilerini al
     const personelResult = await query(
@@ -443,7 +437,7 @@ router.post('/hesapla', async (req, res) => {
 // =====================================================
 // BORDRO KAYDET
 // =====================================================
-router.post('/kaydet', async (req, res) => {
+router.post('/kaydet', validate(kaydetSchema), async (req, res) => {
   try {
     const bordro = req.body;
 
@@ -534,13 +528,9 @@ router.post('/kaydet', async (req, res) => {
 // =====================================================
 // TOPLU BORDRO HESAPLA VE KAYDET
 // =====================================================
-router.post('/toplu-hesapla', async (req, res) => {
+router.post('/toplu-hesapla', validate(topluHesaplaSchema), async (req, res) => {
   try {
     const { yil, ay, proje_id } = req.body;
-
-    if (!yil || !ay) {
-      return res.status(400).json({ success: false, error: 'Yıl ve ay zorunludur' });
-    }
 
     // Aktif personelleri al
     let sql = `
@@ -779,7 +769,7 @@ router.get('/ozet/:yil/:ay', async (req, res) => {
 // =====================================================
 // ÖDEME DURUMU GÜNCELLE
 // =====================================================
-router.patch('/:id/odeme', async (req, res) => {
+router.patch('/:id/odeme', validate(odemeSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { odeme_durumu, odeme_tarihi, odeme_yontemi } = req.body;
@@ -810,13 +800,9 @@ router.patch('/:id/odeme', async (req, res) => {
 // =====================================================
 // TOPLU ÖDEME
 // =====================================================
-router.post('/toplu-odeme', async (req, res) => {
+router.post('/toplu-odeme', validate(topluOdemeSchema), async (req, res) => {
   try {
     const { bordro_ids, odeme_yontemi } = req.body;
-
-    if (!bordro_ids || bordro_ids.length === 0) {
-      return res.status(400).json({ success: false, error: 'En az bir bordro seçmelisiniz' });
-    }
 
     const result = await query(
       `
@@ -843,13 +829,9 @@ router.post('/toplu-odeme', async (req, res) => {
 // =====================================================
 // DÖNEM BORDRO SİL
 // =====================================================
-router.delete('/donem-sil', async (req, res) => {
+router.delete('/donem-sil', validate(donemSilSchema), async (req, res) => {
   try {
     const { yil, ay, proje_id } = req.body;
-
-    if (!yil || !ay) {
-      return res.status(400).json({ success: false, error: 'Yıl ve ay bilgisi gerekli' });
-    }
 
     let sql = `DELETE FROM bordro_kayitlari WHERE yil = $1 AND ay = $2`;
     const params = [yil, ay];

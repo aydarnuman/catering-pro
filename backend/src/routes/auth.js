@@ -12,9 +12,23 @@ import bcrypt from 'bcryptjs';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { query } from '../database.js';
+import { validate } from '../middleware/validate.js';
 import loginAttemptService from '../services/login-attempt-service.js';
 import sessionService from '../services/session-service.js';
 import logger from '../utils/logger.js';
+import {
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+  updateUserSchema,
+  lockAccountSchema,
+  loginAttemptsQuerySchema,
+  createIpRuleSchema,
+  updateIpRuleSchema,
+  validatePasswordSchema,
+  idParamSchema,
+} from '../validations/auth.js';
 
 const router = express.Router();
 
@@ -60,15 +74,11 @@ const hashToken = (token) => {
  * LOGIN - Sadece PostgreSQL + bcrypt
  * Supabase Auth KALDIRILDI
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email ve şifre gerekli' });
-    }
 
     // Kilit durumunu kontrol et
     const lockStatus = await loginAttemptService.checkLockStatusByEmail(email);
@@ -198,13 +208,9 @@ router.post('/login', async (req, res) => {
 /**
  * REGISTER - Yeni kullanıcı kaydı
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { email, password, name, role = 'user', user_type } = req.body;
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ success: false, error: 'Tüm alanlar gerekli' });
-    }
+    const { email, password, name, role, user_type } = req.body;
 
     // Email kontrolü
     const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
@@ -294,7 +300,7 @@ router.get('/me', async (req, res) => {
 /**
  * PROFILE - Profil güncelleme
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', validate(updateProfileSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -307,10 +313,6 @@ router.put('/profile', async (req, res) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const { name } = req.body;
-
-    if (!name || name.trim().length < 2) {
-      return res.status(400).json({ success: false, error: 'Geçerli bir isim girin (en az 2 karakter)' });
-    }
 
     const result = await query(
       `
@@ -339,7 +341,7 @@ router.put('/profile', async (req, res) => {
 /**
  * PASSWORD - Şifre değiştirme
  */
-router.put('/password', async (req, res) => {
+router.put('/password', validate(changePasswordSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -352,19 +354,6 @@ router.put('/password', async (req, res) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Mevcut ve yeni şifre gerekli' });
-    }
-
-    const passwordValidation = validatePassword(newPassword);
-    if (!passwordValidation.valid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Şifre güvenlik gereksinimlerini karşılamıyor',
-        details: passwordValidation.errors,
-      });
-    }
 
     const userResult = await query('SELECT id, password_hash FROM users WHERE id = $1 AND is_active = true', [
       decoded.id,
@@ -539,12 +528,8 @@ router.post('/revoke-all', async (req, res) => {
 /**
  * VALIDATE-PASSWORD - Şifre güçlülük kontrolü
  */
-router.post('/validate-password', (req, res) => {
+router.post('/validate-password', validate(validatePasswordSchema), (req, res) => {
   const { password } = req.body;
-
-  if (!password) {
-    return res.status(400).json({ success: false, error: 'Şifre gerekli' });
-  }
 
   const result = validatePassword(password);
   res.json({
@@ -623,7 +608,7 @@ router.get('/users', async (req, res) => {
 /**
  * PUT /users/:id - Kullanıcı güncelle (Admin)
  */
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', validate(updateUserSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -645,7 +630,7 @@ router.put('/users/:id', async (req, res) => {
     const { name, email, password, role, user_type, is_active } = req.body;
 
     let passwordHash = null;
-    if (password && password.length >= 6) {
+    if (password) {
       const salt = await bcrypt.genSalt(10);
       passwordHash = await bcrypt.hash(password, salt);
     }
@@ -805,7 +790,7 @@ router.post('/setup-super-admin', async (_req, res) => {
 /**
  * PUT /users/:id/lock - Hesabı kilitle (Admin)
  */
-router.put('/users/:id/lock', async (req, res) => {
+router.put('/users/:id/lock', validate(lockAccountSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -823,8 +808,7 @@ router.put('/users/:id/lock', async (req, res) => {
     }
 
     const { id } = req.params;
-    const { minutes } = req.body;
-    const lockMinutes = minutes || 60;
+    const { minutes: lockMinutes } = req.body;
 
     const success = await loginAttemptService.lockAccount(parseInt(id, 10), lockMinutes);
 
@@ -889,7 +873,7 @@ router.put('/users/:id/unlock', async (req, res) => {
 /**
  * GET /users/:id/login-attempts - Login geçmişi (Admin)
  */
-router.get('/users/:id/login-attempts', async (req, res) => {
+router.get('/users/:id/login-attempts', validate(loginAttemptsQuerySchema, 'query'), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -907,7 +891,7 @@ router.get('/users/:id/login-attempts', async (req, res) => {
     }
 
     const { id } = req.params;
-    const limit = parseInt(req.query.limit, 10) || 50;
+    const { limit } = req.query;
 
     const history = await loginAttemptService.getLoginHistory(parseInt(id, 10), limit);
     const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
@@ -1151,7 +1135,7 @@ router.get('/admin/ip-rules', async (req, res) => {
 /**
  * POST /admin/ip-rules - Yeni IP kuralı ekle (Admin)
  */
-router.post('/admin/ip-rules', async (req, res) => {
+router.post('/admin/ip-rules', validate(createIpRuleSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -1169,14 +1153,6 @@ router.post('/admin/ip-rules', async (req, res) => {
     }
 
     const { ipAddress, type, description } = req.body;
-
-    if (!ipAddress || !type) {
-      return res.status(400).json({ success: false, error: 'IP adresi ve tip gerekli' });
-    }
-
-    if (!['whitelist', 'blacklist'].includes(type)) {
-      return res.status(400).json({ success: false, error: 'Tip whitelist veya blacklist olmalı' });
-    }
 
     try {
       const result = await query(
@@ -1215,7 +1191,7 @@ router.post('/admin/ip-rules', async (req, res) => {
 /**
  * PUT /admin/ip-rules/:id - IP kuralını güncelle (Admin)
  */
-router.put('/admin/ip-rules/:id', async (req, res) => {
+router.put('/admin/ip-rules/:id', validate(updateIpRuleSchema), async (req, res) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
@@ -1245,9 +1221,6 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
     }
 
     if (type) {
-      if (!['whitelist', 'blacklist'].includes(type)) {
-        return res.status(400).json({ success: false, error: 'Tip whitelist veya blacklist olmalı' });
-      }
       updateFields.push(`type = $${paramCount++}`);
       values.push(type);
     }

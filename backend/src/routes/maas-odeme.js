@@ -1,5 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
+import { validate } from '../middleware/validate.js';
+import { odendiSchema, personelOdemeSchema, avansSchema, primSchema, personelMaasDetaySchema, projeAyarlariSchema, aylikOdemeSchema, finalizeSchema } from '../validations/maas-odeme.js';
 
 const router = express.Router();
 
@@ -136,7 +138,7 @@ router.post('/olustur/:projeId/:yil/:ay', async (req, res) => {
  * PATCH /api/maas-odeme/:id/odendi
  * Ödeme durumunu güncelle
  */
-router.patch('/:id/odendi', async (req, res) => {
+router.patch('/:id/odendi', validate(odendiSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { tip, odendi } = req.body; // tip: 'banka' veya 'elden'
@@ -164,7 +166,7 @@ router.patch('/:id/odendi', async (req, res) => {
  * PATCH /api/maas-odeme/personel-odeme/:personelId
  * Personel ödeme bilgilerini güncelle (elden_fark, avans, prim)
  */
-router.patch('/personel-odeme/:personelId', async (req, res) => {
+router.patch('/personel-odeme/:personelId', validate(personelOdemeSchema), async (req, res) => {
   try {
     const { personelId } = req.params;
     const { proje_id, yil, ay, elden_fark, avans, prim } = req.body;
@@ -203,7 +205,7 @@ router.patch('/personel-odeme/:personelId', async (req, res) => {
  * PATCH /api/maas-odeme/toplu-odendi/:projeId/:yil/:ay
  * Tüm ödemeleri işaretle
  */
-router.patch('/toplu-odendi/:projeId/:yil/:ay', async (req, res) => {
+router.patch('/toplu-odendi/:projeId/:yil/:ay', validate(odendiSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
     const { tip, odendi } = req.body;
@@ -255,7 +257,7 @@ router.get('/avans/:personelId', async (req, res) => {
  * POST /api/maas-odeme/avans
  * Avans ekle
  */
-router.post('/avans', async (req, res) => {
+router.post('/avans', validate(avansSchema), async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli, mahsup_ay, mahsup_yil } = req.body;
 
@@ -316,7 +318,7 @@ router.get('/prim/:personelId', async (req, res) => {
  * POST /api/maas-odeme/prim
  * Prim ekle
  */
-router.post('/prim', async (req, res) => {
+router.post('/prim', validate(primSchema), async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil } = req.body;
 
@@ -352,7 +354,7 @@ router.post('/prim', async (req, res) => {
  * PATCH /api/maas-odeme/personel/:maasOdemeId
  * Personel bazlı maaş ödemesi güncelle (avans, prim, not vs)
  */
-router.patch('/personel/:maasOdemeId', async (req, res) => {
+router.patch('/personel/:maasOdemeId', validate(personelMaasDetaySchema), async (req, res) => {
   try {
     const { maasOdemeId } = req.params;
     const { avans, prim, fazla_mesai, notlar } = req.body;
@@ -400,7 +402,7 @@ router.get('/proje-ayarlari/:projeId', async (req, res) => {
  * POST /api/maas-odeme/proje-ayarlari/:projeId
  * Proje ödeme ayarları kaydet
  */
-router.post('/proje-ayarlari/:projeId', async (req, res) => {
+router.post('/proje-ayarlari/:projeId', validate(projeAyarlariSchema), async (req, res) => {
   try {
     const { projeId } = req.params;
     const { odeme_gunu, banka_adi, iban } = req.body;
@@ -464,7 +466,7 @@ router.get('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
  * PATCH /api/maas-odeme/aylik-odeme/:projeId/:yil/:ay
  * Ödeme durumunu güncelle
  */
-router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
+router.patch('/aylik-odeme/:projeId/:yil/:ay', validate(aylikOdemeSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
     const { field, odendi } = req.body;
@@ -516,7 +518,7 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
  * POST /api/maas-odeme/finalize/:projeId/:yil/:ay
  * Ödemeler tamamlandığında proje_hareketler'e kayıt ekle
  */
-router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
+router.post('/finalize/:projeId/:yil/:ay', validate(finalizeSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
     const { maas, sgk, vergi } = req.body;

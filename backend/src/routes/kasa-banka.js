@@ -5,6 +5,8 @@
 
 import express from 'express';
 import { query } from '../database.js';
+import { validate } from '../middleware/validate.js';
+import { createHesapSchema, updateHesapSchema, createHareketSchema, createTransferSchema, createCekSenetSchema, tahsilCekSenetSchema, ciroCekSenetSchema, iadeCekSenetSchema } from '../validations/kasa-banka.js';
 
 const router = express.Router();
 
@@ -63,7 +65,7 @@ router.get('/hesaplar', async (req, res) => {
 });
 
 // Yeni hesap ekle
-router.post('/hesaplar', async (req, res) => {
+router.post('/hesaplar', validate(createHesapSchema), async (req, res) => {
   try {
     // Frontend tip/ad gönderebilir veya hesap_tipi/hesap_adi gönderebilir
     const {
@@ -125,7 +127,7 @@ router.post('/hesaplar', async (req, res) => {
 });
 
 // Hesap güncelle
-router.put('/hesaplar/:id', async (req, res) => {
+router.put('/hesaplar/:id', validate(updateHesapSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -253,7 +255,7 @@ router.get('/hareketler', async (req, res) => {
 });
 
 // Yeni hareket ekle (giriş/çıkış)
-router.post('/hareketler', async (req, res) => {
+router.post('/hareketler', validate(createHareketSchema), async (req, res) => {
   try {
     const { hesap_id, hareket_tipi, tutar, aciklama, belge_no, tarih, cari_id } = req.body;
 
@@ -291,7 +293,7 @@ router.post('/hareketler', async (req, res) => {
 });
 
 // Transfer işlemi
-router.post('/transfer', async (req, res) => {
+router.post('/transfer', validate(createTransferSchema), async (req, res) => {
   try {
     const { kaynak_hesap_id, hedef_hesap_id, tutar, aciklama, tarih } = req.body;
 
@@ -393,7 +395,7 @@ router.get('/cek-senet', async (req, res) => {
 });
 
 // Yeni çek/senet ekle
-router.post('/cek-senet', async (req, res) => {
+router.post('/cek-senet', validate(createCekSenetSchema), async (req, res) => {
   try {
     const {
       tip,
@@ -478,7 +480,7 @@ router.put('/cek-senet/:id', async (req, res) => {
 });
 
 // Çek/Senet tahsil et
-router.post('/cek-senet/:id/tahsil', async (req, res) => {
+router.post('/cek-senet/:id/tahsil', validate(tahsilCekSenetSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { hesap_id, tarih, aciklama } = req.body;
@@ -549,7 +551,7 @@ router.post('/cek-senet/:id/tahsil', async (req, res) => {
 });
 
 // Çek/Senet ciro et
-router.post('/cek-senet/:id/ciro', async (req, res) => {
+router.post('/cek-senet/:id/ciro', validate(ciroCekSenetSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { ciro_cari_id, tarih, aciklama } = req.body;
@@ -591,7 +593,7 @@ router.post('/cek-senet/:id/ciro', async (req, res) => {
 });
 
 // Çek/Senet iade et
-router.post('/cek-senet/:id/iade', async (req, res) => {
+router.post('/cek-senet/:id/iade', validate(iadeCekSenetSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { neden, tarih } = req.body;

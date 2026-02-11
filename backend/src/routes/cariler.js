@@ -8,6 +8,8 @@
 import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { createCariSchema, updateCariSchema } from '../validations/cariler.js';
 import { logAPI, logError } from '../utils/logger.js';
 
 const router = express.Router();
@@ -187,7 +189,7 @@ router.get('/:id', async (req, res) => {
  *       400:
  *         description: Geçersiz veri
  */
-router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('cari'), async (req, res) => {
+router.post('/', authenticate, validate(createCariSchema), requirePermission('cari', 'create'), auditLog('cari'), async (req, res) => {
   try {
     const {
       tip,
@@ -208,13 +210,6 @@ router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('ca
       notlar,
       etiket,
     } = req.body;
-
-    if (!tip || !unvan) {
-      return res.status(400).json({
-        success: false,
-        error: 'Tip ve ünvan zorunludur',
-      });
-    }
 
     const result = await query(
       `
@@ -286,7 +281,7 @@ router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('ca
  *       404:
  *         description: Cari bulunamadı
  */
-router.put('/:id', authenticate, requirePermission('cari', 'edit'), auditLog('cari'), async (req, res) => {
+router.put('/:id', authenticate, validate(updateCariSchema), requirePermission('cari', 'edit'), auditLog('cari'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
