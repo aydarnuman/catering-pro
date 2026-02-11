@@ -62,6 +62,22 @@ export interface NoteReminder {
 }
 
 /**
+ * Folder interface
+ */
+export interface NoteFolder {
+  id: number;
+  user_id: number;
+  name: string;
+  color: string;
+  icon: string;
+  is_locked: boolean;
+  sort_order: number;
+  note_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Main Unified Note interface
  */
 export interface UnifiedNote {
@@ -81,6 +97,7 @@ export interface UnifiedNote {
   due_date: string | null;
   reminder_date: string | null;
   sort_order: number;
+  folder_id: number | null;
   metadata?: Record<string, unknown>;
   tags: NoteTag[];
   attachments: NoteAttachment[];
@@ -104,6 +121,7 @@ export interface CreateNoteDTO {
   due_date?: string | null;
   reminder_date?: string | null;
   tags?: string[];
+  folder_id?: number | null;
 }
 
 /**

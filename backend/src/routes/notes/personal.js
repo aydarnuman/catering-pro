@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
       due_date_from,
       due_date_to,
       search,
+      folder_id,
       limit = 100,
       offset = 0,
     } = req.query;
@@ -120,6 +121,16 @@ router.get('/', async (req, res) => {
       query += ` AND n.content ILIKE $${paramIndex}`;
       params.push(`%${search}%`);
       paramIndex++;
+    }
+
+    if (folder_id !== undefined) {
+      if (folder_id === 'null' || folder_id === '') {
+        query += ` AND n.folder_id IS NULL`;
+      } else {
+        query += ` AND n.folder_id = $${paramIndex}`;
+        params.push(parseInt(folder_id, 10));
+        paramIndex++;
+      }
     }
 
     // Ordering: pinned first, then by due date, then by sort_order
@@ -242,6 +253,7 @@ router.post('/', async (req, res) => {
       reminder_date = null,
       tags = [],
       metadata = null,
+      folder_id = null,
     } = req.body;
 
     if (!content || content.trim() === '') {
@@ -263,9 +275,9 @@ router.post('/', async (req, res) => {
     const insertQuery = `
       INSERT INTO unified_notes (
         user_id, title, content, content_format, is_task, priority, color,
-        pinned, due_date, reminder_date, sort_order, metadata
+        pinned, due_date, reminder_date, sort_order, metadata, folder_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::jsonb, '{}'::jsonb))
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::jsonb, '{}'::jsonb), $13)
       RETURNING *
     `;
 
@@ -282,6 +294,7 @@ router.post('/', async (req, res) => {
       reminder_date,
       sortOrder,
       metadata ? JSON.stringify(metadata) : null,
+      folder_id || null,
     ]);
 
     const note = noteResult.rows[0];

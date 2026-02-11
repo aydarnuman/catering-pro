@@ -41,7 +41,6 @@ import {
   IconShieldLock,
   IconUser,
   IconUsers,
-  IconWand,
   IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
@@ -187,15 +186,6 @@ export default function AdminPage() {
           icon: IconBug,
           color: 'grape',
           path: '/admin/scraper',
-          stat: null,
-        },
-        {
-          id: 'prompt-builder',
-          title: 'AI Prompt Builder',
-          description: 'Adım adım interaktif AI prompt oluşturma ve şablon yönetimi',
-          icon: IconWand,
-          color: 'violet',
-          path: '/admin/prompt-builder',
           stat: null,
         },
         {

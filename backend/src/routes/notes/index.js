@@ -6,12 +6,16 @@
 import express from 'express';
 import attachmentsRoutes from './attachments.js';
 import contextualRoutes from './contextual.js';
+import foldersRoutes from './folders.js';
 import personalRoutes from './personal.js';
 import remindersRoutes from './reminders.js';
 import sharingRoutes from './sharing.js';
 import tagsRoutes from './tags.js';
 
 const router = express.Router();
+
+// Folders: /api/notes/folders (MUST be before personal to avoid /:id conflict)
+router.use('/folders', foldersRoutes);
 
 // Personal notes: /api/notes
 router.use('/', personalRoutes);

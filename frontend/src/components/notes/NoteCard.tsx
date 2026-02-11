@@ -31,9 +31,8 @@ import {
   IconPinFilled,
   IconTrash,
 } from '@tabler/icons-react';
-import { formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
+import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { format } from 'date-fns';
 import { useState } from 'react';
 
 import { NOTE_COLORS, type NoteColor, PRIORITY_LABELS, type UnifiedNote } from '@/types/notes';
@@ -47,6 +46,8 @@ interface NoteCardProps {
   onDelete?: (id: string) => void;
   onEdit?: (note: UnifiedNote) => void;
   onColorChange?: (id: string, color: NoteColor) => void;
+  /** Extra menu items to inject into the 3-dot menu */
+  extraMenuItems?: React.ReactNode;
   showDragHandle?: boolean;
   compact?: boolean;
   dragHandleProps?: Record<string, unknown>;
@@ -100,6 +101,7 @@ export function NoteCard({
   onDelete,
   onEdit,
   onColorChange,
+  extraMenuItems,
   showDragHandle = false,
   compact = false,
   dragHandleProps,
@@ -128,13 +130,14 @@ export function NoteCard({
   return (
     <Paper
       p={compact ? 'xs' : 'sm'}
-      radius="md"
+      radius="lg"
+      className="ws-note-card"
       style={{
         background: colorConfig.bg,
         borderLeft: `4px solid ${colorConfig.border}`,
-        opacity: note.is_completed ? 0.65 : 1,
-        transition: 'all 0.2s ease',
+        opacity: note.is_completed ? 0.6 : 1,
         cursor: onEdit ? 'pointer' : 'default',
+        filter: note.is_completed ? 'saturate(0.6)' : 'none',
       }}
       onClick={() => onEdit?.(note)}
     >
@@ -146,11 +149,15 @@ export function NoteCard({
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
             style={{
               cursor: 'grab',
-              color: 'var(--mantine-color-gray-5)',
+              color: 'var(--mantine-color-gray-6)',
               display: 'flex',
               alignItems: 'center',
               paddingTop: 2,
+              opacity: 0.4,
+              transition: 'opacity 0.15s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
           >
             <IconGripVertical size={16} />
           </Box>
@@ -183,7 +190,7 @@ export function NoteCard({
             style={{
               textDecoration: note.is_completed ? 'line-through' : 'none',
               color: note.is_completed ? 'var(--mantine-color-gray-6)' : colorConfig.accent,
-              letterSpacing: '-0.01em',
+              letterSpacing: '-0.015em',
             }}
           >
             {title}
@@ -197,7 +204,8 @@ export function NoteCard({
               lineClamp={2}
               style={{
                 textDecoration: note.is_completed ? 'line-through' : 'none',
-                lineHeight: 1.4,
+                lineHeight: 1.5,
+                opacity: note.is_completed ? 0.7 : 0.8,
               }}
             >
               {preview}
@@ -209,19 +217,19 @@ export function NoteCard({
             <Group gap="xs" align="center">
               <Progress
                 value={checklistProgress}
-                size="xs"
+                size={4}
                 color={checklistProgress === 100 ? 'green' : 'violet'}
                 style={{ flex: 1, maxWidth: 120 }}
                 radius="xl"
               />
-              <Text size="xs" c="dimmed" fw={500}>
+              <Text size="xs" c="dimmed" fw={500} style={{ fontSize: 11 }}>
                 {checklistDone}/{checklistTotal}
               </Text>
             </Group>
           )}
 
           {/* Metadata row */}
-          <Group gap={6} wrap="wrap">
+          <Group gap={5} wrap="wrap" mt={2}>
             {/* Priority badge */}
             {note.priority !== 'normal' && (
               <Badge
@@ -328,6 +336,8 @@ export function NoteCard({
                   </Box>
                 </>
               )}
+
+              {extraMenuItems}
 
               {onDelete && (
                 <>

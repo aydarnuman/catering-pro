@@ -6,7 +6,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Collapse,
   Divider,
   Group,
@@ -50,6 +49,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { aiAPI } from '@/lib/api/services/ai';
+import { PromptSuggestions } from './PromptSuggestions';
 
 // Tip tanımları
 interface ChatMessage {
@@ -146,6 +146,7 @@ export function AIChat({
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set()); // Feedback verilen mesajlar
   const [godModeEnabled, setGodModeEnabled] = useState(defaultGodMode); // God Mode toggle - varsayılan prop'tan
+  const [isEnhancing, setIsEnhancing] = useState(false); // v0-tarzi prompt enhance
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // God Mode prop değiştiğinde state'i güncelle
@@ -164,122 +165,6 @@ export function AIChat({
     }
     return `session_${Date.now()}`;
   });
-
-  // Departmana göre önerilen sorular
-  const _departmentQuestions: Record<string, string[]> = {
-    PERSONEL: [
-      '👥 Toplam personel maliyetimiz ne kadar?',
-      '💰 40.000 TL net maaşın brüt ve toplam maliyeti ne?',
-      '📊 Bu ay izinli kaç kişi var?',
-      "🧮 Ahmet'in kıdem tazminatını hesapla",
-      '📋 Aktif personelleri listele',
-      '💵 Ocak ayı bordro özeti göster',
-    ],
-    MENU_PLANLAMA: [
-      '📅 Ocak ayı için KYK menüsü hazırla',
-      '🍲 Mevcut reçeteleri listele',
-      '💰 Mercimek çorbası maliyetini hesapla',
-      '🥗 Düşük kalorili haftalık menü öner',
-      '📊 9 Ocak menüsünü göster',
-      '👨‍🍳 Tavuk sote reçetesi oluştur',
-    ],
-    'TÜM SİSTEM': [
-      '📊 Bu ay KYK için ne kadar harcama yapıldı?',
-      '📦 Bekleyen siparişler hangileri?',
-      '💰 En çok alım yaptığımız tedarikçi kim?',
-      '📅 Yaklaşan ihaleler neler?',
-      '⚠️ Kritik uyarılar var mı?',
-      '📈 Geçen ayla karşılaştırma yap',
-    ],
-  };
-
-  // Departmana göre hızlı komutlar
-  const departmentCommands: Record<string, Array<{ label: string; value: string }>> = {
-    PERSONEL: [
-      { label: '👥 Personel istatistikleri', value: 'Personel istatistiklerini göster' },
-      { label: '💰 Bordro hesapla', value: 'Tüm personelin bordrosunu hesapla' },
-      { label: '📅 İzin bakiyesi', value: 'Personellerin izin bakiyelerini listele' },
-      { label: '🧮 Maliyet analizi', value: 'Toplam personel maliyeti analizi yap' },
-    ],
-    MENU_PLANLAMA: [
-      {
-        label: '📅 Aylık menü oluştur',
-        value: 'KYK projesi için Ocak 2026 menüsü oluştur, 1000 kişilik',
-      },
-      { label: '📋 Reçeteleri listele', value: 'Tüm reçeteleri kategorilere göre listele' },
-      { label: '💰 Maliyet hesapla', value: 'Seçili reçetenin maliyetini hesapla' },
-      { label: '🍽️ Menü öner', value: 'Bütçeye uygun haftalık öğle menüsü öner' },
-    ],
-    'TÜM SİSTEM': [
-      { label: '🆕 Yeni sipariş oluştur', value: "KYK için Metro'dan 100 kg süt siparişi oluştur" },
-      { label: '📊 Sistem özeti', value: 'Sistem özeti göster' },
-      { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
-      { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' },
-    ],
-    GOD_MODE: [
-      { label: '🔥 SQL Çalıştır', value: 'SELECT COUNT(*) FROM users sorgusunu çalıştır' },
-      { label: '📁 Dosya Listele', value: 'Backend src klasöründeki tüm dosyaları listele' },
-      {
-        label: '🔑 Secretları Göster',
-        value: 'Sistemdeki tüm API keylerini ve secretları listele',
-      },
-      { label: '⚡ Shell Komutu', value: 'df -h komutu ile disk kullanımını göster' },
-    ],
-  };
-
-  // Şablona göre önerilen sorular
-  const templateQuestions: { [key: string]: string[] } = {
-    default: [
-      '📊 Bu ay KYK için ne kadar harcama yapıldı?',
-      '📦 Bekleyen siparişler hangileri?',
-      '🏆 En çok alım yaptığımız tedarikçi kim?',
-      '📋 Yaklaşan ihaleler neler?',
-    ],
-    'cfo-analiz': [
-      '📈 Aylık gelir-gider karşılaştırması yap',
-      '💰 Nakit akış durumunu analiz et',
-      '📊 Karlılık oranlarını hesapla',
-      '🔮 Önümüzdeki 3 ay için bütçe tahmini yap',
-    ],
-    'risk-uzman': [
-      '⚠️ Vadesi geçen alacakları listele',
-      '🔴 Kritik stok seviyesindeki ürünler hangileri?',
-      '💳 Ödenmemiş faturaları risk sırasına göre göster',
-      '📉 Mali risk analizi yap',
-    ],
-    'ihale-uzman': [
-      '📋 Yaklaşan ihale son başvuru tarihlerini listele',
-      '🎯 Kazanma şansı yüksek ihaleleri analiz et',
-      '📊 İhale başarı oranımızı hesapla',
-      '🏢 Rakip firma analizi yap',
-    ],
-    'hizli-yanit': [
-      '💰 Toplam borç ne kadar?',
-      '📦 Stok durumu?',
-      '👥 Personel sayısı?',
-      '📈 Bugünkü satışlar?',
-    ],
-    'god-mode': [
-      '🔥 Veritabanındaki tüm tabloları listele',
-      '⚡ SELECT * FROM users LIMIT 10 sorgusunu çalıştır',
-      '📁 Backend klasöründeki dosyaları listele',
-      '🔑 Sistemdeki tüm secret ve API keylerini göster',
-    ],
-    'strateji-danismani': [
-      '🎯 SWOT analizi yap',
-      '📊 Pazar payı değerlendirmesi',
-      '🚀 Büyüme fırsatlarını belirle',
-      '📋 Yıllık hedef takibi',
-    ],
-  };
-
-  // Seçili şablona göre önerileri al - God Mode aktifse özel sorular
-  const suggestedQuestions = godModeEnabled
-    ? templateQuestions['god-mode']
-    : templateQuestions[selectedTemplate] || templateQuestions.default;
-  const quickCommands = godModeEnabled
-    ? departmentCommands.GOD_MODE
-    : departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
 
   // Prompt şablonlarını yükle
   useEffect(() => {
@@ -485,6 +370,37 @@ export function AIChat({
     setInputValue(question);
   };
 
+  // v0-tarzi: input yanindaki ikon ile prompt'u zenginlestir
+  const handleEnhancePrompt = async () => {
+    if (!inputValue.trim() || isEnhancing || isLoading) return;
+    setIsEnhancing(true);
+    try {
+      const res = await aiAPI.sendAgentMessage({
+        message: `Kullanici su mesaji yazdi: "${inputValue.trim()}"
+
+Bu mesaj ne kadar belirsiz, kisa veya hatali olursa olsun, kullanicinin ne istedigini TAHMIN ET ve daha iyi, detayli bir prompt haline getir.
+
+Kurallar:
+- Her zaman bir sonuc uret, asla "anlamadim" deme
+- Kisa/belirsiz girdilerde en mantikli istegi tahmin et
+- Anlamsiz girdilerde (rastgele harfler) kullanicinin genel bilgi istedigini varsay
+- Turkce yaz
+- Sadece iyilestirilmis prompt'u yaz, baska aciklama ekleme
+- Tek paragraf, 1-3 cumle yeterli`,
+        department: defaultDepartment,
+        systemContext: 'Tek satirlik temiz Turkce prompt uret. Baska bir sey yazma.',
+      });
+      const result = res.data?.response ?? (res as unknown as { response?: string }).response;
+      if (result) {
+        setInputValue(result.trim().replace(/^["']|["']$/g, ''));
+      }
+    } catch {
+      // Sessizce basarisiz - input'u degistirme
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   const copyMessage = (content: string) => {
     navigator.clipboard.writeText(content);
   };
@@ -679,34 +595,14 @@ export function AIChat({
           >
             <Stack gap="sm" p="sm">
               {messages.length === 0 ? (
-                <Stack gap="sm" align="center" py="md">
-                  <Text size="sm" c={isDark ? 'gray.4' : 'dimmed'} ta="center">
-                    Merhaba! 👋 Size nasıl yardımcı olabilirim?
-                  </Text>
-                  <Stack gap={4} w="100%">
-                    {suggestedQuestions.slice(0, 4).map((question) => (
-                      <Paper
-                        key={question}
-                        p="xs"
-                        radius="sm"
-                        withBorder={!isDark}
-                        style={{
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          ...(isDark && {
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                          }),
-                        }}
-                        onClick={() => handleSuggestedQuestion(question)}
-                      >
-                        <Text size="xs" c={isDark ? 'gray.3' : undefined}>
-                          {question}
-                        </Text>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </Stack>
+                <Box py="xs">
+                  <PromptSuggestions
+                    department={defaultDepartment || 'TÜM SİSTEM'}
+                    onSelect={handleSuggestedQuestion}
+                    compact
+                    godMode={godModeEnabled}
+                  />
+                </Box>
               ) : (
                 messages.map((message) => (
                   <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
@@ -804,10 +700,31 @@ export function AIChat({
               }}
               size="md"
               radius="xl"
+              rightSection={
+                inputValue.trim() && !isLoading ? (
+                  <Tooltip label={isEnhancing ? 'Zenginlestiriliyor...' : 'Prompt\'u iyilestir'} withArrow position="top">
+                    <ActionIcon
+                      size={28}
+                      radius="xl"
+                      variant="light"
+                      color="violet"
+                      loading={isEnhancing}
+                      onClick={handleEnhancePrompt}
+                      style={{
+                        transition: 'all 0.2s ease',
+                        boxShadow: isEnhancing ? 'none' : '0 0 6px rgba(139,92,246,0.3)',
+                      }}
+                    >
+                      <IconSparkles size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : null
+              }
+              rightSectionWidth={inputValue.trim() && !isLoading ? 36 : 0}
               styles={{
                 input: {
                   paddingLeft: 16,
-                  paddingRight: 16,
+                  paddingRight: inputValue.trim() && !isLoading ? 40 : 16,
                   minHeight: 44,
                   ...(isDark && {
                     background: 'rgba(255,255,255,0.06)',
@@ -1116,75 +1033,13 @@ export function AIChat({
         >
           <Stack gap="sm" p="xs">
             {messages.length === 0 ? (
-              <Stack gap="md" align="center" py="md">
-                <ThemeIcon size={50} color="violet" variant="light" radius="xl">
-                  <IconSparkles size={24} />
-                </ThemeIcon>
-                <div style={{ textAlign: 'center' }}>
-                  <Text size="lg" fw={600} mb={2}>
-                    Merhaba! Ben AI Agent 🤖
-                  </Text>
-                  <Text c="dimmed" size="xs" maw={400}>
-                    Siparişler, cariler, faturalar, ihaleler ve raporlar. Veri sorgulayabilir ve
-                    analiz yapabilirim.
-                  </Text>
-                </div>
-
-                {/* Önerilen Sorular */}
-                <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c={godModeEnabled ? 'red.6' : 'dimmed'}>
-                    {godModeEnabled ? '🔥 God Mode Komutları:' : '💡 Önerilen Sorular:'}
-                  </Text>
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                    {suggestedQuestions.map((question) => (
-                      <Card
-                        key={question}
-                        p="sm"
-                        radius="md"
-                        withBorder
-                        style={{
-                          cursor: 'pointer',
-                          borderColor: godModeEnabled ? 'rgba(255, 71, 87, 0.3)' : undefined,
-                          background: godModeEnabled ? 'rgba(255, 71, 87, 0.05)' : undefined,
-                          transition: 'all 0.2s ease',
-                        }}
-                        onClick={() => handleSuggestedQuestion(question)}
-                      >
-                        <Text size="sm" c={godModeEnabled ? 'red.7' : undefined}>
-                          {question}
-                        </Text>
-                      </Card>
-                    ))}
-                  </SimpleGrid>
-                </Stack>
-
-                {/* Hızlı Komutlar */}
-                <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c={godModeEnabled ? 'orange.6' : 'dimmed'}>
-                    {godModeEnabled ? '⚡ Güçlü Komutlar:' : '⚡ Hızlı Komutlar:'}
-                  </Text>
-                  <Group gap="xs">
-                    {quickCommands.map((cmd) => (
-                      <Badge
-                        key={cmd.value}
-                        size="lg"
-                        variant={godModeEnabled ? 'gradient' : 'light'}
-                        gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
-                        color={godModeEnabled ? undefined : 'violet'}
-                        style={{
-                          cursor: 'pointer',
-                          boxShadow: godModeEnabled
-                            ? '0 2px 10px rgba(255, 71, 87, 0.3)'
-                            : undefined,
-                        }}
-                        onClick={() => handleSuggestedQuestion(cmd.value)}
-                      >
-                        {cmd.label}
-                      </Badge>
-                    ))}
-                  </Group>
-                </Stack>
-              </Stack>
+              <Box py="md">
+                <PromptSuggestions
+                  department={defaultDepartment || 'TÜM SİSTEM'}
+                  onSelect={handleSuggestedQuestion}
+                  godMode={godModeEnabled}
+                />
+              </Box>
             ) : (
               messages.map((message) => (
                 <Group key={message.id} align="flex-start" gap="md">
@@ -1370,16 +1225,40 @@ export function AIChat({
             }}
             disabled={isLoading}
             size="md"
+            rightSection={
+              inputValue.trim() && !isLoading ? (
+                <Tooltip label={isEnhancing ? 'Zenginlestiriliyor...' : 'Prompt\'u iyilestir'} withArrow position="top">
+                  <ActionIcon
+                    size={28}
+                    radius="xl"
+                    variant="light"
+                    color={godModeEnabled ? 'red' : 'violet'}
+                    loading={isEnhancing}
+                    onClick={handleEnhancePrompt}
+                    style={{
+                      transition: 'all 0.2s ease',
+                      boxShadow: isEnhancing ? 'none' : godModeEnabled ? '0 0 6px rgba(255,71,87,0.3)' : '0 0 6px rgba(139,92,246,0.3)',
+                    }}
+                  >
+                    <IconSparkles size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : null
+            }
+            rightSectionWidth={inputValue.trim() && !isLoading ? 36 : 0}
             styles={{
-              input: godModeEnabled
-                ? {
-                    borderColor: 'rgba(255, 71, 87, 0.4)',
-                    backgroundColor: 'rgba(255, 71, 87, 0.05)',
-                    '&:focus': {
-                      borderColor: '#ff4757',
-                    },
-                  }
-                : undefined,
+              input: {
+                paddingRight: inputValue.trim() && !isLoading ? 40 : undefined,
+                ...(godModeEnabled
+                  ? {
+                      borderColor: 'rgba(255, 71, 87, 0.4)',
+                      backgroundColor: 'rgba(255, 71, 87, 0.05)',
+                      '&:focus': {
+                        borderColor: '#ff4757',
+                      },
+                    }
+                  : {}),
+              },
             }}
           />
           <Button

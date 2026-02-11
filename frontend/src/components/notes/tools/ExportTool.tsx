@@ -8,14 +8,15 @@
  */
 
 import {
+  Box,
   Button,
   CopyButton,
-  Divider,
   Group,
   Paper,
   Select,
   Stack,
   Text,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -103,6 +104,8 @@ function noteToMarkdown(note: UnifiedNote): string {
 }
 
 export function ExportTool({ notes }: ExportToolProps) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   const noteOptions = notes.map((n) => ({
@@ -171,17 +174,59 @@ export function ExportTool({ notes }: ExportToolProps) {
   return (
     <Stack gap="md">
       <Group gap="sm">
-        <IconDownload size={20} />
-        <Text size="lg" fw={700}>
-          Disa Aktar
-        </Text>
+        <Box
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: isDark
+              ? 'linear-gradient(135deg, rgba(251,146,60,0.15) 0%, rgba(251,146,60,0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(251,146,60,0.1) 0%, rgba(251,146,60,0.05) 100%)',
+            color: 'var(--mantine-color-orange-5)',
+          }}
+        >
+          <IconDownload size={18} />
+        </Box>
+        <Box>
+          <Text size="lg" fw={700} style={{ letterSpacing: '-0.02em' }}>
+            Disa Aktar
+          </Text>
+          <Text size="xs" c="dimmed">Notlarinizi farkli formatlarda paylasin</Text>
+        </Box>
       </Group>
 
       {/* Single note export */}
-      <Paper p="md" radius="md" withBorder>
-        <Text size="sm" fw={600} mb="sm">
-          Tek Not
-        </Text>
+      <Paper
+        p="md"
+        radius="lg"
+        className="ws-export-card"
+        style={{
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+        }}
+      >
+        <Group gap="xs" mb="sm">
+          <Box
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)',
+              color: 'var(--mantine-color-indigo-5)',
+            }}
+          >
+            <IconFileText size={14} />
+          </Box>
+          <Text size="sm" fw={700}>
+            Tek Not
+          </Text>
+        </Group>
         <Select
           placeholder="Not secin..."
           data={noteOptions}
@@ -189,6 +234,7 @@ export function ExportTool({ notes }: ExportToolProps) {
           onChange={setSelectedNoteId}
           searchable
           size="sm"
+          radius="md"
           nothingFoundMessage="Not bulunamadi"
           mb="sm"
         />
@@ -200,6 +246,7 @@ export function ExportTool({ notes }: ExportToolProps) {
                 <Button
                   variant="light"
                   size="xs"
+                  radius="md"
                   color={copied ? 'green' : 'gray'}
                   leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                   onClick={copy}
@@ -213,7 +260,8 @@ export function ExportTool({ notes }: ExportToolProps) {
                 <Button
                   variant="light"
                   size="xs"
-                  color={copied ? 'green' : 'gray'}
+                  radius="md"
+                  color={copied ? 'green' : 'violet'}
                   leftSection={copied ? <IconCheck size={14} /> : <IconFileText size={14} />}
                   onClick={copy}
                 >
@@ -226,16 +274,42 @@ export function ExportTool({ notes }: ExportToolProps) {
       </Paper>
 
       {/* All notes export */}
-      <Paper p="md" radius="md" withBorder>
-        <Text size="sm" fw={600} mb="sm">
-          Tum Notlar ({notes.length})
-        </Text>
+      <Paper
+        p="md"
+        radius="lg"
+        className="ws-export-card"
+        style={{
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+        }}
+      >
+        <Group gap="xs" mb="sm">
+          <Box
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isDark ? 'rgba(20,184,166,0.12)' : 'rgba(20,184,166,0.08)',
+              color: 'var(--mantine-color-teal-5)',
+            }}
+          >
+            <IconSelectAll size={14} />
+          </Box>
+          <Text size="sm" fw={700}>
+            Tum Notlar
+          </Text>
+          <Text size="xs" c="dimmed">({notes.length})</Text>
+        </Group>
         <Group gap="xs">
           <CopyButton value={allNotesText}>
             {({ copied, copy }) => (
               <Button
                 variant="light"
                 size="xs"
+                radius="md"
                 color={copied ? 'green' : 'gray'}
                 leftSection={copied ? <IconCheck size={14} /> : <IconSelectAll size={14} />}
                 onClick={copy}
@@ -249,7 +323,8 @@ export function ExportTool({ notes }: ExportToolProps) {
               <Button
                 variant="light"
                 size="xs"
-                color={copied ? 'green' : 'gray'}
+                radius="md"
+                color={copied ? 'green' : 'violet'}
                 leftSection={copied ? <IconCheck size={14} /> : <IconFileText size={14} />}
                 onClick={copy}
               >
@@ -261,18 +336,45 @@ export function ExportTool({ notes }: ExportToolProps) {
       </Paper>
 
       {/* Print */}
-      <Divider label="Yazdir" labelPosition="left" />
-      <Group gap="xs">
+      <Paper
+        p="md"
+        radius="lg"
+        className="ws-export-card"
+        style={{
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+        }}
+      >
+        <Group gap="xs" mb="sm">
+          <Box
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isDark ? 'rgba(251,146,60,0.12)' : 'rgba(251,146,60,0.08)',
+              color: 'var(--mantine-color-orange-5)',
+            }}
+          >
+            <IconPrinter size={14} />
+          </Box>
+          <Text size="sm" fw={700}>
+            Yazdir
+          </Text>
+        </Group>
         <Button
           variant="light"
           size="sm"
+          radius="md"
           leftSection={<IconPrinter size={16} />}
           onClick={handlePrint}
           color="gray"
         >
           {selectedNote ? 'Secili notu yazdir' : 'Tum notlari yazdir'}
         </Button>
-      </Group>
+      </Paper>
     </Stack>
   );
 }

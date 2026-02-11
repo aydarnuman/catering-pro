@@ -8,9 +8,11 @@
  */
 
 import {
+  Box,
   Button,
   CopyButton,
   Group,
+  Loader,
   Paper,
   ScrollArea,
   Select,
@@ -141,36 +143,90 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
 
   const selectedAction = AI_ACTIONS.find((a) => a.value === action);
 
+  const actionColors: Record<AIAction, string> = {
+    summarize: 'blue',
+    'fix-writing': 'teal',
+    'extract-tasks': 'orange',
+  };
+
   return (
     <Stack gap="md">
       <Group gap="sm">
-        <IconSparkles size={20} />
-        <Text size="lg" fw={700}>
-          AI Yardim
-        </Text>
+        <Box
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: isDark
+              ? 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.1) 100%)'
+              : 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.06) 100%)',
+            color: 'var(--mantine-color-blue-5)',
+          }}
+        >
+          <IconSparkles size={18} />
+        </Box>
+        <Box>
+          <Text size="lg" fw={700} style={{ letterSpacing: '-0.02em' }}>
+            AI Yardim
+          </Text>
+          <Text size="xs" c="dimmed">Notlarinizi AI ile analiz edin</Text>
+        </Box>
       </Group>
 
-      {/* Action selection */}
+      {/* Action selection - card based */}
       <Stack gap="xs">
-        <Text size="xs" c="dimmed" fw={600}>
-          Islem sec:
+        <Text size="xs" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+          Islem sec
         </Text>
         <Group gap="xs">
-          {AI_ACTIONS.map((act) => (
-            <Button
-              key={act.value}
-              variant={action === act.value ? 'filled' : 'light'}
-              color={action === act.value ? 'violet' : 'gray'}
-              size="xs"
-              leftSection={act.icon}
-              onClick={() => setAction(act.value)}
-            >
-              {act.label}
-            </Button>
-          ))}
+          {AI_ACTIONS.map((act) => {
+            const isSelected = action === act.value;
+            const clr = actionColors[act.value];
+            return (
+              <Paper
+                key={act.value}
+                p="sm"
+                radius="md"
+                className="ws-ai-action"
+                style={{
+                  flex: 1,
+                  border: isSelected
+                    ? `1.5px solid var(--mantine-color-${clr}-${isDark ? '5' : '4'})`
+                    : `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                  background: isSelected
+                    ? isDark
+                      ? `rgba(var(--mantine-color-${clr}-9-rgb, 0,0,0), 0.1)`
+                      : `var(--mantine-color-${clr}-0)`
+                    : 'transparent',
+                  boxShadow: isSelected
+                    ? `0 0 12px var(--mantine-color-${clr}-${isDark ? '9' : '1'})`
+                    : 'none',
+                }}
+                onClick={() => setAction(act.value)}
+              >
+                <Stack gap={6} align="center">
+                  <Box
+                    style={{
+                      color: isSelected
+                        ? `var(--mantine-color-${clr}-${isDark ? '4' : '6'})`
+                        : isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    {act.icon}
+                  </Box>
+                  <Text size="xs" fw={isSelected ? 700 : 500} ta="center" style={{ lineHeight: 1.2 }}>
+                    {act.label}
+                  </Text>
+                </Stack>
+              </Paper>
+            );
+          })}
         </Group>
         {selectedAction && (
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="dimmed" style={{ fontStyle: 'italic' }}>
             {selectedAction.description}
           </Text>
         )}
@@ -183,6 +239,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
             variant={!useCustom ? 'light' : 'subtle'}
             color={!useCustom ? 'violet' : 'gray'}
             size="xs"
+            radius="md"
             onClick={() => setUseCustom(false)}
           >
             Nottan sec
@@ -191,6 +248,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
             variant={useCustom ? 'light' : 'subtle'}
             color={useCustom ? 'violet' : 'gray'}
             size="xs"
+            radius="md"
             onClick={() => setUseCustom(true)}
           >
             Metin yapistir
@@ -205,6 +263,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
             onChange={setSelectedNoteId}
             searchable
             size="sm"
+            radius="md"
             nothingFoundMessage="Not bulunamadi"
           />
         ) : (
@@ -216,6 +275,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
             maxRows={8}
             autosize
             size="sm"
+            radius="md"
           />
         )}
       </Stack>
@@ -225,27 +285,64 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
         onClick={handleRun}
         loading={loading}
         disabled={!useCustom && !selectedNoteId}
-        leftSection={<IconSparkles size={16} />}
+        leftSection={!loading ? <IconSparkles size={16} /> : undefined}
         color="violet"
+        radius="md"
+        size="md"
+        style={{
+          background: loading
+            ? undefined
+            : 'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-indigo-6) 100%)',
+        }}
       >
-        {loading ? 'Isleniyor...' : 'Calistir'}
+        {loading ? 'AI dusunuyor...' : 'Calistir'}
       </Button>
+
+      {/* Loading state */}
+      {loading && !result && (
+        <Paper
+          p="lg"
+          radius="md"
+          style={{
+            background: isDark ? 'rgba(139,92,246,0.05)' : 'rgba(139,92,246,0.03)',
+            border: `1px solid ${isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)'}`,
+          }}
+        >
+          <Group gap="sm" justify="center">
+            <Loader size="sm" color="violet" type="dots" />
+            <Text size="sm" c="dimmed" fw={500}>
+              Metin isleniyor...
+            </Text>
+          </Group>
+        </Paper>
+      )}
 
       {/* Result */}
       {result && (
         <Paper
           p="md"
-          radius="md"
-          withBorder
+          radius="lg"
           style={{
-            borderColor: 'var(--mantine-color-violet-4)',
-            background: isDark ? 'rgba(139,92,246,0.05)' : 'rgba(139,92,246,0.03)',
+            border: `1px solid var(--mantine-color-violet-${isDark ? '7' : '3'})`,
+            background: isDark ? 'rgba(139,92,246,0.06)' : 'rgba(139,92,246,0.03)',
+            overflow: 'hidden',
           }}
         >
-          <Group justify="space-between" mb="xs">
-            <Text size="xs" fw={600} c="violet">
-              Sonuc
-            </Text>
+          {/* Result header */}
+          <Group
+            justify="space-between"
+            mb="sm"
+            pb="xs"
+            style={{
+              borderBottom: `1px solid ${isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)'}`,
+            }}
+          >
+            <Group gap={6}>
+              <IconSparkles size={14} color="var(--mantine-color-violet-5)" />
+              <Text size="xs" fw={700} c="violet">
+                Sonuc
+              </Text>
+            </Group>
             <CopyButton value={result}>
               {({ copied, copy }) => (
                 <Button
@@ -254,6 +351,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
                   color={copied ? 'green' : 'gray'}
                   leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
                   onClick={copy}
+                  radius="md"
                 >
                   {copied ? 'Kopyalandi' : 'Kopyala'}
                 </Button>
@@ -261,7 +359,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
             </CopyButton>
           </Group>
           <ScrollArea mah={300}>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
               {result}
             </Text>
           </ScrollArea>
@@ -272,6 +370,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
               size="xs"
               color="orange"
               mt="sm"
+              radius="md"
               leftSection={<IconListCheck size={14} />}
               onClick={() => {
                 const tasks = result

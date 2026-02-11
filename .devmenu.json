@@ -4,48 +4,6 @@
     {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
-      "time": "19:56:48",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "20:00:43",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "20:11:13",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "20:24:50",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "20:30:19",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "23:46:43",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "23:57:49",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
       "time": "08:47:14",
       "success": true
     },
@@ -299,6 +257,48 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "17:59:12",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "18:28:18",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "18:43:33",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "20:22:18",
+      "success": true
+    },
+    {
+      "id": "clean-fast",
+      "label": "Hızlı Temizlik",
+      "time": "20:27:02",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "08:02:56",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "08:34:33",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "08:43:17",
       "success": true
     }
   ],

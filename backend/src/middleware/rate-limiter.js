@@ -7,8 +7,8 @@ import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger.js';
 
 // Genel API rate limiter
-// Production: 100 istek/15 dk. Development: yüksek limit (SPA + Strict Mode çok istek atar)
-const apiMax = process.env.NODE_ENV === 'production' ? 100 : 3000;
+// Production: 300 istek/15 dk (SPA çok endpoint çağırır). Development: yüksek limit (Strict Mode çift çağrı yapar)
+const apiMax = process.env.NODE_ENV === 'production' ? 300 : 3000;
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
   max: apiMax, // Her IP için maksimum istek

@@ -282,11 +282,15 @@ export function FloatingAIChat() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Uyarı sayısını al
+  // Uyarı sayısını al (429 hatalarını sessizce yoksay, kritik değil)
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 2;
+
     const fetchAlerts = async () => {
       try {
         const result = await muhasebeAPI.getInvoiceStats();
+        retryCount = 0; // Başarılı olunca sıfırla
 
         let count = 0;
         if (result.success && result.data) {
@@ -294,14 +298,28 @@ export function FloatingAIChat() {
           count += result.data.geciken_fatura || 0;
         }
         setAlertCount(count);
-      } catch (e) {
-        console.error('Alert fetch error:', e);
+      } catch (e: unknown) {
+        const axiosErr = e as { response?: { status?: number }; message?: string };
+        // 429 Rate Limit - sessizce yoksay, kritik olmayan bir özellik
+        if (axiosErr?.response?.status === 429) {
+          retryCount++;
+          return;
+        }
+        // Diğer hatalar için sadece ilk birkaç denemede logla
+        if (retryCount < maxRetries) {
+          console.warn('Alert fetch error:', axiosErr?.message || e);
+          retryCount++;
+        }
       }
     };
 
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 60000); // Her 1 dakikada bir güncelle
-    return () => clearInterval(interval);
+    // İlk fetch'i 2 saniye geciktir (sayfa yüklenirken diğer API çağrılarına öncelik ver)
+    const initialTimer = setTimeout(fetchAlerts, 2000);
+    const interval = setInterval(fetchAlerts, 120000); // 2 dakikada bir güncelle (rate limit dostu)
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, []);
 
   // Tek AI girişi: sadece alttaki toolbar (metin + Gönder / AI'ya Sor). Floating buton her yerde gizli.

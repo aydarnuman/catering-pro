@@ -37,4 +37,5 @@ export { AIHelpTool } from './tools/AIHelpTool';
 export { CalculatorTool } from './tools/CalculatorTool';
 export { ExportTool } from './tools/ExportTool';
 export { TemplatesTool } from './tools/TemplatesTool';
+export { TrackerTool } from './tools/tracker';
 export { UnifiedNotesModal } from './UnifiedNotesModal';

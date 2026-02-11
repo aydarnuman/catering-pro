@@ -211,63 +211,81 @@ export function TemplatesTool({ onSelectTemplate }: TemplatesToolProps) {
   return (
     <Stack gap="md">
       <Group gap="sm">
-        <IconTemplate size={20} />
-        <Text size="lg" fw={700}>
-          Sablonlar
-        </Text>
+        <Box
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: isDark
+              ? 'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(139,92,246,0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.05) 100%)',
+            color: 'var(--mantine-color-violet-5)',
+          }}
+        >
+          <IconTemplate size={18} />
+        </Box>
+        <Box>
+          <Text size="lg" fw={700} style={{ letterSpacing: '-0.02em' }}>
+            Sablonlar
+          </Text>
+          <Text size="xs" c="dimmed">
+            Hazir bir sablon secerek hizlica not olusturun
+          </Text>
+        </Box>
       </Group>
-      <Text size="xs" c="dimmed">
-        Hazir bir sablon secerek hizlica not olusturun.
-      </Text>
 
       <SimpleGrid cols={2} spacing="sm">
         {TEMPLATES.map((tpl) => (
           <Paper
             key={tpl.id}
             p="md"
-            radius="md"
+            radius="lg"
+            className="ws-template-card"
             withBorder
             style={{
               cursor: 'pointer',
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              transition: 'all 0.15s ease',
+              borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
             }}
             onClick={() => onSelectTemplate(tpl)}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = `var(--mantine-color-${tpl.color}-5)`;
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.borderColor = `var(--mantine-color-${tpl.color}-${isDark ? '6' : '3'})`;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
             }}
           >
             <Stack gap="xs">
-              <Group gap="sm">
+              <Group gap="sm" justify="space-between">
                 <Box
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: `var(--mantine-color-${tpl.color}-${isDark ? '9' : '0'})`,
+                    background: isDark
+                      ? `linear-gradient(135deg, var(--mantine-color-${tpl.color}-9) 0%, rgba(0,0,0,0.2) 100%)`
+                      : `linear-gradient(135deg, var(--mantine-color-${tpl.color}-0) 0%, var(--mantine-color-${tpl.color}-1) 100%)`,
                     color: `var(--mantine-color-${tpl.color}-${isDark ? '4' : '6'})`,
+                    border: `1px solid var(--mantine-color-${tpl.color}-${isDark ? '8' : '2'})`,
                   }}
                 >
                   {tpl.icon}
                 </Box>
                 {tpl.isTask && (
-                  <Badge size="xs" variant="light" color="orange">
-                    Gorev
+                  <Badge size="xs" variant="light" color="orange" radius="sm">
+                    GOREV
                   </Badge>
                 )}
               </Group>
-              <Text size="sm" fw={600}>
+              <Text size="sm" fw={700} style={{ letterSpacing: '-0.01em' }}>
                 {tpl.name}
               </Text>
-              <Text size="xs" c="dimmed" lineClamp={2}>
+              <Text size="xs" c="dimmed" lineClamp={2} style={{ lineHeight: 1.4 }}>
                 {tpl.description}
               </Text>
             </Stack>

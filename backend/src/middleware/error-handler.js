@@ -6,18 +6,35 @@
 import logger from '../utils/logger.js';
 
 /**
+ * Hassas alanları log'dan maskeler
+ * Şifreler, tokenlar vb. [REDACTED] ile değiştirilir
+ */
+const SENSITIVE_FIELDS = ['password', 'sifre', 'parola', 'token', 'secret', 'refresh_token', 'access_token', 'credit_card', 'cvv', 'card_number'];
+
+function sanitizeBody(body) {
+  if (!body || typeof body !== 'object') return body;
+  const sanitized = { ...body };
+  for (const key of Object.keys(sanitized)) {
+    if (SENSITIVE_FIELDS.includes(key.toLowerCase())) {
+      sanitized[key] = '[REDACTED]';
+    }
+  }
+  return sanitized;
+}
+
+/**
  * Global error handler middleware
  * Production'da stack trace gizler, development'ta gösterir
  */
 export const globalErrorHandler = (err, req, res, _next) => {
-  // Hata logla
+  // Hata logla (hassas veriler maskelenerek)
   logger.error('Unhandled Error', {
     error: err.message,
     stack: err.stack,
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
-    body: req.body,
+    body: sanitizeBody(req.body),
     query: req.query,
   });
 
