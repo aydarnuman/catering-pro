@@ -5,6 +5,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconClock, IconDeviceFloppy, IconHistory, IconX } from '@tabler/icons-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import type { SavedTender } from '../types';
 import { AgentCard } from './components/AgentCard';
 import { AgentDetailPanel } from './components/AgentDetailPanel';
@@ -17,12 +18,11 @@ import { OrbitRing } from './components/OrbitRing';
 import { StageBackground } from './components/StageBackground';
 import { TenderDocumentCard } from './components/TenderDocumentCard';
 import { VerdictReport } from './components/VerdictReport';
-import { AGENTS, SPRING_CONFIG } from './constants';
-import type { SessionRecord } from './types';
+import { SPRING_CONFIG } from './constants';
+import { useAgentRegistry } from './hooks/useAgentRegistry';
 import { useOrbitAttachments } from './hooks/useOrbitAttachments';
 import { useSanalMasa } from './hooks/useSanalMasa';
-
-import { API_BASE_URL } from '@/lib/config';
+import type { AgentPersona, SessionRecord } from './types';
 
 const API = `${API_BASE_URL}/api`;
 
@@ -49,7 +49,14 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
     handleAssemble,
     handleReset,
     handleSnippetDrop,
+    reanalyzeAgent,
   } = useSanalMasa(tender);
+
+  // Fetch agents from registry (DB) with fallback to hardcoded constants
+  const { agents } = useAgentRegistry({
+    contextKey: 'ihale_masasi',
+    enabled: opened,
+  });
 
   // Session tracking
   const [sessionStartTime] = useState(() => Date.now());
@@ -63,12 +70,12 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   });
 
   // Fetch orbit attachments when modal opens
+  const { fetchAttachments } = orbit;
   useEffect(() => {
     if (opened && tender?.id) {
-      orbit.fetchAttachments();
+      fetchAttachments();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, tender?.id]);
+  }, [opened, tender?.id, fetchAttachments]);
 
   // Agent tool → orbit auto-attach
   const handleToolComplete = useCallback(
@@ -95,18 +102,20 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   const handleBroadcast = useCallback(
     (text: string) => {
       setDocumentExpanded(false);
-      for (const agent of AGENTS) {
+      for (const agent of agents) {
         handleSnippetDrop(agent.id, text);
       }
       handleAssemble();
     },
-    [handleSnippetDrop, handleAssemble]
+    [agents, handleSnippetDrop, handleAssemble]
   );
 
   // Deadline calculation
   const deadline = tender.tarih ? new Date(tender.tarih) : null;
   const now = new Date();
-  const daysLeft = deadline ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const daysLeft = deadline
+    ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   // Session save
   const handleSaveSession = useCallback(async () => {
@@ -210,7 +219,9 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
       }}
       transitionProps={{ transition: 'fade', duration: 300 }}
     >
-      <Box style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <Box
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}
+      >
         {/* Stage Background */}
         <StageBackground viewMode={viewMode} />
 
@@ -266,26 +277,34 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>Gecmis Oturumlar</Menu.Label>
-                  {sessions.length === 0 && (
-                    <Menu.Item disabled>Henuz kayit yok</Menu.Item>
-                  )}
+                  {sessions.length === 0 && <Menu.Item disabled>Henuz kayit yok</Menu.Item>}
                   {sessions.slice(0, 5).map((s) => {
                     const sd = s.session_data;
                     const date = new Date(s.created_at).toLocaleDateString('tr-TR', {
-                      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
                     });
                     const score = sd?.verdictData?.overallScore;
                     return (
                       <Menu.Item key={s.id} disabled>
                         <Group justify="space-between" w="100%">
                           <Stack gap={0}>
-                            <Text size="xs" fw={500}>{date}</Text>
+                            <Text size="xs" fw={500}>
+                              {date}
+                            </Text>
                             <Text size="10px" c="dimmed">
-                              {sd?.duration ? `${Math.floor(sd.duration / 60)}dk ${sd.duration % 60}sn` : ''}
+                              {sd?.duration
+                                ? `${Math.floor(sd.duration / 60)}dk ${sd.duration % 60}sn`
+                                : ''}
                             </Text>
                           </Stack>
                           {score !== undefined && score !== null && (
-                            <Badge size="sm" color={score >= 70 ? 'green' : score >= 45 ? 'yellow' : 'red'}>
+                            <Badge
+                              size="sm"
+                              color={score >= 70 ? 'green' : score >= 45 ? 'yellow' : 'red'}
+                            >
                               {score}
                             </Badge>
                           )}
@@ -307,6 +326,7 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
           {isMobile ? (
             <MobileLayout
               tender={tender}
+              agents={agents}
               viewMode={viewMode}
               agentAnalyses={agentAnalyses}
               agentHighlights={agentHighlights}
@@ -322,10 +342,12 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
               onSnippetDrop={handleSnippetDrop}
               onSendToAgent={handleSendToAgent}
               onBroadcast={handleBroadcast}
+              onReanalyze={reanalyzeAgent}
             />
           ) : (
             <DesktopLayout
               tender={tender}
+              agents={agents}
               viewMode={viewMode}
               agentAnalyses={agentAnalyses}
               agentHighlights={agentHighlights}
@@ -347,6 +369,7 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
               onSnippetDrop={handleSnippetDrop}
               onSendToAgent={handleSendToAgent}
               onBroadcast={handleBroadcast}
+              onReanalyze={reanalyzeAgent}
             />
           )}
         </Box>
@@ -359,6 +382,7 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
 
 interface LayoutProps {
   tender: SavedTender;
+  agents: AgentPersona[];
   viewMode: ReturnType<typeof useSanalMasa>['viewMode'];
   agentAnalyses: ReturnType<typeof useSanalMasa>['agentAnalyses'];
   agentHighlights: ReturnType<typeof useSanalMasa>['agentHighlights'];
@@ -380,10 +404,12 @@ interface LayoutProps {
   onSnippetDrop: (agentId: string, text: string) => void;
   onSendToAgent?: (agentId: string, text: string) => void;
   onBroadcast?: (text: string) => void;
+  onReanalyze?: (agentId: string) => Promise<void>;
 }
 
 function DesktopLayout({
   tender,
+  agents,
   viewMode,
   agentAnalyses,
   agentHighlights,
@@ -402,6 +428,7 @@ function DesktopLayout({
   onSnippetDrop,
   onSendToAgent,
   onBroadcast,
+  onReanalyze,
   documentExpanded = false,
   onExpandDocument,
   onCollapseDocument,
@@ -411,13 +438,9 @@ function DesktopLayout({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // Camera shift: determine shift direction based on focused agent side + bottom detection
-  const isBottomAgent = focusedAgent
-    ? Boolean(focusedAgent.orbitPosition.bottom)
-    : false;
+  const isBottomAgent = focusedAgent ? Boolean(focusedAgent.orbitPosition.bottom) : false;
 
-  const shiftX = focusedAgent
-    ? focusedAgent.side === 'right' ? -220 : 220
-    : 0;
+  const shiftX = focusedAgent ? (focusedAgent.side === 'right' ? -220 : 220) : 0;
 
   const shiftY = focusedAgent && isBottomAgent ? -100 : 0;
 
@@ -444,7 +467,7 @@ function DesktopLayout({
       // Find closest agent
       let closest: string | null = null;
       let minDist = 120; // Snap distance threshold
-      for (const agent of AGENTS) {
+      for (const agent of agents) {
         const el = stageRef.current.querySelector(`[data-node="${agent.id}"]`);
         if (el) {
           const rect = el.getBoundingClientRect();
@@ -474,7 +497,7 @@ function DesktopLayout({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [dragText, dropTargetId, onSnippetDrop]);
+  }, [agents, dragText, dropTargetId, onSnippetDrop]);
 
   return (
     <Box ref={stageRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -492,13 +515,19 @@ function DesktopLayout({
         animate={{
           scale: documentExpanded
             ? 1
-            : viewMode === 'FOCUS' ? 0.82 : viewMode === 'ASSEMBLE' ? 0.9 : 1,
+            : viewMode === 'FOCUS'
+              ? 0.82
+              : viewMode === 'ASSEMBLE'
+                ? 0.9
+                : 1,
           x: viewMode === 'FOCUS' && !documentExpanded ? shiftX : 0,
           y: viewMode === 'FOCUS' && !documentExpanded ? shiftY : 0,
           filter: viewMode === 'FOCUS' && !documentExpanded ? 'brightness(0.7)' : 'brightness(1)',
         }}
         transition={SPRING_CONFIG.gentle}
-        onClick={documentExpanded ? onCollapseDocument : viewMode === 'FOCUS' ? onBackToOrbit : undefined}
+        onClick={
+          documentExpanded ? onCollapseDocument : viewMode === 'FOCUS' ? onBackToOrbit : undefined
+        }
         style={{
           position: 'absolute',
           inset: 0,
@@ -522,7 +551,8 @@ function DesktopLayout({
           }}
           transition={SPRING_CONFIG.gentle}
         >
-          <div onClick={(e) => e.stopPropagation()}>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: Propagation stopper for modal backdrop */}
+          <div role="presentation" onClick={(e) => e.stopPropagation()}>
             <DocumentViewer
               title={tender.ihale_basligi}
               kurum={tender.kurum}
@@ -535,7 +565,11 @@ function DesktopLayout({
               onCollapse={onCollapseDocument}
               onDragStart={handleDocDragStart}
               onDragEnd={handleDocDragEnd}
-              onSendToAgent={onSendToAgent as ((agentId: import('./types').AgentPersona['id'], text: string) => void) | undefined}
+              onSendToAgent={
+                onSendToAgent as
+                  | ((agentId: import('./types').AgentPersona['id'], text: string) => void)
+                  | undefined
+              }
               onBroadcast={onBroadcast}
             />
           </div>
@@ -556,7 +590,7 @@ function DesktopLayout({
             <OrbitDetailOverlay
               attachment={
                 orbit.detailState.attachmentId
-                  ? orbit.attachments.find((a) => a.id === orbit.detailState.attachmentId) ?? null
+                  ? (orbit.attachments.find((a) => a.id === orbit.detailState.attachmentId) ?? null)
                   : null
               }
               mode={orbit.detailState.mode}
@@ -572,8 +606,14 @@ function DesktopLayout({
         </motion.div>
 
         {/* Agent Cards */}
-        {AGENTS.map((agent) => {
-          const analysis = agentAnalyses.find((a) => a.agentId === agent.id)!;
+        {agents.map((agent) => {
+          const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? {
+            agentId: agent.id,
+            status: 'no-data' as const,
+            findings: [],
+            riskScore: 0,
+            summary: '',
+          };
           const assembleX = agent.assembleOffset.x;
           const assembleY = agent.assembleOffset.y;
           const isDropTarget = dropTargetId === agent.id;
@@ -620,7 +660,8 @@ function DesktopLayout({
               }}
             >
               {/* stopPropagation: prevent backdrop click from closing panel */}
-              <div onClick={(e) => e.stopPropagation()}>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: Propagation stopper for modal backdrop */}
+              <div role="presentation" onClick={(e) => e.stopPropagation()}>
                 <AgentCard
                   agent={agent}
                   analysis={analysis}
@@ -663,9 +704,7 @@ function DesktopLayout({
               position: 'absolute',
               top: 16,
               bottom: 16,
-              ...(focusedAgent.side === 'right'
-                ? { right: 24 }
-                : { left: 24 }),
+              ...(focusedAgent.side === 'right' ? { right: 24 } : { left: 24 }),
               zIndex: 20,
               display: 'flex',
               flexDirection: 'column',
@@ -680,6 +719,7 @@ function DesktopLayout({
               daysLeft={daysLeft}
               onBack={onBackToOrbit}
               onToolComplete={onToolComplete}
+              onReanalyze={onReanalyze}
             />
           </motion.div>
         )}
@@ -694,12 +734,14 @@ function DesktopLayout({
 
       {/* Compare Overlay */}
       <AnimatePresence>
-        {orbit?.compareNodes && (() => {
-          const nodeA = orbit.attachments.find((a) => a.id === orbit.compareNodes![0]);
-          const nodeB = orbit.attachments.find((a) => a.id === orbit.compareNodes![1]);
-          if (!nodeA || !nodeB) return null;
-          return <CompareOverlay nodeA={nodeA} nodeB={nodeB} onClose={orbit.endCompare} />;
-        })()}
+        {orbit?.compareNodes &&
+          (() => {
+            const [compareIdA, compareIdB] = orbit.compareNodes;
+            const nodeA = orbit.attachments.find((a) => a.id === compareIdA);
+            const nodeB = orbit.attachments.find((a) => a.id === compareIdB);
+            if (!nodeA || !nodeB) return null;
+            return <CompareOverlay nodeA={nodeA} nodeB={nodeB} onClose={orbit.endCompare} />;
+          })()}
       </AnimatePresence>
 
       {/* Drag ghost indicator */}
@@ -718,6 +760,7 @@ function DesktopLayout({
 
 function MobileLayout({
   tender,
+  agents,
   viewMode,
   agentAnalyses,
   crossReferences,
@@ -729,6 +772,7 @@ function MobileLayout({
   onBackToOrbit,
   onAssemble,
   onReset,
+  onReanalyze,
 }: LayoutProps) {
   return (
     <Box
@@ -775,8 +819,14 @@ function MobileLayout({
               zIndex: 8,
             }}
           >
-            {AGENTS.map((agent) => {
-              const analysis = agentAnalyses.find((a) => a.agentId === agent.id)!;
+            {agents.map((agent) => {
+              const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? {
+                agentId: agent.id,
+                status: 'no-data' as const,
+                findings: [],
+                riskScore: 0,
+                summary: '',
+              };
               return (
                 <AgentCard
                   key={agent.id}
@@ -822,6 +872,7 @@ function MobileLayout({
               tenderId={tender?.tender_id ?? Number(tender?.id) ?? 0}
               analysisContext={(tender?.analysis_summary ?? {}) as Record<string, unknown>}
               onBack={onBackToOrbit}
+              onReanalyze={onReanalyze}
             />
           </motion.div>
         )}

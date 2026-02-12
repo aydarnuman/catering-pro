@@ -22,6 +22,10 @@ export interface AgentFinding {
   label: string;
   value: string;
   severity?: 'info' | 'warning' | 'critical';
+  /** AI confidence score (0-1) */
+  confidence?: number;
+  /** Brief reasoning from AI */
+  reasoning?: string;
 }
 
 export interface AgentAnalysis {
@@ -42,6 +46,12 @@ export interface VerdictData {
   weights?: Record<string, number>;
   /** Go/No-Go checklist derived from analysis data */
   checklist?: ChecklistItem[];
+  /** AI reasoning for the decision */
+  reasoning?: string;
+  /** Strategic notes from AI */
+  strategicNotes?: string;
+  /** Who generated this verdict: 'ai' or 'rule' */
+  generatedBy?: 'ai' | 'rule';
 }
 
 // ─── Agent Highlighting ──────────────────────────────────────

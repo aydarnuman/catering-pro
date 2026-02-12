@@ -10,6 +10,7 @@ import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../
 import aiAgent from '../services/ai-agent.js';
 import aiTools from '../services/ai-tools/index.js';
 import claudeAI from '../services/claude-ai.js';
+import ihaleAgentService from '../services/ihale-agent-service.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import SettingsVersionService from '../services/settings-version-service.js';
 import logger from '../utils/logger.js';
@@ -136,7 +137,7 @@ router.post('/agent', optionalAuth, async (req, res) => {
     }
 
     logger.debug(
-      `[AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`
+      `[AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? `#${pageContext.id}` : ''}`
     );
 
     // Options ile sessionId, department, templateSlug, pageContext ve systemContext gönder
@@ -417,7 +418,7 @@ router.post('/templates', authenticate, requireAdmin, async (req, res) => {
     logger.error('[AI Template Create] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
-      error: 'Şablon oluşturulamadı: ' + error.message,
+      error: `Şablon oluşturulamadı: ${error.message}`,
     });
   }
 });
@@ -1020,7 +1021,7 @@ router.post('/settings/import', authenticate, requireAdmin, async (req, res) => 
     logger.error('[AI Settings Import] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
-      error: 'Ayarlar import edilemedi: ' + error.message,
+      error: `Ayarlar import edilemedi: ${error.message}`,
     });
   }
 });
@@ -1982,7 +1983,8 @@ router.get('/dashboard', async (_req, res) => {
 // SANAL İHALE MASASI — Agent Action Endpoint
 // ============================================
 
-const IHALE_AGENT_SYSTEM_PROMPTS = {
+// Fallback system prompts (used if database lookup fails)
+const IHALE_AGENT_SYSTEM_PROMPTS_FALLBACK = {
   mevzuat: `Sen bir kamu ihale mevzuatı uzmanısın. 4734 sayılı Kamu İhale Kanunu, 4735 sayılı Kamu İhale Sözleşmeleri Kanunu, KİK kararları ve Danıştay içtihatlarına hakimsin. Görevin ihale şartnamelerindeki hukuki riskleri tespit etmek ve teklif veren lehine öneriler sunmaktır. Türkçe yanıt ver.`,
 
   maliyet: `Sen bir catering maliyetlendirme uzmanısın. Yemek hizmet alımı ihalelerinde maliyet analizi, birim fiyat hesaplama, kâr marjı optimizasyonu konularında uzmansın. Mevcut piyasa fiyatları ve fatura verileriyle gerçekçi maliyet hesabı yaparsın. Türkçe yanıt ver.`,
@@ -1992,8 +1994,50 @@ const IHALE_AGENT_SYSTEM_PROMPTS = {
   rekabet: `Sen bir ihale rekabet analisti ve istihbaratçısın. Rakip firma analizleri, geçmiş ihale sonuçları, teklif stratejileri konularında uzmansın. Piyasadaki rekabet durumunu değerlendirip optimal teklif stratejisi önerirsin. Türkçe yanıt ver.`,
 };
 
-function buildToolPrompt(toolId, input, context) {
+// Fetch agent system prompt from database
+async function getAgentSystemPrompt(agentSlug) {
+  try {
+    const result = await query(`SELECT id, system_prompt FROM agents WHERE slug = $1 AND is_active = true`, [
+      agentSlug,
+    ]);
+    if (result.rows.length > 0 && result.rows[0].system_prompt) {
+      return { agentId: result.rows[0].id, systemPrompt: result.rows[0].system_prompt };
+    }
+  } catch (error) {
+    logger.warn(`[İhale Masası] Agent DB lookup failed for ${agentSlug}:`, error.message);
+  }
+  // Fallback to hardcoded
+  const fallback = IHALE_AGENT_SYSTEM_PROMPTS_FALLBACK[agentSlug];
+  return fallback ? { agentId: null, systemPrompt: fallback } : null;
+}
+
+// Fetch tool ai_prompt_template from database
+async function getToolPromptTemplate(agentDbId, toolSlug) {
+  if (!agentDbId) return null;
+  try {
+    const result = await query(
+      `SELECT ai_prompt_template FROM agent_tools WHERE agent_id = $1 AND tool_slug = $2 AND is_active = true`,
+      [agentDbId, toolSlug]
+    );
+    if (result.rows.length > 0 && result.rows[0].ai_prompt_template) {
+      return result.rows[0].ai_prompt_template;
+    }
+  } catch (error) {
+    logger.warn(`[İhale Masası] Tool DB lookup failed for ${toolSlug}:`, error.message);
+  }
+  return null;
+}
+
+// Build tool prompt - uses database template if available, falls back to hardcoded
+function buildToolPrompt(toolId, input, context, dbTemplate = null) {
   const ctx = context || {};
+
+  // If we have a database template, use variable substitution
+  if (dbTemplate) {
+    return substitutePromptVariables(dbTemplate, input, ctx);
+  }
+
+  // Fallback to hardcoded prompts
   switch (toolId) {
     case 'redline':
       return `Aşağıdaki ihale şartname maddesini teklif veren lehine revize et. Orijinal metni, revize metni ve değişiklik gerekçesini ayrı ayrı belirt.
@@ -2169,7 +2213,58 @@ YANITINI TAM OLARAK ŞU JSON FORMATINDA VER:
   }
 }
 
-function parseAIResponseToToolResult(aiResponse, toolId) {
+// Substitute variables in database prompt template
+function substitutePromptVariables(template, input, context) {
+  const ctx = context || {};
+
+  // Replace {{input}} with the user input
+  let prompt = template.replace(/\{\{input\}\}/g, input || '');
+
+  // Replace {{context}} with full context JSON
+  prompt = prompt.replace(/\{\{context\}\}/g, JSON.stringify(ctx, null, 2));
+
+  // Replace specific context variables like {{ihale_basligi}}, {{tahmini_bedel}}, etc.
+  const contextKeys = [
+    'ihale_basligi',
+    'kurum',
+    'il',
+    'tahmini_bedel',
+    'ihale_usulu',
+    'kisi_sayisi',
+    'sure',
+    'kapasite_gereksinimi',
+    'benzer_is_tanimi',
+    'teklif_turu',
+    'sinir_deger_katsayisi',
+  ];
+
+  for (const key of contextKeys) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    prompt = prompt.replace(regex, ctx[key] || 'Belirtilmemiş');
+  }
+
+  // Replace JSON array context variables
+  const jsonArrayKeys = [
+    'ogun_bilgileri',
+    'birim_fiyatlar',
+    'personel_detaylari',
+    'teknik_sartlar',
+    'servis_saatleri',
+    'teminat_oranlari',
+  ];
+
+  for (const key of jsonArrayKeys) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    prompt = prompt.replace(regex, JSON.stringify(ctx[key] || [], null, 2));
+  }
+
+  // Replace {{date}} with current date
+  prompt = prompt.replace(/\{\{date\}\}/g, new Date().toLocaleDateString('tr-TR'));
+
+  return prompt;
+}
+
+function parseAIResponseToToolResult(aiResponse, _toolId) {
   try {
     const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -2195,6 +2290,7 @@ function parseAIResponseToToolResult(aiResponse, toolId) {
 /**
  * POST /api/ai/ihale-masasi/agent-action
  * Sanal İhale Masası — Agent bazlı AI aksiyonu
+ * Prompts are now fetched from database (agents + agent_tools tables) with fallback to hardcoded values
  */
 router.post('/ihale-masasi/agent-action', optionalAuth, async (req, res) => {
   try {
@@ -2207,25 +2303,36 @@ router.post('/ihale-masasi/agent-action', optionalAuth, async (req, res) => {
       });
     }
 
-    const systemPrompt = IHALE_AGENT_SYSTEM_PROMPTS[agentId];
-    if (!systemPrompt) {
+    // Fetch agent system prompt from database (with fallback to hardcoded)
+    const agentData = await getAgentSystemPrompt(agentId);
+    if (!agentData) {
       return res.status(400).json({
         success: false,
         error: `Geçersiz agent: ${agentId}`,
       });
     }
 
-    logger.info(`[İhale Masası] Agent: ${agentId}, Tool: ${toolId}, Tender: ${tenderId || 'N/A'}`, {
-      agentId,
-      toolId,
-      tenderId,
-    });
+    const { agentId: agentDbId, systemPrompt } = agentData;
+
+    // Fetch tool prompt template from database (optional, falls back to hardcoded buildToolPrompt)
+    const dbToolTemplate = await getToolPromptTemplate(agentDbId, toolId);
+
+    logger.info(
+      `[İhale Masası] Agent: ${agentId}, Tool: ${toolId}, Tender: ${tenderId || 'N/A'}, Source: ${agentDbId ? 'DB' : 'Fallback'}`,
+      {
+        agentId,
+        toolId,
+        tenderId,
+        promptSource: agentDbId ? 'database' : 'fallback',
+        toolTemplateSource: dbToolTemplate ? 'database' : 'fallback',
+      }
+    );
 
     // Build context from analysisContext (comes from frontend analysis_summary)
     const context = analysisContext || {};
 
-    // Build the user message based on tool type
-    const userMessage = buildToolPrompt(toolId, input, context);
+    // Build the user message based on tool type (uses DB template if available)
+    const userMessage = buildToolPrompt(toolId, input, context, dbToolTemplate);
 
     // Call AI agent with specialized system prompt
     const result = await aiAgent.processQuery(userMessage, [], {
@@ -2268,6 +2375,140 @@ router.post('/ihale-masasi/agent-action', optionalAuth, async (req, res) => {
       success: false,
       error: 'Agent aksiyonu çalıştırılamadı',
     });
+  }
+});
+
+// ============================================
+// SANAL İHALE MASASI — AI Agent Analiz Endpoint'leri
+// ============================================
+
+/**
+ * POST /api/ai/ihale-masasi/analyze-all
+ * 4 agent'ı paralel başlatıp tüm analizleri döndürür
+ */
+router.post('/ihale-masasi/analyze-all', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId, force, additionalContext } = req.body;
+
+    if (!tenderId) {
+      return res.status(400).json({ success: false, error: 'tenderId zorunludur' });
+    }
+
+    logger.info(`[İhale Masası] Tüm agent analizi: tender=${tenderId}, force=${!!force}`, {
+      tenderId,
+      force: !!force,
+      userId: req.user?.id,
+      hasAdditionalContext: !!additionalContext,
+    });
+
+    const result = await ihaleAgentService.analyzeAllAgents(tenderId, { force: !!force, additionalContext });
+
+    return res.json({
+      success: true,
+      analyses: result.analyses,
+      errors: result.errors,
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] analyze-all Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, error: 'Agent analizi çalıştırılamadı' });
+  }
+});
+
+/**
+ * POST /api/ai/ihale-masasi/analyze-agent
+ * Tek bir agent ile analiz yap
+ */
+router.post('/ihale-masasi/analyze-agent', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId, agentId, force, additionalContext } = req.body;
+
+    if (!tenderId || !agentId) {
+      return res.status(400).json({ success: false, error: 'tenderId ve agentId zorunludur' });
+    }
+
+    if (!ihaleAgentService.AGENT_IDS.includes(agentId)) {
+      return res.status(400).json({ success: false, error: `Geçersiz agent: ${agentId}` });
+    }
+
+    logger.info(`[İhale Masası] Tekil agent analizi: tender=${tenderId}, agent=${agentId}`, {
+      tenderId,
+      agentId,
+      force: !!force,
+    });
+
+    const result = await ihaleAgentService.analyzeWithAgent(tenderId, agentId, { force: !!force, additionalContext });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error });
+    }
+
+    return res.json({
+      success: true,
+      analysis: result.analysis,
+      cached: result.cached || false,
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] analyze-agent Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, error: 'Agent analizi çalıştırılamadı' });
+  }
+});
+
+/**
+ * GET /api/ai/ihale-masasi/analysis/:tenderId
+ * Cache'den hızlı yükleme (AI çağrısı yapmaz)
+ */
+router.get('/ihale-masasi/analysis/:tenderId', optionalAuth, async (req, res) => {
+  try {
+    const tenderId = parseInt(req.params.tenderId, 10);
+    if (!tenderId || Number.isNaN(tenderId)) {
+      return res.status(400).json({ success: false, error: 'Geçerli tenderId gerekli' });
+    }
+
+    const analyses = await ihaleAgentService.loadCachedAnalyses(tenderId);
+
+    if (!analyses) {
+      return res.json({ success: true, analyses: null, cached: false });
+    }
+
+    return res.json({ success: true, analyses, cached: true });
+  } catch (error) {
+    logger.error('[İhale Masası] analysis cache Hata', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Analiz yüklenemedi' });
+  }
+});
+
+/**
+ * POST /api/ai/ihale-masasi/verdict
+ * AI ile akıllı verdict üret (tüm agent bulgularını sentezle)
+ */
+router.post('/ihale-masasi/verdict', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId, analyses } = req.body;
+
+    if (!tenderId || !analyses) {
+      return res.status(400).json({ success: false, error: 'tenderId ve analyses zorunludur' });
+    }
+
+    logger.info(`[İhale Masası] AI Verdict üretiliyor: tender=${tenderId}`, { tenderId });
+
+    // İhale temel bilgilerini al
+    const tenderResult = await query(
+      `SELECT t.title, t.organization_name AS organization, t.estimated_cost, t.tender_date
+       FROM tenders t WHERE t.id = $1 LIMIT 1`,
+      [tenderId],
+    );
+    const tenderInfo = tenderResult.rows[0] || {};
+
+    const result = await ihaleAgentService.generateAIVerdict(tenderId, analyses, tenderInfo);
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error });
+    }
+
+    return res.json({ success: true, verdict: result.verdict });
+  } catch (error) {
+    logger.error('[İhale Masası] verdict Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, error: 'Verdict üretilemedi' });
   }
 });
 
@@ -2334,7 +2575,7 @@ router.post('/god-mode/execute', authenticate, requireSuperAdmin, async (req, re
     });
     return res.status(500).json({
       success: false,
-      error: 'God Mode komutu çalıştırılamadı: ' + error.message,
+      error: `God Mode komutu çalıştırılamadı: ${error.message}`,
     });
   }
 });
@@ -2520,7 +2761,7 @@ Lütfen:
     logger.error('[Error Analysis] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
-      error: 'Hata analizi yapılamadı: ' + error.message,
+      error: `Hata analizi yapılamadı: ${error.message}`,
     });
   }
 });

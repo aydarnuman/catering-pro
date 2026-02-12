@@ -7,6 +7,52 @@ import { api } from '@/lib/api';
 import type { ConversationHistory } from '@/types/domain';
 import type { ApiResponse } from '../types';
 
+// İhale Agent Analysis result from backend
+export interface AgentAnalysisResult {
+  id?: number;
+  agentId: string;
+  findings: Array<{
+    label: string;
+    value: string;
+    severity?: 'info' | 'warning' | 'critical';
+    confidence?: number;
+    reasoning?: string;
+  }>;
+  riskScore: number;
+  summary: string;
+  status: 'pending' | 'analyzing' | 'complete' | 'error';
+  keyRisks?: string[];
+  recommendations?: string[];
+  model?: string;
+  createdAt?: string;
+  version?: number;
+}
+
+// AI Verdict
+export interface AIVerdict {
+  recommendation: 'gir' | 'dikkat' | 'girme';
+  recommendationLabel: string;
+  overallScore: number;
+  reasoning: string;
+  checklist: Array<{
+    id: string;
+    label: string;
+    status: 'pass' | 'fail' | 'unknown';
+    detail: string;
+    severity: 'critical' | 'warning' | 'info';
+  }>;
+  crossReferences: Array<{
+    fromAgentId: string;
+    toAgentId: string;
+    fromFinding: string;
+    impact: string;
+    severity: 'critical' | 'warning' | 'info';
+  }>;
+  strategicNotes: string;
+  generatedAt: string;
+  generatedBy: 'ai' | 'rule';
+}
+
 // AI Template
 export interface AITemplate {
   id: number;
@@ -101,7 +147,7 @@ export const aiAPI = {
    * AI ayarlarını güncelle
    */
   async updateSettings(
-    settings: Record<string, any>
+    settings: Record<string, unknown>
   ): Promise<ApiResponse<{ updatedKeys: string[] }>> {
     const response = await api.put('/api/ai/settings', { settings });
     return response.data;
@@ -121,7 +167,7 @@ export const aiAPI = {
    * AI ayarlarını import et
    */
   async importSettings(
-    settings: Record<string, any>,
+    settings: Record<string, unknown>,
     overwrite: boolean = false
   ): Promise<
     ApiResponse<{
@@ -521,5 +567,79 @@ export const aiAPI = {
       responseType: 'blob',
     });
     return response.data;
+  },
+
+  // ═══════════════════════════════════════════
+  // İHALE MASASI — AI Agent Analiz
+  // ═══════════════════════════════════════════
+
+  /**
+   * 4 agent'ı paralel çalıştır
+   */
+  async analyzeAllAgents(
+    tenderId: number,
+    force = false,
+    additionalContext?: { notes?: string[]; snippets?: Record<string, string[]> }
+  ): Promise<
+    ApiResponse<{
+      analyses: Record<string, AgentAnalysisResult>;
+      errors: Array<{ agentId: string; error: string }>;
+    }>
+  > {
+    const response = await api.post('/api/ai/ihale-masasi/analyze-all', {
+      tenderId,
+      force,
+      additionalContext,
+    });
+    // Backend { success, analyses, errors } döner — data wrapper'a sar
+    const raw = response.data;
+    return { success: raw.success, data: { analyses: raw.analyses, errors: raw.errors ?? [] }, error: raw.error };
+  },
+
+  /**
+   * Tek agent analizi
+   */
+  async analyzeSingleAgent(
+    tenderId: number,
+    agentId: string,
+    force = false,
+    additionalContext?: { notes?: string[]; snippets?: string[] }
+  ): Promise<ApiResponse<{ analysis: AgentAnalysisResult; cached: boolean }>> {
+    const response = await api.post('/api/ai/ihale-masasi/analyze-agent', {
+      tenderId,
+      agentId,
+      force,
+      additionalContext,
+    });
+    // Backend { success, analysis, cached } döner — data wrapper'a sar
+    const raw = response.data;
+    return { success: raw.success, data: { analysis: raw.analysis, cached: raw.cached ?? false }, error: raw.error };
+  },
+
+  /**
+   * Cache'den hızlı yükleme
+   */
+  async getCachedAgentAnalyses(
+    tenderId: number
+  ): Promise<
+    ApiResponse<{ analyses: Record<string, AgentAnalysisResult> | null; cached: boolean }>
+  > {
+    const response = await api.get(`/api/ai/ihale-masasi/analysis/${tenderId}`);
+    // Backend { success, analyses, cached } döner — data wrapper'a sar
+    const raw = response.data;
+    return { success: raw.success, data: { analyses: raw.analyses ?? null, cached: raw.cached ?? false }, error: raw.error };
+  },
+
+  /**
+   * AI ile akıllı verdict üret (tüm agent bulgularını sentezle)
+   */
+  async generateAIVerdict(
+    tenderId: number,
+    analyses: Record<string, AgentAnalysisResult>
+  ): Promise<ApiResponse<{ verdict: AIVerdict }>> {
+    const response = await api.post('/api/ai/ihale-masasi/verdict', { tenderId, analyses });
+    // Backend { success, verdict } döner — data wrapper'a sar
+    const raw = response.data;
+    return { success: raw.success, data: { verdict: raw.verdict }, error: raw.error };
   },
 };

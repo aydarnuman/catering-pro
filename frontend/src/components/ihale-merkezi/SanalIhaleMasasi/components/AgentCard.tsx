@@ -1,5 +1,6 @@
-import { Badge, Box, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Box, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import {
+  IconAlertTriangle,
   IconCalculator,
   IconHelmet,
   IconRadar2,
@@ -47,6 +48,9 @@ export function AgentCard({
   const IconComponent = ICON_MAP[agent.iconName];
   const statusInfo = STATUS_LABELS[analysis.status];
 
+  const isCurrentlyAnalyzing = analysis.status === 'analyzing';
+  const isError = analysis.status === 'no-data';
+
   if (isMobile) {
     return (
       <motion.div
@@ -67,10 +71,16 @@ export function AgentCard({
             <ThemeIcon
               size={36}
               variant="light"
-              color={agent.color}
+              color={isError ? 'gray' : agent.color}
               radius="xl"
             >
-              <IconComponent size={20} />
+              {isCurrentlyAnalyzing ? (
+                <Loader size={16} color={agent.color} type="dots" />
+              ) : isError ? (
+                <IconAlertTriangle size={18} />
+              ) : (
+                <IconComponent size={20} />
+              )}
             </ThemeIcon>
             <Text size="9px" fw={600} ta="center" c="dimmed" lineClamp={2}>
               {agent.name}
@@ -100,15 +110,35 @@ export function AgentCard({
       >
         <Stack align="center" gap={10}>
           <Box style={{ position: 'relative' }}>
-            <ThemeIcon
-              size={48}
-              variant="gradient"
-              gradient={{ from: agent.color, to: agent.color, deg: 135 }}
-              radius="xl"
-              style={{ boxShadow: `0 0 16px ${agent.accentHex}40` }}
+            <motion.div
+              animate={isCurrentlyAnalyzing ? {
+                boxShadow: [
+                  `0 0 8px ${agent.accentHex}30`,
+                  `0 0 24px ${agent.accentHex}60`,
+                  `0 0 8px ${agent.accentHex}30`,
+                ],
+              } : {}}
+              transition={isCurrentlyAnalyzing ? { duration: 1.5, repeat: Number.POSITIVE_INFINITY } : {}}
+              style={{ borderRadius: '50%' }}
             >
-              <IconComponent size={24} />
-            </ThemeIcon>
+              <ThemeIcon
+                size={48}
+                variant="gradient"
+                gradient={isError
+                  ? { from: 'gray.7', to: 'gray.6', deg: 135 }
+                  : { from: agent.color, to: agent.color, deg: 135 }}
+                radius="xl"
+                style={{ boxShadow: isCurrentlyAnalyzing ? undefined : `0 0 16px ${agent.accentHex}40` }}
+              >
+                {isCurrentlyAnalyzing ? (
+                  <Loader size={20} color="white" type="dots" />
+                ) : isError ? (
+                  <IconAlertTriangle size={22} />
+                ) : (
+                  <IconComponent size={24} />
+                )}
+              </ThemeIcon>
+            </motion.div>
             {/* Snippet count badge */}
             {(snippetCount ?? 0) > 0 && (
               <Badge
@@ -135,8 +165,8 @@ export function AgentCard({
             <Text size="sm" fw={700} ta="center" c="white">
               {agent.name}
             </Text>
-            <Text size="xs" ta="center" c="dimmed" mt={2}>
-              {agent.subtitle}
+            <Text size="xs" ta="center" c={isCurrentlyAnalyzing ? 'blue.4' : 'dimmed'} mt={2}>
+              {isCurrentlyAnalyzing ? 'AI analiz ediliyor...' : agent.subtitle}
             </Text>
           </div>
 
@@ -148,7 +178,7 @@ export function AgentCard({
             {statusInfo.label}
           </Badge>
 
-          {analysis.riskScore > 0 && viewMode !== 'ASSEMBLE' && (
+          {analysis.riskScore > 0 && viewMode !== 'ASSEMBLE' && !isCurrentlyAnalyzing && (
             <Text size="xs" fw={600} c={agent.color}>
               Skor: {analysis.riskScore}/100
             </Text>

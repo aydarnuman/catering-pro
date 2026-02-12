@@ -248,6 +248,7 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+import agentsRouter from './routes/agents.js';
 import aiRouter from './routes/ai.js';
 import aiMemoryRouter from './routes/ai-memory.js';
 import analysisCorrectionsRouter from './routes/analysis-corrections.js';
@@ -329,6 +330,7 @@ app.use('/api/documents', documentProxyRouter);
 app.use('/api/content', contentExtractorRouter);
 app.use('/api/uyumsoft', uyumsoftRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/agents', agentsRouter);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/fatura-kalemleri', faturaKalemlerRouter);
 app.use('/api/sync', syncRouter);
