@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { aiAPI } from '@/lib/api/services/ai';
 import type { AgentAnalysisResult } from '@/lib/api/services/ai';
+import { aiAPI } from '@/lib/api/services/ai';
 import type { AnalysisData, SavedTender } from '../../types';
 import { AGENTS } from '../constants';
 import type {
@@ -18,15 +18,18 @@ import type {
 // ─── Agent Weights for Verdict Scoring ───────────────────────
 
 const AGENT_WEIGHTS: Record<AgentPersona['id'], number> = {
-  mevzuat: 0.30,
-  maliyet: 0.30,
+  mevzuat: 0.3,
+  maliyet: 0.3,
   teknik: 0.25,
   rekabet: 0.15,
 };
 
 // ─── Backend Result → Frontend AgentAnalysis Mapper ──────────
 
-function mapBackendToAgentAnalysis(agentId: AgentPersona['id'], result: AgentAnalysisResult): AgentAnalysis {
+function mapBackendToAgentAnalysis(
+  agentId: AgentPersona['id'],
+  result: AgentAnalysisResult
+): AgentAnalysis {
   let status: AgentAnalysis['status'] = result.status === 'complete' ? 'complete' : 'analyzing';
   if (result.status === 'error') status = 'no-data';
   if (result.status === 'complete') {
@@ -46,7 +49,11 @@ function mapBackendToAgentAnalysis(agentId: AgentPersona['id'], result: AgentAna
       reasoning: f.reasoning,
     })),
     riskScore: result.riskScore,
-    summary: result.summary || (result.findings[0] ? `${result.findings[0].label}: ${result.findings[0].value}` : 'Analiz tamamlandi'),
+    summary:
+      result.summary ||
+      (result.findings[0]
+        ? `${result.findings[0].label}: ${result.findings[0].value}`
+        : 'Analiz tamamlandi'),
   };
 }
 
@@ -147,7 +154,11 @@ function generateChecklist(data: AnalysisData, analyses: AgentAnalysis[]): Check
     severity: 'warning',
   });
 
-  const maliVar = !!(data.mali_kriterler?.cari_oran || data.mali_kriterler?.ozkaynak_orani || data.mali_kriterler?.is_deneyimi);
+  const maliVar = !!(
+    data.mali_kriterler?.cari_oran ||
+    data.mali_kriterler?.ozkaynak_orani ||
+    data.mali_kriterler?.is_deneyimi
+  );
   items.push({
     id: 'mali_kriter',
     label: 'Mali yeterlilik kriterleri mevcut',
@@ -167,7 +178,7 @@ function generateChecklist(data: AnalysisData, analyses: AgentAnalysis[]): Check
   items.push({
     id: 'sure',
     label: 'Sozlesme suresi belirli',
-    status: (data.sure || data.teslim_suresi) ? 'pass' : 'unknown',
+    status: data.sure || data.teslim_suresi ? 'pass' : 'unknown',
     detail: data.sure || data.teslim_suresi || 'Sure bilgisi yok',
     severity: 'warning',
   });
@@ -202,9 +213,10 @@ function generateChecklist(data: AnalysisData, analyses: AgentAnalysis[]): Check
     id: 'agent_risk',
     label: 'Tum ajanlarda kabul edilebilir risk',
     status: criticalAgents.length === 0 ? 'pass' : 'fail',
-    detail: criticalAgents.length > 0
-      ? `${criticalAgents.map((a) => AGENTS.find((ag) => ag.id === a.agentId)?.name).join(', ')} kritik`
-      : 'Tum ajanlar kabul edilebilir',
+    detail:
+      criticalAgents.length > 0
+        ? `${criticalAgents.map((a) => AGENTS.find((ag) => ag.id === a.agentId)?.name).join(', ')} kritik`
+        : 'Tum ajanlar kabul edilebilir',
     severity: 'critical',
   });
 
@@ -213,7 +225,10 @@ function generateChecklist(data: AnalysisData, analyses: AgentAnalysis[]): Check
 
 // ─── Agent Highlight Generation ──────────────────────────────
 
-function generateAgentHighlights(data: AnalysisData | undefined, analyses: AgentAnalysis[]): AgentHighlight[] {
+function generateAgentHighlights(
+  data: AnalysisData | undefined,
+  analyses: AgentAnalysis[]
+): AgentHighlight[] {
   if (!data?.tam_metin) return [];
   const tamMetin = data.tam_metin.toLowerCase();
   const highlights: AgentHighlight[] = [];
@@ -230,11 +245,11 @@ function generateAgentHighlights(data: AnalysisData | undefined, analyses: Agent
         if (term.length < 4) continue;
         const lowerTerm = term.toLowerCase();
         if (tamMetin.includes(lowerTerm)) {
-          const idx = data.tam_metin!.toLowerCase().indexOf(lowerTerm);
+          const idx = tamMetin.indexOf(lowerTerm);
           if (idx !== -1) {
             highlights.push({
               agentId: agent.id,
-              text: data.tam_metin!.substring(idx, idx + term.length),
+              text: (data.tam_metin ?? '').substring(idx, idx + term.length),
               color: agent.color,
               finding: finding.label,
             });
@@ -320,6 +335,18 @@ function generateCrossReferences(data: AnalysisData | null | undefined): CrossRe
   return refs;
 }
 
+/** Parse tender ID from mixed SavedTender shapes (string | number | undefined) */
+function parseTenderId(tender: SavedTender): number | null {
+  const rawId = tender?.tender_id ?? tender?.id;
+  const id = typeof rawId === 'string' ? Number.parseInt(rawId, 10) : rawId;
+  return id && !Number.isNaN(id) ? id : null;
+}
+
+/** Create a "no-data" stub for a single agent */
+function createNoDataAnalysis(agentId: AgentPersona['id'], summary: string): AgentAnalysis {
+  return { agentId, status: 'no-data', findings: [], riskScore: 0, summary };
+}
+
 function extractSearchTerms(finding: AgentFinding): string[] {
   const terms: string[] = [];
   if (finding.value && finding.value.length > 4 && finding.value.length < 100) {
@@ -344,15 +371,15 @@ export function useSanalMasa(tender: SavedTender) {
   const [snippetDrops, setSnippetDrops] = useState<SnippetDrop[]>([]);
   const [agentAnalyses, setAgentAnalyses] = useState<AgentAnalysis[]>(createAnalyzingState);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [verdictLoading, setVerdictLoading] = useState(false);
 
   // Track tender ID to avoid duplicate calls
   const analyzedTenderRef = useRef<number | null>(null);
 
   // ─── AI Analysis: Load from cache or trigger new analysis ──
   useEffect(() => {
-    const rawId = tender?.tender_id ?? tender?.id;
-    const tenderId = typeof rawId === 'string' ? Number.parseInt(rawId, 10) : rawId;
-    if (!tenderId || Number.isNaN(tenderId)) return;
+    const tenderId = parseTenderId(tender);
+    if (!tenderId) return;
     if (analyzedTenderRef.current === tenderId) return;
     analyzedTenderRef.current = tenderId;
 
@@ -371,8 +398,8 @@ export function useSanalMasa(tender: SavedTender) {
               const result = cached[agent.id];
               return result
                 ? mapBackendToAgentAnalysis(agent.id, result)
-                : { agentId: agent.id, status: 'no-data' as const, findings: [], riskScore: 0, summary: 'Analiz yapilmamis' };
-            }),
+                : createNoDataAnalysis(agent.id, 'Analiz yapilmamis');
+            })
           );
           setIsAnalyzing(false);
           return;
@@ -388,8 +415,8 @@ export function useSanalMasa(tender: SavedTender) {
               const result = results[agent.id];
               return result
                 ? mapBackendToAgentAnalysis(agent.id, result)
-                : { agentId: agent.id, status: 'no-data' as const, findings: [], riskScore: 0, summary: 'Analiz tamamlanamadi' };
-            }),
+                : createNoDataAnalysis(agent.id, 'Analiz tamamlanamadi');
+            })
           );
         } else {
           setAgentAnalyses(createNoDataState());
@@ -400,53 +427,72 @@ export function useSanalMasa(tender: SavedTender) {
         setIsAnalyzing(false);
       }
     })();
-  }, [tender?.id, tender?.tender_id]);
+  }, [tender]);
 
   // ─── Re-analyze single agent ──────────────────────────────
-  const reanalyzeAgent = useCallback(async (agentId: string) => {
-    const rawId = tender?.tender_id ?? tender?.id;
-    const tenderId = typeof rawId === 'string' ? Number.parseInt(rawId, 10) : rawId;
-    if (!tenderId || Number.isNaN(tenderId)) return;
+  const reanalyzeAgent = useCallback(
+    async (agentId: string) => {
+      const tenderId = parseTenderId(tender);
+      if (!tenderId) return;
 
-    // Set this agent to analyzing
-    setAgentAnalyses((prev) =>
-      prev.map((a) => a.agentId === agentId ? { ...a, status: 'analyzing' as const, findings: [], riskScore: 0, summary: 'Yeniden analiz ediliyor...' } : a),
-    );
+      // Set this agent to analyzing
+      setAgentAnalyses((prev) =>
+        prev.map((a) =>
+          a.agentId === agentId
+            ? {
+                ...a,
+                status: 'analyzing' as const,
+                findings: [],
+                riskScore: 0,
+                summary: 'Yeniden analiz ediliyor...',
+              }
+            : a
+        )
+      );
 
-    try {
-      // Agent'a atanan snippet'leri ek context olarak gönder
-      const agentSnippetTexts = snippetDrops
-        .filter((s) => s.agentId === agentId)
-        .map((s) => s.text);
+      try {
+        // Agent'a atanan snippet'leri ek context olarak gönder
+        const agentSnippetTexts = snippetDrops
+          .filter((s) => s.agentId === agentId)
+          .map((s) => s.text);
 
-      const additionalContext = agentSnippetTexts.length > 0
-        ? { snippets: agentSnippetTexts }
-        : undefined;
+        const additionalContext =
+          agentSnippetTexts.length > 0 ? { snippets: agentSnippetTexts } : undefined;
 
-      const response = await aiAPI.analyzeSingleAgent(tenderId, agentId, true, additionalContext);
-      if (response.success && response.data?.analysis) {
-        const result = response.data.analysis;
+        const response = await aiAPI.analyzeSingleAgent(tenderId, agentId, true, additionalContext);
+        if (response.success && response.data?.analysis) {
+          const result = response.data.analysis;
+          setAgentAnalyses((prev) =>
+            prev.map((a) =>
+              a.agentId === agentId
+                ? mapBackendToAgentAnalysis(agentId as AgentPersona['id'], result)
+                : a
+            )
+          );
+        }
+      } catch {
         setAgentAnalyses((prev) =>
-          prev.map((a) => a.agentId === agentId ? mapBackendToAgentAnalysis(agentId as AgentPersona['id'], result) : a),
+          prev.map((a) =>
+            a.agentId === agentId
+              ? { ...a, status: 'no-data' as const, summary: 'Analiz hatasi' }
+              : a
+          )
         );
       }
-    } catch {
-      setAgentAnalyses((prev) =>
-        prev.map((a) => a.agentId === agentId ? { ...a, status: 'no-data' as const, summary: 'Analiz hatasi' } : a),
-      );
-    }
-  }, [tender?.id, tender?.tender_id, snippetDrops]);
+    },
+    [tender, snippetDrops]
+  );
 
   // ─── Derived computations ─────────────────────────────────
 
   const agentHighlights = useMemo(
     () => generateAgentHighlights(tender?.analysis_summary ?? undefined, agentAnalyses),
-    [tender?.analysis_summary, agentAnalyses],
+    [tender?.analysis_summary, agentAnalyses]
   );
 
   const crossReferences = useMemo(
     () => generateCrossReferences(tender?.analysis_summary ?? null),
-    [tender?.analysis_summary],
+    [tender?.analysis_summary]
   );
 
   // ─── Actions ──────────────────────────────────────────────
@@ -461,20 +507,26 @@ export function useSanalMasa(tender: SavedTender) {
     setViewMode('ORBIT');
   }, []);
 
-  const [verdictLoading, setVerdictLoading] = useState(false);
-
   const handleAssemble = useCallback(async () => {
     setViewMode('ASSEMBLE');
     // Hemen kural-bazlı fallback verdict göster
     setVerdictData(generateVerdict(agentAnalyses, tender?.analysis_summary));
 
     // Arka planda AI verdict üret
-    const rawId = tender?.tender_id ?? tender?.id;
-    const tenderId = typeof rawId === 'string' ? Number.parseInt(rawId, 10) : rawId;
-    if (!tenderId || Number.isNaN(tenderId)) return;
+    const tenderId = parseTenderId(tender);
+    if (!tenderId) return;
 
     // Completed analizleri backend formatına dönüştür
-    const completedAnalyses: Record<string, { riskScore: number; summary: string; findings: AgentAnalysis['findings']; keyRisks?: string[]; recommendations?: string[] }> = {};
+    const completedAnalyses: Record<
+      string,
+      {
+        riskScore: number;
+        summary: string;
+        findings: AgentAnalysis['findings'];
+        keyRisks?: string[];
+        recommendations?: string[];
+      }
+    > = {};
     for (const a of agentAnalyses) {
       if (a.status !== 'no-data' && a.status !== 'analyzing') {
         completedAnalyses[a.agentId] = {
@@ -489,7 +541,10 @@ export function useSanalMasa(tender: SavedTender) {
 
     setVerdictLoading(true);
     try {
-      const vResp = await aiAPI.generateAIVerdict(tenderId, completedAnalyses as Record<string, AgentAnalysisResult>);
+      const vResp = await aiAPI.generateAIVerdict(
+        tenderId,
+        completedAnalyses as Record<string, AgentAnalysisResult>
+      );
       if (vResp.success && vResp.data?.verdict) {
         const v = vResp.data.verdict;
         setVerdictData({
@@ -516,7 +571,7 @@ export function useSanalMasa(tender: SavedTender) {
     } finally {
       setVerdictLoading(false);
     }
-  }, [agentAnalyses, tender?.analysis_summary, tender?.id, tender?.tender_id]);
+  }, [agentAnalyses, tender]);
 
   const handleReset = useCallback(() => {
     setViewMode('ORBIT');
@@ -531,9 +586,11 @@ export function useSanalMasa(tender: SavedTender) {
     ]);
   }, []);
 
-  const focusedAgent = focusedAgentId ? AGENTS.find((a) => a.id === focusedAgentId) ?? null : null;
+  const focusedAgent = focusedAgentId
+    ? (AGENTS.find((a) => a.id === focusedAgentId) ?? null)
+    : null;
   const focusedAnalysis = focusedAgentId
-    ? agentAnalyses.find((a) => a.agentId === focusedAgentId) ?? null
+    ? (agentAnalyses.find((a) => a.agentId === focusedAgentId) ?? null)
     : null;
 
   return {

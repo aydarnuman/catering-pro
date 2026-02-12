@@ -2,22 +2,28 @@ import {
   ActionIcon,
   Badge,
   Box,
+  Button,
   Divider,
   Group,
   Loader,
+  NativeSelect,
   ScrollArea,
+  Slider,
   Stack,
   Tabs,
   Text,
+  Textarea,
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconArrowLeft,
   IconBook2,
   IconBrain,
   IconCalculator,
+  IconCheck,
   IconFileText,
   IconHelmet,
   IconInfoCircle,
@@ -29,8 +35,7 @@ import {
   IconSettings,
   IconTool,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { type AgentKnowledge, agentAPI } from '@/lib/api/services/agents';
 import type { AgentAnalysis, AgentPersona, SnippetDrop, ToolResult } from '../types';
@@ -42,6 +47,17 @@ const ICON_MAP = {
   hardhat: IconHelmet,
   radar: IconRadar2,
 };
+
+/** Convert agent accent hex to a semi-transparent rgba for snippet backgrounds */
+function accentToRgba(hex: string, alpha = 0.08): string {
+  const map: Record<string, string> = {
+    '#6366f1': `rgba(99,102,241,${alpha})`,
+    '#10b981': `rgba(16,185,129,${alpha})`,
+    '#f59e0b': `rgba(245,158,11,${alpha})`,
+    '#f43f5e': `rgba(244,63,94,${alpha})`,
+  };
+  return map[hex] || `rgba(128,128,128,${alpha})`;
+}
 
 const SEVERITY_CONFIG = {
   info: { color: 'blue', icon: IconInfoCircle },
@@ -79,12 +95,15 @@ export function AgentDetailPanel({
   const isCurrentlyAnalyzing = analysis.status === 'analyzing' || reanalyzing;
 
   // Fetch agent knowledge base for Kütüphane tab
+  // Backend returns { success, knowledge, count } directly (not wrapped in data)
   const { data: knowledgeData, isLoading: knowledgeLoading } = useQuery({
     queryKey: ['agent-knowledge', agent.id],
     queryFn: async () => {
       try {
-        const response = await agentAPI.getKnowledge(agent.id, { limit: 20 });
-        return response.success ? (response.data ?? null) : null;
+        const resp = await agentAPI.getKnowledge(agent.id, { limit: 20 });
+        const raw = resp as unknown as { success: boolean; knowledge?: AgentKnowledge[]; count?: number; data?: { knowledge?: AgentKnowledge[] } };
+        const items = raw.data?.knowledge ?? raw.knowledge ?? [];
+        return raw.success ? { knowledge: items, count: items.length } : null;
       } catch {
         return null;
       }
@@ -95,12 +114,16 @@ export function AgentDetailPanel({
   });
 
   // Fetch agent detail for Ayarlar tab
+  // Backend returns { success, agent } directly (not wrapped in data property)
   const { data: agentDetail, isLoading: agentLoading } = useQuery({
     queryKey: ['agent-detail', agent.id],
     queryFn: async () => {
       try {
-        const response = await agentAPI.getBySlug(agent.id);
-        return response.success ? (response.data?.agent ?? null) : null;
+        const resp = await agentAPI.getBySlug(agent.id);
+        // resp is typed as ApiResponse<{agent}> but backend sends {success, agent} flat
+        const raw = resp as unknown as { success: boolean; agent?: Record<string, unknown>; data?: { agent?: Record<string, unknown> } };
+        const found = raw.data?.agent ?? raw.agent ?? null;
+        return raw.success ? found : null;
       } catch {
         return null;
       }
@@ -231,7 +254,7 @@ export function AgentDetailPanel({
                         key={`${snippet.agentId}-${snippet.timestamp}-${snippet.text.slice(0, 20)}`}
                         p="sm"
                         style={{
-                          background: `rgba(${agent.accentHex === '#6366f1' ? '99,102,241' : agent.accentHex === '#10b981' ? '16,185,129' : agent.accentHex === '#f59e0b' ? '245,158,11' : '244,63,94'}, 0.08)`,
+                          background: accentToRgba(agent.accentHex),
                           borderRadius: 10,
                           borderLeft: `3px solid ${agent.accentHex}`,
                         }}
@@ -387,79 +410,7 @@ export function AgentDetailPanel({
                   </Text>
                 </Stack>
               ) : agentDetail ? (
-                <>
-                  {/* Model */}
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      borderRadius: 10,
-                    }}
-                  >
-                    <Text size="xs" c="dimmed" mb={4}>
-                      Model
-                    </Text>
-                    <Badge variant="light" color={agent.color}>
-                      {agentDetail.model === 'default' ? 'Varsayılan' : agentDetail.model}
-                    </Badge>
-                  </Box>
-
-                  {/* Verdict Weight */}
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      borderRadius: 10,
-                    }}
-                  >
-                    <Text size="xs" c="dimmed" mb={4}>
-                      Verdict Ağırlığı
-                    </Text>
-                    <Text size="sm" c="white" fw={500}>
-                      %{Math.round(agentDetail.verdict_weight * 100)}
-                    </Text>
-                  </Box>
-
-                  {/* System Prompt Preview */}
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      borderRadius: 10,
-                    }}
-                  >
-                    <Text size="xs" c="dimmed" mb={4}>
-                      System Prompt
-                    </Text>
-                    <Text
-                      size="xs"
-                      c="gray.5"
-                      lineClamp={4}
-                      style={{
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {agentDetail.system_prompt || '(Tanımlanmamış)'}
-                    </Text>
-                  </Box>
-
-                  {/* Link to full settings */}
-                  <Divider color="dark.5" />
-                  <Box ta="center">
-                    <Link href="/ayarlar?tab=agents" passHref legacyBehavior>
-                      <Text
-                        component="a"
-                        size="sm"
-                        c={agent.color}
-                        style={{ textDecoration: 'underline', cursor: 'pointer' }}
-                      >
-                        Ayarlar sayfasında düzenle
-                      </Text>
-                    </Link>
-                  </Box>
-                </>
+                <AgentSettingsEditor agent={agent} agentDetail={agentDetail} />
               ) : (
                 <Text size="sm" c="dimmed" ta="center" py="md">
                   Agent bilgileri alınamadı.
@@ -470,6 +421,172 @@ export function AgentDetailPanel({
         </Tabs.Panel>
       </Tabs>
     </div>
+  );
+}
+
+// ─── Agent Settings Editor (Inline) ──────────────────────────
+
+const MODEL_OPTIONS = [
+  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
+];
+
+interface AgentSettingsEditorProps {
+  agent: AgentPersona;
+  agentDetail: Record<string, unknown>;
+}
+
+function AgentSettingsEditor({ agent, agentDetail }: AgentSettingsEditorProps) {
+  const queryClient = useQueryClient();
+  const initModel = (agentDetail.model as string) || 'claude-opus-4-20250514';
+  const initTemp = typeof agentDetail.temperature === 'number' ? agentDetail.temperature : 0.3;
+  const initPrompt = (agentDetail.system_prompt as string) || '';
+  const verdictWeight = typeof agentDetail.verdict_weight === 'number' ? agentDetail.verdict_weight : 0;
+
+  const [model, setModel] = useState(initModel);
+  const [temperature, setTemperature] = useState(initTemp);
+  const [systemPrompt, setSystemPrompt] = useState(initPrompt);
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges =
+    model !== initModel ||
+    temperature !== initTemp ||
+    systemPrompt !== initPrompt;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await agentAPI.update(agent.id, {
+        model,
+        temperature,
+        system_prompt: systemPrompt,
+      });
+      if (response.success) {
+        notifications.show({
+          title: 'Kaydedildi',
+          message: `${agent.name} ayarları güncellendi`,
+          color: 'teal',
+          icon: <IconCheck size={16} />,
+        });
+        queryClient.invalidateQueries({ queryKey: ['agent-detail', agent.id] });
+        queryClient.invalidateQueries({ queryKey: ['agent-registry'] });
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: 'Ayarlar kaydedilemedi',
+          color: 'red',
+        });
+      }
+    } catch {
+      notifications.show({
+        title: 'Hata',
+        message: 'Bağlantı hatası',
+        color: 'red',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Model */}
+      <Box p="sm" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+        <Text size="xs" c="dimmed" mb={6}>
+          AI Model
+        </Text>
+        <NativeSelect
+          value={model}
+          onChange={(e) => setModel(e.currentTarget.value)}
+          data={MODEL_OPTIONS}
+          size="xs"
+          styles={{
+            input: {
+              background: 'rgba(255,255,255,0.05)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'white',
+            },
+          }}
+        />
+      </Box>
+
+      {/* Temperature */}
+      <Box p="sm" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+        <Group justify="space-between" mb={6}>
+          <Text size="xs" c="dimmed">
+            Yaratıcılık (Temperature)
+          </Text>
+          <Badge size="xs" variant="light" color={agent.color}>
+            {Number(temperature ?? 0).toFixed(2)}
+          </Badge>
+        </Group>
+        <Slider
+          value={temperature}
+          onChange={setTemperature}
+          min={0}
+          max={1}
+          step={0.05}
+          color={agent.color}
+          size="sm"
+          marks={[
+            { value: 0, label: 'Kesin' },
+            { value: 0.5, label: 'Dengeli' },
+            { value: 1, label: 'Yaratıcı' },
+          ]}
+          styles={{
+            markLabel: { fontSize: 9, color: 'var(--mantine-color-gray-6)' },
+          }}
+        />
+      </Box>
+
+      {/* Verdict Weight (read-only info) */}
+      <Box p="sm" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+        <Text size="xs" c="dimmed" mb={4}>
+          Karar Ağırlığı
+        </Text>
+        <Text size="sm" c="white" fw={500}>
+          %{Math.round(Number(verdictWeight ?? 0) * 100)}
+        </Text>
+      </Box>
+
+      {/* System Prompt */}
+      <Box p="sm" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+        <Text size="xs" c="dimmed" mb={6}>
+          Uzman Prompt
+        </Text>
+        <Textarea
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.currentTarget.value)}
+          minRows={6}
+          maxRows={12}
+          autosize
+          size="xs"
+          styles={{
+            input: {
+              background: 'rgba(255,255,255,0.05)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'var(--mantine-color-gray-3)',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              lineHeight: 1.6,
+            },
+          }}
+        />
+      </Box>
+
+      {/* Save Button */}
+      {hasChanges && (
+        <Button
+          color={agent.color}
+          onClick={handleSave}
+          loading={saving}
+          leftSection={<IconCheck size={16} />}
+          fullWidth
+          size="sm"
+        >
+          Kaydet
+        </Button>
+      )}
+    </>
   );
 }
 

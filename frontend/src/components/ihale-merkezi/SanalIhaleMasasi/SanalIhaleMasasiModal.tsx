@@ -5,7 +5,6 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconClock, IconDeviceFloppy, IconHistory, IconX } from '@tabler/icons-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import type { SavedTender } from '../types';
 import { AgentCard } from './components/AgentCard';
 import { AgentDetailPanel } from './components/AgentDetailPanel';
@@ -15,6 +14,7 @@ import { DocumentViewer } from './components/DocumentViewer';
 import { NetworkLines } from './components/NetworkLines';
 import { OrbitDetailOverlay } from './components/OrbitDetailOverlay';
 import { OrbitRing } from './components/OrbitRing';
+import { RingListPanel } from './components/RingListPanel';
 import { StageBackground } from './components/StageBackground';
 import { TenderDocumentCard } from './components/TenderDocumentCard';
 import { VerdictReport } from './components/VerdictReport';
@@ -22,9 +22,17 @@ import { SPRING_CONFIG } from './constants';
 import { useAgentRegistry } from './hooks/useAgentRegistry';
 import { useOrbitAttachments } from './hooks/useOrbitAttachments';
 import { useSanalMasa } from './hooks/useSanalMasa';
-import type { AgentPersona, SessionRecord } from './types';
-
-const API = `${API_BASE_URL}/api`;
+import { useSessionManager } from './hooks/useSessionManager';
+import type {
+  AgentAnalysis,
+  AgentHighlight,
+  AgentPersona,
+  CrossReference,
+  SnippetDrop,
+  ToolResult,
+  VerdictData,
+  ViewMode,
+} from './types';
 
 interface SanalIhaleMasasiModalProps {
   opened: boolean;
@@ -59,9 +67,12 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   });
 
   // Session tracking
-  const [sessionStartTime] = useState(() => Date.now());
-  const [saving, setSaving] = useState(false);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const { saving, sessions, saveSession, fetchSessions } = useSessionManager({
+    tenderId: tender.id,
+    verdictData,
+    snippetDrops,
+    agentAnalyses,
+  });
 
   const orbit = useOrbitAttachments({
     tenderId: tender?.id ?? null,
@@ -78,11 +89,12 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   }, [opened, tender?.id, fetchAttachments]);
 
   // Agent tool → orbit auto-attach
+  const { addFromToolResult } = orbit;
   const handleToolComplete = useCallback(
-    (agentId: string, toolId: string, result: import('./types').ToolResult) => {
-      orbit.addFromToolResult(agentId as import('./types').AgentPersona['id'], toolId, result);
+    (agentId: string, toolId: string, result: ToolResult) => {
+      addFromToolResult(agentId as AgentPersona['id'], toolId, result);
     },
-    [orbit]
+    [addFromToolResult]
   );
 
   // Document expanded state (managed via ref for keyboard handler)
@@ -90,7 +102,7 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
 
   // Context menu: send selected text to a specific agent
   const handleSendToAgent = useCallback(
-    (agentId: string, text: string) => {
+    (agentId: AgentPersona['id'], text: string) => {
       setDocumentExpanded(false); // Close document when sending to agent
       handleSnippetDrop(agentId, text);
       handleAgentClick(agentId); // Switch to FOCUS mode for the target agent
@@ -116,45 +128,6 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   const daysLeft = deadline
     ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     : null;
-
-  // Session save
-  const handleSaveSession = useCallback(async () => {
-    setSaving(true);
-    try {
-      await fetch(`${API}/ai/ihale-masasi/session/save`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenderId: tender.id,
-          sessionData: {
-            verdictData,
-            snippetDrops,
-            agentAnalyses,
-            duration: Math.floor((Date.now() - sessionStartTime) / 1000),
-            savedAt: new Date().toISOString(),
-          },
-        }),
-      });
-    } catch {
-      // silently fail
-    } finally {
-      setSaving(false);
-    }
-  }, [verdictData, snippetDrops, agentAnalyses, tender.id, sessionStartTime]);
-
-  // Session history fetch
-  const fetchSessions = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/ai/ihale-masasi/session/${tender.id}`, {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success) setSessions(data.sessions);
-    } catch {
-      // silently fail
-    }
-  }, [tender.id]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -265,7 +238,7 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
                 size="xs"
                 leftSection={<IconDeviceFloppy size={14} />}
                 loading={saving}
-                onClick={handleSaveSession}
+                onClick={saveSession}
               >
                 Kaydet
               </Button>
@@ -380,29 +353,40 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
 
 // ─── Desktop Layout ──────────────────────────────────────────
 
+/** Helper: creates a default "no-data" analysis stub for agents missing analysis */
+function getDefaultAnalysis(agentId: AgentPersona['id']): AgentAnalysis {
+  return {
+    agentId,
+    status: 'no-data',
+    findings: [],
+    riskScore: 0,
+    summary: '',
+  };
+}
+
 interface LayoutProps {
   tender: SavedTender;
   agents: AgentPersona[];
-  viewMode: ReturnType<typeof useSanalMasa>['viewMode'];
-  agentAnalyses: ReturnType<typeof useSanalMasa>['agentAnalyses'];
-  agentHighlights: ReturnType<typeof useSanalMasa>['agentHighlights'];
-  crossReferences: ReturnType<typeof useSanalMasa>['crossReferences'];
-  focusedAgent: ReturnType<typeof useSanalMasa>['focusedAgent'];
-  focusedAnalysis: ReturnType<typeof useSanalMasa>['focusedAnalysis'];
-  verdictData: ReturnType<typeof useSanalMasa>['verdictData'];
-  snippetDrops: ReturnType<typeof useSanalMasa>['snippetDrops'];
+  viewMode: ViewMode;
+  agentAnalyses: AgentAnalysis[];
+  agentHighlights: AgentHighlight[];
+  crossReferences: CrossReference[];
+  focusedAgent: AgentPersona | null;
+  focusedAnalysis: AgentAnalysis | null;
+  verdictData: VerdictData | null;
+  snippetDrops: SnippetDrop[];
   orbit?: ReturnType<typeof useOrbitAttachments>;
   daysLeft?: number | null;
   documentExpanded?: boolean;
   onExpandDocument?: () => void;
   onCollapseDocument?: () => void;
-  onToolComplete?: (agentId: string, toolId: string, result: import('./types').ToolResult) => void;
+  onToolComplete?: (agentId: string, toolId: string, result: ToolResult) => void;
   onAgentClick: (id: string) => void;
   onBackToOrbit: () => void;
   onAssemble: () => void;
   onReset: () => void;
   onSnippetDrop: (agentId: string, text: string) => void;
-  onSendToAgent?: (agentId: string, text: string) => void;
+  onSendToAgent?: (agentId: AgentPersona['id'], text: string) => void;
   onBroadcast?: (text: string) => void;
   onReanalyze?: (agentId: string) => Promise<void>;
 }
@@ -565,11 +549,7 @@ function DesktopLayout({
               onCollapse={onCollapseDocument}
               onDragStart={handleDocDragStart}
               onDragEnd={handleDocDragEnd}
-              onSendToAgent={
-                onSendToAgent as
-                  | ((agentId: import('./types').AgentPersona['id'], text: string) => void)
-                  | undefined
-              }
+              onSendToAgent={onSendToAgent}
               onBroadcast={onBroadcast}
             />
           </div>
@@ -585,35 +565,12 @@ function DesktopLayout({
               onAddClick={() => orbit.openCreate()}
             />
           )}
-          {/* Orbit Detail Overlay — opens on top of center card */}
-          {orbit && (
-            <OrbitDetailOverlay
-              attachment={
-                orbit.detailState.attachmentId
-                  ? (orbit.attachments.find((a) => a.id === orbit.detailState.attachmentId) ?? null)
-                  : null
-              }
-              mode={orbit.detailState.mode}
-              createType={orbit.detailState.createType}
-              onSave={orbit.updateAttachment}
-              onCreate={orbit.addAttachment}
-              onDelete={orbit.deleteAttachment}
-              onSaveVirtual={orbit.saveVirtualAttachment}
-              onClose={orbit.closeDetail}
-              onEdit={orbit.openEdit}
-            />
-          )}
         </motion.div>
 
         {/* Agent Cards */}
         {agents.map((agent) => {
-          const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? {
-            agentId: agent.id,
-            status: 'no-data' as const,
-            findings: [],
-            riskScore: 0,
-            summary: '',
-          };
+          const analysis =
+            agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
           const assembleX = agent.assembleOffset.x;
           const assembleY = agent.assembleOffset.y;
           const isDropTarget = dropTargetId === agent.id;
@@ -752,6 +709,35 @@ function DesktopLayout({
           </Text>
         </Box>
       )}
+
+      {/* Ring List Panel - collapsible side panel */}
+      {orbit && viewMode === 'ORBIT' && !documentExpanded && (
+        <RingListPanel
+          attachments={orbit.attachments}
+          loading={orbit.loading}
+          onItemClick={(id) => orbit.openDetail(id)}
+          onAddClick={() => orbit.openCreate()}
+        />
+      )}
+
+      {/* Orbit Detail Overlay — fixed positioned, outside camera-shift wrapper */}
+      {orbit && (
+        <OrbitDetailOverlay
+          attachment={
+            orbit.detailState.attachmentId
+              ? (orbit.attachments.find((a) => a.id === orbit.detailState.attachmentId) ?? null)
+              : null
+          }
+          mode={orbit.detailState.mode}
+          createType={orbit.detailState.createType}
+          onSave={orbit.updateAttachment}
+          onCreate={orbit.addAttachment}
+          onDelete={orbit.deleteAttachment}
+          onSaveVirtual={orbit.saveVirtualAttachment}
+          onClose={orbit.closeDetail}
+          onEdit={orbit.openEdit}
+        />
+      )}
     </Box>
   );
 }
@@ -820,13 +806,8 @@ function MobileLayout({
             }}
           >
             {agents.map((agent) => {
-              const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? {
-                agentId: agent.id,
-                status: 'no-data' as const,
-                findings: [],
-                riskScore: 0,
-                summary: '',
-              };
+              const analysis =
+                agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
               return (
                 <AgentCard
                   key={agent.id}

@@ -118,6 +118,23 @@ function isMaliKriterValid(val: unknown): val is string {
   return typeof val === 'string' && val.length > 0 && val.toLowerCase() !== 'belirtilmemiş' && val !== '-';
 }
 
+// ─── Shared Table Styles ────────────────────────────────────
+
+const DARK_TABLE_STYLES = {
+  table: { borderColor: 'rgba(255,255,255,0.06)' },
+  th: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    padding: '6px 10px',
+    background: 'rgba(255,255,255,0.02)',
+  },
+  td: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    padding: '5px 10px',
+  },
+} as const;
+
 // ─── Component ───────────────────────────────────────────────
 
 export function DocumentViewer({
@@ -466,9 +483,9 @@ function MetinTab({
 
   return (
     <>
-      {paragraphs.map((p, idx) => (
+      {paragraphs.map((p) => (
         <Text
-          key={idx}
+          key={p.slice(0, 100)}
           size={expanded ? 'sm' : 'xs'}
           c="gray.4"
           mb={expanded ? 14 : 10}
@@ -501,14 +518,14 @@ function TeknikTabExpanded({ data }: { data?: AnalysisData }) {
     <Stack gap="lg">
       {/* Teknik Sartlar */}
       {hasTeknik && (
-        <SectionBlock title="Teknik Sartlar" count={data.teknik_sartlar!.length}>
+        <SectionBlock title="Teknik Sartlar" count={data.teknik_sartlar?.length}>
           <Stack gap={6}>
-            {data.teknik_sartlar!.map((item, idx) => {
+            {(data.teknik_sartlar ?? []).map((item, idx) => {
               const text = getTeknikSartText(item);
               if (!text) return null;
               const isZorunlu = text.toLowerCase().includes('zorunlu');
               return (
-                <Group key={idx} gap="xs" wrap="nowrap" align="flex-start">
+                <Group key={`ts-${text.slice(0, 60)}`} gap="xs" wrap="nowrap" align="flex-start">
                   <Text size="xs" c="dimmed" w={24} ta="right" style={{ flexShrink: 0 }}>
                     {idx + 1}.
                   </Text>
@@ -531,79 +548,22 @@ function TeknikTabExpanded({ data }: { data?: AnalysisData }) {
       {(hasEkipman || hasKalite) && (
         <SectionBlock title="Ekipman & Kalite">
           <Stack gap={8}>
-            {hasEkipman && <DataRow label="Ekipman Listesi" value={data.ekipman_listesi!} />}
-            {hasKalite && <DataRow label="Kalite Standartlari" value={data.kalite_standartlari!} />}
+            {hasEkipman && <DataRow label="Ekipman Listesi" value={data.ekipman_listesi ?? ''} />}
+            {hasKalite && <DataRow label="Kalite Standartlari" value={data.kalite_standartlari ?? ''} />}
           </Stack>
         </SectionBlock>
       )}
 
-      {/* Ogun Bilgileri */}
-      {hasOgun && (
-        <SectionBlock title="Ogun Bilgileri" count={data.ogun_bilgileri!.length}>
-          <Stack gap={8}>
-            {data.ogun_bilgileri!.map((ogun, idx) => {
-              if (isOgunTable(ogun)) {
-                return (
-                  <Box key={idx}>
-                    <Table
-                      withTableBorder
-                      withColumnBorders
-                      highlightOnHover
-                      styles={{
-                        table: { borderColor: 'rgba(255,255,255,0.06)' },
-                        th: { color: 'rgba(255,255,255,0.6)', fontSize: 11, padding: '6px 8px', background: 'rgba(255,255,255,0.02)' },
-                        td: { color: 'rgba(255,255,255,0.5)', fontSize: 11, padding: '5px 8px' },
-                      }}
-                    >
-                      <Table.Thead>
-                        <Table.Tr>
-                          {ogun.headers.map((h, hi) => (
-                            <Table.Th key={hi}>{h}</Table.Th>
-                          ))}
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {ogun.rows.map((row, ri) => (
-                          <Table.Tr key={ri}>
-                            {row.map((cell, ci) => (
-                              <Table.Td key={ci}>{cell}</Table.Td>
-                            ))}
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Box>
-                );
-              }
-              // Flat format
-              if (!ogun.tur) return null;
-              return (
-                <DataRow
-                  key={idx}
-                  label={`Ogun: ${ogun.tur}`}
-                  value={ogun.miktar ? `${ogun.miktar} ${ogun.birim || 'kisi'}` : 'Detay mevcut'}
-                />
-              );
-            })}
-          </Stack>
-        </SectionBlock>
-      )}
+      {/* Ogun Bilgileri (shared component) */}
+      {hasOgun && <OgunSection data={data} />}
 
-      {/* Servis Saatleri */}
-      {hasServis && (
-        <SectionBlock title="Servis Saatleri">
-          <Stack gap={6}>
-            {data.servis_saatleri?.kahvalti && <DataRow label="Kahvalti" value={data.servis_saatleri.kahvalti} />}
-            {data.servis_saatleri?.ogle && <DataRow label="Ogle" value={data.servis_saatleri.ogle} />}
-            {data.servis_saatleri?.aksam && <DataRow label="Aksam" value={data.servis_saatleri.aksam} />}
-          </Stack>
-        </SectionBlock>
-      )}
+      {/* Servis Saatleri (shared component) */}
+      {hasServis && <ServisSaatleriSection data={data} />}
 
       {/* Sure */}
       {hasSure && (
         <SectionBlock title="Sure / Teslim">
-          <DataRow label="Sure" value={(data.sure || data.teslim_suresi)!} />
+          <DataRow label="Sure" value={data.sure || data.teslim_suresi || ''} />
         </SectionBlock>
       )}
     </Stack>
@@ -638,24 +598,20 @@ function MaliTabExpanded({ data }: { data?: AnalysisData }) {
       {(hasBedel || hasIscilik) && (
         <SectionBlock title="Genel Mali Bilgiler">
           <Stack gap={8}>
-            {hasBedel && <DataRow label="Tahmini Bedel" value={data.tahmini_bedel!} highlight />}
-            {hasIscilik && <DataRow label="Iscilik Orani" value={data.iscilik_orani!} />}
+            {hasBedel && <DataRow label="Tahmini Bedel" value={data.tahmini_bedel ?? ''} highlight />}
+            {hasIscilik && <DataRow label="Iscilik Orani" value={data.iscilik_orani ?? ''} />}
           </Stack>
         </SectionBlock>
       )}
 
       {/* Birim Fiyatlar Tablosu */}
       {hasBirimFiyat && (
-        <SectionBlock title="Birim Fiyat Cetveli" count={data.birim_fiyatlar!.length}>
+        <SectionBlock title="Birim Fiyat Cetveli" count={data.birim_fiyatlar?.length}>
           <Table
             withTableBorder
             withColumnBorders
             highlightOnHover
-            styles={{
-              table: { borderColor: 'rgba(255,255,255,0.06)' },
-              th: { color: 'rgba(255,255,255,0.6)', fontSize: 11, padding: '6px 10px', background: 'rgba(255,255,255,0.02)' },
-              td: { color: 'rgba(255,255,255,0.5)', fontSize: 11, padding: '5px 10px' },
-            }}
+            styles={DARK_TABLE_STYLES}
           >
             <Table.Thead>
               <Table.Tr>
@@ -668,10 +624,10 @@ function MaliTabExpanded({ data }: { data?: AnalysisData }) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {data.birim_fiyatlar!.map((bf, idx) => {
+              {(data.birim_fiyatlar ?? []).map((bf, idx) => {
                 const kalem = bf.kalem || bf.aciklama || bf.text || '—';
                 return (
-                  <Table.Tr key={idx}>
+                  <Table.Tr key={`bf-${kalem}-${bf.birim || ''}-${bf.miktar ?? ''}`}>
                     <Table.Td>{idx + 1}</Table.Td>
                     <Table.Td style={{ maxWidth: 240, wordBreak: 'break-word' }}>{kalem}</Table.Td>
                     <Table.Td>{bf.birim || '—'}</Table.Td>
@@ -691,16 +647,16 @@ function MaliTabExpanded({ data }: { data?: AnalysisData }) {
         <SectionBlock title="Mali Yeterlilik Kriterleri">
           <Stack gap={6}>
             {isMaliKriterValid(data.mali_kriterler?.cari_oran) && (
-              <DataRow label="Cari Oran" value={data.mali_kriterler!.cari_oran!} />
+              <DataRow label="Cari Oran" value={data.mali_kriterler?.cari_oran ?? ''} />
             )}
             {isMaliKriterValid(data.mali_kriterler?.ozkaynak_orani) && (
-              <DataRow label="Ozkaynak Orani" value={data.mali_kriterler!.ozkaynak_orani!} />
+              <DataRow label="Ozkaynak Orani" value={data.mali_kriterler?.ozkaynak_orani ?? ''} />
             )}
             {isMaliKriterValid(data.mali_kriterler?.is_deneyimi) && (
-              <DataRow label="Is Deneyimi" value={data.mali_kriterler!.is_deneyimi!} />
+              <DataRow label="Is Deneyimi" value={data.mali_kriterler?.is_deneyimi ?? ''} />
             )}
             {isMaliKriterValid(data.mali_kriterler?.ciro_orani) && (
-              <DataRow label="Ciro Orani" value={data.mali_kriterler!.ciro_orani!} />
+              <DataRow label="Ciro Orani" value={data.mali_kriterler?.ciro_orani ?? ''} />
             )}
           </Stack>
         </SectionBlock>
@@ -732,7 +688,7 @@ function MaliTabExpanded({ data }: { data?: AnalysisData }) {
       {/* Fiyat Farki */}
       {hasFiyatFarki && (
         <SectionBlock title="Fiyat Farki">
-          <DataRow label="Formul" value={data.fiyat_farki!.formul!} />
+          <DataRow label="Formul" value={data.fiyat_farki?.formul ?? ''} />
         </SectionBlock>
       )}
     </Stack>
@@ -773,11 +729,7 @@ function PersonelTabExpanded({ data }: { data?: AnalysisData }) {
               withTableBorder
               withColumnBorders
               highlightOnHover
-              styles={{
-                table: { borderColor: 'rgba(255,255,255,0.06)' },
-                th: { color: 'rgba(255,255,255,0.6)', fontSize: 11, padding: '6px 10px', background: 'rgba(255,255,255,0.02)' },
-                td: { color: 'rgba(255,255,255,0.5)', fontSize: 11, padding: '5px 10px' },
-              }}
+              styles={DARK_TABLE_STYLES}
             >
               <Table.Thead>
                 <Table.Tr>
@@ -787,8 +739,8 @@ function PersonelTabExpanded({ data }: { data?: AnalysisData }) {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {personelFiltered.map((p, idx) => (
-                  <Table.Tr key={idx}>
+                {personelFiltered.map((p) => (
+                  <Table.Tr key={`${p.pozisyon}-${p.adet}`}>
                     <Table.Td>{p.pozisyon}</Table.Td>
                     <Table.Td ta="center">{p.adet}</Table.Td>
                     <Table.Td>{p.ucret_orani || '—'}</Table.Td>
@@ -797,78 +749,23 @@ function PersonelTabExpanded({ data }: { data?: AnalysisData }) {
               </Table.Tbody>
             </Table>
           ) : (
-            <DataRow label="Kisi Sayisi" value={data.kisi_sayisi!} />
+            <DataRow label="Kisi Sayisi" value={data.kisi_sayisi ?? ''} />
           )}
         </SectionBlock>
       )}
 
-      {/* Ogun Bilgileri */}
-      {hasOgun && (
-        <SectionBlock title="Ogun Bilgileri" count={data.ogun_bilgileri!.length}>
-          <Stack gap={8}>
-            {data.ogun_bilgileri!.map((ogun, idx) => {
-              if (isOgunTable(ogun)) {
-                return (
-                  <Box key={idx}>
-                    <Table
-                      withTableBorder
-                      withColumnBorders
-                      styles={{
-                        table: { borderColor: 'rgba(255,255,255,0.06)' },
-                        th: { color: 'rgba(255,255,255,0.6)', fontSize: 11, padding: '6px 8px', background: 'rgba(255,255,255,0.02)' },
-                        td: { color: 'rgba(255,255,255,0.5)', fontSize: 11, padding: '5px 8px' },
-                      }}
-                    >
-                      <Table.Thead>
-                        <Table.Tr>
-                          {ogun.headers.map((h, hi) => (
-                            <Table.Th key={hi}>{h}</Table.Th>
-                          ))}
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {ogun.rows.map((row, ri) => (
-                          <Table.Tr key={ri}>
-                            {row.map((cell, ci) => (
-                              <Table.Td key={ci}>{cell}</Table.Td>
-                            ))}
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Box>
-                );
-              }
-              if (!ogun.tur) return null;
-              return (
-                <DataRow
-                  key={idx}
-                  label={ogun.tur}
-                  value={ogun.miktar ? `${ogun.miktar} ${ogun.birim || 'kisi'}` : 'Detay mevcut'}
-                />
-              );
-            })}
-          </Stack>
-        </SectionBlock>
-      )}
+      {/* Ogun Bilgileri (shared component) */}
+      {hasOgun && <OgunSection data={data} />}
 
-      {/* Servis Saatleri */}
-      {hasServis && (
-        <SectionBlock title="Servis Saatleri">
-          <Stack gap={6}>
-            {data.servis_saatleri?.kahvalti && <DataRow label="Kahvalti" value={data.servis_saatleri.kahvalti} />}
-            {data.servis_saatleri?.ogle && <DataRow label="Ogle" value={data.servis_saatleri.ogle} />}
-            {data.servis_saatleri?.aksam && <DataRow label="Aksam" value={data.servis_saatleri.aksam} />}
-          </Stack>
-        </SectionBlock>
-      )}
+      {/* Servis Saatleri (shared component) */}
+      {hasServis && <ServisSaatleriSection data={data} />}
 
       {/* Is Yerleri */}
       {hasIsYerleri && (
-        <SectionBlock title="Is Yerleri" count={data.is_yerleri!.length}>
+        <SectionBlock title="Is Yerleri" count={data.is_yerleri?.length}>
           <Stack gap={4}>
-            {data.is_yerleri!.map((yer, idx) => (
-              <Text key={idx} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
+            {(data.is_yerleri ?? []).map((yer, idx) => (
+              <Text key={yer} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
                 {idx + 1}. {yer}
               </Text>
             ))}
@@ -878,10 +775,10 @@ function PersonelTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Personel Kurallari */}
       {hasKurallar && (
-        <SectionBlock title="Personel Kurallari" count={data.operasyonel_kurallar!.personel_kurallari!.length}>
+        <SectionBlock title="Personel Kurallari" count={data.operasyonel_kurallar?.personel_kurallari?.length}>
           <Stack gap={4}>
-            {data.operasyonel_kurallar!.personel_kurallari!.map((kural, idx) => (
-              <Text key={idx} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
+            {(data.operasyonel_kurallar?.personel_kurallari ?? []).map((kural) => (
+              <Text key={kural.slice(0, 80)} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
                 {kural}
               </Text>
             ))}
@@ -936,13 +833,13 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Ceza Kosullari */}
       {hasCeza && (
-        <SectionBlock title="Ceza Kosullari" count={data.ceza_kosullari!.length}>
+        <SectionBlock title="Ceza Kosullari" count={data.ceza_kosullari?.length}>
           <Stack gap={6}>
-            {data.ceza_kosullari!.map((item, idx) => {
+            {(data.ceza_kosullari ?? []).map((item) => {
               const text = getCezaText(item);
               if (!text) return null;
               return (
-                <Group key={idx} gap="xs" wrap="nowrap" align="flex-start">
+                <Group key={`ceza-${text.slice(0, 60)}`} gap="xs" wrap="nowrap" align="flex-start">
                   <IconAlertTriangle size={14} color="rgba(244,63,94,0.7)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <Text size="xs" c="gray.3" style={{ lineHeight: 1.6 }}>
                     {text}
@@ -956,13 +853,13 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Gerekli Belgeler */}
       {hasBelge && (
-        <SectionBlock title="Gerekli Belgeler" count={data.gerekli_belgeler!.length}>
+        <SectionBlock title="Gerekli Belgeler" count={data.gerekli_belgeler?.length}>
           <Stack gap={4}>
-            {data.gerekli_belgeler!.map((item, idx) => {
+            {(data.gerekli_belgeler ?? []).map((item) => {
               const belge = getBelgeInfo(item);
               if (!belge.text) return null;
               return (
-                <Group key={idx} gap="xs" wrap="nowrap">
+                <Group key={`belge-${belge.text.slice(0, 60)}`} gap="xs" wrap="nowrap">
                   <Badge
                     size="xs"
                     variant="light"
@@ -985,7 +882,7 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
       {hasIsArtisi && (
         <SectionBlock title="Is Artisi">
           <Stack gap={6}>
-            <DataRow label="Oran" value={data.is_artisi!.oran!} />
+            <DataRow label="Oran" value={data.is_artisi?.oran ?? ''} />
             {data.is_artisi?.kosullar && <DataRow label="Kosullar" value={data.is_artisi.kosullar} />}
             {data.is_artisi?.is_eksilisi && <DataRow label="Is Eksilisi" value={data.is_artisi.is_eksilisi} />}
           </Stack>
@@ -1005,10 +902,10 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Yemek Kurallari */}
       {hasYemekKural && (
-        <SectionBlock title="Yemek Kurallari" count={data.operasyonel_kurallar!.yemek_kurallari!.length}>
+        <SectionBlock title="Yemek Kurallari" count={data.operasyonel_kurallar?.yemek_kurallari?.length}>
           <Stack gap={4}>
-            {data.operasyonel_kurallar!.yemek_kurallari!.map((kural, idx) => (
-              <Text key={idx} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
+            {(data.operasyonel_kurallar?.yemek_kurallari ?? []).map((kural) => (
+              <Text key={kural.slice(0, 80)} size="xs" c="gray.3" style={{ lineHeight: 1.5 }}>
                 {kural}
               </Text>
             ))}
@@ -1018,7 +915,7 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Eksik Bilgiler */}
       {hasEksik && (
-        <SectionBlock title="Eksik Bilgiler" count={data.eksik_bilgiler!.length}>
+        <SectionBlock title="Eksik Bilgiler" count={data.eksik_bilgiler?.length}>
           <Box
             p="sm"
             style={{
@@ -1028,8 +925,8 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
             }}
           >
             <Stack gap={4}>
-              {data.eksik_bilgiler!.map((e, idx) => (
-                <Group key={idx} gap="xs" wrap="nowrap">
+              {(data.eksik_bilgiler ?? []).map((e) => (
+                <Group key={e.slice(0, 80)} gap="xs" wrap="nowrap">
                   <IconAlertTriangle size={12} color="rgba(244,63,94,0.8)" style={{ flexShrink: 0 }} />
                   <Text size="xs" c="red.3" style={{ lineHeight: 1.5 }}>
                     {e}
@@ -1043,14 +940,14 @@ function KosullarTabExpanded({ data }: { data?: AnalysisData }) {
 
       {/* Onemli Notlar */}
       {hasNotlar && (
-        <SectionBlock title="Onemli Notlar" count={data.onemli_notlar!.length}>
+        <SectionBlock title="Onemli Notlar" count={data.onemli_notlar?.length}>
           <Stack gap={6}>
-            {data.onemli_notlar!.map((item, idx) => {
+            {(data.onemli_notlar ?? []).map((item) => {
               const not = getNotText(item);
               if (!not.text) return null;
               const turColor = not.tur === 'uyari' ? 'yellow' : not.tur === 'kritik' || not.tur === 'gereklilik' ? 'red' : 'gray';
               return (
-                <Group key={idx} gap="xs" wrap="nowrap" align="flex-start">
+                <Group key={`not-${not.text.slice(0, 60)}`} gap="xs" wrap="nowrap" align="flex-start">
                   {not.tur && (
                     <Badge size="xs" variant="light" color={turColor} style={{ flexShrink: 0 }}>
                       {not.tur}
@@ -1148,6 +1045,78 @@ function EmptyTab({ message = 'Veri bulunamadi' }: { message?: string }) {
   );
 }
 
+// ─── Shared Tab Sections (used by multiple tabs) ────────────
+
+function OgunSection({ data }: { data: AnalysisData }) {
+  if (!data.ogun_bilgileri?.length) return null;
+  return (
+    <SectionBlock title="Ogun Bilgileri" count={data.ogun_bilgileri.length}>
+      <Stack gap={8}>
+        {data.ogun_bilgileri.map((ogun) => {
+          if (isOgunTable(ogun)) {
+            return (
+              <Box key={`ogun-tbl-${ogun.headers.join('-')}`}>
+                <Table
+                  withTableBorder
+                  withColumnBorders
+                  highlightOnHover
+                  styles={DARK_TABLE_STYLES}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      {ogun.headers.map((h) => (
+                        <Table.Th key={h}>{h}</Table.Th>
+                      ))}
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {ogun.rows.map((row) => (
+                      <Table.Tr key={row.join('-')}>
+                        {row.map((cell) => (
+                          <Table.Td key={cell}>{cell}</Table.Td>
+                        ))}
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Box>
+            );
+          }
+          if (!ogun.tur) return null;
+          return (
+            <DataRow
+              key={`ogun-${ogun.tur}`}
+              label={`Ogun: ${ogun.tur}`}
+              value={ogun.miktar ? `${ogun.miktar} ${ogun.birim || 'kisi'}` : 'Detay mevcut'}
+            />
+          );
+        })}
+      </Stack>
+    </SectionBlock>
+  );
+}
+
+function ServisSaatleriSection({ data }: { data: AnalysisData }) {
+  const has =
+    data.servis_saatleri?.kahvalti || data.servis_saatleri?.ogle || data.servis_saatleri?.aksam;
+  if (!has) return null;
+  return (
+    <SectionBlock title="Servis Saatleri">
+      <Stack gap={6}>
+        {data.servis_saatleri?.kahvalti && (
+          <DataRow label="Kahvalti" value={data.servis_saatleri.kahvalti} />
+        )}
+        {data.servis_saatleri?.ogle && (
+          <DataRow label="Ogle" value={data.servis_saatleri.ogle} />
+        )}
+        {data.servis_saatleri?.aksam && (
+          <DataRow label="Aksam" value={data.servis_saatleri.aksam} />
+        )}
+      </Stack>
+    </SectionBlock>
+  );
+}
+
 // ─── Highlight Renderer ──────────────────────────────────────
 
 function HighlightedText({ text, highlights }: { text: string; highlights: AgentHighlight[] }) {
@@ -1159,12 +1128,11 @@ function HighlightedText({ text, highlights }: { text: string; highlights: Agent
   for (const hl of highlights) {
     const lowerHl = hl.text.toLowerCase();
     let searchFrom = 0;
-    // biome-ignore lint: simple loop
-    while (true) {
-      const idx = lowerText.indexOf(lowerHl, searchFrom);
-      if (idx === -1) break;
+    let idx = lowerText.indexOf(lowerHl, searchFrom);
+    while (idx !== -1) {
       matches.push({ start: idx, end: idx + hl.text.length, highlight: hl });
       searchFrom = idx + hl.text.length;
+      idx = lowerText.indexOf(lowerHl, searchFrom);
     }
   }
 

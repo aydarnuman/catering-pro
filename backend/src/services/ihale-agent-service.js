@@ -13,7 +13,7 @@ import logger from '../utils/logger.js';
 // ─── Anthropic Client ────────────────────────────────────────
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = 'claude-sonnet-4-5-20250929'; // Analiz için sonnet yeterli, maliyet/hız dengesi
+const MODEL = 'claude-opus-4-20250514'; // Opus 4 - Kalite öncelikli ihale analizi
 
 // ─── Agent System Prompt'ları ────────────────────────────────
 
@@ -134,7 +134,7 @@ async function loadTenderData(tenderId) {
     LEFT JOIN tender_tracking tt ON tt.tender_id = t.id
     WHERE t.id = $1
     LIMIT 1`,
-    [tenderId],
+    [tenderId]
   );
   return result.rows[0] || null;
 }
@@ -148,7 +148,7 @@ async function loadDocumentAnalyses(tenderId) {
      FROM documents
      WHERE tender_id = $1 AND analysis_result IS NOT NULL
      ORDER BY doc_type, created_at`,
-    [tenderId],
+    [tenderId]
   );
 
   if (docsResult.rows.length === 0) return null;
@@ -184,6 +184,41 @@ async function loadDocumentAnalyses(tenderId) {
   return combined;
 }
 
+// ─── Ring Verisi (Kullanıcı Eklemeleri) ──────────────────────
+
+/**
+ * İhaleye özel kullanıcı eklemelerini yükle (ring / orbit verileri)
+ * Notlar, linkler, hesaplamalar, dilekçe taslakları, AI raporları vs.
+ */
+async function loadRingData(tenderId) {
+  try {
+    const result = await query(
+      `SELECT title, content, content_format, metadata
+       FROM unified_notes
+       WHERE context_type = 'tender' AND context_id = $1
+       ORDER BY pinned DESC NULLS LAST, created_at DESC
+       LIMIT 20`,
+      [tenderId]
+    );
+
+    if (result.rows.length === 0) return [];
+
+    return result.rows.map((row) => {
+      const meta = row.metadata || {};
+      return {
+        title: row.title || '',
+        content: row.content || '',
+        type: meta.attachment_type || 'note',
+        source: meta.source || 'manual',
+        sourceAgent: meta.source_agent || null,
+      };
+    });
+  } catch (err) {
+    logger.warn(`[İhale Agent] Ring verisi yüklenemedi: tender=${tenderId}`, { error: err.message });
+    return [];
+  }
+}
+
 // ─── Agent Config & Knowledge Yükleme ───────────────────────
 
 /**
@@ -197,7 +232,7 @@ async function loadAgentConfig(agentId) {
        FROM agents
        WHERE slug = $1 AND is_active = true
        LIMIT 1`,
-      [agentId],
+      [agentId]
     );
     const row = result.rows[0];
     // system_prompt boş string ise de fallback'e düş
@@ -231,7 +266,7 @@ async function loadAgentKnowledge(agentId) {
          END,
          created_at DESC
        LIMIT 10`,
-      [agentId],
+      [agentId]
     );
     return result.rows || [];
   } catch (err) {
@@ -250,14 +285,34 @@ async function getCachedAnalysis(tenderId, agentId) {
      WHERE tender_id = $1 AND agent_id = $2 AND status = 'complete'
      ORDER BY analysis_version DESC
      LIMIT 1`,
-    [tenderId, agentId],
+    [tenderId, agentId]
   );
   return result.rows[0] || null;
 }
 
+// ─── Shared Label Maps ───────────────────────────────────────
+
+const KNOWLEDGE_TYPE_LABELS = {
+  note: 'Not',
+  past_analysis: 'Geçmiş Analiz',
+  template: 'Şablon',
+  url: 'Web Kaynağı',
+  pdf: 'Döküman',
+};
+
+const RING_TYPE_LABELS = {
+  note: 'Not',
+  document: 'Döküman',
+  petition: 'Dilekçe/Zeyilname',
+  ai_report: 'AI Raporu',
+  link: 'Kaynak Link',
+  contact: 'İletişim',
+  calculation: 'Hesaplama',
+};
+
 // ─── Analiz Prompt Oluşturucu ────────────────────────────────
 
-function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems = []) {
+function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems = [], ringData = []) {
   const summary = analysisSummary || {};
 
   // Ortak ihale bilgileri
@@ -332,7 +387,7 @@ function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, know
   // Döküman analizleri varsa ekle (tam metin çok uzun olabilir, sınırlayalım)
   if (docAnalysis) {
     const tamMetin = docAnalysis.tam_metin || '';
-    const kısaltılmış = tamMetin.length > 8000 ? tamMetin.slice(0, 8000) + '\n\n[...metin kısaltıldı]' : tamMetin;
+    const kısaltılmış = tamMetin.length > 8000 ? `${tamMetin.slice(0, 8000)}\n\n[...metin kısaltıldı]` : tamMetin;
 
     if (kısaltılmış) {
       prompt += `
@@ -348,23 +403,31 @@ ${kısaltılmış}
     prompt += `Aşağıdaki kaynaklar senin uzmanlık alanına özel referans materyalleridir. Analizinde bunları dikkate al:\n\n`;
 
     for (const item of knowledgeItems) {
-      const typeLabel = {
-        note: 'Not',
-        past_analysis: 'Geçmiş Analiz',
-        template: 'Şablon',
-        url: 'Web Kaynağı',
-        pdf: 'Döküman',
-      }[item.content_type] || 'Kaynak';
+      const typeLabel = KNOWLEDGE_TYPE_LABELS[item.content_type] || 'Kaynak';
 
       prompt += `### ${typeLabel}: ${item.title || 'İsimsiz'}\n`;
       if (item.summary) prompt += `> ${item.summary}\n`;
       if (item.content) {
-        const text = item.content.length > 2000
-          ? item.content.slice(0, 2000) + '\n[...kısaltıldı]'
-          : item.content;
+        const text = item.content.length > 2000 ? `${item.content.slice(0, 2000)}\n[...kısaltıldı]` : item.content;
         prompt += `${text}\n\n`;
       }
       if (item.tags?.length) prompt += `Etiketler: ${item.tags.join(', ')}\n\n`;
+    }
+  }
+
+  // Ring verisi (kullanıcı eklemeleri)
+  if (ringData.length > 0) {
+    prompt += `\n## İHALEYE ÖZEL EK BİLGİLER (Kullanıcı Eklemeleri)\n`;
+    prompt += `Kullanıcılar bu ihale için aşağıdaki ek bilgileri eklemiştir. Analizinde bunları mutlaka dikkate al:\n\n`;
+
+    for (const item of ringData) {
+      const typeLabel = RING_TYPE_LABELS[item.type] || 'Ek Bilgi';
+
+      prompt += `### ${typeLabel}: ${item.title || 'İsimsiz'}\n`;
+      if (item.content) {
+        const text = item.content.length > 1500 ? `${item.content.slice(0, 1500)}\n[...kısaltıldı]` : item.content;
+        prompt += `${text}\n\n`;
+      }
     }
   }
 
@@ -440,7 +503,7 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
         await query(
           `SELECT COALESCE(MAX(analysis_version), 0) + 1 as next
            FROM agent_analyses WHERE tender_id = $1 AND agent_id = $2`,
-          [tenderId, agentId],
+          [tenderId, agentId]
         )
       ).rows[0].next
     : 1;
@@ -453,7 +516,7 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
        ON CONFLICT (tender_id, agent_id, analysis_version)
        DO UPDATE SET status = 'analyzing', updated_at = NOW()
        RETURNING id`,
-      [tenderId, agentId, version],
+      [tenderId, agentId, version]
     );
     analysisId = insertResult.rows[0].id;
   } catch (err) {
@@ -471,17 +534,18 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
   }
 
   const analysisSummary = tender.analysis_summary || {};
-  const [docAnalysis, agentConfig, knowledgeItems] = await Promise.all([
+  const [docAnalysis, agentConfig, knowledgeItems, ringData] = await Promise.all([
     loadDocumentAnalyses(tenderId),
     loadAgentConfig(agentId),
     loadAgentKnowledge(agentId),
+    loadRingData(tenderId),
   ]);
 
   // 4. Prompt oluştur — DB system prompt öncelikli, yoksa hardcoded fallback
   const systemPrompt = agentConfig?.system_prompt || AGENT_SYSTEM_PROMPTS[agentId];
-  const agentModel = (agentConfig?.model && agentConfig.model !== 'default') ? agentConfig.model : MODEL;
+  const agentModel = agentConfig?.model && agentConfig.model !== 'default' ? agentConfig.model : MODEL;
   const agentTemperature = Number(agentConfig?.temperature) || 0.3;
-  let userMessage = buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems);
+  let userMessage = buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems, ringData);
 
   // Kullanıcı ek context'i (orbit ring notları, snippet'ler) varsa ekle
   if (additionalContext) {
@@ -490,7 +554,8 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
 
     if (agentNotes.length > 0 || agentSnippets.length > 0) {
       userMessage += '\n## KULLANICI NOTLARI VE SEÇİMLER\n';
-      userMessage += 'Kullanıcı bu ihale ile ilgili aşağıdaki notları ve metin seçimlerini paylaştı. Bunları analizinde dikkate al:\n\n';
+      userMessage +=
+        'Kullanıcı bu ihale ile ilgili aşağıdaki notları ve metin seçimlerini paylaştı. Bunları analizinde dikkate al:\n\n';
 
       if (agentNotes.length > 0) {
         userMessage += '### Notlar:\n';
@@ -521,6 +586,7 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
       promptLength: userMessage.length,
       promptSource,
       knowledgeCount: knowledgeItems.length,
+      ringCount: ringData.length,
       model: agentModel,
     });
 
@@ -538,10 +604,9 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
     // 6. JSON parse
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      await query(
-        `UPDATE agent_analyses SET status = 'error', error_message = 'JSON parse hatası' WHERE id = $1`,
-        [analysisId],
-      );
+      await query(`UPDATE agent_analyses SET status = 'error', error_message = 'JSON parse hatası' WHERE id = $1`, [
+        analysisId,
+      ]);
       return { success: false, error: 'AI yanıtı JSON formatında değil' };
     }
 
@@ -567,11 +632,11 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
         summary,
         keyRisks,
         recommendations,
-        MODEL,
+        agentModel,
         response.usage?.input_tokens || 0,
         response.usage?.output_tokens || 0,
         analysisId,
-      ],
+      ]
     );
 
     logger.info(`[İhale Agent] Analiz tamamlandı: tender=${tenderId}, agent=${agentId}, score=${riskScore}`, {
@@ -594,7 +659,7 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
         status: 'complete',
         keyRisks,
         recommendations,
-        model: MODEL,
+        model: agentModel,
         createdAt: new Date().toISOString(),
         version,
       },
@@ -623,7 +688,7 @@ async function analyzeAllAgents(tenderId, { force = false, additionalContext = n
   logger.info(`[İhale Agent] Tüm agent analizi başlıyor: tender=${tenderId}, force=${force}`);
 
   const results = await Promise.allSettled(
-    AGENT_IDS.map((agentId) => analyzeWithAgent(tenderId, agentId, { force, additionalContext })),
+    AGENT_IDS.map((agentId) => analyzeWithAgent(tenderId, agentId, { force, additionalContext }))
   );
 
   const analyses = {};
@@ -668,7 +733,7 @@ async function loadCachedAnalyses(tenderId) {
      FROM agent_analyses
      WHERE tender_id = $1 AND status = 'complete'
      ORDER BY agent_id, analysis_version DESC`,
-    [tenderId],
+    [tenderId]
   );
 
   if (result.rows.length === 0) return null;
@@ -712,7 +777,13 @@ async function generateAIVerdict(tenderId, analyses, tenderInfo = {}) {
   let agentSummary = '';
 
   for (const [agentId, analysis] of Object.entries(analyses)) {
-    const agentName = { mevzuat: 'Mevzuat & Sözleşme', maliyet: 'Maliyet & Bütçe', teknik: 'Teknik Yeterlilik', rekabet: 'Rekabet İstihbaratı' }[agentId] || agentId;
+    const agentName =
+      {
+        mevzuat: 'Mevzuat & Sözleşme',
+        maliyet: 'Maliyet & Bütçe',
+        teknik: 'Teknik Yeterlilik',
+        rekabet: 'Rekabet İstihbaratı',
+      }[agentId] || agentId;
 
     agentSummary += `\n### ${agentName} (Risk Skoru: ${analysis.riskScore}/100)\n`;
     agentSummary += `**Özet:** ${analysis.summary}\n`;
@@ -797,7 +868,9 @@ KURALLAR:
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    logger.info(`[İhale Agent] AI Verdict üretildi: tender=${tenderId}, recommendation=${parsed.recommendation}, score=${parsed.overallScore}`);
+    logger.info(
+      `[İhale Agent] AI Verdict üretildi: tender=${tenderId}, recommendation=${parsed.recommendation}, score=${parsed.overallScore}`
+    );
 
     return {
       success: true,
@@ -826,5 +899,6 @@ export default {
   analyzeAllAgents,
   loadCachedAnalyses,
   generateAIVerdict,
+  loadRingData,
   AGENT_IDS,
 };

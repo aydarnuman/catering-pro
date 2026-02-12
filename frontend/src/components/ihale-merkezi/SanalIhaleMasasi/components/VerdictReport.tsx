@@ -64,6 +64,7 @@ function RiskScoreRing({ score, color, glowColor }: RiskScoreRingProps) {
         }}
       />
       <svg width="110" height="110" viewBox="0 0 110 110" style={{ position: 'relative', zIndex: 1 }}>
+        <title>Risk Skoru</title>
         {/* Background circle */}
         <circle
           cx="55" cy="55" r={radius}
@@ -275,30 +276,34 @@ function CrossReferenceSection({ crossReferences }: { crossReferences: CrossRefe
         Agent Etkilesimleri
       </Text>
       <Stack gap={6}>
-        {crossReferences.map((ref, idx) => (
-          <Group
-            key={idx}
-            gap="xs"
-            wrap="nowrap"
-            p={6}
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              borderRadius: 6,
-              borderLeft: `3px solid ${severityColor(ref.severity)}`,
-            }}
-          >
-            <Badge size="xs" color={AGENTS.find((a) => a.id === ref.fromAgentId)?.color}>
-              {AGENTS.find((a) => a.id === ref.fromAgentId)?.name?.split(' ')[0]}
-            </Badge>
-            <Text size="xs" c="dimmed">→</Text>
-            <Badge size="xs" color={AGENTS.find((a) => a.id === ref.toAgentId)?.color}>
-              {AGENTS.find((a) => a.id === ref.toAgentId)?.name?.split(' ')[0]}
-            </Badge>
-            <Text size="xs" c="gray.4" style={{ flex: 1 }} lineClamp={1}>
-              {ref.impact}
-            </Text>
-          </Group>
-        ))}
+        {crossReferences.map((ref) => {
+          const fromAgent = AGENTS.find((a) => a.id === ref.fromAgentId);
+          const toAgent = AGENTS.find((a) => a.id === ref.toAgentId);
+          return (
+            <Group
+              key={`${ref.fromAgentId}-${ref.toAgentId}-${ref.fromFinding}`}
+              gap="xs"
+              wrap="nowrap"
+              p={6}
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: 6,
+                borderLeft: `3px solid ${severityColor(ref.severity)}`,
+              }}
+            >
+              <Badge size="xs" color={fromAgent?.color}>
+                {fromAgent?.name?.split(' ')[0]}
+              </Badge>
+              <Text size="xs" c="dimmed">→</Text>
+              <Badge size="xs" color={toAgent?.color}>
+                {toAgent?.name?.split(' ')[0]}
+              </Badge>
+              <Text size="xs" c="gray.4" style={{ flex: 1 }} lineClamp={1}>
+                {ref.impact}
+              </Text>
+            </Group>
+          );
+        })}
       </Stack>
     </Stack>
   );

@@ -390,10 +390,33 @@
 
 .orbit-node.virtual {
   border-style: dashed;
-  opacity: 0.6;
+  opacity: 0.75;
+  animation: virtual-pulse 2s ease-in-out infinite;
+}
+.orbit-node.virtual::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  animation: virtual-ring 3s linear infinite;
 }
 .orbit-node.virtual:hover {
   opacity: 1;
+  animation: none;
+}
+.orbit-node.virtual:hover::after {
+  animation: none;
+  border-color: var(--node-accent, rgba(255, 255, 255, 0.3));
+}
+
+@keyframes virtual-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+}
+@keyframes virtual-ring {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .orbit-node .agent-dot {
@@ -441,14 +464,30 @@
   cursor: pointer;
 }
 
-.orbit-detail-overlay {
-  position: absolute;
+.orbit-detail-backdrop {
+  position: fixed;
   inset: 0;
-  z-index: 6;
-  border-radius: 16px;
-  background: rgba(22, 22, 38, 0.96);
-  backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.orbit-detail-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  max-width: 90vw;
+  height: auto;
+  max-height: 70vh;
+  min-height: 300px;
+  z-index: 100;
+  border-radius: 20px;
+  background: rgba(22, 22, 38, 0.98);
+  backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;

@@ -1,15 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import type { AnalysisData } from '../../types';
 import { ATTACHMENT_TYPE_MAP, ORBIT_RING_CONFIG } from '../constants';
 import type {
+  AgentPersona,
   AttachmentDetailState,
   AttachmentType,
   OrbitAttachment,
   ToolResult,
 } from '../types';
-import type { AgentPersona } from '../types';
-
-import { API_BASE_URL } from '@/lib/config';
 
 // ─── API helpers ────────────────────────────────────────
 
@@ -74,7 +73,7 @@ interface SeedConfig {
 const SEED_CONFIGS: SeedConfig[] = [
   {
     agentId: 'mevzuat',
-    title: 'Mevzuat & Sozlesme Analizi',
+    title: 'Hukuki Ozet',
     color: 'indigo',
     field: 'seed-mevzuat',
     build: (a) => {
@@ -84,16 +83,22 @@ const SEED_CONFIGS: SeedConfig[] = [
         const ok = a.operasyonel_kurallar;
         if (ok.alt_yuklenici) parts.push(`**Alt Yuklenici:** ${ok.alt_yuklenici}`);
         if (ok.personel_kurallari?.length)
-          parts.push(`**Personel Kurallari:**\n${ok.personel_kurallari.map((r) => `- ${r}`).join('\n')}`);
+          parts.push(
+            `**Personel Kurallari:**\n${ok.personel_kurallari.map((r) => `- ${r}`).join('\n')}`
+          );
         if (ok.yemek_kurallari?.length)
           parts.push(`**Yemek Kurallari:**\n${ok.yemek_kurallari.map((r) => `- ${r}`).join('\n')}`);
         if (ok.muayene_kabul) parts.push(`**Muayene Kabul:** ${ok.muayene_kabul}`);
         if (ok.denetim) parts.push(`**Denetim:** ${ok.denetim}`);
       }
       if (a.ceza_kosullari?.length)
-        parts.push(`**Ceza Kosullari:**\n${a.ceza_kosullari.map((c) => `- ${c.tur}: ${c.oran}${c.aciklama ? ` (${c.aciklama})` : ''}`).join('\n')}`);
+        parts.push(
+          `**Ceza Kosullari:**\n${a.ceza_kosullari.map((c) => `- ${c.tur}: ${c.oran}${c.aciklama ? ` (${c.aciklama})` : ''}`).join('\n')}`
+        );
       if (a.gerekli_belgeler?.length)
-        parts.push(`**Gerekli Belgeler:**\n${a.gerekli_belgeler.map((b) => `- ${b.belge}${b.zorunlu ? ' (Zorunlu)' : ''}${b.puan ? ` [${b.puan} puan]` : ''}`).join('\n')}`);
+        parts.push(
+          `**Gerekli Belgeler:**\n${a.gerekli_belgeler.map((b) => `- ${b.belge}${b.zorunlu ? ' (Zorunlu)' : ''}${b.puan ? ` [${b.puan} puan]` : ''}`).join('\n')}`
+        );
       if (a.is_artisi) {
         const ia = a.is_artisi;
         if (ia.oran) parts.push(`**Is Artisi Orani:** ${ia.oran}`);
@@ -104,7 +109,9 @@ const SEED_CONFIGS: SeedConfig[] = [
         const ffParts: string[] = [];
         if (ff.formul) ffParts.push(`Formul: ${ff.formul}`);
         if (ff.katsayilar) {
-          const ks = Object.entries(ff.katsayilar).map(([k, v]) => `${k}: ${v}`).join(', ');
+          const ks = Object.entries(ff.katsayilar)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ');
           if (ks) ffParts.push(`Katsayilar: ${ks}`);
         }
         if (ffParts.length) parts.push(`**Fiyat Farki:** ${ffParts.join(' | ')}`);
@@ -114,7 +121,7 @@ const SEED_CONFIGS: SeedConfig[] = [
   },
   {
     agentId: 'maliyet',
-    title: 'Maliyet & Butce Analizi',
+    title: 'Finansal Ozet',
     color: 'green',
     field: 'seed-maliyet',
     build: (a) => {
@@ -123,7 +130,9 @@ const SEED_CONFIGS: SeedConfig[] = [
       if (a.iscilik_orani) parts.push(`**Iscilik Orani:** ${a.iscilik_orani}`);
       if (a.birim_fiyat_cetveli) parts.push(`**Birim Fiyat Cetveli:** ${a.birim_fiyat_cetveli}`);
       if (a.birim_fiyatlar?.length)
-        parts.push(`**Birim Fiyatlar:**\n${a.birim_fiyatlar.map((b) => `- ${b.kalem || b.aciklama || ''}: ${b.fiyat || b.tutar || ''}`).join('\n')}`);
+        parts.push(
+          `**Birim Fiyatlar:**\n${a.birim_fiyatlar.map((b) => `- ${b.kalem || b.aciklama || ''}: ${b.fiyat || b.tutar || ''}`).join('\n')}`
+        );
       if (a.mali_kriterler) {
         const mk = a.mali_kriterler;
         const mkParts: string[] = [];
@@ -131,7 +140,8 @@ const SEED_CONFIGS: SeedConfig[] = [
         if (mk.is_deneyimi) mkParts.push(`Is Deneyimi: ${mk.is_deneyimi}`);
         if (mk.ciro_orani) mkParts.push(`Ciro Orani: ${mk.ciro_orani}`);
         if (mk.ozkaynak_orani) mkParts.push(`Ozkaynak: ${mk.ozkaynak_orani}`);
-        if (mkParts.length) parts.push(`**Mali Kriterler:**\n${mkParts.map((p) => `- ${p}`).join('\n')}`);
+        if (mkParts.length)
+          parts.push(`**Mali Kriterler:**\n${mkParts.map((p) => `- ${p}`).join('\n')}`);
       }
       if (a.teminat_oranlari) {
         const to = a.teminat_oranlari;
@@ -148,28 +158,31 @@ const SEED_CONFIGS: SeedConfig[] = [
         if (ok.hakedis_suresi) okParts.push(`Hakedis: ${ok.hakedis_suresi}`);
         if (ok.odeme_suresi) okParts.push(`Odeme Suresi: ${ok.odeme_suresi}`);
         if (ok.avans) okParts.push(`Avans: ${ok.avans}`);
-        if (okParts.length) parts.push(`**Odeme Kosullari:**\n${okParts.map((p) => `- ${p}`).join('\n')}`);
+        if (okParts.length)
+          parts.push(`**Odeme Kosullari:**\n${okParts.map((p) => `- ${p}`).join('\n')}`);
       }
       return parts.length > 0 ? parts.join('\n\n') : null;
     },
   },
   {
     agentId: 'teknik',
-    title: 'Teknik Yeterlilik Analizi',
+    title: 'Teknik Ozet',
     color: 'yellow',
     field: 'seed-teknik',
     build: (a) => {
       const parts: string[] = [];
       if (a.teknik_sartlar?.length) {
-        const items = a.teknik_sartlar.map((t) =>
-          typeof t === 'string' ? t : t.text
-        );
+        const items = a.teknik_sartlar.map((t) => (typeof t === 'string' ? t : t.text));
         parts.push(`**Teknik Sartlar:**\n${items.map((i) => `- ${i}`).join('\n')}`);
       }
       if (a.personel_detaylari?.length)
-        parts.push(`**Personel Detaylari:**\n${a.personel_detaylari.map((p) => `- ${p.pozisyon}: ${p.adet} kisi${p.ucret_orani ? ` (${p.ucret_orani})` : ''}`).join('\n')}`);
+        parts.push(
+          `**Personel Detaylari:**\n${a.personel_detaylari.map((p) => `- ${p.pozisyon}: ${p.adet} kisi${p.ucret_orani ? ` (${p.ucret_orani})` : ''}`).join('\n')}`
+        );
       if (a.ogun_bilgileri?.length)
-        parts.push(`**Ogun Bilgileri:**\n${a.ogun_bilgileri.map((o) => `- ${o.tur || 'Ogun'}: ${o.miktar || '?'} ${o.birim || 'adet'}`).join('\n')}`);
+        parts.push(
+          `**Ogun Bilgileri:**\n${a.ogun_bilgileri.map((o) => `- ${o.tur || 'Ogun'}: ${o.miktar || '?'} ${o.birim || 'adet'}`).join('\n')}`
+        );
       if (a.servis_saatleri) {
         const ss = a.servis_saatleri;
         const ssParts: string[] = [];
@@ -186,19 +199,18 @@ const SEED_CONFIGS: SeedConfig[] = [
   },
   {
     agentId: 'rekabet',
-    title: 'Rekabet Istihbarati Analizi',
+    title: 'Rekabet Ozeti',
     color: 'pink',
     field: 'seed-rekabet',
     build: (a) => {
       const parts: string[] = [];
-      if (a.sinir_deger_katsayisi) parts.push(`**Sinir Deger Katsayisi:** ${a.sinir_deger_katsayisi}`);
+      if (a.sinir_deger_katsayisi)
+        parts.push(`**Sinir Deger Katsayisi:** ${a.sinir_deger_katsayisi}`);
       if (a.benzer_is_tanimi) parts.push(`**Benzer Is Tanimi:** ${a.benzer_is_tanimi}`);
       if (a.kapasite_gereksinimi) parts.push(`**Kapasite Gereksinimi:** ${a.kapasite_gereksinimi}`);
       if (a.teklif_turu) parts.push(`**Teklif Turu:** ${a.teklif_turu}`);
       if (a.onemli_notlar?.length) {
-        const items = a.onemli_notlar.map((n) =>
-          typeof n === 'string' ? n : n.not
-        );
+        const items = a.onemli_notlar.map((n) => (typeof n === 'string' ? n : n.not));
         parts.push(`**Onemli Notlar:**\n${items.map((i) => `- ${i}`).join('\n')}`);
       }
       if (a.eksik_bilgiler?.length)
@@ -208,7 +220,9 @@ const SEED_CONFIGS: SeedConfig[] = [
   },
 ];
 
-function generateAnalysisSeeds(analysisSummary: AnalysisData | null | undefined): OrbitAttachment[] {
+function generateAnalysisSeeds(
+  analysisSummary: AnalysisData | null | undefined
+): OrbitAttachment[] {
   if (!analysisSummary) return [];
 
   const seeds: OrbitAttachment[] = [];
@@ -273,7 +287,11 @@ interface UseOrbitAttachmentsProps {
   analysisSummary?: AnalysisData | null;
 }
 
-export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseOrbitAttachmentsProps) {
+export function useOrbitAttachments({
+  tenderId,
+  enabled,
+  analysisSummary,
+}: UseOrbitAttachmentsProps) {
   const [attachments, setAttachments] = useState<OrbitAttachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailState, setDetailState] = useState<AttachmentDetailState>({
@@ -304,9 +322,7 @@ export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseO
         // Filter out seeds that already have a saved DB counterpart
         const unseeded = seeds.filter(
           (seed) =>
-            !dbAttachments.some(
-              (db) => db.metadata.analysis_field === seed.metadata.analysis_field
-            )
+            !dbAttachments.some((db) => db.metadata.analysis_field === seed.metadata.analysis_field)
         );
 
         setAttachments([...dbAttachments, ...unseeded]);
@@ -363,7 +379,10 @@ export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseO
 
   // ── Update ──
   const updateAttachment = useCallback(
-    async (id: string, updates: { title?: string; content?: string; pinned?: boolean; color?: string }) => {
+    async (
+      id: string,
+      updates: { title?: string; content?: string; pinned?: boolean; color?: string }
+    ) => {
       try {
         const data = await apiFetch<{ success: boolean; note: Record<string, unknown> }>(
           `/notes/${id}`,
@@ -414,9 +433,7 @@ export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseO
 
       if (saved) {
         // Replace virtual with saved (real) version
-        setAttachments((prev) =>
-          prev.map((a) => (a.id === id ? { ...saved, virtual: false } : a))
-        );
+        setAttachments((prev) => prev.map((a) => (a.id === id ? { ...saved, virtual: false } : a)));
       }
     },
     [attachments, tenderId, addAttachment]
@@ -473,7 +490,7 @@ export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseO
         },
       });
     },
-    [tenderId, addAttachment]
+    [addAttachment, tenderId]
   );
 
   // ── Detail State ──
@@ -515,10 +532,7 @@ export function useOrbitAttachments({ tenderId, enabled, analysisSummary }: UseO
   }, []);
 
   // ── Node Positions ──
-  const nodePositions = useMemo(
-    () => getNodePositions(attachments.length),
-    [attachments.length]
-  );
+  const nodePositions = useMemo(() => getNodePositions(attachments.length), [attachments.length]);
 
   return {
     attachments,
