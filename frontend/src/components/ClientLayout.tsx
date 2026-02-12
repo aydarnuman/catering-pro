@@ -31,8 +31,8 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Toolbar açılır kapanır; AI açıldığında toolbar kapalı olsun
-  const [toolbarExpanded, setToolbarExpanded] = useState(true);
+  // Toolbar açılır kapanır; varsayılan kapalı, AI açıldığında da kapalı kalsın
+  const [toolbarExpanded, setToolbarExpanded] = useState(false);
   useEffect(() => {
     const handler = () => setToolbarExpanded(false);
     window.addEventListener('open-ai-chat', handler);
