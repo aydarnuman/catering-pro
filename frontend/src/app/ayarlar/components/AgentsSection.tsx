@@ -78,10 +78,7 @@ const CONTENT_TYPE_ICONS: Record<string, React.ElementType> = {
 };
 
 const MODEL_OPTIONS = [
-  { value: 'default', label: 'Varsayılan (Claude Sonnet)' },
-  { value: 'haiku', label: 'Claude Haiku (Hızlı)' },
-  { value: 'sonnet', label: 'Claude Sonnet (Dengeli)' },
-  { value: 'opus', label: 'Claude Opus (Güçlü)' },
+  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
 ];
 
 // ─── Main Component ──────────────────────────────────────────
@@ -95,7 +92,9 @@ export default function AgentsSection() {
     queryKey: ['agents'],
     queryFn: async () => {
       const response = await agentAPI.getAll();
-      return response.success ? (response.data?.agents ?? []) : [];
+      // Backend returns flat { success, agents } not nested { data: { agents } }
+      const raw = response as unknown as { success: boolean; agents?: Agent[]; data?: { agents?: Agent[] } };
+      return raw.success ? (raw.data?.agents ?? raw.agents ?? []) : [];
     },
   });
 
@@ -232,7 +231,9 @@ function AgentDetailEditor({ slug, onClose }: AgentDetailEditorProps) {
     queryKey: ['agent-detail', slug],
     queryFn: async () => {
       const response = await agentAPI.getBySlug(slug);
-      return response.success ? (response.data?.agent ?? null) : null;
+      // Backend returns flat { success, agent } not nested { data: { agent } }
+      const raw = response as unknown as { success: boolean; agent?: AgentDetail; data?: { agent?: AgentDetail } };
+      return raw.success ? (raw.data?.agent ?? raw.agent ?? null) : null;
     },
   });
 
@@ -373,7 +374,7 @@ function GeneralSettingsTab({ agent, onSave, saving }: GeneralSettingsTabProps) 
 
         <Box>
           <Text size="sm" fw={500} mb="xs">
-            Temperature: {form.values.temperature.toFixed(2)}
+            Temperature: {Number(form.values.temperature ?? 0).toFixed(2)}
           </Text>
           <Slider
             min={0}
@@ -390,7 +391,7 @@ function GeneralSettingsTab({ agent, onSave, saving }: GeneralSettingsTabProps) 
 
         <Box>
           <Text size="sm" fw={500} mb="xs">
-            Verdict Ağırlığı: %{Math.round(form.values.verdict_weight * 100)}
+            Verdict Ağırlığı: %{Math.round(Number(form.values.verdict_weight ?? 0) * 100)}
           </Text>
           <Slider
             min={0}
@@ -654,7 +655,9 @@ function KnowledgeTab({ agent }: KnowledgeTabProps) {
     queryKey: ['agent-knowledge', agent.slug],
     queryFn: async () => {
       const response = await agentAPI.getKnowledge(agent.slug);
-      return response.success ? (response.data?.knowledge ?? []) : [];
+      // Backend returns flat { success, knowledge } not nested { data: { knowledge } }
+      const raw = response as unknown as { success: boolean; knowledge?: AgentKnowledge[]; data?: { knowledge?: AgentKnowledge[] } };
+      return raw.success ? (raw.data?.knowledge ?? raw.knowledge ?? []) : [];
     },
   });
 

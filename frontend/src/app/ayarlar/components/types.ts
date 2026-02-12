@@ -332,7 +332,7 @@ export const menuItems = [
     label: 'AI Ayarları',
     icon: IconRobot,
     color: 'violet',
-    description: 'Yapay zeka',
+    description: 'Yapay zeka & Ajanlar',
     href: '/ayarlar/ai',
   },
   {
