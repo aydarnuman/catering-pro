@@ -12,10 +12,11 @@ import bcrypt from 'bcryptjs';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { query } from '../database.js';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import loginAttemptService from '../services/login-attempt-service.js';
 import sessionService from '../services/session-service.js';
-import logger from '../utils/logger.js';
+import logger, { logAuth } from '../utils/logger.js';
 import {
   changePasswordSchema,
   createIpRuleSchema,
@@ -97,6 +98,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
 
     if (result.rows.length === 0) {
       await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
+      logAuth('Login failed - user not found', null, { email, ip: ipAddress });
       return res.status(401).json({ success: false, error: 'Geçersiz email veya şifre' });
     }
 
@@ -115,6 +117,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       const attemptResult = await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
+      logAuth('Login failed - wrong password', user.id, { email, ip: ipAddress });
 
       if (attemptResult.isLocked) {
         const minutesRemaining = attemptResult.lockedUntil
@@ -233,6 +236,8 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       [email, passwordHash, name, role, finalUserType]
     );
 
+    logAuth('User registered', result.rows[0].id, { email, role, userType: finalUserType });
+
     res.json({
       success: true,
       message: 'Kullanıcı oluşturuldu',
@@ -247,70 +252,29 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 /**
  * ME - Mevcut kullanıcı bilgisi
  */
-router.get('/me', async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    // Token'ı al: Cookie > Header
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
-      if (jwtError.name === 'TokenExpiredError') {
-        return res.status(401).json({ success: false, error: 'Token süresi dolmuş', code: 'TOKEN_EXPIRED' });
-      }
-      return res.status(401).json({ success: false, error: 'Geçersiz token' });
-    }
-
-    const result = await query(
-      'SELECT id, email, name, role, user_type, created_at FROM users WHERE id = $1 AND is_active = true',
-      [decoded.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
-    }
-
-    const user = result.rows[0];
-
     res.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        user_type: user.user_type || 'user',
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+        user_type: req.user.user_type || 'user',
       },
     });
   } catch (error) {
     logger.error('Auth hatası', { error: error.message });
-    res.status(401).json({ success: false, error: 'Geçersiz token' });
+    res.status(500).json({ success: false, error: 'Kullanıcı bilgisi alınamadı' });
   }
 });
 
 /**
  * PROFILE - Profil güncelleme
  */
-router.put('/profile', validate(updateProfileSchema), async (req, res) => {
+router.put('/profile', authenticate, validate(updateProfileSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
     const { name } = req.body;
 
     const result = await query(
@@ -319,7 +283,7 @@ router.put('/profile', validate(updateProfileSchema), async (req, res) => {
       WHERE id = $2 AND is_active = true
       RETURNING id, email, name, role, created_at
     `,
-      [name.trim(), decoded.id]
+      [name.trim(), req.user.id]
     );
 
     if (result.rows.length === 0) {
@@ -340,22 +304,12 @@ router.put('/profile', validate(updateProfileSchema), async (req, res) => {
 /**
  * PASSWORD - Şifre değiştirme
  */
-router.put('/password', validate(changePasswordSchema), async (req, res) => {
+router.put('/password', authenticate, validate(changePasswordSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
     const { currentPassword, newPassword } = req.body;
 
     const userResult = await query('SELECT id, password_hash FROM users WHERE id = $1 AND is_active = true', [
-      decoded.id,
+      req.user.id,
     ]);
 
     if (userResult.rows.length === 0) {
@@ -377,8 +331,10 @@ router.put('/password', validate(changePasswordSchema), async (req, res) => {
       UPDATE users SET password_hash = $1, updated_at = NOW()
       WHERE id = $2
     `,
-      [newPasswordHash, decoded.id]
+      [newPasswordHash, req.user.id]
     );
+
+    logAuth('Password changed', req.user.id);
 
     res.json({
       success: true,
@@ -407,6 +363,19 @@ router.post('/logout', async (req, res) => {
 
     res.clearCookie('access_token', { path: '/' });
     res.clearCookie('refresh_token', { path: '/' });
+
+    // Kullanici bilgisini token'dan al (varsa)
+    let logoutUserId = null;
+    try {
+      const accessToken = req.cookies?.access_token || req.headers.authorization?.replace('Bearer ', '');
+      if (accessToken) {
+        const decoded = jwt.verify(accessToken, JWT_SECRET, { ignoreExpiration: true });
+        logoutUserId = decoded.id;
+      }
+    } catch (_tokenErr) {
+      // Token parse edilemezse userId olmadan logla
+    }
+    logAuth('User logged out', logoutUserId);
 
     res.json({ success: true, message: 'Çıkış yapıldı' });
   } catch (error) {
@@ -489,26 +458,15 @@ router.post('/refresh', async (req, res) => {
 /**
  * REVOKE-ALL - Tüm oturumları kapat
  */
-router.post('/revoke-all', async (req, res) => {
+router.post('/revoke-all', authenticate, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
     try {
       await query(
         `
         UPDATE refresh_tokens SET revoked_at = NOW()
         WHERE user_id = $1 AND revoked_at IS NULL
       `,
-        [decoded.id]
+        [req.user.id]
       );
     } catch (dbError) {
       logger.warn('Refresh tokens tablosu mevcut değil', { error: dbError.message });
@@ -544,29 +502,8 @@ router.post('/validate-password', validate(validatePasswordSchema), (req, res) =
 /**
  * GET /users - Tüm kullanıcıları listele (Admin)
  */
-router.get('/users', async (req, res) => {
+router.get('/users', authenticate, requireAdmin, async (_req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (_jwtError) {
-      return res.status(401).json({ success: false, error: 'Geçersiz token' });
-    }
-
-    const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     let result;
     try {
       result = await query(`
@@ -607,24 +544,8 @@ router.get('/users', async (req, res) => {
 /**
  * PUT /users/:id - Kullanıcı güncelle (Admin)
  */
-router.put('/users/:id', validate(updateUserSchema), async (req, res) => {
+router.put('/users/:id', authenticate, requireAdmin, validate(updateUserSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
     const { name, email, password, role, user_type, is_active } = req.body;
 
@@ -710,26 +631,11 @@ router.put('/users/:id', validate(updateUserSchema), async (req, res) => {
 /**
  * DELETE /users/:id - Kullanıcı sil (Admin)
  */
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
 
-    if (parseInt(id, 10) === decoded.id) {
+    if (parseInt(id, 10) === req.user.id) {
       return res.status(400).json({ success: false, error: 'Kendinizi silemezsiniz' });
     }
 
@@ -789,23 +695,8 @@ router.post('/setup-super-admin', async (_req, res) => {
 /**
  * PUT /users/:id/lock - Hesabı kilitle (Admin)
  */
-router.put('/users/:id/lock', validate(lockAccountSchema), async (req, res) => {
+router.put('/users/:id/lock', authenticate, requireAdmin, validate(lockAccountSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
     const { minutes: lockMinutes } = req.body;
 
@@ -831,23 +722,8 @@ router.put('/users/:id/lock', validate(lockAccountSchema), async (req, res) => {
 /**
  * PUT /users/:id/unlock - Hesabı aç (Admin)
  */
-router.put('/users/:id/unlock', async (req, res) => {
+router.put('/users/:id/unlock', authenticate, requireAdmin, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
 
     const success = await loginAttemptService.unlockAccount(parseInt(id, 10));
@@ -872,39 +748,30 @@ router.put('/users/:id/unlock', async (req, res) => {
 /**
  * GET /users/:id/login-attempts - Login geçmişi (Admin)
  */
-router.get('/users/:id/login-attempts', validate(loginAttemptsQuerySchema, 'query'), async (req, res) => {
-  try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
+router.get(
+  '/users/:id/login-attempts',
+  authenticate,
+  requireAdmin,
+  validate(loginAttemptsQuerySchema, 'query'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limit } = req.query;
+
+      const history = await loginAttemptService.getLoginHistory(parseInt(id, 10), limit);
+      const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
+
+      res.json({
+        success: true,
+        history,
+        userStatus,
+      });
+    } catch (error) {
+      logger.error('Login attempt geçmişi hatası', { error: error.message });
+      res.status(500).json({ success: false, error: error.message });
     }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
-    const { id } = req.params;
-    const { limit } = req.query;
-
-    const history = await loginAttemptService.getLoginHistory(parseInt(id, 10), limit);
-    const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
-
-    res.json({
-      success: true,
-      history,
-      userStatus,
-    });
-  } catch (error) {
-    logger.error('Login attempt geçmişi hatası', { error: error.message });
-    res.status(500).json({ success: false, error: error.message });
   }
-});
+);
 
 /**
  * DEPRECATED: Admin notification routes
@@ -941,31 +808,15 @@ router.delete('/admin/notifications/:id', (req, res) => {
 /**
  * GET /sessions - Aktif oturumları listele
  */
-router.get('/sessions', async (req, res) => {
+router.get('/sessions', authenticate, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (_jwtError) {
-      return res.status(401).json({ success: false, error: 'Geçersiz token' });
-    }
-
     const refreshToken = req.cookies?.refresh_token;
     let currentTokenHash = null;
     if (refreshToken) {
       currentTokenHash = hashToken(refreshToken);
     }
 
-    const sessions = await sessionService.getUserSessions(decoded.id);
+    const sessions = await sessionService.getUserSessions(req.user.id);
 
     const sessionsWithCurrent = sessions.map((session) => {
       const isCurrent = currentTokenHash && session.refreshTokenHash === currentTokenHash;
@@ -985,19 +836,9 @@ router.get('/sessions', async (req, res) => {
 /**
  * DELETE /sessions/:id - Oturum sonlandır
  */
-router.delete('/sessions/:id', async (req, res) => {
+router.delete('/sessions/:id', authenticate, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.id;
+    const userId = req.user.id;
     const { id } = req.params;
     const sessionId = parseInt(id, 10);
 
@@ -1036,19 +877,9 @@ router.delete('/sessions/:id', async (req, res) => {
 /**
  * DELETE /sessions/other - Diğer tüm oturumları sonlandır
  */
-router.delete('/sessions/other', async (req, res) => {
+router.delete('/sessions/other', authenticate, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.id;
+    const userId = req.user.id;
 
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
@@ -1072,23 +903,8 @@ router.delete('/sessions/other', async (req, res) => {
 /**
  * GET /admin/ip-rules - IP kurallarını listele (Admin)
  */
-router.get('/admin/ip-rules', async (req, res) => {
+router.get('/admin/ip-rules', authenticate, requireAdmin, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { type, active } = req.query;
 
     let queryText = `
@@ -1134,23 +950,8 @@ router.get('/admin/ip-rules', async (req, res) => {
 /**
  * POST /admin/ip-rules - Yeni IP kuralı ekle (Admin)
  */
-router.post('/admin/ip-rules', validate(createIpRuleSchema), async (req, res) => {
+router.post('/admin/ip-rules', authenticate, requireAdmin, validate(createIpRuleSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { ipAddress, type, description } = req.body;
 
     try {
@@ -1158,7 +959,7 @@ router.post('/admin/ip-rules', validate(createIpRuleSchema), async (req, res) =>
         `INSERT INTO ip_access_rules (ip_address, type, description, created_by)
          VALUES ($1::cidr, $2, $3, $4)
          RETURNING id, ip_address, type, description, created_at`,
-        [ipAddress, type, description || null, decoded.id]
+        [ipAddress, type, description || null, req.user.id]
       );
 
       res.json({
@@ -1190,23 +991,8 @@ router.post('/admin/ip-rules', validate(createIpRuleSchema), async (req, res) =>
 /**
  * PUT /admin/ip-rules/:id - IP kuralını güncelle (Admin)
  */
-router.put('/admin/ip-rules/:id', validate(updateIpRuleSchema), async (req, res) => {
+router.put('/admin/ip-rules/:id', authenticate, requireAdmin, validate(updateIpRuleSchema), async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
     const { ipAddress, type, description, isActive } = req.body;
 
@@ -1269,23 +1055,8 @@ router.put('/admin/ip-rules/:id', validate(updateIpRuleSchema), async (req, res)
 /**
  * DELETE /admin/ip-rules/:id - IP kuralını sil (Admin)
  */
-router.delete('/admin/ip-rules/:id', async (req, res) => {
+router.delete('/admin/ip-rules/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      token = req.headers.authorization?.replace('Bearer ', '');
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Bu işlem için admin yetkisi gerekli' });
-    }
-
     const { id } = req.params;
 
     const result = await query('DELETE FROM ip_access_rules WHERE id = $1 RETURNING id', [id]);

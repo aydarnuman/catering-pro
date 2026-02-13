@@ -48,14 +48,12 @@ interface DokumanYonetimiProps {
 export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: DokumanYonetimiProps) {
   const [dokumanlar, setDokumanlar] = useState<FirmaDokuman[]>([]);
   const [loadingDokumanlar, setLoadingDokumanlar] = useState(false);
-  const [dokumanModalOpened, { open: openDokumanModal, close: closeDokumanModal }] =
-    useDisclosure(false);
+  const [dokumanModalOpened, { open: openDokumanModal, close: closeDokumanModal }] = useDisclosure(false);
   const [uploadingDokuman, setUploadingDokuman] = useState(false);
   const [selectedBelgeTipi, setSelectedBelgeTipi] = useState('auto');
   const [selectedBelgeKategori, setSelectedBelgeKategori] = useState('kurumsal');
   const [lastAIAnalysis, setLastAIAnalysis] = useState<AIAnalysisResult | null>(null);
-  const [aiApplyModalOpened, { open: openAIApplyModal, close: closeAIApplyModal }] =
-    useDisclosure(false);
+  const [aiApplyModalOpened, { open: openAIApplyModal, close: closeAIApplyModal }] = useDisclosure(false);
   const [selectedDokumanForApply, setSelectedDokumanForApply] = useState<FirmaDokuman | null>(null);
   const [expandedDocCategories, setExpandedDocCategories] = useState<string[]>(['kurumsal']);
 
@@ -162,10 +160,9 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
     if (!confirm('Bu dökümanı silmek istediğinize emin misiniz?')) return;
 
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`,
-        { method: 'DELETE' }
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`, {
+        method: 'DELETE',
+      });
       const data = await res.json();
       if (data.success) {
         notifications.show({ title: 'Silindi', message: 'Döküman silindi', color: 'green' });
@@ -332,11 +329,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
         <Skeleton height={150} radius="md" />
       ) : dokumanlar.length === 0 ? (
         <Paper p="lg" radius="md" withBorder ta="center">
-          <IconFileText
-            size={48}
-            color="var(--mantine-color-gray-5)"
-            style={{ marginBottom: 16 }}
-          />
+          <IconFileText size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
           <Text c="dimmed" mb="md">
             Henüz döküman yüklenmemiş
           </Text>
@@ -401,9 +394,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                         <IconChevronDown
                           size={12}
                           style={{
-                            transform: expandedDocCategories.includes(key)
-                              ? 'rotate(180deg)'
-                              : 'rotate(0)',
+                            transform: expandedDocCategories.includes(key) ? 'rotate(180deg)' : 'rotate(0)',
                             transition: 'transform 0.2s',
                           }}
                         />
@@ -419,9 +410,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
             variant="separated"
             radius="md"
             value={expandedDocCategories}
-            onChange={(val) =>
-              setExpandedDocCategories(Array.isArray(val) ? val : val ? [val] : [])
-            }
+            onChange={(val) => setExpandedDocCategories(Array.isArray(val) ? val : val ? [val] : [])}
             multiple
           >
             {Object.entries(belgeKategorileri)
@@ -448,23 +437,15 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                     <Accordion.Panel>
                       <Stack gap="xs" mt="xs">
                         {kategoriDokumanlar.map((doc) => {
-                          const belgeTip = belgeTipleriListe.find(
-                            (b) => b.value === doc.belge_tipi
-                          );
-                          const kategori =
-                            belgeKategorileri[doc.belge_kategori as keyof typeof belgeKategorileri];
+                          const belgeTip = belgeTipleriListe.find((b) => b.value === doc.belge_tipi);
+                          const kategori = belgeKategorileri[doc.belge_kategori as keyof typeof belgeKategorileri];
                           const DocKatIcon = kategori?.icon || IconFileText;
 
                           return (
                             <Paper key={doc.id} p="sm" radius="md" withBorder>
                               <Group justify="space-between" wrap="nowrap">
                                 <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
-                                  <ThemeIcon
-                                    size="md"
-                                    radius="md"
-                                    variant="light"
-                                    color={kategori?.color || 'gray'}
-                                  >
+                                  <ThemeIcon size="md" radius="md" variant="light" color={kategori?.color || 'gray'}>
                                     <DocKatIcon size={16} />
                                   </ThemeIcon>
                                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -479,9 +460,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
 
                                 <Group gap="xs" wrap="nowrap">
                                   {doc.ai_analiz_yapildi && (
-                                    <Tooltip
-                                      label={`AI Güven: %${Math.round((doc.ai_guven_skoru || 0) * 100)}`}
-                                    >
+                                    <Tooltip label={`AI Güven: %${Math.round((doc.ai_guven_skoru || 0) * 100)}`}>
                                       <Badge
                                         size="xs"
                                         variant="light"
@@ -497,11 +476,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                                     <Badge
                                       size="xs"
                                       variant="light"
-                                      color={
-                                        new Date(doc.gecerlilik_tarihi) < new Date()
-                                          ? 'red'
-                                          : 'green'
-                                      }
+                                      color={new Date(doc.gecerlilik_tarihi) < new Date() ? 'red' : 'green'}
                                     >
                                       {new Date(doc.gecerlilik_tarihi).toLocaleDateString('tr-TR')}
                                     </Badge>
@@ -512,9 +487,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
                                       variant="subtle"
                                       color="blue"
                                       size="sm"
-                                      onClick={() =>
-                                        window.open(`${API_BASE_URL}${doc.dosya_url}`, '_blank')
-                                      }
+                                      onClick={() => window.open(`${API_BASE_URL}${doc.dosya_url}`, '_blank')}
                                     >
                                       <IconEye size={14} />
                                     </ActionIcon>
@@ -591,8 +564,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
         <Stack gap="md">
           <Alert icon={<IconSparkles size={16} />} color="violet" variant="light">
             <Text size="sm">
-              Yüklediğiniz döküman AI tarafından analiz edilecek ve firma bilgileri otomatik olarak
-              çıkarılacaktır.
+              Yüklediğiniz döküman AI tarafından analiz edilecek ve firma bilgileri otomatik olarak çıkarılacaktır.
             </Text>
           </Alert>
 
@@ -622,12 +594,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
           />
 
           {selectedBelgeTipi && (
-            <Paper
-              p="md"
-              radius="md"
-              withBorder
-              style={{ background: 'var(--mantine-color-gray-light)' }}
-            >
+            <Paper p="md" radius="md" withBorder style={{ background: 'var(--mantine-color-gray-light)' }}>
               <Stack gap="sm">
                 <Text size="sm" fw={500}>
                   📄 Dosya Seçin
@@ -680,11 +647,7 @@ export default function DokumanYonetimi({ varsayilanFirma, API_BASE_URL }: Dokum
           </Alert>
 
           {lastAIAnalysis?.data && (
-            <AIDataSelector
-              aiData={lastAIAnalysis.data}
-              onApply={handleApplyAIData}
-              onCancel={closeAIApplyModal}
-            />
+            <AIDataSelector aiData={lastAIAnalysis.data} onApply={handleApplyAIData} onCancel={closeAIApplyModal} />
           )}
         </Stack>
       </Modal>

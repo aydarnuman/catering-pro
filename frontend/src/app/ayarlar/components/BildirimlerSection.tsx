@@ -10,10 +10,7 @@ interface BildirimlerSectionProps {
   savePreferences: (newPrefs: Partial<UserPreferences>) => void;
 }
 
-export default function BildirimlerSection({
-  preferences,
-  savePreferences,
-}: BildirimlerSectionProps) {
+export default function BildirimlerSection({ preferences, savePreferences }: BildirimlerSectionProps) {
   return (
     <Stack gap="lg">
       <div>

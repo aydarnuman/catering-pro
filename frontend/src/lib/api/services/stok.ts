@@ -290,11 +290,7 @@ export const stokAPI = {
   /**
    * Faturadan stok girişi
    */
-  async faturadanGiris(data: {
-    ettn: string;
-    depo_id: number;
-    kalemler?: number[];
-  }): Promise<ApiResponse<any>> {
+  async faturadanGiris(data: { ettn: string; depo_id: number; kalemler?: number[] }): Promise<ApiResponse<any>> {
     const response = await api.post('/api/stok/faturadan-giris', data);
     return response.data;
   },

@@ -11,6 +11,7 @@ import {
   generateMenuCardTemplate,
   generateMenuPost,
 } from '../services/instagram-ai.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -58,7 +59,8 @@ router.get('/whatsapp/status', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/status');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -71,7 +73,8 @@ router.get('/whatsapp/qr', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/qr');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -86,7 +89,8 @@ router.post('/whatsapp/connect', async (_req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -101,7 +105,8 @@ router.post('/whatsapp/disconnect', async (_req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -116,7 +121,8 @@ router.post('/whatsapp/reconnect', async (_req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -131,7 +137,8 @@ router.post('/whatsapp/clean-session', async (_req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -144,7 +151,8 @@ router.get('/whatsapp/chats', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/chats');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -160,7 +168,8 @@ router.get('/whatsapp/chats/:chatId/messages', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(WHATSAPP_SERVICE, `/chats/${encodeURIComponent(chatId)}/messages${queryStr}`);
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -176,7 +185,8 @@ router.post('/whatsapp/chats/:chatId/seen', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -192,7 +202,8 @@ router.post('/whatsapp/send', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -205,7 +216,8 @@ router.get('/whatsapp/contacts', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/contacts');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -221,7 +233,8 @@ router.post('/whatsapp/chats/:chatId/archive', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -237,7 +250,8 @@ router.post('/whatsapp/chats/:chatId/unarchive', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -251,7 +265,8 @@ router.get('/whatsapp/media/:messageId', async (req, res) => {
     const { messageId } = req.params;
     const result = await proxyRequest(WHATSAPP_SERVICE, `/media/${encodeURIComponent(messageId)}`);
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -268,7 +283,8 @@ router.post('/whatsapp/media/:messageId/save', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -284,7 +300,8 @@ router.post('/whatsapp/send-media', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -313,7 +330,8 @@ router.get('/instagram/status', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/status');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -329,7 +347,8 @@ router.post('/instagram/login', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -344,7 +363,8 @@ router.post('/instagram/logout', async (_req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -357,7 +377,8 @@ router.get('/instagram/profile', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/profile');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -372,7 +393,8 @@ router.get('/instagram/posts', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/posts${queryStr}`);
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -385,7 +407,8 @@ router.get('/instagram/dms', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/dms');
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -401,7 +424,8 @@ router.get('/instagram/dms/:threadId', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/dms/${threadId}${queryStr}`);
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -417,7 +441,8 @@ router.post('/instagram/dms/send', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -432,7 +457,8 @@ router.get('/instagram/followers', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/followers${queryStr}`);
     res.json(result);
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Social proxy endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',

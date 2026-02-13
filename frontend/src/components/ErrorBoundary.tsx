@@ -1,24 +1,7 @@
 'use client';
 
-import {
-  Alert,
-  Box,
-  Button,
-  Code,
-  Collapse,
-  Container,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from '@mantine/core';
-import {
-  IconAlertTriangle,
-  IconChevronDown,
-  IconChevronUp,
-  IconHome,
-  IconRefresh,
-} from '@tabler/icons-react';
+import { Alert, Box, Button, Code, Collapse, Container, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { IconAlertTriangle, IconChevronDown, IconChevronUp, IconHome, IconRefresh } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Component, type ReactNode } from 'react';
 
@@ -105,8 +88,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </Title>
 
             <Text c="dimmed" ta="center" maw={500}>
-              Beklenmeyen bir hata oluştu. Sayfayı yenileyerek tekrar deneyebilir veya ana sayfaya
-              dönebilirsiniz.
+              Beklenmeyen bir hata oluştu. Sayfayı yenileyerek tekrar deneyebilir veya ana sayfaya dönebilirsiniz.
             </Text>
 
             <Alert color="red" variant="light" title="Hata Mesajı" w="100%" maw={500}>
@@ -118,13 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Tekrar Dene
               </Button>
 
-              <Button
-                variant="light"
-                leftSection={<IconHome size={16} />}
-                component={Link}
-                href="/"
-                fullWidth
-              >
+              <Button variant="light" leftSection={<IconHome size={16} />} component={Link} href="/" fullWidth>
                 Ana Sayfaya Dön
               </Button>
             </Stack>
@@ -137,13 +113,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   color="gray"
                   size="xs"
                   onClick={this.toggleDetails}
-                  rightSection={
-                    this.state.showDetails ? (
-                      <IconChevronUp size={14} />
-                    ) : (
-                      <IconChevronDown size={14} />
-                    )
-                  }
+                  rightSection={this.state.showDetails ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
                   fullWidth
                 >
                   {this.state.showDetails ? 'Detayları Gizle' : 'Geliştirici Detayları'}

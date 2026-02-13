@@ -10,18 +10,7 @@
  * Alt sekme yok — dikey stack, ikisi birden görünür.
  */
 
-import {
-  Accordion,
-  Alert,
-  Anchor,
-  Badge,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from '@mantine/core';
+import { Accordion, Alert, Anchor, Badge, Divider, Group, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconExternalLink, IconGavel } from '@tabler/icons-react';
 import type { HavuzVeri } from '../ModulDetay';
 import { KikKararlariDetay } from './KikKararlariDetay';
@@ -56,12 +45,7 @@ export function HukukiDurumDetay({ veriler, havuzVeri }: Props) {
     <Stack gap="lg">
       {/* Yasaklı durumu — en kritik bilgi, üstte */}
       <div>
-        <Text
-          size="sm"
-          fw={600}
-          mb="xs"
-          style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
-        >
+        <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
           EKAP Yasaklı Sorgusu
         </Text>
         <KikYasaklilarDetay veri={yasakliVeri} />
@@ -71,12 +55,7 @@ export function HukukiDurumDetay({ veriler, havuzVeri }: Props) {
 
       {/* KİK Kararları — altta */}
       <div>
-        <Text
-          size="sm"
-          fw={600}
-          mb="xs"
-          style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
-        >
+        <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
           KİK Kararları
         </Text>
         <KikKararlariDetay veri={kararlarVeri} />

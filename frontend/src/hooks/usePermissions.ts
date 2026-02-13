@@ -87,10 +87,7 @@ export function usePermissions() {
    * Belirli bir modül ve işlem için yetki kontrolü
    */
   const can = useCallback(
-    (
-      moduleName: string,
-      action: 'view' | 'create' | 'edit' | 'delete' | 'export' = 'view'
-    ): boolean => {
+    (moduleName: string, action: 'view' | 'create' | 'edit' | 'delete' | 'export' = 'view'): boolean => {
       // Super admin her şeyi yapabilir
       if (isSuperAdmin) return true;
 
@@ -142,14 +139,14 @@ export function usePermissions() {
 
 // Modül adı -> Route eşleştirmesi
 export const MODULE_ROUTES: Record<string, string[]> = {
-  ihale: ['/tenders', '/upload', '/tracking', '/ihale-merkezi', '/ihale-uzmani'],
+  ihale: ['/tenders', '/upload', '/tracking', '/ihale-merkezi', '/ihale-uzmani', '/ihale-merkezi/masa'],
   fatura: ['/muhasebe/faturalar'],
   cari: ['/muhasebe/cariler'],
   stok: ['/muhasebe/stok'],
   personel: ['/muhasebe/personel'],
   bordro: ['/muhasebe/personel'],
   kasa_banka: ['/muhasebe/finans'],
-  planlama: ['/planlama', '/muhasebe/menu-planlama'],
+  planlama: ['/planlama', '/menu-planlama'],
   firma: ['/ayarlar'],
   demirbas: ['/muhasebe/demirbas'],
   rapor: ['/muhasebe/raporlar'],

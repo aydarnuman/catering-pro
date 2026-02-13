@@ -12,18 +12,7 @@
  * Veri kaybı yok — aynı veriler, daha derli toplu sunum.
  */
 
-import {
-  Anchor,
-  Badge,
-  Card,
-  Group,
-  Paper,
-  SegmentedControl,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from '@mantine/core';
+import { Anchor, Badge, Card, Group, Paper, SegmentedControl, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconExternalLink, IconWorld } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { HavuzVeri } from '../ModulDetay';
@@ -63,17 +52,13 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
   const ihaleSayisi = gecmisVeri
     ? (gecmisVeri.toplam as number) || ((gecmisVeri.ihaleler as unknown[])?.length ?? 0)
     : 0;
-  const katilimciSayisi = katilimciVeri
-    ? ((katilimciVeri.katilimcilar as unknown[])?.length ?? 0)
-    : 0;
+  const katilimciSayisi = katilimciVeri ? ((katilimciVeri.katilimcilar as unknown[])?.length ?? 0) : 0;
 
   const sekmeler = [
     { label: 'Özet', value: 'ozet' },
     { label: 'Geçmiş', value: 'gecmis' },
     { label: 'Katılımcılar', value: 'katilimcilar' },
-    ...(webIhaleBulgu.length > 0
-      ? [{ label: `Web (${webIhaleBulgu.length})`, value: 'web_bulgu' }]
-      : []),
+    ...(webIhaleBulgu.length > 0 ? [{ label: `Web (${webIhaleBulgu.length})`, value: 'web_bulgu' }] : []),
   ];
 
   return (
@@ -133,10 +118,7 @@ export function IhalePerformansiDetay({ veriler, havuzVeri }: Props) {
                   {item.url ? (
                     <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
                       {item.title || 'Web kaynağı'}
-                      <IconExternalLink
-                        size={12}
-                        style={{ marginLeft: 4, verticalAlign: 'middle' }}
-                      />
+                      <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
                     </Anchor>
                   ) : (
                     item.title || 'Web kaynağı'

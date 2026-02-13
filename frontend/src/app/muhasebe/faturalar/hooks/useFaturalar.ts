@@ -84,9 +84,7 @@ export function useFaturalar(
 
   const loadCariler = useCallback(async () => {
     try {
-      const result = (await muhasebeAPI.getCariler()) as
-        | { success?: boolean; data?: Cari[] }
-        | { items?: Cari[] };
+      const result = (await muhasebeAPI.getCariler()) as { success?: boolean; data?: Cari[] } | { items?: Cari[] };
       if (result && 'data' in result && result.success && result.data) {
         setCariler(result.data);
       } else if (result && 'items' in result && Array.isArray(result.items)) {
@@ -132,9 +130,7 @@ export function useFaturalar(
           (activeTab === 'bekleyen' && (f.durum === 'gonderildi' || f.durum === 'gecikti'));
         const q = searchTerm.toLowerCase();
         const matchesSearch =
-          !q ||
-          f.cariUnvan.toLowerCase().includes(q) ||
-          `${f.seri}${f.no}`.toLowerCase().includes(q);
+          !q || f.cariUnvan.toLowerCase().includes(q) || `${f.seri}${f.no}`.toLowerCase().includes(q);
         return matchesTab && matchesSearch;
       })
       .sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());

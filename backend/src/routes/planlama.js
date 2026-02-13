@@ -453,7 +453,7 @@ router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
       await query(`UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`, [
         ortBirimFiyat,
         stok_kart_id,
-      ]).catch(() => {});
+      ]).catch((err) => logger.warn('[Planlama] Fiyat guncelleme hatasi', { error: err.message }));
     }
 
     res.json({
@@ -496,7 +496,7 @@ router.post('/piyasa/fiyat-kaydet', async (req, res) => {
     await query(`UPDATE urun_kartlari SET son_piyasa_fiyat = $1, updated_at = NOW() WHERE id = $2`, [
       piyasa_fiyat_ort,
       stok_kart_id,
-    ]).catch(() => {});
+    ]).catch((err) => logger.warn('[Planlama] Fiyat guncelleme hatasi', { error: err.message }));
 
     res.json({ success: true, message: 'Fiyat kaydedildi' });
   } catch (error) {

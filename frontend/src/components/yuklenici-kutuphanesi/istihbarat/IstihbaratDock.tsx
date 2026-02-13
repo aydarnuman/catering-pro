@@ -8,14 +8,7 @@
  * durum noktası ve tooltip barındırır.
  */
 
-import {
-  IconBrain,
-  IconBuilding,
-  IconChartPie,
-  IconFileText,
-  IconNews,
-  IconShieldOff,
-} from '@tabler/icons-react';
+import { IconBrain, IconBuilding, IconChartPie, IconFileText, IconNews, IconShieldOff } from '@tabler/icons-react';
 import React, { useRef, useState } from 'react';
 import type { DockGrupAdi, DockGrupMeta, IstihbaratModul } from '@/types/yuklenici';
 import { getDurumEtiket, getGrupDurum, getGrupSonGuncelleme } from './modul-meta';
@@ -47,13 +40,7 @@ interface IstihbaratDockProps {
 
 // ─── Component ──────────────────────────────────────────────────
 
-export function IstihbaratDock({
-  grupListesi,
-  moduller,
-  seciliGrup,
-  onGrupSec,
-  onGrupCalistir,
-}: IstihbaratDockProps) {
+export function IstihbaratDock({ grupListesi, moduller, seciliGrup, onGrupSec, onGrupCalistir }: IstihbaratDockProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const dockRef = useRef<HTMLElement>(null);
 

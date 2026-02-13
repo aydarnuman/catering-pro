@@ -56,27 +56,14 @@ import UrunKartlariModal from './UrunKartlariModal';
 // Malzeme ikonları (ürün adına göre)
 const getMalzemeIcon = (ad: string): string => {
   const adLower = ad.toLowerCase();
-  if (
-    adLower.includes('et') ||
-    adLower.includes('kıyma') ||
-    adLower.includes('kuzu') ||
-    adLower.includes('dana')
-  )
+  if (adLower.includes('et') || adLower.includes('kıyma') || adLower.includes('kuzu') || adLower.includes('dana'))
     return '🥩';
   if (adLower.includes('tavuk') || adLower.includes('piliç')) return '🍗';
-  if (adLower.includes('balık') || adLower.includes('levrek') || adLower.includes('çipura'))
-    return '🐟';
-  if (adLower.includes('pirinç') || adLower.includes('bulgur') || adLower.includes('makarna'))
-    return '🍚';
+  if (adLower.includes('balık') || adLower.includes('levrek') || adLower.includes('çipura')) return '🐟';
+  if (adLower.includes('pirinç') || adLower.includes('bulgur') || adLower.includes('makarna')) return '🍚';
   if (adLower.includes('un') || adLower.includes('ekmek')) return '🍞';
-  if (adLower.includes('yağ') || adLower.includes('zeytinyağ') || adLower.includes('tereyağ'))
-    return '🧈';
-  if (
-    adLower.includes('süt') ||
-    adLower.includes('yoğurt') ||
-    adLower.includes('peynir') ||
-    adLower.includes('kaymak')
-  )
+  if (adLower.includes('yağ') || adLower.includes('zeytinyağ') || adLower.includes('tereyağ')) return '🧈';
+  if (adLower.includes('süt') || adLower.includes('yoğurt') || adLower.includes('peynir') || adLower.includes('kaymak'))
     return '🥛';
   if (adLower.includes('yumurta')) return '🥚';
   if (adLower.includes('domates') || adLower.includes('salça')) return '🍅';
@@ -85,8 +72,7 @@ const getMalzemeIcon = (ad: string): string => {
   if (adLower.includes('biber')) return '🌶️';
   if (adLower.includes('patates')) return '🥔';
   if (adLower.includes('havuç')) return '🥕';
-  if (adLower.includes('fasulye') || adLower.includes('nohut') || adLower.includes('mercimek'))
-    return '🫘';
+  if (adLower.includes('fasulye') || adLower.includes('nohut') || adLower.includes('mercimek')) return '🫘';
   if (adLower.includes('şeker')) return '🍬';
   if (adLower.includes('tuz')) return '🧂';
   if (adLower.includes('su')) return '💧';
@@ -97,17 +83,10 @@ const getMalzemeIcon = (ad: string): string => {
   return '📦';
 };
 
-// Birimler
-const BIRIMLER = [
-  { value: 'gr', label: 'Gram (gr)' },
-  { value: 'kg', label: 'Kilogram (kg)' },
-  { value: 'lt', label: 'Litre (lt)' },
-  { value: 'ml', label: 'Mililitre (ml)' },
-  { value: 'adet', label: 'Adet' },
-  { value: 'porsiyon', label: 'Porsiyon' },
-  { value: 'dilim', label: 'Dilim' },
-  { value: 'tutam', label: 'Tutam' },
-];
+// Birimler - merkezi constants'dan
+import { getDonusumCarpani, RECETE_BIRIMLERI } from '@/lib/constants';
+
+const BIRIMLER = [...RECETE_BIRIMLERI];
 
 // Renk paleti (maliyet breakdown için)
 const COLORS = [
@@ -417,9 +396,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     setDetayLoading(true);
     try {
       // Maliyet analizi endpoint'ini kullan - raf fiyatlarını içerir
-      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(
-        id
-      )) as ApiResponse<MaliyetAnaliziData>;
+      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(id)) as ApiResponse<MaliyetAnaliziData>;
 
       if (result.success) {
         // Backend zaten birim dönüşümlü sistem_toplam ve piyasa_toplam hesaplıyor
@@ -521,24 +498,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     }
   };
 
-  // Maliyet hesapla
-  const hesaplaMaliyet = (
-    miktar: number,
-    birim: string,
-    birimFiyat: number,
-    anaBirim: string
-  ): number => {
-    const birimLower = birim.toLowerCase();
-    const anaBirimLower = anaBirim?.toLowerCase() || 'kg';
-
-    // gr → kg veya ml → lt dönüşümü
-    if (['gr', 'g'].includes(birimLower) && anaBirimLower === 'kg') {
-      return (miktar / 1000) * birimFiyat;
-    } else if (['ml'].includes(birimLower) && ['lt', 'l'].includes(anaBirimLower)) {
-      return (miktar / 1000) * birimFiyat;
-    } else {
-      return miktar * birimFiyat;
-    }
+  // Maliyet hesapla (merkezi dönüşüm fonksiyonu ile)
+  const hesaplaMaliyet = (miktar: number, birim: string, birimFiyat: number, anaBirim: string): number => {
+    const carpan = getDonusumCarpani(birim, anaBirim);
+    return miktar * carpan * birimFiyat;
   };
 
   // Malzeme ekle (modaldan)
@@ -567,12 +530,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       });
 
       if (result.success) {
-        const maliyet = hesaplaMaliyet(
-          miktarGirisi.miktar,
-          miktarGirisi.birim,
-          fiyat,
-          selectedStokKart.birim
-        );
+        const maliyet = hesaplaMaliyet(miktarGirisi.miktar, miktarGirisi.birim, fiyat, selectedStokKart.birim);
         notifications.show({
           message: `✅ ${selectedStokKart.urun_adi} (${miktarGirisi.miktar} ${miktarGirisi.birim}) = ₺${maliyet.toFixed(2)}`,
           color: 'green',
@@ -722,11 +680,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       return;
     }
 
-    if (
-      !confirm(
-        `${malzemesizReceteler.length} reçete için AI ile malzeme önerisi alınacak (hızlı mod). Devam?`
-      )
-    ) {
+    if (!confirm(`${malzemesizReceteler.length} reçete için AI ile malzeme önerisi alınacak (hızlı mod). Devam?`)) {
       return;
     }
 
@@ -798,10 +752,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           }, 90000);
         });
 
-        const result = await Promise.race([
-          menuPlanlamaAPI.batchAiMalzemeOneri(receteIds),
-          timeoutPromise,
-        ]);
+        const result = await Promise.race([menuPlanlamaAPI.batchAiMalzemeOneri(receteIds), timeoutPromise]);
 
         clearTimeout(timeoutId);
 
@@ -828,9 +779,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                     let urunKartId = mal.urun_kart_id;
 
                     if (!urunKartId) {
-                      const kategoriId = mal.kategori
-                        ? kategoriMap[mal.kategori.toLowerCase()] || 13
-                        : 13;
+                      const kategoriId = mal.kategori ? kategoriMap[mal.kategori.toLowerCase()] || 13 : 13;
 
                       const urunResult = await menuPlanlamaAPI.createUrunKarti({
                         ad: mal.malzeme_adi,
@@ -1111,8 +1060,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   };
 
   // Piyasa fiyatı olmayan malzemeler
-  const eksikFiyatlar =
-    selectedRecete?.malzemeler?.filter((m) => !m.piyasa_fiyat && !m.sistem_fiyat) || [];
+  const eksikFiyatlar = selectedRecete?.malzemeler?.filter((m) => !m.piyasa_fiyat && !m.sistem_fiyat) || [];
 
   // Mobilde reçete seçildiğinde detay görünümüne geç
   const handleReceteSecMobile = (id: number) => {
@@ -1141,19 +1089,12 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
               <IconArrowLeft size={20} />
             </ActionIcon>
           )}
-          <ThemeIcon
-            size="lg"
-            radius="xl"
-            variant="gradient"
-            gradient={{ from: 'orange', to: 'red' }}
-          >
+          <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'orange', to: 'red' }}>
             <IconBook2 size={20} />
           </ThemeIcon>
           <Box>
             <Text fw={600} size={isMobile && isMounted ? 'md' : 'lg'}>
-              {isMobile && isMounted && mobileView === 'detail'
-                ? 'Reçete Detay'
-                : 'Reçete Yönetimi'}
+              {isMobile && isMounted && mobileView === 'detail' ? 'Reçete Detay' : 'Reçete Yönetimi'}
             </Text>
             <Text size="xs" c="dimmed">
               Raf fiyatlarıyla entegre
@@ -1180,8 +1121,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           <Box
             style={{
               width: isMobile && isMounted ? '100%' : 320,
-              borderRight:
-                isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
+              borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
               display: 'flex',
               flexDirection: 'column',
               flex: isMobile && isMounted ? 1 : 'none',
@@ -1270,12 +1210,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
               {loading ? (
                 <LoadingState loading={true} message="Reçeteler yükleniyor..." />
               ) : receteler.length === 0 ? (
-                <EmptyState
-                  title="Reçete bulunamadı"
-                  compact
-                  icon={<IconBook2 size={32} />}
-                  iconColor="orange"
-                />
+                <EmptyState title="Reçete bulunamadı" compact icon={<IconBook2 size={32} />} iconColor="orange" />
               ) : (
                 <Stack gap={0}>
                   {receteler.map((recete) => {
@@ -1313,12 +1248,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           </Group>
                           <Menu shadow="md" width={130} position="bottom-end">
                             <Menu.Target>
-                              <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <ActionIcon variant="subtle" color="gray" size="sm" onClick={(e) => e.stopPropagation()}>
                                 <IconDotsVertical size={14} />
                               </ActionIcon>
                             </Menu.Target>
@@ -1384,10 +1314,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             ) : (
               <>
                 {/* Detay Header */}
-                <Box
-                  p="md"
-                  style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-                >
+                <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
                   <Group justify="space-between">
                     <Group gap="md">
                       <Text size="xl">{selectedRecete.kategori_ikon || '📋'}</Text>
@@ -1395,9 +1322,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                         {editMode ? (
                           <TextInput
                             value={editingRecete?.ad || ''}
-                            onChange={(e) =>
-                              setEditingRecete({ ...editingRecete, ad: e.target.value })
-                            }
+                            onChange={(e) => setEditingRecete({ ...editingRecete, ad: e.target.value })}
                             size="md"
                             fw={600}
                           />
@@ -1482,21 +1407,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                             selectedRecete.malzemeler?.reduce((toplam, m) => {
                               const faturaF = m.sistem_fiyat || 0;
                               const piyasaF = m.piyasa_fiyat || 0;
-                              const fiyat =
-                                faturaF && piyasaF
-                                  ? (faturaF + piyasaF) / 2
-                                  : piyasaF || faturaF || 0;
+                              const fiyat = faturaF && piyasaF ? (faturaF + piyasaF) / 2 : piyasaF || faturaF || 0;
                               const miktar = Number(m.miktar) || 0;
-                              const birimLower = (m.birim || '').toLowerCase();
-
-                              let maliyet = 0;
-                              if (['g', 'gr', 'ml'].includes(birimLower)) {
-                                maliyet = (miktar / 1000) * Number(fiyat);
-                              } else if (['kg', 'lt', 'l'].includes(birimLower)) {
-                                maliyet = miktar * Number(fiyat);
-                              } else {
-                                maliyet = miktar * Number(fiyat);
-                              }
+                              const carpan = getDonusumCarpani(m.birim || '', 'kg');
+                              const maliyet = miktar * carpan * Number(fiyat);
                               return toplam + maliyet;
                             }, 0) || 0;
 
@@ -1528,16 +1442,8 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           selectedRecete.malzemeler?.reduce((toplam, m) => {
                             const fiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
                             const miktar = Number(m.miktar) || 0;
-                            const birimLower = (m.birim || '').toLowerCase();
-
-                            let maliyet = 0;
-                            if (['g', 'gr', 'ml'].includes(birimLower)) {
-                              maliyet = (miktar / 1000) * Number(fiyat);
-                            } else if (['kg', 'lt', 'l'].includes(birimLower)) {
-                              maliyet = miktar * Number(fiyat);
-                            } else {
-                              maliyet = miktar * Number(fiyat);
-                            }
+                            const carpan = getDonusumCarpani(m.birim || '', 'kg');
+                            const maliyet = miktar * carpan * Number(fiyat);
                             return toplam + maliyet;
                           }, 0) || 0;
 
@@ -1592,10 +1498,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                       {getMaliyetBreakdown().length > 0 && (
                         <Box>
                           <Text size="sm" fw={500} mb="xs">
-                            <IconChartPie
-                              size={14}
-                              style={{ marginRight: 4, verticalAlign: 'middle' }}
-                            />
+                            <IconChartPie size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
                             Maliyet Dağılımı
                           </Text>
                           <Stack gap={4}>
@@ -1603,11 +1506,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                               .slice(0, 5)
                               .map((item) => (
                                 <Group key={item.ad} gap="xs" wrap="nowrap">
-                                  <Box
-                                    w={10}
-                                    h={10}
-                                    style={{ borderRadius: 2, background: item.renk }}
-                                  />
+                                  <Box w={10} h={10} style={{ borderRadius: 2, background: item.renk }} />
                                   <Text size="xs" style={{ flex: 1 }} truncate>
                                     {item.ad}
                                   </Text>
@@ -1631,11 +1530,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
                     {/* Eksik Fiyat Uyarısı */}
                     {eksikFiyatlar.length > 0 && (
-                      <Alert
-                        color="yellow"
-                        icon={<IconAlertCircle size={16} />}
-                        title="Eksik Raf Fiyatı"
-                      >
+                      <Alert color="yellow" icon={<IconAlertCircle size={16} />} title="Eksik Raf Fiyatı">
                         <Text size="sm">
                           {eksikFiyatlar.length} malzemenin raf fiyatı yok:{' '}
                           {eksikFiyatlar.map((m) => m.malzeme_adi).join(', ')}
@@ -1649,10 +1544,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                     <Box>
                       <Group justify="space-between" mb="sm">
                         <Text fw={600}>
-                          <IconScale
-                            size={18}
-                            style={{ marginRight: 8, verticalAlign: 'middle' }}
-                          />
+                          <IconScale size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
                           Malzemeler ({selectedRecete.malzemeler?.length || 0})
                         </Text>
                         <Group gap="xs">
@@ -1696,14 +1588,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                             // Maliyet hesapla
                             let fiyat = 0;
                             if (m.stok_kart_id) {
-                              const stokKart = piyasaUrunleri.find(
-                                (s) => s.stok_kart_id === m.stok_kart_id
-                              );
-                              if (stokKart && stokKart.son_sistem_fiyat > 0)
-                                fiyat = stokKart.son_sistem_fiyat;
+                              const stokKart = piyasaUrunleri.find((s) => s.stok_kart_id === m.stok_kart_id);
+                              if (stokKart && stokKart.son_sistem_fiyat > 0) fiyat = stokKart.son_sistem_fiyat;
                             }
-                            if (fiyat <= 0)
-                              fiyat = m.birim_fiyat || m.piyasa_fiyat || m.sistem_fiyat || 0;
+                            if (fiyat <= 0) fiyat = m.birim_fiyat || m.piyasa_fiyat || m.sistem_fiyat || 0;
 
                             const miktar = Number(m.miktar) || 0;
                             const birimLower = (m.birim || '').toLowerCase();
@@ -1735,9 +1623,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                 >
                                   <Group justify="space-between" wrap="wrap">
                                     <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                                      <Text size="lg">
-                                        {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
-                                      </Text>
+                                      <Text size="lg">{getMalzemeIcon(m.urun_adi || m.malzeme_adi)}</Text>
                                       <Text fw={600} size="sm">
                                         {m.urun_adi || m.malzeme_adi}
                                       </Text>
@@ -1776,9 +1662,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                           value={editingMalzemeData?.birim_fiyat || ''}
                                           onChange={(val) =>
                                             setEditingMalzemeData((prev) =>
-                                              prev
-                                                ? { ...prev, birim_fiyat: Number(val) || null }
-                                                : prev
+                                              prev ? { ...prev, birim_fiyat: Number(val) || null } : prev
                                             )
                                           }
                                           size="sm"
@@ -1832,9 +1716,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                               >
                                 <Group justify="space-between" wrap="wrap">
                                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                                    <Text size="lg">
-                                      {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
-                                    </Text>
+                                    <Text size="lg">{getMalzemeIcon(m.urun_adi || m.malzeme_adi)}</Text>
                                     <Text fw={500} size="sm">
                                       {m.urun_adi || m.malzeme_adi}
                                     </Text>
@@ -1957,9 +1839,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                         </Text>
                         <Textarea
                           value={editingRecete?.tarif || ''}
-                          onChange={(e) =>
-                            setEditingRecete({ ...editingRecete, tarif: e.target.value })
-                          }
+                          onChange={(e) => setEditingRecete({ ...editingRecete, tarif: e.target.value })}
                           minRows={4}
                           placeholder="Tarif açıklaması..."
                         />
@@ -2015,9 +1895,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                 label: `${k.ikon} ${k.ad}`,
               }))}
               value={yeniRecete.kategori_id?.toString() || null}
-              onChange={(val) =>
-                setYeniRecete({ ...yeniRecete, kategori_id: val ? parseInt(val, 10) : null })
-              }
+              onChange={(val) => setYeniRecete({ ...yeniRecete, kategori_id: val ? parseInt(val, 10) : null })}
               required
             />
           </SimpleGrid>
@@ -2026,17 +1904,13 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             <NumberInput
               label="Porsiyon (gr)"
               value={yeniRecete.porsiyon_miktar}
-              onChange={(val) =>
-                setYeniRecete({ ...yeniRecete, porsiyon_miktar: Number(val) || 1 })
-              }
+              onChange={(val) => setYeniRecete({ ...yeniRecete, porsiyon_miktar: Number(val) || 1 })}
               min={1}
             />
             <NumberInput
               label="Hazırlık Süresi (dk)"
               value={yeniRecete.hazirlik_suresi}
-              onChange={(val) =>
-                setYeniRecete({ ...yeniRecete, hazirlik_suresi: Number(val) || 0 })
-              }
+              onChange={(val) => setYeniRecete({ ...yeniRecete, hazirlik_suresi: Number(val) || 0 })}
               min={0}
             />
             <NumberInput
@@ -2059,11 +1933,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             <Button variant="light" color="gray" onClick={() => setShowYeniRecete(false)}>
               İptal
             </Button>
-            <Button
-              variant="gradient"
-              gradient={{ from: 'orange', to: 'red' }}
-              onClick={handleYeniReceteOlustur}
-            >
+            <Button variant="gradient" gradient={{ from: 'orange', to: 'red' }} onClick={handleYeniReceteOlustur}>
               Oluştur
             </Button>
           </Group>
@@ -2108,11 +1978,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             <ScrollArea h={350} offsetScrollbars>
               <Stack gap="xs">
                 {piyasaUrunleri
-                  .filter(
-                    (u) =>
-                      stokKartArama === '' ||
-                      u.urun_adi.toLowerCase().includes(stokKartArama.toLowerCase())
-                  )
+                  .filter((u) => stokKartArama === '' || u.urun_adi.toLowerCase().includes(stokKartArama.toLowerCase()))
                   .slice(0, 20)
                   .map((stokKart) => {
                     const fiyat = Number(stokKart.son_sistem_fiyat) || 0;
@@ -2149,16 +2015,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                   })}
 
                 {stokKartArama &&
-                  piyasaUrunleri.filter((u) =>
-                    u.urun_adi.toLowerCase().includes(stokKartArama.toLowerCase())
-                  ).length === 0 && (
-                    <Paper
-                      p="xl"
-                      withBorder
-                      radius="md"
-                      ta="center"
-                      bg="var(--mantine-color-gray-0)"
-                    >
+                  piyasaUrunleri.filter((u) => u.urun_adi.toLowerCase().includes(stokKartArama.toLowerCase()))
+                    .length === 0 && (
+                    <Paper p="xl" withBorder radius="md" ta="center" bg="var(--mantine-color-gray-0)">
                       <Text c="dimmed" mb="xs">
                         "{stokKartArama}" bulunamadı
                       </Text>
@@ -2283,10 +2142,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       </Modal>
 
       {/* Ürün Kartları Modal */}
-      <UrunKartlariModal
-        opened={urunKartlariModalOpened}
-        onClose={() => setUrunKartlariModalOpened(false)}
-      />
+      <UrunKartlariModal opened={urunKartlariModalOpened} onClose={() => setUrunKartlariModalOpened(false)} />
     </Modal>
   );
 }

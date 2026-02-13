@@ -3,6 +3,10 @@
  * Tüm yapılandırmaları tek noktadan export eder
  */
 
+import { aiConfig } from './ai.config.js';
+import { scraperConfig } from './scraper.config.js';
+import { storageConfig } from './storage.config.js';
+
 export { aiConfig, default as aiConfigDefault } from './ai.config.js';
 export { default as scraperConfigDefault, scraperConfig } from './scraper.config.js';
 export { default as storageConfigDefault, storageConfig } from './storage.config.js';
@@ -10,13 +14,13 @@ export { default as storageConfigDefault, storageConfig } from './storage.config
 // Convenience: tüm config'leri tek objede topla
 export const config = {
   get scraper() {
-    return require('./scraper.config.js').scraperConfig;
+    return scraperConfig;
   },
   get ai() {
-    return require('./ai.config.js').aiConfig;
+    return aiConfig;
   },
   get storage() {
-    return require('./storage.config.js').storageConfig;
+    return storageConfig;
   },
 };
 

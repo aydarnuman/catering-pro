@@ -44,11 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  DashboardStats,
-  SektorGundemiPanel,
-  YukleniciModal,
-} from '@/components/yuklenici-kutuphanesi';
+import { DashboardStats, SektorGundemiPanel, YukleniciModal } from '@/components/yuklenici-kutuphanesi';
 import { BildirimListesi } from '@/components/yuklenici-kutuphanesi/istihbarat/BildirimListesi';
 import { getApiUrl } from '@/lib/config';
 import type { ScrapeStatus, SortField, StatsData, Yuklenici } from '@/types/yuklenici';
@@ -135,16 +131,7 @@ export default function YukleniciKutuphanesiPage() {
     } finally {
       setLoading(false);
     }
-  }, [
-    page,
-    sortField,
-    sortDir,
-    debouncedSearch,
-    takipteFilter,
-    filterSehir,
-    filterEtiketler,
-    mFetch,
-  ]);
+  }, [page, sortField, sortDir, debouncedSearch, takipteFilter, filterSehir, filterEtiketler, mFetch]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -286,12 +273,9 @@ export default function YukleniciKutuphanesiPage() {
   const totalYuklenici = stats?.genel?.toplam_yuklenici || '0';
 
   // Aktif filtre sayisi
-  const activeFilterCount = [
-    takipteFilter,
-    !!filterSehir,
-    filterEtiketler.length > 0,
-    !!debouncedSearch,
-  ].filter(Boolean).length;
+  const activeFilterCount = [takipteFilter, !!filterSehir, filterEtiketler.length > 0, !!debouncedSearch].filter(
+    Boolean
+  ).length;
 
   const clearAllFilters = () => {
     setSearch('');
@@ -422,9 +406,7 @@ export default function YukleniciKutuphanesiPage() {
           </Group>
           <Progress
             value={
-              scrapeStatus.progress.total > 0
-                ? (scrapeStatus.progress.current / scrapeStatus.progress.total) * 100
-                : 0
+              scrapeStatus.progress.total > 0 ? (scrapeStatus.progress.current / scrapeStatus.progress.total) * 100 : 0
             }
             size="sm"
           />
@@ -615,13 +597,7 @@ export default function YukleniciKutuphanesiPage() {
                       textTransform: 'uppercase',
                     }}
                     onClick={() => toggleSort(field)}
-                    aria-sort={
-                      sortField === field
-                        ? sortDir === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : 'none'
-                    }
+                    aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   >
                     <Group gap={4} wrap="nowrap">
                       {label} <SortIcon field={field} />
@@ -648,9 +624,7 @@ export default function YukleniciKutuphanesiPage() {
                     textTransform: 'uppercase',
                   }}
                   onClick={() => toggleSort('puan')}
-                  aria-sort={
-                    sortField === 'puan' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
-                  }
+                  aria-sort={sortField === 'puan' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
                   <Group gap={4} wrap="nowrap">
                     Puan <SortIcon field="puan" />
@@ -686,41 +660,31 @@ export default function YukleniciKutuphanesiPage() {
                           justifyContent: 'center',
                         }}
                       >
-                        <IconUsers
-                          size={32}
-                          style={{ color: 'var(--yk-gold)', opacity: 0.6 }}
-                          stroke={1.5}
-                        />
+                        <IconUsers size={32} style={{ color: 'var(--yk-gold)', opacity: 0.6 }} stroke={1.5} />
                       </div>
                       <Text size="lg" fw={500} c="dimmed">
                         Yuklenici bulunamadi
                       </Text>
                       <Text size="sm" c="dimmed">
-                        {debouncedSearch ||
-                        takipteFilter ||
-                        filterSehir ||
-                        filterEtiketler.length > 0
+                        {debouncedSearch || takipteFilter || filterSehir || filterEtiketler.length > 0
                           ? 'Farkli filtrelerle tekrar deneyin'
                           : "ihalebul.com'dan yuklenici verisi cekin"}
                       </Text>
-                      {!debouncedSearch &&
-                        !takipteFilter &&
-                        !filterSehir &&
-                        filterEtiketler.length === 0 && (
-                          <Button
-                            size="sm"
-                            leftSection={<IconDatabase size={16} />}
-                            onClick={startScrape}
-                            mt="xs"
-                            style={{
-                              background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)',
-                              color: '#000',
-                              border: 'none',
-                            }}
-                          >
-                            ihalebul.com&apos;dan Cek
-                          </Button>
-                        )}
+                      {!debouncedSearch && !takipteFilter && !filterSehir && filterEtiketler.length === 0 && (
+                        <Button
+                          size="sm"
+                          leftSection={<IconDatabase size={16} />}
+                          onClick={startScrape}
+                          mt="xs"
+                          style={{
+                            background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)',
+                            color: '#000',
+                            border: 'none',
+                          }}
+                        >
+                          ihalebul.com&apos;dan Cek
+                        </Button>
+                      )}
                       {activeFilterCount > 0 && (
                         <Button
                           size="sm"
@@ -846,11 +810,7 @@ export default function YukleniciKutuphanesiPage() {
                                 color: yk.takipte ? 'var(--yk-gold)' : 'var(--yk-text-secondary)',
                               }}
                             >
-                              {yk.takipte ? (
-                                <IconBookmarkFilled size={16} />
-                              ) : (
-                                <IconBookmark size={16} />
-                              )}
+                              {yk.takipte ? <IconBookmarkFilled size={16} /> : <IconBookmark size={16} />}
                             </ActionIcon>
                           </Tooltip>
                           {yk.ihalebul_url && (
@@ -883,9 +843,7 @@ export default function YukleniciKutuphanesiPage() {
               ? `${(page - 1) * 20 + 1}–${Math.min(page * 20, totalCount)} / ${totalCount} yuklenici`
               : ''}
           </Text>
-          {totalPages > 1 && (
-            <Pagination total={totalPages} value={page} onChange={setPage} size="sm" />
-          )}
+          {totalPages > 1 && <Pagination total={totalPages} value={page} onChange={setPage} size="sm" />}
         </Group>
       </Paper>
 

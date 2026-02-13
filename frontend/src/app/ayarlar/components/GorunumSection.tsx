@@ -24,11 +24,7 @@ interface GorunumSectionProps {
   setPreferencesLocal: (prefs: UserPreferences) => void;
 }
 
-export default function GorunumSection({
-  preferences,
-  savePreferences,
-  setPreferencesLocal,
-}: GorunumSectionProps) {
+export default function GorunumSection({ preferences, savePreferences, setPreferencesLocal }: GorunumSectionProps) {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
 
   const handleThemeChange = (value: string) => {
@@ -102,9 +98,7 @@ export default function GorunumSection({
         title="Ana Renk"
         rightAction={
           <ColorSwatch
-            color={
-              colorOptions.find((c) => c.value === preferences.accentColor)?.color || '#228be6'
-            }
+            color={colorOptions.find((c) => c.value === preferences.accentColor)?.color || '#228be6'}
             size={20}
           />
         }

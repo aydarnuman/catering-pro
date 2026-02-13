@@ -144,30 +144,12 @@ export function EmptyState({
  */
 
 /** Genel "veri yok" mesajı */
-export function EmptyData({
-  message,
-  action,
-}: {
-  message?: string;
-  action?: EmptyStateProps['action'];
-}) {
-  return (
-    <EmptyState
-      title={message || 'Veri bulunamadı'}
-      description="Henüz kayıt eklenmemiş"
-      action={action}
-    />
-  );
+export function EmptyData({ message, action }: { message?: string; action?: EmptyStateProps['action'] }) {
+  return <EmptyState title={message || 'Veri bulunamadı'} description="Henüz kayıt eklenmemiş" action={action} />;
 }
 
 /** Liste boş */
-export function EmptyList({
-  itemName,
-  action,
-}: {
-  itemName?: string;
-  action?: EmptyStateProps['action'];
-}) {
+export function EmptyList({ itemName, action }: { itemName?: string; action?: EmptyStateProps['action'] }) {
   return (
     <EmptyState
       title={`Henüz ${itemName || 'kayıt'} yok`}
@@ -179,13 +161,7 @@ export function EmptyList({
 }
 
 /** Arama sonucu bulunamadı */
-export function EmptySearch({
-  query,
-  action,
-}: {
-  query?: string;
-  action?: EmptyStateProps['action'];
-}) {
+export function EmptySearch({ query, action }: { query?: string; action?: EmptyStateProps['action'] }) {
   return (
     <EmptyState
       title={query ? `"${query}" için sonuç bulunamadı` : 'Arama sonucu bulunamadı'}

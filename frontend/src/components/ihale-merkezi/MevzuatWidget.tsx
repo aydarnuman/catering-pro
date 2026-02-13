@@ -167,15 +167,13 @@ export function MevzuatWidget() {
     {
       ad: 'Aşırı Düşük Oran (Yemek İhalesi)',
       formul: '(Ana Çiğ Girdi + İşçilik) / Toplam Teklif',
-      aciklama:
-        'Hesaplanan oran 0.80 - 0.95 aralığında olmalıdır. Bu aralık dışındaki teklifler reddedilir.',
+      aciklama: 'Hesaplanan oran 0.80 - 0.95 aralığında olmalıdır. Bu aralık dışındaki teklifler reddedilir.',
       ornek: 'Örn: Ana girdi=4M, İşçilik=500K, Toplam=5M → Oran=0.90 ✓',
     },
     {
       ad: 'Personel Çalıştırılmasına Dayalı Hizmet',
       formul: 'SD = Kar Hariç Yaklaşık Maliyet',
-      aciklama:
-        'Personel çalıştırılmasına dayalı hizmet alımlarında sınır değer, kar hariç yaklaşık maliyete eşittir.',
+      aciklama: 'Personel çalıştırılmasına dayalı hizmet alımlarında sınır değer, kar hariç yaklaşık maliyete eşittir.',
     },
   ];
 
@@ -274,9 +272,7 @@ export function MevzuatWidget() {
               <Accordion variant="separated" defaultValue="canli-gundem">
                 {/* Canlı Sektör Gündemi */}
                 <Accordion.Item value="canli-gundem">
-                  <Accordion.Control
-                    icon={<IconTrendingUp size={18} color="var(--mantine-color-blue-6)" />}
-                  >
+                  <Accordion.Control icon={<IconTrendingUp size={18} color="var(--mantine-color-blue-6)" />}>
                     <Group gap="xs">
                       Canlı Sektör Gündemi
                       {gundem && gundem.konular.length > 0 && (
@@ -332,10 +328,7 @@ export function MevzuatWidget() {
                                       gap: 4,
                                     }}
                                   >
-                                    <IconExternalLink
-                                      size={11}
-                                      style={{ flexShrink: 0, marginTop: 2 }}
-                                    />
+                                    <IconExternalLink size={11} style={{ flexShrink: 0, marginTop: 2 }} />
                                     <Text size="xs" lineClamp={2} inherit>
                                       {haber.baslik}
                                     </Text>
@@ -375,9 +368,7 @@ export function MevzuatWidget() {
 
                 {/* Güncel Değerler */}
                 <Accordion.Item value="guncel">
-                  <Accordion.Control
-                    icon={<IconInfoCircle size={18} color="var(--mantine-color-teal-6)" />}
-                  >
+                  <Accordion.Control icon={<IconInfoCircle size={18} color="var(--mantine-color-teal-6)" />}>
                     Güncel Değerler (2026)
                   </Accordion.Control>
                   <Accordion.Panel>
@@ -415,17 +406,11 @@ export function MevzuatWidget() {
                         <Stack gap={4}>
                           <Group justify="space-between">
                             <Text size="xs">Mal/Hizmet (Genel):</Text>
-                            <CopyButton
-                              value={String(
-                                guncelDegerler?.esik_degerler?.mal_hizmet_genel || 18734124
-                              )}
-                            >
+                            <CopyButton value={String(guncelDegerler?.esik_degerler?.mal_hizmet_genel || 18734124)}>
                               {({ copied, copy }) => (
                                 <Group gap={4}>
                                   <Text size="xs" fw={500}>
-                                    {formatMoney(
-                                      guncelDegerler?.esik_degerler?.mal_hizmet_genel || 18734124
-                                    )}
+                                    {formatMoney(guncelDegerler?.esik_degerler?.mal_hizmet_genel || 18734124)}
                                   </Text>
                                   <ActionIcon size="xs" variant="subtle" onClick={copy}>
                                     {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
@@ -437,9 +422,7 @@ export function MevzuatWidget() {
                           <Group justify="space-between">
                             <Text size="xs">Doğrudan Temin (Büyükşehir):</Text>
                             <Text size="xs" fw={500}>
-                              {formatMoney(
-                                guncelDegerler?.esik_degerler?.dogrudan_temin_buyuksehir || 1021827
-                              )}
+                              {formatMoney(guncelDegerler?.esik_degerler?.dogrudan_temin_buyuksehir || 1021827)}
                             </Text>
                           </Group>
                         </Stack>
@@ -467,9 +450,7 @@ export function MevzuatWidget() {
 
                 {/* Formüller */}
                 <Accordion.Item value="formuller">
-                  <Accordion.Control
-                    icon={<IconCalculator size={18} color="var(--mantine-color-violet-6)" />}
-                  >
+                  <Accordion.Control icon={<IconCalculator size={18} color="var(--mantine-color-violet-6)" />}>
                     Formüller & Hesaplamalar
                   </Accordion.Control>
                   <Accordion.Panel>
@@ -500,9 +481,7 @@ export function MevzuatWidget() {
 
                 {/* Mevzuat Özeti */}
                 <Accordion.Item value="mevzuat">
-                  <Accordion.Control
-                    icon={<IconScale size={18} color="var(--mantine-color-orange-6)" />}
-                  >
+                  <Accordion.Control icon={<IconScale size={18} color="var(--mantine-color-orange-6)" />}>
                     Mevzuat Özeti
                   </Accordion.Control>
                   <Accordion.Panel>
@@ -531,16 +510,14 @@ export function MevzuatWidget() {
 
                 {/* KİK Emsal */}
                 <Accordion.Item value="emsal">
-                  <Accordion.Control
-                    icon={<IconGavel size={18} color="var(--mantine-color-red-6)" />}
-                  >
+                  <Accordion.Control icon={<IconGavel size={18} color="var(--mantine-color-red-6)" />}>
                     KİK Emsal Kararlar
                   </Accordion.Control>
                   <Accordion.Panel>
                     <Stack gap="sm">
                       <Text size="xs" c="dimmed">
-                        KİK Emsal Karar Arama Motoru ile yemek ihalesi, hizmet alımı ve catering
-                        konularında emsal kararları arayabilirsiniz.
+                        KİK Emsal Karar Arama Motoru ile yemek ihalesi, hizmet alımı ve catering konularında emsal
+                        kararları arayabilirsiniz.
                       </Text>
                       <Group gap="xs">
                         <Button
@@ -588,10 +565,7 @@ export function MevzuatWidget() {
                                     gap: 4,
                                   }}
                                 >
-                                  <IconExternalLink
-                                    size={11}
-                                    style={{ flexShrink: 0, marginTop: 2 }}
-                                  />
+                                  <IconExternalLink size={11} style={{ flexShrink: 0, marginTop: 2 }} />
                                   <Text size="xs" lineClamp={2} inherit>
                                     {h.baslik}
                                   </Text>
@@ -606,9 +580,7 @@ export function MevzuatWidget() {
 
                 {/* Yeni Başlayanlar İçin */}
                 <Accordion.Item value="rehber">
-                  <Accordion.Control
-                    icon={<IconBook size={18} color="var(--mantine-color-green-6)" />}
-                  >
+                  <Accordion.Control icon={<IconBook size={18} color="var(--mantine-color-green-6)" />}>
                     Yeni Başlayanlar İçin Rehber
                   </Accordion.Control>
                   <Accordion.Panel>

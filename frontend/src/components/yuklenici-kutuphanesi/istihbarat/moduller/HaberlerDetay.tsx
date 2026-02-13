@@ -62,10 +62,7 @@ function getDomain(url: string): string {
 }
 
 export function HaberlerDetay({ veri, havuzVeri }: Props) {
-  if (!veri)
-    return (
-      <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak haber taraması yapabilirsiniz.</Text>
-    );
+  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak haber taraması yapabilirsiniz.</Text>;
 
   const haberler = (veri.haberler as Array<Record<string, unknown>>) || [];
   const kikKararlari = (veri.kik_kararlari as Array<Record<string, unknown>>) || [];
@@ -78,9 +75,7 @@ export function HaberlerDetay({ veri, havuzVeri }: Props) {
   if (toplam === 0) {
     return (
       <Stack gap="sm">
-        <Text c="dimmed">
-          {aramaMetni ? `"${aramaMetni}" araması için sonuç bulunamadı.` : 'Sonuç bulunamadı.'}
-        </Text>
+        <Text c="dimmed">{aramaMetni ? `"${aramaMetni}" araması için sonuç bulunamadı.` : 'Sonuç bulunamadı.'}</Text>
         <Text size="xs" c="dimmed">
           Bu firma hakkında güncel web kaynağı veya KİK kararı bulunamadı.
         </Text>
@@ -147,9 +142,7 @@ export function HaberlerDetay({ veri, havuzVeri }: Props) {
                         KİK
                       </Badge>
                       <Text size="sm" lineClamp={1}>
-                        {karar.ozet
-                          ? stripHtml(String(karar.ozet)).substring(0, 120)
-                          : 'KİK Kararı'}
+                        {karar.ozet ? stripHtml(String(karar.ozet)).substring(0, 120) : 'KİK Kararı'}
                       </Text>
                     </Group>
                   </Accordion.Control>
@@ -204,17 +197,9 @@ export function HaberlerDetay({ veri, havuzVeri }: Props) {
                   <Group justify="space-between" wrap="nowrap" mb={4}>
                     <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
                       {haber.link ? (
-                        <Anchor
-                          href={String(haber.link)}
-                          target="_blank"
-                          underline="hover"
-                          c="inherit"
-                        >
+                        <Anchor href={String(haber.link)} target="_blank" underline="hover" c="inherit">
                           {String(haber.baslik)}
-                          <IconExternalLink
-                            size={12}
-                            style={{ marginLeft: 4, verticalAlign: 'middle' }}
-                          />
+                          <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
                         </Anchor>
                       ) : (
                         String(haber.baslik)
@@ -251,64 +236,58 @@ export function HaberlerDetay({ veri, havuzVeri }: Props) {
       )}
 
       {/* Veri Havuzundan ek haber bulguları */}
-      {havuzVeri?.web_istihbarat?.haber_sonuclari &&
-        havuzVeri.web_istihbarat.haber_sonuclari.length > 0 && (
-          <Box>
-            <Divider my="xs" />
-            <Group gap="xs" mb="xs">
-              <ThemeIcon size="sm" variant="light" color="indigo">
-                <IconWorld size={12} />
-              </ThemeIcon>
-              <Title order={6}>
-                Ek Web Haberleri ({havuzVeri.web_istihbarat.haber_sonuclari.length})
-              </Title>
-              <Badge size="xs" variant="light" color="indigo">
-                Veri Havuzu
-              </Badge>
-            </Group>
+      {havuzVeri?.web_istihbarat?.haber_sonuclari && havuzVeri.web_istihbarat.haber_sonuclari.length > 0 && (
+        <Box>
+          <Divider my="xs" />
+          <Group gap="xs" mb="xs">
+            <ThemeIcon size="sm" variant="light" color="indigo">
+              <IconWorld size={12} />
+            </ThemeIcon>
+            <Title order={6}>Ek Web Haberleri ({havuzVeri.web_istihbarat.haber_sonuclari.length})</Title>
+            <Badge size="xs" variant="light" color="indigo">
+              Veri Havuzu
+            </Badge>
+          </Group>
 
-            {havuzVeri.web_istihbarat.haber_ozet && (
-              <Card withBorder radius="md" p="sm" bg="indigo.0" mb="xs">
-                <Text size="xs" fw={600} c="indigo.8" mb={4}>
-                  Haber Özeti (Tavily)
-                </Text>
-                <Text size="sm" c="indigo.9">
-                  {havuzVeri.web_istihbarat.haber_ozet}
-                </Text>
-              </Card>
-            )}
+          {havuzVeri.web_istihbarat.haber_ozet && (
+            <Card withBorder radius="md" p="sm" bg="indigo.0" mb="xs">
+              <Text size="xs" fw={600} c="indigo.8" mb={4}>
+                Haber Özeti (Tavily)
+              </Text>
+              <Text size="sm" c="indigo.9">
+                {havuzVeri.web_istihbarat.haber_ozet}
+              </Text>
+            </Card>
+          )}
 
-            <Stack gap="xs">
-              {havuzVeri.web_istihbarat.haber_sonuclari.map((item, i) => (
-                <Paper key={item.url || `havuz-haber-${i}`} withBorder p="sm" radius="sm">
-                  <Group justify="space-between" wrap="nowrap" mb={4}>
-                    <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
-                      {item.url ? (
-                        <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
-                          {item.title || 'Web kaynağı'}
-                          <IconExternalLink
-                            size={12}
-                            style={{ marginLeft: 4, verticalAlign: 'middle' }}
-                          />
-                        </Anchor>
-                      ) : (
-                        item.title || 'Web kaynağı'
-                      )}
-                    </Text>
-                  </Group>
-                  {item.content && (
-                    <Text size="xs" c="dimmed" lineClamp={3} mb={4}>
-                      {item.content}
-                    </Text>
-                  )}
-                  <Badge size="xs" variant="outline" color="gray">
-                    {getDomain(item.url)}
-                  </Badge>
-                </Paper>
-              ))}
-            </Stack>
-          </Box>
-        )}
+          <Stack gap="xs">
+            {havuzVeri.web_istihbarat.haber_sonuclari.map((item, i) => (
+              <Paper key={item.url || `havuz-haber-${i}`} withBorder p="sm" radius="sm">
+                <Group justify="space-between" wrap="nowrap" mb={4}>
+                  <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
+                    {item.url ? (
+                      <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
+                        {item.title || 'Web kaynağı'}
+                        <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
+                      </Anchor>
+                    ) : (
+                      item.title || 'Web kaynağı'
+                    )}
+                  </Text>
+                </Group>
+                {item.content && (
+                  <Text size="xs" c="dimmed" lineClamp={3} mb={4}>
+                    {item.content}
+                  </Text>
+                )}
+                <Badge size="xs" variant="outline" color="gray">
+                  {getDomain(item.url)}
+                </Badge>
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
+      )}
 
       {/* Son tarama zamanı */}
       {sorgulamaTarihi && (

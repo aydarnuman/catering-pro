@@ -46,12 +46,9 @@ export function PdfRaporButonu({ yukleniciId, yukleniciAdi }: Props) {
       for (const m of moduller) {
         if (m.durum === 'tamamlandi') {
           try {
-            const vRes = await fetch(
-              getApiUrl(`/contractors/${yukleniciId}/modul/${m.modul}/veri`),
-              {
-                credentials: 'include',
-              }
-            );
+            const vRes = await fetch(getApiUrl(`/contractors/${yukleniciId}/modul/${m.modul}/veri`), {
+              credentials: 'include',
+            });
             const vJson = await vRes.json();
             if (vJson.success) {
               detaylar[m.modul] = vJson.data;
@@ -122,12 +119,7 @@ export function PdfRaporButonu({ yukleniciId, yukleniciAdi }: Props) {
   }
 
   return (
-    <Button
-      variant="light"
-      color="red"
-      leftSection={<IconFileTypePdf size={16} />}
-      onClick={raporOlustur}
-    >
+    <Button variant="light" color="red" leftSection={<IconFileTypePdf size={16} />} onClick={raporOlustur}>
       PDF Rapor
     </Button>
   );
@@ -162,9 +154,7 @@ function buildRaporHTML(
 
   // Fiyat tahmini bölümü
   const fiyatBolum =
-    fiyatTahmin && (fiyatTahmin as Record<string, unknown>).yeterli_veri
-      ? renderFiyatTahmin(fiyatTahmin)
-      : '';
+    fiyatTahmin && (fiyatTahmin as Record<string, unknown>).yeterli_veri ? renderFiyatTahmin(fiyatTahmin) : '';
 
   return `<!DOCTYPE html>
 <html lang="tr">
@@ -223,11 +213,7 @@ function buildRaporHTML(
 </html>`;
 }
 
-function renderModulBolum(
-  modul: string,
-  veri: Record<string, unknown>,
-  sonGuncelleme: string | null
-): string {
+function renderModulBolum(modul: string, veri: Record<string, unknown>, sonGuncelleme: string | null): string {
   const baslik = MODUL_BASLIKLAR[modul] || modul;
   const tarih = sonGuncelleme ? new Date(sonGuncelleme).toLocaleDateString('tr-TR') : '';
 
@@ -243,10 +229,7 @@ function renderModulBolum(
         icerik +=
           '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Durum</th><th>Sözleşme Bedeli</th><th>Yaklaşık Maliyet</th><th>İndirim</th><th>Teklif</th><th>Tarih</th></tr>';
         ihaleler.slice(0, 30).forEach((i) => {
-          const fesih =
-            i.fesih_durumu && i.fesih_durumu !== 'yok'
-              ? ` <span class="badge badge-red">Fesih</span>`
-              : '';
+          const fesih = i.fesih_durumu && i.fesih_durumu !== 'yok' ? ` <span class="badge badge-red">Fesih</span>` : '';
           icerik += `<tr>
             <td>${escapeHtml(String(i.ihale_basligi || i.ihale_adi || '-'))}${fesih}</td>
             <td>${escapeHtml(String(i.kurum_adi || '-'))}</td>
@@ -294,11 +277,9 @@ function renderModulBolum(
         if (devamEden?.sayi) kartlar.push(['Devam Eden', String(devamEden.sayi)]);
         if (toplam?.tutar) kartlar.push(['Toplam Sözleşme', formatNum(toplam.tutar as number)]);
         if (yillik?.tutar) kartlar.push(['Yıllık Ortalama', formatNum(yillik.tutar as number)]);
-        if (isBitirme?.tutar)
-          kartlar.push(['İş Bitirme (5 Yıl)', formatNum(isBitirme.tutar as number)]);
+        if (isBitirme?.tutar) kartlar.push(['İş Bitirme (5 Yıl)', formatNum(isBitirme.tutar as number)]);
         if (tenzilat?.yuzde) kartlar.push(['Ort. Tenzilat', `%${tenzilat.yuzde}`]);
-        if (ozet.ort_sozlesme_suresi_gun)
-          kartlar.push(['Ort. Süre', `${ozet.ort_sozlesme_suresi_gun} gün`]);
+        if (ozet.ort_sozlesme_suresi_gun) kartlar.push(['Ort. Süre', `${ozet.ort_sozlesme_suresi_gun} gün`]);
         if (ozet.ilk_sozlesme) kartlar.push(['İlk Sözleşme', String(ozet.ilk_sozlesme)]);
         if (ozet.son_sozlesme) kartlar.push(['Son Sözleşme', String(ozet.son_sozlesme)]);
 
@@ -412,12 +393,10 @@ function renderModulBolum(
     case 'kik_kararlari': {
       const kararlar = (veri.kararlar as Array<Record<string, unknown>>) || [];
       if (kararlar.length === 0) {
-        icerik =
-          '<p class="badge badge-green">KİK kararı bulunamadı — bu olumlu bir işaret olabilir.</p>';
+        icerik = '<p class="badge badge-green">KİK kararı bulunamadı — bu olumlu bir işaret olabilir.</p>';
       } else {
         icerik = `<p><strong>${kararlar.length}</strong> KİK kararı bulundu</p>`;
-        icerik +=
-          '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Bedel</th><th>Tarih</th></tr>';
+        icerik += '<table><tr><th>İhale</th><th>Kurum</th><th>Şehir</th><th>Bedel</th><th>Tarih</th></tr>';
         kararlar.forEach((k) => {
           const kararTarih = (k.sozlesme_tarihi || k.created_at) as string | undefined;
           icerik += `<tr>
@@ -442,8 +421,7 @@ function renderModulBolum(
       if (yasakliMi) {
         icerik = `<p class="badge badge-red">DİKKAT: YASAKLI FİRMA — ${sonuclar.length} kayıt tespit edildi</p>`;
         if (sonuclar.length > 0) {
-          icerik +=
-            '<table><tr><th>Firma</th><th>Yasaklama Tarihi</th><th>Süre</th><th>Neden</th></tr>';
+          icerik += '<table><tr><th>Firma</th><th>Yasaklama Tarihi</th><th>Süre</th><th>Neden</th></tr>';
           sonuclar.forEach((s) => {
             icerik += `<tr>
               <td>${escapeHtml(s.firma_adi || '-')}</td>
@@ -455,8 +433,7 @@ function renderModulBolum(
           icerik += '</table>';
         }
       } else {
-        icerik =
-          '<p class="badge badge-green">Yasaklı değil — EKAP yasaklılar listesinde bulunamadı.</p>';
+        icerik = '<p class="badge badge-green">Yasaklı değil — EKAP yasaklılar listesinde bulunamadı.</p>';
       }
       if (not) icerik += `<p style="font-size:11px;color:#888;">${escapeHtml(not)}</p>`;
       break;
@@ -510,8 +487,7 @@ function renderModulBolum(
         icerik = '<p>Haber bulunamadı.</p>';
       } else {
         icerik = `<p><strong>${toplam}</strong> haber bulundu${aramaMetni ? ` — "${escapeHtml(aramaMetni)}"` : ''}</p>`;
-        icerik +=
-          '<table><tr><th style="width:45%;">Başlık</th><th>Özet</th><th>Kaynak</th><th>Tarih</th></tr>';
+        icerik += '<table><tr><th style="width:45%;">Başlık</th><th>Özet</th><th>Kaynak</th><th>Tarih</th></tr>';
         hb.slice(0, 15).forEach((h) => {
           const ozetText = h.ozet ? stripHtmlTags(String(h.ozet)) : '';
           icerik += `<tr>
@@ -541,8 +517,7 @@ function renderModulBolum(
         break;
       }
 
-      const tehlikeSeviyesi =
-        (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
+      const tehlikeSeviyesi = (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
       const tehlikeRenk =
         tehlikeSeviyesi === 'çok yüksek' || tehlikeSeviyesi === 'yüksek'
           ? 'red'
@@ -684,11 +659,7 @@ const MODUL_BASLIKLAR: Record<string, string> = {
 };
 
 function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function stripHtmlTags(html: string): string {

@@ -56,9 +56,7 @@ export default function StokGirisModal({
           placeholder="Giriş yapılacak depo"
           data={depolar.map((d) => ({ value: String(d.id), label: d.ad }))}
           value={girisForm.depo_id ? String(girisForm.depo_id) : null}
-          onChange={(val) =>
-            setGirisForm({ ...girisForm, depo_id: val ? parseInt(val, 10) : null })
-          }
+          onChange={(val) => setGirisForm({ ...girisForm, depo_id: val ? parseInt(val, 10) : null })}
           required
         />
         <Select
@@ -67,9 +65,7 @@ export default function StokGirisModal({
           searchable
           data={stoklar.map((s) => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
           value={girisForm.stok_kart_id ? String(girisForm.stok_kart_id) : null}
-          onChange={(val) =>
-            setGirisForm({ ...girisForm, stok_kart_id: val ? parseInt(val, 10) : null })
-          }
+          onChange={(val) => setGirisForm({ ...girisForm, stok_kart_id: val ? parseInt(val, 10) : null })}
           required
         />
         <Group grow>
@@ -104,12 +100,7 @@ export default function StokGirisModal({
           <Button variant="light" onClick={onClose}>
             İptal
           </Button>
-          <Button
-            color="green"
-            onClick={onGiris}
-            loading={loading}
-            leftSection={<IconTrendingUp size={16} />}
-          >
+          <Button color="green" onClick={onGiris} loading={loading} leftSection={<IconTrendingUp size={16} />}>
             Giriş Yap
           </Button>
         </Group>

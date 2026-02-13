@@ -6,6 +6,7 @@
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 
@@ -169,7 +170,8 @@ router.get('/', async (req, res) => {
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Notlar yüklenirken hata oluştu' });
   }
 });
@@ -227,7 +229,8 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json({ success: true, note: result.rows[0] });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Not yüklenirken hata oluştu' });
   }
 });
@@ -347,7 +350,8 @@ router.post('/', async (req, res) => {
       },
       message: 'Not başarıyla oluşturuldu',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: 'Not oluşturulurken hata oluştu' });
   } finally {
@@ -574,7 +578,8 @@ router.put('/:id', async (req, res) => {
       note: noteResult.rows[0],
       message: 'Not güncellendi',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   } finally {
@@ -601,7 +606,8 @@ router.delete('/:id', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Not silindi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Not silinirken hata oluştu' });
   }
 });
@@ -634,7 +640,8 @@ router.put('/:id/toggle', async (req, res) => {
       note,
       message: note.is_completed ? 'Not tamamlandı' : 'Not tamamlanmadı olarak işaretlendi',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   }
 });
@@ -666,7 +673,8 @@ router.put('/:id/pin', async (req, res) => {
       note,
       message: note.pinned ? 'Not sabitlendi' : 'Not sabitleme kaldırıldı',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   }
 });
@@ -701,7 +709,8 @@ router.put('/reorder', async (req, res) => {
     await client.query('COMMIT');
 
     res.json({ success: true, message: 'Sıralama güncellendi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: 'Sıralama güncellenirken hata oluştu' });
   } finally {
@@ -729,7 +738,8 @@ router.delete('/completed', async (req, res) => {
       deleted: result.rowCount,
       message: `${result.rowCount} tamamlanmış not silindi`,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Notlar silinirken hata oluştu' });
   }
 });

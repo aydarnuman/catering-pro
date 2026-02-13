@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Box,
-  Divider,
-  Group,
-  Paper,
-  Progress,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
+import { Badge, Box, Divider, Group, Paper, Progress, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconCalculator,

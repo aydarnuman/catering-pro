@@ -77,9 +77,7 @@ const CONTENT_TYPE_ICONS: Record<string, React.ElementType> = {
   past_analysis: IconBrain,
 };
 
-const MODEL_OPTIONS = [
-  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
-];
+const MODEL_OPTIONS = [{ value: 'claude-opus-4-20250514', label: 'Claude Opus 4' }];
 
 // ─── Main Component ──────────────────────────────────────────
 
@@ -168,14 +166,7 @@ function AgentCard({ agent, onSelect }: AgentCardProps) {
   const IconComponent = AGENT_ICONS[agent.icon || 'brain'] || IconBrain;
 
   return (
-    <Card
-      shadow="sm"
-      padding="lg"
-      radius="md"
-      withBorder
-      style={{ cursor: 'pointer' }}
-      onClick={onSelect}
-    >
+    <Card shadow="sm" padding="lg" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onSelect}>
       <Group justify="space-between" mb="md">
         <Group gap="sm">
           <ThemeIcon
@@ -333,18 +324,10 @@ function GeneralSettingsTab({ agent, onSave, saving }: GeneralSettingsTabProps) 
       <Stack gap="md">
         <Grid>
           <Grid.Col span={6}>
-            <TextInput
-              label="Agent Adı"
-              placeholder="Mevzuat & Sözleşme"
-              {...form.getInputProps('name')}
-            />
+            <TextInput label="Agent Adı" placeholder="Mevzuat & Sözleşme" {...form.getInputProps('name')} />
           </Grid.Col>
           <Grid.Col span={6}>
-            <TextInput
-              label="Alt Başlık"
-              placeholder="Kanun & Sözleşme Analizi"
-              {...form.getInputProps('subtitle')}
-            />
+            <TextInput label="Alt Başlık" placeholder="Kanun & Sözleşme Analizi" {...form.getInputProps('subtitle')} />
           </Grid.Col>
         </Grid>
 
@@ -362,13 +345,7 @@ function GeneralSettingsTab({ agent, onSave, saving }: GeneralSettingsTabProps) 
             <Select label="Model" data={MODEL_OPTIONS} {...form.getInputProps('model')} />
           </Grid.Col>
           <Grid.Col span={6}>
-            <NumberInput
-              label="Max Tokens"
-              min={256}
-              max={8192}
-              step={256}
-              {...form.getInputProps('max_tokens')}
-            />
+            <NumberInput label="Max Tokens" min={256} max={8192} step={256} {...form.getInputProps('max_tokens')} />
           </Grid.Col>
         </Grid>
 
@@ -457,12 +434,7 @@ function ToolsTab({ agent }: ToolsTabProps) {
         <Text size="sm" c="dimmed">
           Agent&apos;ın kullanabileceği araçlar
         </Text>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => setShowAddModal(true)}
-        >
+        <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setShowAddModal(true)}>
           Araç Ekle
         </Button>
       </Group>
@@ -491,12 +463,7 @@ function ToolsTab({ agent }: ToolsTabProps) {
                 </Group>
                 <Group gap={4}>
                   <Tooltip label="Düzenle">
-                    <ActionIcon
-                      variant="subtle"
-                      color="blue"
-                      size="sm"
-                      onClick={() => setEditingTool(tool)}
-                    >
+                    <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => setEditingTool(tool)}>
                       <IconPencil size={14} />
                     </ActionIcon>
                   </Tooltip>
@@ -570,9 +537,7 @@ function ToolForm({ agentSlug, tool, onClose }: ToolFormProps) {
 
   const mutation = useMutation({
     mutationFn: (data: AgentToolInput) =>
-      tool
-        ? agentAPI.updateTool(agentSlug, tool.tool_slug, data)
-        : agentAPI.addTool(agentSlug, data),
+      tool ? agentAPI.updateTool(agentSlug, tool.tool_slug, data) : agentAPI.addTool(agentSlug, data),
     onSuccess: () => {
       notifications.show({
         title: 'Kaydedildi',
@@ -591,28 +556,14 @@ function ToolForm({ agentSlug, tool, onClose }: ToolFormProps) {
       <Stack gap="md">
         <Grid>
           <Grid.Col span={6}>
-            <TextInput
-              label="Araç Slug"
-              placeholder="redline"
-              disabled={!!tool}
-              {...form.getInputProps('tool_slug')}
-            />
+            <TextInput label="Araç Slug" placeholder="redline" disabled={!!tool} {...form.getInputProps('tool_slug')} />
           </Grid.Col>
           <Grid.Col span={6}>
-            <TextInput
-              label="Etiket"
-              placeholder="Maddeyi Düzenle"
-              {...form.getInputProps('label')}
-            />
+            <TextInput label="Etiket" placeholder="Maddeyi Düzenle" {...form.getInputProps('label')} />
           </Grid.Col>
         </Grid>
 
-        <Textarea
-          label="Açıklama"
-          placeholder="Bu araç ne yapar..."
-          rows={2}
-          {...form.getInputProps('description')}
-        />
+        <Textarea label="Açıklama" placeholder="Bu araç ne yapar..." rows={2} {...form.getInputProps('description')} />
 
         <Textarea
           label="AI Prompt Şablonu"
@@ -622,10 +573,7 @@ function ToolForm({ agentSlug, tool, onClose }: ToolFormProps) {
           {...form.getInputProps('ai_prompt_template')}
         />
 
-        <Switch
-          label="Metin seçimi gerektirir"
-          {...form.getInputProps('requires_selection', { type: 'checkbox' })}
-        />
+        <Switch label="Metin seçimi gerektirir" {...form.getInputProps('requires_selection', { type: 'checkbox' })} />
 
         <Group justify="flex-end">
           <Button variant="subtle" onClick={onClose}>
@@ -656,7 +604,11 @@ function KnowledgeTab({ agent }: KnowledgeTabProps) {
     queryFn: async () => {
       const response = await agentAPI.getKnowledge(agent.slug);
       // Backend returns flat { success, knowledge } not nested { data: { knowledge } }
-      const raw = response as unknown as { success: boolean; knowledge?: AgentKnowledge[]; data?: { knowledge?: AgentKnowledge[] } };
+      const raw = response as unknown as {
+        success: boolean;
+        knowledge?: AgentKnowledge[];
+        data?: { knowledge?: AgentKnowledge[] };
+      };
       return raw.success ? (raw.data?.knowledge ?? raw.knowledge ?? []) : [];
     },
   });
@@ -678,12 +630,7 @@ function KnowledgeTab({ agent }: KnowledgeTabProps) {
         <Text size="sm" c="dimmed">
           Agent&apos;ın bilgi tabanı kaynakları
         </Text>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => setShowAddModal(true)}
-        >
+        <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setShowAddModal(true)}>
           Kaynak Ekle
         </Button>
       </Group>
@@ -846,9 +793,7 @@ function KnowledgeForm({ agentSlug, onClose }: KnowledgeFormProps) {
         <Button
           onClick={() => mutation.mutate()}
           loading={mutation.isPending}
-          disabled={
-            !title || (contentType !== 'pdf' && !content) || (contentType === 'pdf' && !file)
-          }
+          disabled={!title || (contentType !== 'pdf' && !content) || (contentType === 'pdf' && !file)}
         >
           Ekle
         </Button>

@@ -7,13 +7,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiUrl } from '@/lib/config';
-import type {
-  ScrapeStatus,
-  SortField,
-  StatsData,
-  Yuklenici,
-  YukleniciDetay,
-} from '@/types/yuklenici';
+import type { ScrapeStatus, SortField, StatsData, Yuklenici, YukleniciDetay } from '@/types/yuklenici';
 
 // ─── Fetch Helper ───────────────────────────────────────────────
 
@@ -73,8 +67,7 @@ export function useYukleniciList(params: UseYukleniciListParams) {
 
   return useQuery({
     queryKey: yukleniciKeys.list(queryParams),
-    queryFn: () =>
-      apiFetch<YukleniciListResponse>(`/contractors?${new URLSearchParams(queryParams)}`),
+    queryFn: () => apiFetch<YukleniciListResponse>(`/contractors?${new URLSearchParams(queryParams)}`),
     staleTime: 30_000, // 30 saniye fresh kalır
     placeholderData: (previousData) => previousData, // Sayfa değişirken eski veriyi göster
   });
@@ -146,10 +139,9 @@ export function useIstihbaratToggle() {
 
   return useMutation({
     mutationFn: (id: number) =>
-      apiFetch<{ success: boolean; data: Yuklenici; scrapeStarted: boolean }>(
-        `/contractors/${id}/toggle-istihbarat`,
-        { method: 'POST' }
-      ),
+      apiFetch<{ success: boolean; data: Yuklenici; scrapeStarted: boolean }>(`/contractors/${id}/toggle-istihbarat`, {
+        method: 'POST',
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: yukleniciKeys.all });
     },

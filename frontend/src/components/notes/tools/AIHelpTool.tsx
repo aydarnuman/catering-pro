@@ -22,14 +22,7 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconCheck,
-  IconCopy,
-  IconFileText,
-  IconListCheck,
-  IconPencil,
-  IconSparkles,
-} from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconFileText, IconListCheck, IconPencil, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import type { UnifiedNote } from '@/types/notes';
@@ -128,8 +121,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
       const response = await aiAPI.sendAgentMessage({
         message: prompt,
         department: 'GENEL',
-        systemContext:
-          'Kullanici not yonetim araci icerisinden islem yapiyor. Kisa ve oz cevap ver.',
+        systemContext: 'Kullanici not yonetim araci icerisinden islem yapiyor. Kisa ve oz cevap ver.',
       });
 
       if (response.success && response.data?.response) {
@@ -210,9 +202,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
                       ? `rgba(var(--mantine-color-${clr}-9-rgb, 0,0,0), 0.1)`
                       : `var(--mantine-color-${clr}-0)`
                     : 'transparent',
-                  boxShadow: isSelected
-                    ? `0 0 12px var(--mantine-color-${clr}-${isDark ? '9' : '1'})`
-                    : 'none',
+                  boxShadow: isSelected ? `0 0 12px var(--mantine-color-${clr}-${isDark ? '9' : '1'})` : 'none',
                 }}
                 onClick={() => setAction(act.value)}
               >
@@ -228,12 +218,7 @@ export function AIHelpTool({ notes, onCreateTasksFromAI }: AIHelpToolProps) {
                   >
                     {act.icon}
                   </Box>
-                  <Text
-                    size="xs"
-                    fw={isSelected ? 700 : 500}
-                    ta="center"
-                    style={{ lineHeight: 1.2 }}
-                  >
+                  <Text size="xs" fw={isSelected ? 700 : 500} ta="center" style={{ lineHeight: 1.2 }}>
                     {act.label}
                   </Text>
                 </Stack>

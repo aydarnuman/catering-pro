@@ -92,8 +92,7 @@ export function InlineDataForm({
       p="md"
       withBorder
       style={{
-        background:
-          'linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+        background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
         borderColor: 'var(--mantine-color-teal-6)',
         borderWidth: 1,
       }}
@@ -138,13 +137,7 @@ export function InlineDataForm({
             İptal
           </Button>
         )}
-        <Button
-          color="teal"
-          size="xs"
-          leftSection={<IconCheck size={14} />}
-          onClick={handleSave}
-          loading={saving}
-        >
+        <Button color="teal" size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={saving}>
           Kaydet ve Devam Et
         </Button>
       </Group>

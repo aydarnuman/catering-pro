@@ -30,8 +30,7 @@ export const useMaliyetHesaplama = (yemekler: SeciliYemek[]) => {
 
   const maliyetFarki = toplamPiyasaMaliyet - toplamFaturaMaliyet;
 
-  const maliyetFarkiYuzde =
-    toplamFaturaMaliyet > 0 ? (maliyetFarki / toplamFaturaMaliyet) * 100 : 0;
+  const maliyetFarkiYuzde = toplamFaturaMaliyet > 0 ? (maliyetFarki / toplamFaturaMaliyet) * 100 : 0;
 
   return {
     toplamMaliyet,

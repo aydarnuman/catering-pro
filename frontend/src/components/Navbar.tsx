@@ -7,11 +7,17 @@ import {
   Box,
   Burger,
   Button,
+  Center,
   Group,
   Kbd,
   Loader,
   Menu,
+  Modal,
+  Paper,
+  ScrollArea,
+  Stack,
   Text,
+  TextInput,
   Tooltip,
   UnstyledButton,
   useMantineColorScheme,
@@ -27,6 +33,7 @@ import {
   IconChevronDown,
   IconCoin,
   IconDeviceMobile,
+  IconFileAnalytics,
   IconFolder,
   IconHome,
   IconLogin,
@@ -38,6 +45,7 @@ import {
   IconShieldLock,
   IconShoppingCart,
   IconSparkles,
+  IconTable,
   IconToolsKitchen2,
   IconUser,
   IconUserCircle,
@@ -47,29 +55,29 @@ import {
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useTrackedTenders } from '@/hooks/useIhaleMerkeziData';
 import { usePermissions } from '@/hooks/usePermissions';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
 import { WhatsAppNavButton } from './WhatsAppNavButton';
 
 // SearchModal'ı lazy load et - sadece açıldığında yükle
-const SearchModal = dynamic(
-  () => import('./SearchModal').then((mod) => ({ default: mod.SearchModal })),
-  {
-    ssr: false,
-    loading: () => null,
-  }
-);
+const SearchModal = dynamic(() => import('./SearchModal').then((mod) => ({ default: mod.SearchModal })), {
+  ssr: false,
+  loading: () => null,
+});
 
 export function Navbar() {
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpened, setMobileMenuOpened] = useState(false);
-  const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] =
-    useDisclosure(false);
+  const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] = useDisclosure(false);
+  const [masaPickerOpened, { open: openMasaPicker, close: closeMasaPicker }] = useDisclosure(false);
+  const [masaSearch, setMasaSearch] = useState('');
   const [mounted, setMounted] = useState(false);
   const { user, isAdmin: userIsAdmin, logout } = useAuth();
   const { canView, isSuperAdmin, loading: permLoading, error: permError } = usePermissions();
@@ -91,6 +99,19 @@ export function Navbar() {
     () => (permLoading || permError ? false : isSuperAdmin),
     [permLoading, permError, isSuperAdmin]
   );
+
+  // Takip listesi — İhale Masası seçici için (sadece modal açıkken fetch)
+  const { data: trackedTenders, isLoading: trackedLoading } = useTrackedTenders();
+
+  // Takip listesi filtreleme (modal içi arama)
+  const filteredTracked = useMemo(() => {
+    if (!trackedTenders) return [];
+    if (!masaSearch.trim()) return trackedTenders;
+    const q = masaSearch.toLowerCase();
+    return trackedTenders.filter(
+      (t) => t.ihale_basligi?.toLowerCase().includes(q) || t.kurum?.toLowerCase().includes(q)
+    );
+  }, [trackedTenders, masaSearch]);
 
   useEffect(() => {
     setMounted(true);
@@ -140,7 +161,7 @@ export function Navbar() {
     pathname === '/upload' ||
     pathname === '/tracking' ||
     pathname === '/ihale-merkezi' ||
-    pathname === '/ihale-merkezi';
+    pathname.startsWith('/ihale-merkezi/masa');
 
   // Finans sayfaları
   const isFinans =
@@ -156,7 +177,7 @@ export function Navbar() {
   const isOperasyon =
     pathname === '/muhasebe/stok' ||
     pathname === '/muhasebe/satin-alma' ||
-    pathname === '/muhasebe/menu-planlama' ||
+    pathname === '/menu-planlama' ||
     pathname === '/muhasebe/personel' ||
     pathname === '/muhasebe/demirbas';
 
@@ -197,6 +218,117 @@ export function Navbar() {
         <SearchModal opened={searchModalOpened} onClose={closeSearchModal} />
       </Suspense>
 
+      {/* Sanal Ihale Masasi — Ihale Secim Modali */}
+      <Modal
+        opened={masaPickerOpened}
+        onClose={() => {
+          closeMasaPicker();
+          setMasaSearch('');
+        }}
+        title={
+          <Group gap="xs">
+            <IconTable size={20} color="var(--mantine-color-indigo-6)" />
+            <Text fw={600}>Sanal Ihale Masasi</Text>
+          </Group>
+        }
+        size="md"
+        centered
+      >
+        <Stack gap="md">
+          <TextInput
+            placeholder="Ihale ara..."
+            leftSection={<IconSearch size={16} />}
+            value={masaSearch}
+            onChange={(e) => setMasaSearch(e.currentTarget.value)}
+            autoFocus
+          />
+
+          <ScrollArea.Autosize mah={400}>
+            {trackedLoading ? (
+              <Center py="xl">
+                <Loader size="sm" color="violet" />
+              </Center>
+            ) : filteredTracked.length === 0 ? (
+              <Center py="xl">
+                <Stack align="center" gap="xs">
+                  <Text c="dimmed" size="sm">
+                    {masaSearch ? 'Sonuc bulunamadi' : 'Takip listesinde ihale yok'}
+                  </Text>
+                  {!masaSearch && (
+                    <Button
+                      component={Link}
+                      href="/ihale-merkezi?tab=tracked"
+                      variant="light"
+                      size="xs"
+                      onClick={closeMasaPicker}
+                    >
+                      Ihale Merkezine Git
+                    </Button>
+                  )}
+                </Stack>
+              </Center>
+            ) : (
+              <Stack gap="xs">
+                {filteredTracked.map((tender) => {
+                  const hasAnalysis = !!tender.analysis_summary;
+                  return (
+                    <Paper
+                      key={tender.id}
+                      p="sm"
+                      withBorder
+                      radius="md"
+                      style={{
+                        cursor: hasAnalysis ? 'pointer' : 'not-allowed',
+                        opacity: hasAnalysis ? 1 : 0.5,
+                        transition: 'all 0.15s ease',
+                        borderColor: hasAnalysis ? undefined : 'var(--mantine-color-dark-5)',
+                      }}
+                      onClick={() => {
+                        if (!hasAnalysis) return;
+                        closeMasaPicker();
+                        setMasaSearch('');
+                        router.push(`/ihale-merkezi/masa/${tender.tender_id}`);
+                      }}
+                      className={hasAnalysis ? 'masa-picker-item' : undefined}
+                    >
+                      <Group justify="space-between" wrap="nowrap" gap="sm">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
+                          <Text size="sm" fw={500} lineClamp={1}>
+                            {tender.ihale_basligi}
+                          </Text>
+                          <Text size="xs" c="dimmed" lineClamp={1}>
+                            {tender.kurum}
+                          </Text>
+                        </Box>
+                        <Group gap="xs" wrap="nowrap">
+                          {tender.bedel && (
+                            <Badge size="xs" variant="light" color="green">
+                              {tender.bedel}
+                            </Badge>
+                          )}
+                          {hasAnalysis ? (
+                            <Badge size="xs" variant="light" color="violet">
+                              Analiz Hazir
+                            </Badge>
+                          ) : (
+                            <Tooltip label="Dokuman analizi gerekli" withArrow>
+                              <Badge size="xs" variant="light" color="gray">
+                                <IconFileAnalytics size={10} style={{ marginRight: 4 }} />
+                                Analiz Yok
+                              </Badge>
+                            </Tooltip>
+                          )}
+                        </Group>
+                      </Group>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
+          </ScrollArea.Autosize>
+        </Stack>
+      </Modal>
+
       {/* Main Header Container */}
       <Box
         style={{
@@ -225,8 +357,7 @@ export function Navbar() {
             <Group gap={8} justify="center">
               <IconSparkles size={14} color="#e6c530" />
               <Text size="xs" c="dimmed">
-                Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya
-                getirildi.
+                Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya getirildi.
               </Text>
               <ActionIcon
                 size="sm"
@@ -442,10 +573,7 @@ export function Navbar() {
                               )}
                             </Group>
                           </Box>
-                          <IconChevronDown
-                            size={16}
-                            style={{ opacity: 0.5, flexShrink: 0, marginLeft: 2 }}
-                          />
+                          <IconChevronDown size={16} style={{ opacity: 0.5, flexShrink: 0, marginLeft: 2 }} />
                         </>
                       )}
                     </Group>
@@ -462,49 +590,29 @@ export function Navbar() {
                     </Text>
                   </Menu.Label>
                   <Menu.Divider />
-                  <Menu.Item component={Link} href="/profil" leftSection={<IconUser size={16} />}>
+                  <Menu.Item component={Link} href="/ayarlar?section=profil" leftSection={<IconUser size={16} />}>
                     Profilim
                   </Menu.Item>
-                  <Menu.Item
-                    component={Link}
-                    href="/ayarlar"
-                    leftSection={<IconSettings size={16} />}
-                  >
+                  <Menu.Item component={Link} href="/ayarlar" leftSection={<IconSettings size={16} />}>
                     Ayarlar
                   </Menu.Item>
                   {userIsAdmin && (
                     <>
                       <Menu.Divider />
-                      <Menu.Item
-                        component={Link}
-                        href="/admin"
-                        leftSection={<IconShieldLock size={16} />}
-                        color="red"
-                      >
+                      <Menu.Item component={Link} href="/admin" leftSection={<IconShieldLock size={16} />} color="red">
                         Admin Panel
                       </Menu.Item>
                     </>
                   )}
                   <Menu.Divider />
-                  <Menu.Item
-                    leftSection={<IconLogout size={16} />}
-                    color="red"
-                    onClick={handleLogout}
-                  >
+                  <Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={handleLogout}>
                     Çıkış Yap
                   </Menu.Item>
                 </Menu.Dropdown>
               </Menu>
             ) : mounted && isMobile ? (
               <Tooltip label="Giriş Yap" withArrow>
-                <ActionIcon
-                  component={Link}
-                  href="/giris"
-                  variant="light"
-                  color="blue"
-                  size="lg"
-                  radius="xl"
-                >
+                <ActionIcon component={Link} href="/giris" variant="light" color="blue" size="lg" radius="xl">
                   <IconLogin size={18} />
                 </ActionIcon>
               </Tooltip>
@@ -523,11 +631,7 @@ export function Navbar() {
 
             {/* Mobile Hamburger */}
             {mounted && (isMobile || isTablet) && (
-              <Burger
-                opened={mobileMenuOpened}
-                onClick={() => setMobileMenuOpened(!mobileMenuOpened)}
-                size="sm"
-              />
+              <Burger opened={mobileMenuOpened} onClick={() => setMobileMenuOpened(!mobileMenuOpened)} size="sm" />
             )}
           </Group>
         </Box>
@@ -560,12 +664,7 @@ export function Navbar() {
 
             {/* İhale Merkezi Dropdown - Yetki kontrolü */}
             {(safeIsSuperAdmin || safeCanView('ihale')) && (
-              <Menu
-                shadow="lg"
-                width={240}
-                position="bottom-start"
-                transitionProps={{ transition: 'pop-top-left' }}
-              >
+              <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
@@ -618,9 +717,7 @@ export function Navbar() {
                   <Menu.Item
                     component={Link}
                     href="/yuklenici-kutuphanesi"
-                    leftSection={
-                      <IconBuildingStore size={16} color="var(--mantine-color-orange-6)" />
-                    }
+                    leftSection={<IconBuildingStore size={16} color="var(--mantine-color-orange-6)" />}
                   >
                     <Box>
                       <Group justify="space-between" w="100%">
@@ -630,6 +727,20 @@ export function Navbar() {
                       </Group>
                       <Text size="xs" c="dimmed">
                         Rakip Firma Istihbarati
+                      </Text>
+                    </Box>
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item
+                    leftSection={<IconTable size={16} color="var(--mantine-color-indigo-6)" />}
+                    onClick={openMasaPicker}
+                  >
+                    <Box>
+                      <Text size="sm" fw={500}>
+                        Sanal Ihale Masasi
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        AI Ajan Analizi
                       </Text>
                     </Box>
                   </Menu.Item>
@@ -643,12 +754,7 @@ export function Navbar() {
               safeCanView('cari') ||
               safeCanView('kasa_banka') ||
               safeCanView('rapor')) && (
-              <Menu
-                shadow="lg"
-                width={240}
-                position="bottom-start"
-                transitionProps={{ transition: 'pop-top-left' }}
-              >
+              <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
@@ -663,11 +769,7 @@ export function Navbar() {
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item
-                    component={Link}
-                    href="/muhasebe"
-                    leftSection={<IconChartPie size={16} />}
-                  >
+                  <Menu.Item component={Link} href="/muhasebe" leftSection={<IconChartPie size={16} />}>
                     <Group justify="space-between" w="100%">
                       <Text size="sm">Dashboard</Text>
                       {isActive('/muhasebe') && (
@@ -695,21 +797,13 @@ export function Navbar() {
                   )}
                   <Menu.Divider />
                   {(safeIsSuperAdmin || safeCanView('fatura')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/faturalar"
-                      leftSection={<IconReceipt size={16} />}
-                    >
+                    <Menu.Item component={Link} href="/muhasebe/faturalar" leftSection={<IconReceipt size={16} />}>
                       Faturalar
                     </Menu.Item>
                   )}
                   <Menu.Divider />
                   {(safeIsSuperAdmin || safeCanView('rapor')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/raporlar"
-                      leftSection={<IconChartBar size={16} />}
-                    >
+                    <Menu.Item component={Link} href="/muhasebe/raporlar" leftSection={<IconChartBar size={16} />}>
                       Raporlar
                     </Menu.Item>
                   )}
@@ -723,12 +817,7 @@ export function Navbar() {
               safeCanView('personel') ||
               safeCanView('demirbas') ||
               safeCanView('planlama')) && (
-              <Menu
-                shadow="lg"
-                width={240}
-                position="bottom-start"
-                transitionProps={{ transition: 'pop-top-left' }}
-              >
+              <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
@@ -763,9 +852,7 @@ export function Navbar() {
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/satin-alma"
-                      leftSection={
-                        <IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />
-                      }
+                      leftSection={<IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />}
                     >
                       <Box>
                         <Text size="sm" fw={500}>
@@ -781,10 +868,8 @@ export function Navbar() {
                   {(safeIsSuperAdmin || safeCanView('planlama')) && (
                     <Menu.Item
                       component={Link}
-                      href="/muhasebe/menu-planlama"
-                      leftSection={
-                        <IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />
-                      }
+                      href="/menu-planlama"
+                      leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />}
                     >
                       <Box>
                         <Text size="sm" fw={500}>
@@ -798,20 +883,12 @@ export function Navbar() {
                   )}
                   <Menu.Divider />
                   {(safeIsSuperAdmin || safeCanView('personel')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/personel"
-                      leftSection={<IconUserCircle size={16} />}
-                    >
+                    <Menu.Item component={Link} href="/muhasebe/personel" leftSection={<IconUserCircle size={16} />}>
                       Personel
                     </Menu.Item>
                   )}
                   {(safeIsSuperAdmin || safeCanView('demirbas')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/demirbas"
-                      leftSection={<IconBuildingStore size={16} />}
-                    >
+                    <Menu.Item component={Link} href="/muhasebe/demirbas" leftSection={<IconBuildingStore size={16} />}>
                       Demirbaş
                     </Menu.Item>
                   )}
@@ -821,12 +898,7 @@ export function Navbar() {
 
             {/* Sosyal Medya Dropdown */}
             {(safeIsSuperAdmin || safeCanView('sosyal_medya')) && (
-              <Menu
-                shadow="lg"
-                width={240}
-                position="bottom-start"
-                transitionProps={{ transition: 'pop-top-left' }}
-              >
+              <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
@@ -841,11 +913,7 @@ export function Navbar() {
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item
-                    component={Link}
-                    href="/sosyal-medya"
-                    leftSection={<IconChartPie size={16} />}
-                  >
+                  <Menu.Item component={Link} href="/sosyal-medya" leftSection={<IconChartPie size={16} />}>
                     <Group justify="space-between" w="100%">
                       <Text size="sm">Dashboard</Text>
                       {isActive('/sosyal-medya') && pathname === '/sosyal-medya' && (

@@ -166,13 +166,7 @@ export default function GodModePage() {
       title: 'Secret & API',
       icon: IconKey,
       color: 'orange',
-      tools: [
-        'god_list_secrets',
-        'god_get_secret',
-        'god_add_secret',
-        'god_delete_secret',
-        'god_read_env',
-      ],
+      tools: ['god_list_secrets', 'god_get_secret', 'god_add_secret', 'god_delete_secret', 'god_read_env'],
     },
     {
       title: 'Harici Servisler',
@@ -196,8 +190,7 @@ export default function GodModePage() {
           p="xl"
           radius="md"
           style={{
-            background:
-              'linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(238, 90, 36, 0.15) 100%)',
+            background: 'linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(238, 90, 36, 0.15) 100%)',
             border: '2px solid rgba(255, 71, 87, 0.3)',
           }}
         >
@@ -277,8 +270,8 @@ export default function GodModePage() {
                 ⚠️ DİKKAT: God Mode Aktif
               </Text>
               <Text size="xs" c="dimmed">
-                Bu modda AI, veritabanı sorguları, dosya işlemleri ve shell komutları
-                çalıştırabilir. Tüm işlemler loglanır.
+                Bu modda AI, veritabanı sorguları, dosya işlemleri ve shell komutları çalıştırabilir. Tüm işlemler
+                loglanır.
               </Text>
             </div>
           </Group>
@@ -288,11 +281,7 @@ export default function GodModePage() {
         <Paper p="md" radius="md" withBorder>
           <Tabs defaultValue="ai-chat" variant="pills" radius="md">
             <Tabs.List mb="md">
-              <Tabs.Tab
-                value="ai-chat"
-                leftSection={<IconMessageCircle size={16} />}
-                style={{ fontWeight: 500 }}
-              >
+              <Tabs.Tab value="ai-chat" leftSection={<IconMessageCircle size={16} />} style={{ fontWeight: 500 }}>
                 🤖 AI Agent
               </Tabs.Tab>
               <Tabs.Tab

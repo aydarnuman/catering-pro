@@ -33,8 +33,16 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
 
-# Proje dizini (script'in bulunduğu yer)
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Proje dizini (symlink'i resolve ederek gerçek script konumunu bul)
+SCRIPT_PATH="$0"
+if [ -L "$SCRIPT_PATH" ]; then
+    LINK_TARGET="$(readlink "$SCRIPT_PATH")"
+    if [[ "$LINK_TARGET" != /* ]]; then
+        LINK_TARGET="$(dirname "$SCRIPT_PATH")/$LINK_TARGET"
+    fi
+    SCRIPT_PATH="$LINK_TARGET"
+fi
+PROJECT_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 WHATSAPP_DIR="$PROJECT_DIR/services/whatsapp"

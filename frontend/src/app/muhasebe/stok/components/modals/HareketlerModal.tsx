@@ -30,12 +30,7 @@ interface HareketlerModalProps {
   loading?: boolean;
 }
 
-export default function HareketlerModal({
-  opened,
-  onClose,
-  hareketler,
-  loading = false,
-}: HareketlerModalProps) {
+export default function HareketlerModal({ opened, onClose, hareketler, loading = false }: HareketlerModalProps) {
   return (
     <Modal
       opened={opened}
@@ -64,12 +59,7 @@ export default function HareketlerModal({
           {hareketler.length === 0 ? (
             <Table.Tr>
               <Table.Td colSpan={6}>
-                <EmptyState
-                  title="Henüz hareket kaydı yok"
-                  compact
-                  icon={<IconHistory size={24} />}
-                  iconColor="gray"
-                />
+                <EmptyState title="Henüz hareket kaydı yok" compact icon={<IconHistory size={24} />} iconColor="gray" />
               </Table.Td>
             </Table.Tr>
           ) : (
@@ -85,13 +75,7 @@ export default function HareketlerModal({
                 </Table.Td>
                 <Table.Td>
                   <Badge
-                    color={
-                      h.hareket_tipi === 'GIRIS'
-                        ? 'green'
-                        : h.hareket_tipi === 'CIKIS'
-                          ? 'red'
-                          : 'blue'
-                    }
+                    color={h.hareket_tipi === 'GIRIS' ? 'green' : h.hareket_tipi === 'CIKIS' ? 'red' : 'blue'}
                     variant="light"
                   >
                     {h.hareket_tipi}

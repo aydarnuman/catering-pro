@@ -83,8 +83,7 @@ const PRESET_CATEGORIES: {
       },
       {
         id: 'cpu_info',
-        command:
-          'sysctl -n machdep.cpu.brand_string && ps -A -o %cpu | awk \'{s+=$1} END {print "CPU: " s "%"}\'',
+        command: 'sysctl -n machdep.cpu.brand_string && ps -A -o %cpu | awk \'{s+=$1} END {print "CPU: " s "%"}\'',
         description: 'CPU',
         safe: true,
       },
@@ -323,9 +322,7 @@ export function GodModeTerminal() {
         });
         const data = await res.json();
 
-        const output = data.success
-          ? data.output || '(Çıktı yok)'
-          : `Error: ${data.error}\n${data.output || ''}`;
+        const output = data.success ? data.output || '(Çıktı yok)' : `Error: ${data.error}\n${data.output || ''}`;
 
         setOutputs((prev) => [
           ...prev,
@@ -401,12 +398,7 @@ export function GodModeTerminal() {
     <Stack gap="md">
       {/* Hazır Komutlar - Kategorize Tab'lar */}
       <Paper p="sm" radius="md" withBorder>
-        <Tabs
-          value={activeCategory}
-          onChange={(v) => setActiveCategory(v || 'sistem')}
-          variant="pills"
-          radius="md"
-        >
+        <Tabs value={activeCategory} onChange={(v) => setActiveCategory(v || 'sistem')} variant="pills" radius="md">
           <Group justify="space-between" align="center" mb="xs">
             <Tabs.List style={{ gap: rem(4) }}>
               {Object.entries(PRESET_CATEGORIES).map(([key, cat]) => (
@@ -486,13 +478,7 @@ export function GodModeTerminal() {
         </Group>
 
         {/* Terminal Output */}
-        <ScrollArea
-          h={400}
-          viewportRef={scrollRef}
-          style={{ backgroundColor: '#0d1117' }}
-          px="md"
-          py="sm"
-        >
+        <ScrollArea h={400} viewportRef={scrollRef} style={{ backgroundColor: '#0d1117' }} px="md" py="sm">
           {outputs.length === 0 ? (
             <Stack align="center" justify="center" h={350} gap="md">
               <ThemeIcon size={60} color="gray" variant="light" radius="xl">
@@ -533,12 +519,7 @@ export function GodModeTerminal() {
                       </Badge>
                     )}
                     {item.duration && (
-                      <Badge
-                        size="xs"
-                        color="gray"
-                        variant="light"
-                        leftSection={<IconClock size={10} />}
-                      >
+                      <Badge size="xs" color="gray" variant="light" leftSection={<IconClock size={10} />}>
                         {item.duration}ms
                       </Badge>
                     )}
@@ -640,19 +621,12 @@ export function GodModeTerminal() {
         centered
       >
         <Stack gap="md">
-          <Text size="sm">
-            Bu komut sistemi etkileyebilir. Devam etmek istediğinizden emin misiniz?
-          </Text>
+          <Text size="sm">Bu komut sistemi etkileyebilir. Devam etmek istediğinizden emin misiniz?</Text>
           <Code block style={{ backgroundColor: '#2d1b1b', color: '#f85149' }}>
             {pendingCommand}
           </Code>
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="light"
-              color="gray"
-              onClick={closeConfirm}
-              leftSection={<IconX size={16} />}
-            >
+            <Button variant="light" color="gray" onClick={closeConfirm} leftSection={<IconX size={16} />}>
               İptal
             </Button>
             <Button color="red" onClick={confirmAndExecute} leftSection={<IconCheck size={16} />}>

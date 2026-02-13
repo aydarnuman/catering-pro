@@ -49,12 +49,7 @@ interface CariListTabProps {
   onMutabakat?: (cari: Cari) => void;
 }
 
-export default function CariListTab({
-  onCariSelect,
-  onCariEdit,
-  onCariCreate,
-  onMutabakat,
-}: CariListTabProps) {
+export default function CariListTab({ onCariSelect, onCariEdit, onCariCreate, onMutabakat }: CariListTabProps) {
   const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
   const canCreateCari = isSuperAdmin || canCreate('cari');
   const canEditCari = isSuperAdmin || canEdit('cari');
@@ -326,11 +321,7 @@ export default function CariListTab({
                 {cariler.map((cari) => {
                   const bakiye = Number(cari.alacak || 0) - Number(cari.borc || 0);
                   return (
-                    <Table.Tr
-                      key={cari.id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => onCariSelect(cari)}
-                    >
+                    <Table.Tr key={cari.id} style={{ cursor: 'pointer' }} onClick={() => onCariSelect(cari)}>
                       <Table.Td>
                         <Group gap="sm">
                           <Avatar radius="xl" size="sm" color="blue">
@@ -384,11 +375,7 @@ export default function CariListTab({
                       <Table.Td>
                         <Menu shadow="md" width={160} position="bottom-end" withinPortal>
                           <Menu.Target>
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <ActionIcon variant="subtle" color="gray" onClick={(e) => e.stopPropagation()}>
                               <IconDotsVertical size={16} />
                             </ActionIcon>
                           </Menu.Target>

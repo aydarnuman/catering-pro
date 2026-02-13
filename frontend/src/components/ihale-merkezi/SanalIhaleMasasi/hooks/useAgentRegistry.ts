@@ -99,9 +99,7 @@ export function useAgentRegistry(options: UseAgentRegistryOptions = {}): UseAgen
 
   // Transform API data or use fallback
   if (query.isSuccess && query.data) {
-    const transformedAgents = query.data.agents.map((agent, index) =>
-      transformToAgentPersona(agent, index)
-    );
+    const transformedAgents = query.data.agents.map((agent, index) => transformToAgentPersona(agent, index));
     const transformedTools = query.data.tools.map(transformToAgentTool);
 
     return {

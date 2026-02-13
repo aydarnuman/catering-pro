@@ -160,18 +160,11 @@ export function CetvelSection({ ctx }: CetvelSectionProps) {
                       </Table.Td>
                       <Table.Td ta="right">
                         <Text size="sm" fw={600}>
-                          {kalem.tutar > 0
-                            ? kalem.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })
-                            : '—'}
+                          {kalem.tutar > 0 ? kalem.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : '—'}
                         </Text>
                       </Table.Td>
                       <Table.Td ta="center">
-                        <ActionIcon
-                          size="sm"
-                          color="red"
-                          variant="subtle"
-                          onClick={() => handleCetvelKalemSil(idx)}
-                        >
+                        <ActionIcon size="sm" color="red" variant="subtle" onClick={() => handleCetvelKalemSil(idx)}>
                           <IconTrash size={14} />
                         </ActionIcon>
                       </Table.Td>

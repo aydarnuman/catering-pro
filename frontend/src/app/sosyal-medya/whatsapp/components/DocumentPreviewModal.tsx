@@ -31,11 +31,7 @@ interface DocumentPreviewModalProps {
   onClose: () => void;
 }
 
-export function DocumentPreviewModal({
-  previewUrl,
-  previewFilename,
-  onClose,
-}: DocumentPreviewModalProps) {
+export function DocumentPreviewModal({ previewUrl, previewFilename, onClose }: DocumentPreviewModalProps) {
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [docxHtml, setDocxHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -46,7 +42,7 @@ export function DocumentPreviewModal({
       // Base64 data URL'i parse et
       const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
       if (!matches) {
-        console.log('Not a base64 data URL, using directly');
+        // Not a base64 data URL, using directly
         return dataUrl;
       }
 
@@ -66,7 +62,7 @@ export function DocumentPreviewModal({
 
       // Blob URL oluştur
       const blobUrl = URL.createObjectURL(blob);
-      console.log('Created blob URL:', blobUrl);
+      // Blob URL created
       return blobUrl;
     } catch (error) {
       console.error('Blob conversion error:', error);
@@ -85,7 +81,7 @@ export function DocumentPreviewModal({
       try {
         // DOCX dosyası için Mammoth.js ile HTML'e çevir
         if (previewFilename.match(/\.docx?$/i)) {
-          console.log('Processing DOCX with Mammoth.js...');
+          // Processing DOCX with Mammoth.js
 
           // Base64'ü ArrayBuffer'a çevir
           const matches = previewUrl.match(/^data:(.+);base64,(.+)$/);
@@ -100,7 +96,7 @@ export function DocumentPreviewModal({
 
             // Mammoth.js ile HTML'e çevir
             const result = await mammoth.convertToHtml({ arrayBuffer });
-            console.log('Mammoth conversion successful');
+            // Mammoth conversion successful
             setDocxHtml(result.value);
           }
         } else {
@@ -247,8 +243,7 @@ export function DocumentPreviewModal({
         {!previewLoading &&
           !docxHtml &&
           previewBlobUrl &&
-          (previewFilename.match(/\.(jpe?g|png|gif|webp|bmp)$/i) ||
-            previewUrl?.startsWith('data:image/')) && (
+          (previewFilename.match(/\.(jpe?g|png|gif|webp|bmp)$/i) || previewUrl?.startsWith('data:image/')) && (
             <>
               <Box
                 style={{

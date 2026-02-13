@@ -6,6 +6,7 @@
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 
@@ -49,7 +50,8 @@ router.get('/upcoming', async (req, res) => {
       success: true,
       reminders: result.rows,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Hatırlatıcılar yüklenirken hata oluştu' });
   }
 });
@@ -87,7 +89,8 @@ router.get('/due', async (req, res) => {
       success: true,
       reminders: result.rows,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Hatırlatıcılar yüklenirken hata oluştu' });
   }
 });
@@ -139,7 +142,8 @@ router.post('/:noteId', async (req, res) => {
       reminder: result.rows[0],
       message: 'Hatırlatıcı eklendi',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Hatırlatıcı eklenirken hata oluştu' });
   }
 });
@@ -170,7 +174,8 @@ router.put('/:id/sent', async (req, res) => {
       reminder: result.rows[0],
       message: 'Hatırlatıcı gönderildi olarak işaretlendi',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Hatırlatıcı güncellenirken hata oluştu' });
   }
 });
@@ -212,7 +217,8 @@ router.delete('/:id', async (req, res) => {
     await pool.query(`UPDATE unified_notes SET reminder_date = $1 WHERE id = $2`, [nextReminder, noteId]);
 
     res.json({ success: true, message: 'Hatırlatıcı silindi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Hatırlatıcı silinirken hata oluştu' });
   }
 });

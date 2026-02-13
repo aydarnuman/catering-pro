@@ -58,12 +58,7 @@ interface PreviewData {
   data: Blob | { headers: string[]; rows: Record<string, unknown>[] };
 }
 
-export default function RaporMerkeziModal({
-  opened,
-  onClose,
-  module,
-  context = {},
-}: RaporMerkeziModalProps) {
+export default function RaporMerkeziModal({ opened, onClose, module, context = {} }: RaporMerkeziModalProps) {
   // State
   const [catalog, setCatalog] = useState<ReportCatalog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -388,11 +383,7 @@ export default function RaporMerkeziModal({
               />
             )}
             {report.formats.length === 1 && (
-              <Badge
-                size="xs"
-                variant="light"
-                color={report.formats[0] === 'pdf' ? 'red' : 'green'}
-              >
+              <Badge size="xs" variant="light" color={report.formats[0] === 'pdf' ? 'red' : 'green'}>
                 {report.formats[0] === 'pdf' ? 'PDF' : 'XLS'}
               </Badge>
             )}
@@ -613,9 +604,7 @@ export default function RaporMerkeziModal({
                     }
                     onClick={toggleSelectAll}
                   >
-                    {selectedReports.size === totalReports && totalReports > 0
-                      ? 'Tümünü Kaldır'
-                      : 'Tümünü Seç'}
+                    {selectedReports.size === totalReports && totalReports > 0 ? 'Tümünü Kaldır' : 'Tümünü Seç'}
                   </Button>
                   <Text size="xs" c="dimmed">
                     {totalReports} rapor
@@ -705,16 +694,12 @@ export default function RaporMerkeziModal({
                     size="sm"
                     variant="filled"
                     color="green"
-                    leftSection={
-                      selectedReports.size > 1 ? <IconZip size={16} /> : <IconDownload size={16} />
-                    }
+                    leftSection={selectedReports.size > 1 ? <IconZip size={16} /> : <IconDownload size={16} />}
                     disabled={selectedReports.size === 0}
                     loading={bulkDownloading}
                     onClick={downloadBulk}
                   >
-                    {selectedReports.size > 1
-                      ? `Toplu İndir (${selectedReports.size} rapor)`
-                      : 'İndir'}
+                    {selectedReports.size > 1 ? `Toplu İndir (${selectedReports.size} rapor)` : 'İndir'}
                   </Button>
                 </Group>
               </Group>

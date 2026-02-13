@@ -16,9 +16,9 @@
     "start": "concurrently \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\"",
     "check": "node scripts/audit/menu.js",
     "start:all": "node scripts/start-all.js",
-    "start:dev": "./start-all.sh --dev",
-    "start:prod": "./start-all.sh --prod",
-    "start:docker": "./start-all.sh --docker",
+    "start:dev": "./scripts/start-all.sh --dev",
+    "start:prod": "./scripts/start-all.sh --prod",
+    "start:docker": "./scripts/start-all.sh --docker",
     "check:env": "node scripts/services/env-validator.js",
     "check:health": "node scripts/services/health-checker.js",
     "services:status": "node scripts/services/orchestrator.js --status",
@@ -56,7 +56,6 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0",
-    "pako": "^2.1.0"
+    "concurrently": "^8.2.0"
   }
 }

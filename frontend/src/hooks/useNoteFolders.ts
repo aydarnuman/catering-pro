@@ -1,36 +1,42 @@
 'use client';
 
 /**
- * useNoteFolders - Hook for note folder management
+ * useNoteFolders - Hook for note folder management (TanStack React Query)
  */
 
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import useSWR from 'swr';
 import { noteFoldersAPI } from '@/lib/api/services/note-folders';
 import type { NoteFolder } from '@/types/notes';
 
-const FOLDERS_KEY = 'note-folders';
+const FOLDERS_QUERY_KEY = ['note-folders'];
 
 export function useNoteFolders() {
-  const { data, error, mutate } = useSWR<{ success: boolean; folders: NoteFolder[] }>(
-    FOLDERS_KEY,
-    () => noteFoldersAPI.list(),
-    { revalidateOnFocus: false }
-  );
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery<{ success: boolean; folders: NoteFolder[] }>({
+    queryKey: FOLDERS_QUERY_KEY,
+    queryFn: () => noteFoldersAPI.list(),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
   const folders = data?.folders ?? [];
-  const isLoading = !data && !error;
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: FOLDERS_QUERY_KEY });
+  }, [queryClient]);
 
   const createFolder = useCallback(
     async (params: { name: string; color?: string; icon?: string; password?: string | null }) => {
       const result = await noteFoldersAPI.create(params);
       if (result.success) {
-        await mutate();
+        invalidate();
         return result.folder;
       }
       return null;
     },
-    [mutate]
+    [invalidate]
   );
 
   const updateFolder = useCallback(
@@ -46,21 +52,21 @@ export function useNoteFolders() {
     ) => {
       const result = await noteFoldersAPI.update(id, params);
       if (result.success) {
-        await mutate();
+        invalidate();
         return result.folder;
       }
       return null;
     },
-    [mutate]
+    [invalidate]
   );
 
   const deleteFolder = useCallback(
     async (id: number) => {
       const result = await noteFoldersAPI.remove(id);
-      if (result.success) await mutate();
+      if (result.success) invalidate();
       return result.success;
     },
-    [mutate]
+    [invalidate]
   );
 
   const unlockFolder = useCallback(async (id: number, password: string) => {
@@ -71,13 +77,13 @@ export function useNoteFolders() {
   const moveNote = useCallback(
     async (noteId: string, folderId: number | null) => {
       const result = await noteFoldersAPI.moveNote(noteId, folderId);
-      if (result.success) await mutate();
+      if (result.success) invalidate();
       return result.success;
     },
-    [mutate]
+    [invalidate]
   );
 
-  const refresh = useCallback(() => mutate(), [mutate]);
+  const refresh = useCallback(() => invalidate(), [invalidate]);
 
   return {
     folders,

@@ -5,16 +5,7 @@
  * Tikla → yeni not olustur, icerigi doldur
  */
 
-import {
-  Badge,
-  Box,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Badge, Box, Group, Paper, SimpleGrid, Stack, Text, useMantineColorScheme } from '@mantine/core';
 import {
   IconBriefcase,
   IconCalendar,
@@ -254,9 +245,7 @@ export function TemplatesTool({ onSelectTemplate }: TemplatesToolProps) {
               e.currentTarget.style.borderColor = `var(--mantine-color-${tpl.color}-${isDark ? '6' : '3'})`;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = isDark
-                ? 'rgba(255,255,255,0.06)'
-                : 'rgba(0,0,0,0.06)';
+              e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
             }}
           >
             <Stack gap="xs">

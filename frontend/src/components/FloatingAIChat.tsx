@@ -34,7 +34,7 @@ const pathToDepartment: Record<string, string> = {
   '/muhasebe/gelir-gider': 'GELİR_GİDER',
   '/muhasebe/kasa-banka': 'KASA_BANKA',
   '/muhasebe/raporlar': 'RAPOR',
-  '/muhasebe/menu-planlama': 'MENU_PLANLAMA',
+  '/menu-planlama': 'MENU_PLANLAMA',
   '/tenders': 'İHALE',
   '/upload': 'İHALE',
   '/tracking': 'İHALE',
@@ -83,7 +83,7 @@ const pathToContextType: Record<string, PageContext['type']> = {
   '/muhasebe/finans': 'muhasebe',
   '/muhasebe/raporlar': 'muhasebe',
   '/planlama': 'planlama',
-  '/muhasebe/menu-planlama': 'planlama',
+  '/menu-planlama': 'planlama',
 };
 
 // Dinamik modül tipi (backend manifest'lerden gelen)
@@ -222,9 +222,7 @@ export function FloatingAIChat() {
       }
 
       // URL'ye göre otomatik context type belirleme
-      const autoContextType = Object.entries(pathToContextType).find(([path]) =>
-        pathname.startsWith(path)
-      );
+      const autoContextType = Object.entries(pathToContextType).find(([path]) => pathname.startsWith(path));
 
       if (autoContextType) {
         setPageContext({
@@ -479,8 +477,7 @@ export function FloatingAIChat() {
             style={{
               position: 'fixed',
               /* GenerationToolbar üstünde: toolbar ~200px + 24 bottom */
-              bottom:
-                isMobile && isMounted ? 'calc(200px + env(safe-area-inset-bottom, 0px))' : 220,
+              bottom: isMobile && isMounted ? 'calc(200px + env(safe-area-inset-bottom, 0px))' : 220,
               right: isMobile && isMounted ? 12 : 24,
               zIndex: 50,
             }}
@@ -701,12 +698,7 @@ export function FloatingAIChat() {
             ⚠️ Bu mod sadece yetkili Super Admin kullanıcıları içindir!
           </Text>
           <Group justify="flex-end" gap="sm">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              onClick={() => setShowGodModeConfirm(false)}
-              size="lg"
-            >
+            <ActionIcon variant="subtle" color="gray" onClick={() => setShowGodModeConfirm(false)} size="lg">
               <IconX size={18} />
             </ActionIcon>
             <ActionIcon
@@ -772,11 +764,7 @@ export function FloatingAIChat() {
                     : '1px solid rgba(0,0,0,0.08)',
                 padding: isMinimized ? '4px 10px' : '14px 16px',
                 paddingTop:
-                  isMobile && isMounted
-                    ? 'calc(env(safe-area-inset-top, 0px) + 14px)'
-                    : isMinimized
-                      ? '4px'
-                      : '14px',
+                  isMobile && isMounted ? 'calc(env(safe-area-inset-top, 0px) + 14px)' : isMinimized ? '4px' : '14px',
                 cursor: 'pointer',
                 position: 'relative',
                 transition: 'all 0.3s ease',
@@ -875,9 +863,7 @@ export function FloatingAIChat() {
                           size="xs"
                           variant="white"
                           style={{
-                            background: godModeEnabled
-                              ? 'rgba(230, 197, 48, 0.3)'
-                              : 'rgba(255,255,255,0.12)',
+                            background: godModeEnabled ? 'rgba(230, 197, 48, 0.3)' : 'rgba(255,255,255,0.12)',
                             color: godModeEnabled ? '#e6c530' : 'white',
                             cursor: 'pointer',
                             fontSize: 10,
@@ -899,16 +885,10 @@ export function FloatingAIChat() {
                         {pageContext?.type === 'tender' && pageContext.id
                           ? `📋 İhale ${(() => {
                               const extId = pageContext.data?.external_id;
-                              if (
-                                extId &&
-                                String(extId).length < 12 &&
-                                String(extId).includes('/')
-                              ) {
+                              if (extId && String(extId).length < 12 && String(extId).includes('/')) {
                                 return extId;
                               }
-                              const title = String(
-                                pageContext.data?.title || pageContext.title || ''
-                              );
+                              const title = String(pageContext.data?.title || pageContext.title || '');
                               const match = title.match(/^(\d{4}\/\d+)/);
                               if (match) return match[1];
                               return `#${pageContext.id}`;
@@ -930,11 +910,7 @@ export function FloatingAIChat() {
                   )}
                   {/* God Mode Toggle - sadece Super Admin görür */}
                   {isSuperAdmin && !isMinimized && (
-                    <Tooltip
-                      label={godModeEnabled ? 'God Mode Kapat' : 'God Mode Aç'}
-                      withArrow
-                      position="bottom"
-                    >
+                    <Tooltip label={godModeEnabled ? 'God Mode Kapat' : 'God Mode Aç'} withArrow position="bottom">
                       <ActionIcon
                         variant={godModeEnabled ? 'gradient' : 'subtle'}
                         gradient={godModeEnabled ? { from: 'yellow', to: 'orange' } : undefined}

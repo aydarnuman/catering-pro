@@ -222,8 +222,7 @@ const SUGGESTIONS: Record<string, PromptSuggestion[]> = {
     {
       icon: '🏭',
       title: 'Tedarikci karsilastir',
-      prompt:
-        'En cok alisveris yaptigimiz tedarikçileri karsilastir: fiyat, teslimat suresi, kalite',
+      prompt: 'En cok alisveris yaptigimiz tedarikçileri karsilastir: fiyat, teslimat suresi, kalite',
       category: 'analiz',
     },
     {
@@ -630,12 +629,7 @@ const SUGGESTIONS: Record<string, PromptSuggestion[]> = {
 
 // --- Component ---
 
-export function PromptSuggestions({
-  department,
-  onSelect,
-  compact = false,
-  godMode = false,
-}: PromptSuggestionsProps) {
+export function PromptSuggestions({ department, onSelect, compact = false, godMode = false }: PromptSuggestionsProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [activeCategory, setActiveCategory] = useState<SuggestionCategory>('all');
@@ -681,9 +675,7 @@ export function PromptSuggestions({
             {godMode ? 'God Mode' : 'Ne yapmak istiyorsunuz?'}
           </Text>
           <Text size="xs" c="dimmed" ta="center" maw={360}>
-            {godMode
-              ? 'Sinursiz yetki ile SQL, dosya ve shell islemleri'
-              : 'Bir oneri secin veya kendi sorunuzu yazin'}
+            {godMode ? 'Sinursiz yetki ile SQL, dosya ve shell islemleri' : 'Bir oneri secin veya kendi sorunuzu yazin'}
           </Text>
         </Stack>
       )}
@@ -868,12 +860,7 @@ function SuggestionCard({
           {item.icon}
         </Text>
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            size={compact ? 'xs' : 'sm'}
-            fw={600}
-            truncate
-            c={godMode ? (isDark ? 'red.4' : 'red.7') : undefined}
-          >
+          <Text size={compact ? 'xs' : 'sm'} fw={600} truncate c={godMode ? (isDark ? 'red.4' : 'red.7') : undefined}>
             {item.title}
           </Text>
           {!compact && (

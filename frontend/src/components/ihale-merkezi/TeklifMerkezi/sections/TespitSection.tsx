@@ -47,9 +47,7 @@ export function TespitSection({ ctx }: TespitSectionProps) {
   const [editValue, setEditValue] = useState<number | string>('');
 
   const handleEditSave = (key: string) => {
-    setDetectedValues((prev) =>
-      prev.map((v) => (v.key === key ? { ...v, value: editValue as number } : v))
-    );
+    setDetectedValues((prev) => prev.map((v) => (v.key === key ? { ...v, value: editValue as number } : v)));
     setEditMode(null);
   };
 
@@ -113,12 +111,7 @@ export function TespitSection({ ctx }: TespitSectionProps) {
           </div>
           <Box style={{ flex: 1 }} />
           <Tooltip label="Yeniden analiz et">
-            <ActionIcon
-              variant="subtle"
-              color="teal"
-              onClick={fetchSuggestions}
-              loading={suggestionsLoading}
-            >
+            <ActionIcon variant="subtle" color="teal" onClick={fetchSuggestions} loading={suggestionsLoading}>
               <IconRefresh size={16} />
             </ActionIcon>
           </Tooltip>
@@ -251,9 +244,7 @@ export function TespitSection({ ctx }: TespitSectionProps) {
                   borderColor: selectedSuggestionKeys.has(item.key)
                     ? 'var(--mantine-color-teal-6)'
                     : 'var(--mantine-color-default-border)',
-                  background: selectedSuggestionKeys.has(item.key)
-                    ? 'rgba(20, 184, 166, 0.05)'
-                    : 'transparent',
+                  background: selectedSuggestionKeys.has(item.key) ? 'rgba(20, 184, 166, 0.05)' : 'transparent',
                 }}
               >
                 <Group justify="space-between" wrap="nowrap">
@@ -283,12 +274,7 @@ export function TespitSection({ ctx }: TespitSectionProps) {
                             hideControls
                             style={{ flex: 1 }}
                           />
-                          <ActionIcon
-                            size="sm"
-                            color="green"
-                            variant="light"
-                            onClick={() => handleEditSave(item.key)}
-                          >
+                          <ActionIcon size="sm" color="green" variant="light" onClick={() => handleEditSave(item.key)}>
                             <IconCheck size={14} />
                           </ActionIcon>
                         </Group>

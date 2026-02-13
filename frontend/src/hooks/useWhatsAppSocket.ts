@@ -123,9 +123,7 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
   useEffect(() => {
     // WhatsApp servisi devre dışıysa bağlanma
     if (!WHATSAPP_ENABLED) {
-      logger.debug(
-        '[WhatsApp Socket] WhatsApp servisi devre dışı (NEXT_PUBLIC_WHATSAPP_ENABLED=false)'
-      );
+      logger.debug('[WhatsApp Socket] WhatsApp servisi devre dışı (NEXT_PUBLIC_WHATSAPP_ENABLED=false)');
       return;
     }
 

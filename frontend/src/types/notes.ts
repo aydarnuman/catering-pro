@@ -3,16 +3,7 @@
  */
 
 // Note Colors - Extended palette
-export type NoteColor =
-  | 'blue'
-  | 'green'
-  | 'yellow'
-  | 'orange'
-  | 'red'
-  | 'violet'
-  | 'pink'
-  | 'purple'
-  | 'gray';
+export type NoteColor = 'blue' | 'green' | 'yellow' | 'orange' | 'red' | 'violet' | 'pink' | 'purple' | 'gray';
 
 // Priority levels
 export type NotePriority = 'low' | 'normal' | 'high' | 'urgent';

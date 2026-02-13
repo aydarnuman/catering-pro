@@ -355,20 +355,12 @@ export default function ChatHistoryPage() {
 
                   <Group gap="xs">
                     <Tooltip label="Görüntüle">
-                      <ActionIcon
-                        variant="light"
-                        color="blue"
-                        onClick={() => viewSession(conv.session_id)}
-                      >
+                      <ActionIcon variant="light" color="blue" onClick={() => viewSession(conv.session_id)}>
                         <IconEye size={16} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Sil">
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        onClick={() => deleteSession(conv.session_id)}
-                      >
+                      <ActionIcon variant="light" color="red" onClick={() => deleteSession(conv.session_id)}>
                         <IconTrash size={16} />
                       </ActionIcon>
                     </Tooltip>

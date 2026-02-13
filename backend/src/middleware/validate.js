@@ -12,6 +12,7 @@
  */
 
 import { ZodError } from 'zod';
+import logger from '../utils/logger.js';
 
 /**
  * @param {import('zod').ZodSchema} schema - Zod şeması
@@ -23,6 +24,11 @@ export function validate(schema, source = 'body') {
 
     if (!result.success) {
       const errors = formatZodErrors(result.error);
+      logger.debug('Validation failed', {
+        path: req.originalUrl,
+        method: req.method,
+        errors: result.error.issues?.map((e) => e.message) || [],
+      });
       return res.status(400).json({
         success: false,
         error: 'Geçersiz veri',
@@ -42,7 +48,7 @@ export function validate(schema, source = 'body') {
  * @returns {Array<{field: string, message: string}>}
  */
 function formatZodErrors(zodError) {
-  return zodError.errors.map((err) => ({
+  return zodError.issues.map((err) => ({
     field: err.path.join('.'),
     message: err.message,
   }));

@@ -54,10 +54,7 @@ export const authAPI = {
   /**
    * Şifre değiştir
    */
-  async changePassword(data: {
-    currentPassword: string;
-    newPassword: string;
-  }): Promise<ApiResponse<any>> {
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<ApiResponse<any>> {
     const response = await api.put('/api/auth/password', data);
     return response.data;
   },

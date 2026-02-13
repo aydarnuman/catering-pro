@@ -5,13 +5,7 @@
  * Backend'de 8 modül bağımsız çalışır, frontend sadece gruplayarak gösterir.
  */
 
-import type {
-  DockGrupAdi,
-  DockGrupMeta,
-  IstihbaratModul,
-  ModulDurum,
-  ModulMeta,
-} from '@/types/yuklenici';
+import type { DockGrupAdi, DockGrupMeta, IstihbaratModul, ModulDurum, ModulMeta } from '@/types/yuklenici';
 
 // ─── Dock Grup Tanımları (5 adet — UI'da gösterilen) ───────────
 
@@ -186,10 +180,7 @@ export function getGrupDurum(grupAdi: DockGrupAdi, moduller: IstihbaratModul[]):
  * Bir grubun en son güncelleme zamanını al
  * (alt modüllerin en güncel updated_at değeri)
  */
-export function getGrupSonGuncelleme(
-  grupAdi: DockGrupAdi,
-  moduller: IstihbaratModul[]
-): string | null {
+export function getGrupSonGuncelleme(grupAdi: DockGrupAdi, moduller: IstihbaratModul[]): string | null {
   const grup = DOCK_GRUPLARI.find((g) => g.ad === grupAdi);
   if (!grup) return null;
 

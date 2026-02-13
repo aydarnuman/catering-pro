@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 import type { AgentAnalysis, SessionRecord, SnippetDrop, VerdictData } from '../types';
-
-const API = `${API_BASE_URL}/api`;
 
 interface UseSessionManagerProps {
   tenderId: number | string;
@@ -32,20 +30,15 @@ export function useSessionManager({
   const saveSession = useCallback(async () => {
     setSaving(true);
     try {
-      await fetch(`${API}/ai/ihale-masasi/session/save`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenderId,
-          sessionData: {
-            verdictData,
-            snippetDrops,
-            agentAnalyses,
-            duration: Math.floor((Date.now() - sessionStartTime) / 1000),
-            savedAt: new Date().toISOString(),
-          },
-        }),
+      await api.post('/api/ai/ihale-masasi/session/save', {
+        tenderId,
+        sessionData: {
+          verdictData,
+          snippetDrops,
+          agentAnalyses,
+          duration: Math.floor((Date.now() - sessionStartTime) / 1000),
+          savedAt: new Date().toISOString(),
+        },
       });
     } catch {
       // silently fail
@@ -56,11 +49,8 @@ export function useSessionManager({
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/ai/ihale-masasi/session/${tenderId}`, {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success) setSessions(data.sessions);
+      const res = await api.get(`/api/ai/ihale-masasi/session/${tenderId}`);
+      if (res.data?.success) setSessions(res.data.sessions);
     } catch {
       // silently fail
     }

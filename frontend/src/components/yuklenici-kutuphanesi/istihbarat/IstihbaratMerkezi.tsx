@@ -23,12 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
-import type {
-  DockGrupAdi,
-  IstihbaratModul,
-  IstihbaratModulAdi,
-  Yuklenici,
-} from '@/types/yuklenici';
+import type { DockGrupAdi, IstihbaratModul, IstihbaratModulAdi, Yuklenici } from '@/types/yuklenici';
 import { YukleniciIletisimBilgileri } from '../FirmaBilgileri';
 // RiskNotlarTab kaldırıldı — risk verileri Hukuki Durum modülünde, notlar YapiskanNotlar'da
 import { BolgeselHaritaPaneli } from './BolgeselHaritaPaneli';
@@ -102,9 +97,7 @@ export function IstihbaratMerkezi({
         if (json.success) {
           setModuller(json.data.moduller);
 
-          const calisan = json.data.moduller.filter(
-            (m: IstihbaratModul) => m.durum === 'calisiyor'
-          );
+          const calisan = json.data.moduller.filter((m: IstihbaratModul) => m.durum === 'calisiyor');
           if (calisan.length === 0 && pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -125,9 +118,7 @@ export function IstihbaratMerkezi({
         });
         const json = await res.json();
         if (json.success) {
-          setModuller((prev) =>
-            prev.map((m) => (m.modul === modul ? { ...m, durum: 'calisiyor' } : m))
-          );
+          setModuller((prev) => prev.map((m) => (m.modul === modul ? { ...m, durum: 'calisiyor' } : m)));
           startPolling();
         } else {
           notifications.show({ title: 'Hata', message: json.error, color: 'red' });
@@ -209,8 +200,7 @@ export function IstihbaratMerkezi({
 
   // ─── Ek Panel State'leri ─────────────────────────────────────
 
-  const [karsilastirmaAcik, { open: openKarsilastirma, close: closeKarsilastirma }] =
-    useDisclosure(false);
+  const [karsilastirmaAcik, { open: openKarsilastirma, close: closeKarsilastirma }] = useDisclosure(false);
   const [fiyatAcik, { open: openFiyat, close: closeFiyat }] = useDisclosure(false);
   const [iliskiAcik, { open: openIliski, close: closeIliski }] = useDisclosure(false);
   const [haritaAcik, { open: openHarita, close: closeHarita }] = useDisclosure(false);
@@ -249,9 +239,7 @@ export function IstihbaratMerkezi({
           </div>
           <Button
             size="sm"
-            leftSection={
-              calisanSayisi > 0 ? <IconRefresh size={16} /> : <IconPlayerPlay size={16} />
-            }
+            leftSection={calisanSayisi > 0 ? <IconRefresh size={16} /> : <IconPlayerPlay size={16} />}
             loading={calisanSayisi > 0}
             onClick={openConfirm}
             disabled={calisanSayisi > 0}
@@ -304,10 +292,7 @@ export function IstihbaratMerkezi({
           ))}
           <Divider orientation="vertical" style={{ borderColor: 'var(--yk-border-subtle)' }} />
 
-          <PdfRaporButonu
-            yukleniciId={yukleniciId}
-            yukleniciAdi={yukleniciAdi || `Yuklenici #${yukleniciId}`}
-          />
+          <PdfRaporButonu yukleniciId={yukleniciId} yukleniciAdi={yukleniciAdi || `Yuklenici #${yukleniciId}`} />
         </Group>
 
         <Divider style={{ borderColor: 'var(--yk-border)' }} />
@@ -381,31 +366,15 @@ export function IstihbaratMerkezi({
 
       {/* ─── Ek Panel Modalleri ─────────────────────────────────── */}
 
-      <Modal
-        opened={karsilastirmaAcik}
-        onClose={closeKarsilastirma}
-        title="Yuklenici Karsilastirma"
-        size="xl"
-      >
+      <Modal opened={karsilastirmaAcik} onClose={closeKarsilastirma} title="Yuklenici Karsilastirma" size="xl">
         <KarsilastirmaPaneli yukleniciId={yukleniciId} />
       </Modal>
 
-      <Drawer
-        opened={fiyatAcik}
-        onClose={closeFiyat}
-        title="Fiyat Tahmin Analizi"
-        position="right"
-        size="md"
-      >
+      <Drawer opened={fiyatAcik} onClose={closeFiyat} title="Fiyat Tahmin Analizi" position="right" size="md">
         <FiyatTahminPaneli yukleniciId={yukleniciId} />
       </Drawer>
 
-      <Modal
-        opened={iliskiAcik}
-        onClose={closeIliski}
-        title="Iliski Agi — Ortak Girisim & Rakipler"
-        size="xl"
-      >
+      <Modal opened={iliskiAcik} onClose={closeIliski} title="Iliski Agi — Ortak Girisim & Rakipler" size="xl">
         <IliskiAgiPaneli yukleniciId={yukleniciId} yukleniciAdi={yukleniciAdi} />
       </Modal>
 
@@ -416,16 +385,10 @@ export function IstihbaratMerkezi({
       {/* RiskNotlarTab Drawer kaldırıldı — veriler Hukuki Durum + YapiskanNotlar'da */}
 
       {/* Tumunu Baslat Confirmation */}
-      <Modal
-        opened={confirmAcik}
-        onClose={closeConfirm}
-        title="Tum Modulleri Baslat"
-        size="sm"
-        centered
-      >
+      <Modal opened={confirmAcik} onClose={closeConfirm} title="Tum Modulleri Baslat" size="sm" centered>
         <Text size="sm" mb="md">
-          {MODUL_LISTESI.length} istihbarat kaynagi sirayla calistirilacak. Bu islem birkac dakika
-          surebilir. Devam etmek istiyor musunuz?
+          {MODUL_LISTESI.length} istihbarat kaynagi sirayla calistirilacak. Bu islem birkac dakika surebilir. Devam
+          etmek istiyor musunuz?
         </Text>
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={closeConfirm}>

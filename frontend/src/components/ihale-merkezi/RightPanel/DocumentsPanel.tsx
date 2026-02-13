@@ -13,14 +13,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconCheck,
-  IconDownload,
-  IconFile,
-  IconFileText,
-  IconRefresh,
-  IconX,
-} from '@tabler/icons-react';
+import { IconCheck, IconDownload, IconFile, IconFileText, IconRefresh, IconX } from '@tabler/icons-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
@@ -75,11 +68,10 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
     try {
       const downloadData = await tendersAPI.getDownloadedDocuments(String(tenderId));
       if (downloadData.success && downloadData.data?.documents) {
-        const docs: Document[] = downloadData.data.documents.flatMap(
-          (group: { files: Document[] }) =>
-            group.files.map((file: Document) => ({
-              ...file,
-            }))
+        const docs: Document[] = downloadData.data.documents.flatMap((group: { files: Document[] }) =>
+          group.files.map((file: Document) => ({
+            ...file,
+          }))
         );
         setDocuments(docs);
       }
@@ -236,13 +228,7 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
                       </Text>
                     </Group>
                     {doc.storage_url && (
-                      <ActionIcon
-                        size="xs"
-                        variant="subtle"
-                        component="a"
-                        href={doc.storage_url}
-                        target="_blank"
-                      >
+                      <ActionIcon size="xs" variant="subtle" component="a" href={doc.storage_url} target="_blank">
                         <IconDownload size={12} />
                       </ActionIcon>
                     )}

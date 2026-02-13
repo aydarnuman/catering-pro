@@ -14,13 +14,7 @@ import {
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import {
-  IconCheck,
-  IconClipboardList,
-  IconCopy,
-  IconCurrencyLira,
-  IconFileText,
-} from '@tabler/icons-react';
+import { IconCheck, IconClipboardList, IconCopy, IconCurrencyLira, IconFileText } from '@tabler/icons-react';
 import type { AnalysisData } from '../types';
 import { getTeknikSartTextFromItem } from './OzetCards';
 
@@ -51,25 +45,13 @@ export function TeknikSartlarModal({ opened, onClose, analysisData }: TeknikSart
         <Stack gap="xs">
           {analysisData?.teknik_sartlar?.map((sart, idx) => {
             const sartText = getTeknikSartTextFromItem(sart);
-            const sartObj =
-              typeof sart === 'object' && sart !== null ? (sart as { onem?: string }) : null;
+            const sartObj = typeof sart === 'object' && sart !== null ? (sart as { onem?: string }) : null;
             const onem = sartObj?.onem;
             const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
             return (
-              <Paper
-                key={`modal-ts-${sartText.substring(0, 30)}-${idx}`}
-                p="sm"
-                withBorder
-                radius="md"
-              >
+              <Paper key={`modal-ts-${sartText.substring(0, 30)}-${idx}`} p="sm" withBorder radius="md">
                 <Group gap="xs" wrap="nowrap" align="flex-start">
-                  <Badge
-                    size="sm"
-                    variant="filled"
-                    color={onemColor}
-                    circle
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  >
+                  <Badge size="sm" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
                     {idx + 1}
                   </Badge>
                   <Box style={{ flex: 1 }}>
@@ -82,12 +64,7 @@ export function TeknikSartlarModal({ opened, onClose, analysisData }: TeknikSart
                   </Box>
                   <CopyButton value={sartText}>
                     {({ copied, copy }) => (
-                      <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        onClick={copy}
-                        color={copied ? 'teal' : 'gray'}
-                      >
+                      <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
                         {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                       </ActionIcon>
                     )}
@@ -130,21 +107,10 @@ export function BirimFiyatlarModal({ opened, onClose, analysisData }: BirimFiyat
           {analysisData?.birim_fiyatlar?.map((item, idx) => {
             const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
             return (
-              <Paper
-                key={`modal-bf-${itemText.substring(0, 20)}-${idx}`}
-                p="sm"
-                withBorder
-                radius="md"
-              >
+              <Paper key={`modal-bf-${itemText.substring(0, 20)}-${idx}`} p="sm" withBorder radius="md">
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                    <Badge
-                      size="sm"
-                      variant="filled"
-                      color="green"
-                      circle
-                      style={{ flexShrink: 0 }}
-                    >
+                    <Badge size="sm" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
                       {idx + 1}
                     </Badge>
                     <Box style={{ flex: 1 }}>
@@ -165,12 +131,7 @@ export function BirimFiyatlarModal({ opened, onClose, analysisData }: BirimFiyat
                   </Group>
                   <CopyButton value={itemText}>
                     {({ copied, copy }) => (
-                      <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        onClick={copy}
-                        color={copied ? 'teal' : 'gray'}
-                      >
+                      <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
                         {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                       </ActionIcon>
                     )}
@@ -226,10 +187,7 @@ export function TamMetinModal({ opened, onClose, tamMetin }: TamMetinModalProps)
         </Group>
         <ScrollArea style={{ flex: 1 }}>
           <Paper p="md" withBorder radius="md" bg="dark.8">
-            <Text
-              size="sm"
-              style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}
-            >
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}>
               {tamMetin || 'Tam metin bulunamadı.'}
             </Text>
           </Paper>

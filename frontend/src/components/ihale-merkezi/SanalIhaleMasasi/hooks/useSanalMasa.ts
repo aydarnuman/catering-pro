@@ -1,366 +1,19 @@
+import { notifications } from '@mantine/notifications';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentAnalysisResult } from '@/lib/api/services/ai';
 import { aiAPI } from '@/lib/api/services/ai';
-import type { AnalysisData, SavedTender } from '../../types';
+import type { SavedTender } from '../../types';
 import { AGENTS } from '../constants';
-import type {
-  AgentAnalysis,
-  AgentFinding,
-  AgentHighlight,
-  AgentPersona,
-  ChecklistItem,
-  CrossReference,
-  SnippetDrop,
-  VerdictData,
-  ViewMode,
-} from '../types';
-
-// ─── Agent Weights for Verdict Scoring ───────────────────────
-
-const AGENT_WEIGHTS: Record<AgentPersona['id'], number> = {
-  mevzuat: 0.3,
-  maliyet: 0.3,
-  teknik: 0.25,
-  rekabet: 0.15,
-};
-
-// ─── Backend Result → Frontend AgentAnalysis Mapper ──────────
-
-function mapBackendToAgentAnalysis(
-  agentId: AgentPersona['id'],
-  result: AgentAnalysisResult
-): AgentAnalysis {
-  let status: AgentAnalysis['status'] = result.status === 'complete' ? 'complete' : 'analyzing';
-  if (result.status === 'error') status = 'no-data';
-  if (result.status === 'complete') {
-    if (result.findings.length === 0) status = 'no-data';
-    else if (result.riskScore < 40) status = 'critical';
-    else if (result.riskScore < 60) status = 'warning';
-  }
-
-  return {
-    agentId,
-    status,
-    findings: result.findings.map((f) => ({
-      label: f.label,
-      value: f.value,
-      severity: f.severity,
-      confidence: f.confidence,
-      reasoning: f.reasoning,
-    })),
-    riskScore: result.riskScore,
-    summary:
-      result.summary ||
-      (result.findings[0]
-        ? `${result.findings[0].label}: ${result.findings[0].value}`
-        : 'Analiz tamamlandi'),
-  };
-}
-
-function createAnalyzingState(): AgentAnalysis[] {
-  return AGENTS.map((agent) => ({
-    agentId: agent.id,
-    status: 'analyzing' as const,
-    findings: [],
-    riskScore: 0,
-    summary: 'AI analiz ediliyor...',
-  }));
-}
-
-function createNoDataState(): AgentAnalysis[] {
-  return AGENTS.map((agent) => ({
-    agentId: agent.id,
-    status: 'no-data' as const,
-    findings: [],
-    riskScore: 0,
-    summary: 'Analiz verisi bulunamadi',
-  }));
-}
-
-// ─── Verdict Generation (Faz 6'da AI ile degisecek) ──────────
-
-function generateVerdict(analyses: AgentAnalysis[], data?: AnalysisData | null): VerdictData {
-  const validScores = analyses.filter((a) => a.status !== 'no-data' && a.status !== 'analyzing');
-
-  let overallScore = 0;
-  if (validScores.length > 0) {
-    let totalWeight = 0;
-    let weightedSum = 0;
-    for (const a of validScores) {
-      const w = AGENT_WEIGHTS[a.agentId] ?? 0.25;
-      weightedSum += a.riskScore * w;
-      totalWeight += w;
-    }
-    overallScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
-  }
-
-  let recommendation: VerdictData['recommendation'];
-  let recommendationLabel: string;
-
-  if (overallScore >= 70) {
-    recommendation = 'gir';
-    recommendationLabel = 'Ihaleye Girilebilir';
-  } else if (overallScore >= 45) {
-    recommendation = 'dikkat';
-    recommendationLabel = 'Dikkatli Degerlendirme Gerekli';
-  } else {
-    recommendation = 'girme';
-    recommendationLabel = 'Yuksek Risk — Onerilmez';
-  }
-
-  const checklist = data ? generateChecklist(data, analyses) : [];
-
-  return {
-    overallScore,
-    recommendation,
-    recommendationLabel,
-    agents: analyses,
-    generatedAt: new Date().toISOString(),
-    weights: { ...AGENT_WEIGHTS },
-    checklist,
-  };
-}
-
-// ─── Checklist Generation (Faz 6'da AI ile degisecek) ────────
-
-function generateChecklist(data: AnalysisData, analyses: AgentAnalysis[]): ChecklistItem[] {
-  const items: ChecklistItem[] = [];
-
-  items.push({
-    id: 'bedel',
-    label: 'Tahmini bedel bilgisi mevcut',
-    status: data.tahmini_bedel ? 'pass' : 'fail',
-    detail: data.tahmini_bedel || 'Bedel bilgisi eksik',
-    severity: 'critical',
-  });
-
-  const belgeSayisi = data.gerekli_belgeler?.length ?? 0;
-  items.push({
-    id: 'belgeler',
-    label: 'Gerekli belgeler tanimli',
-    status: belgeSayisi > 0 ? 'pass' : 'fail',
-    detail: belgeSayisi > 0 ? `${belgeSayisi} belge` : 'Belge listesi yok',
-    severity: 'critical',
-  });
-
-  const personelVar = (data.personel_detaylari?.length ?? 0) > 0 || !!data.kisi_sayisi;
-  items.push({
-    id: 'personel',
-    label: 'Personel gereksinimleri belirli',
-    status: personelVar ? 'pass' : 'unknown',
-    detail: personelVar
-      ? `${data.personel_detaylari?.reduce((s, p) => s + p.adet, 0) ?? data.kisi_sayisi} kisi`
-      : 'Personel detaylari belirtilmemis',
-    severity: 'warning',
-  });
-
-  const maliVar = !!(
-    data.mali_kriterler?.cari_oran ||
-    data.mali_kriterler?.ozkaynak_orani ||
-    data.mali_kriterler?.is_deneyimi
-  );
-  items.push({
-    id: 'mali_kriter',
-    label: 'Mali yeterlilik kriterleri mevcut',
-    status: maliVar ? 'pass' : 'fail',
-    detail: maliVar ? 'Kriterler tanimli' : 'Mali kriterler eksik',
-    severity: 'critical',
-  });
-
-  items.push({
-    id: 'benzer_is',
-    label: 'Benzer is tanimi mevcut',
-    status: data.benzer_is_tanimi ? 'pass' : 'fail',
-    detail: data.benzer_is_tanimi || 'Benzer is tanimi bulunamadi',
-    severity: 'critical',
-  });
-
-  items.push({
-    id: 'sure',
-    label: 'Sozlesme suresi belirli',
-    status: data.sure || data.teslim_suresi ? 'pass' : 'unknown',
-    detail: data.sure || data.teslim_suresi || 'Sure bilgisi yok',
-    severity: 'warning',
-  });
-
-  const cezaSayisi = data.ceza_kosullari?.length ?? 0;
-  items.push({
-    id: 'ceza',
-    label: 'Ceza kosullari makul duzeyde',
-    status: cezaSayisi === 0 ? 'unknown' : cezaSayisi <= 3 ? 'pass' : 'fail',
-    detail: cezaSayisi > 0 ? `${cezaSayisi} ceza maddesi` : 'Ceza kosullari belirsiz',
-    severity: cezaSayisi > 3 ? 'warning' : 'info',
-  });
-
-  items.push({
-    id: 'fiyat_farki',
-    label: 'Fiyat farki formulu tanimli',
-    status: data.fiyat_farki?.formul ? 'pass' : 'unknown',
-    detail: data.fiyat_farki?.formul || 'Fiyat farki bilgisi yok',
-    severity: 'info',
-  });
-
-  items.push({
-    id: 'is_artisi',
-    label: 'Is artisi maddesi mevcut',
-    status: data.is_artisi?.oran ? 'pass' : 'fail',
-    detail: data.is_artisi?.oran || 'Is artisi maddesi bulunamadi',
-    severity: 'warning',
-  });
-
-  const criticalAgents = analyses.filter((a) => a.riskScore < 40 && a.status === 'complete');
-  items.push({
-    id: 'agent_risk',
-    label: 'Tum ajanlarda kabul edilebilir risk',
-    status: criticalAgents.length === 0 ? 'pass' : 'fail',
-    detail:
-      criticalAgents.length > 0
-        ? `${criticalAgents.map((a) => AGENTS.find((ag) => ag.id === a.agentId)?.name).join(', ')} kritik`
-        : 'Tum ajanlar kabul edilebilir',
-    severity: 'critical',
-  });
-
-  return items;
-}
-
-// ─── Agent Highlight Generation ──────────────────────────────
-
-function generateAgentHighlights(
-  data: AnalysisData | undefined,
-  analyses: AgentAnalysis[]
-): AgentHighlight[] {
-  if (!data?.tam_metin) return [];
-  const tamMetin = data.tam_metin.toLowerCase();
-  const highlights: AgentHighlight[] = [];
-
-  for (const analysis of analyses) {
-    const agent = AGENTS.find((a) => a.id === analysis.agentId);
-    if (!agent) continue;
-
-    for (const finding of analysis.findings) {
-      if (!finding.severity || finding.severity === 'info') continue;
-
-      const searchTerms = extractSearchTerms(finding);
-      for (const term of searchTerms) {
-        if (term.length < 4) continue;
-        const lowerTerm = term.toLowerCase();
-        if (tamMetin.includes(lowerTerm)) {
-          const idx = tamMetin.indexOf(lowerTerm);
-          if (idx !== -1) {
-            highlights.push({
-              agentId: agent.id,
-              text: (data.tam_metin ?? '').substring(idx, idx + term.length),
-              color: agent.color,
-              finding: finding.label,
-            });
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  return highlights;
-}
-
-// ─── Cross-Reference Generation (Faz 6'da AI ile degisecek) ──
-
-function generateCrossReferences(data: AnalysisData | null | undefined): CrossReference[] {
-  if (!data) return [];
-  const refs: CrossReference[] = [];
-
-  if (data.ceza_kosullari?.length && data.ceza_kosullari.length > 2) {
-    refs.push({
-      fromAgentId: 'mevzuat',
-      toAgentId: 'maliyet',
-      fromFinding: 'Ceza Kosullari',
-      impact: `${data.ceza_kosullari.length} ceza maddesi maliyet riskini artiriyor`,
-      severity: data.ceza_kosullari.length > 4 ? 'critical' : 'warning',
-    });
-  }
-
-  if (data.personel_detaylari?.length) {
-    const toplamPersonel = data.personel_detaylari.reduce((s, p) => s + p.adet, 0);
-    if (toplamPersonel > 20) {
-      refs.push({
-        fromAgentId: 'teknik',
-        toAgentId: 'maliyet',
-        fromFinding: 'Personel Ihtiyaci',
-        impact: `${toplamPersonel} personel maliyeti butceyi onemli olcude etkiler`,
-        severity: 'warning',
-      });
-    }
-  }
-
-  if (!data.benzer_is_tanimi) {
-    refs.push({
-      fromAgentId: 'rekabet',
-      toAgentId: 'mevzuat',
-      fromFinding: 'Benzer Is',
-      impact: 'Benzer is tanimi olmadan yeterlilik degerlendirmesi yapilamaz',
-      severity: 'critical',
-    });
-  }
-
-  if (!data.mali_kriterler?.cari_oran && !data.mali_kriterler?.is_deneyimi) {
-    refs.push({
-      fromAgentId: 'maliyet',
-      toAgentId: 'rekabet',
-      fromFinding: 'Mali Kriterler',
-      impact: 'Mali yeterlilik kriterleri belirsiz — teklif stratejisi riskli',
-      severity: 'warning',
-    });
-  }
-
-  if (data.fiyat_farki?.formul) {
-    refs.push({
-      fromAgentId: 'mevzuat',
-      toAgentId: 'maliyet',
-      fromFinding: 'Fiyat Farki',
-      impact: `Fiyat farki formulu maliyet projeksiyonunu etkiler: ${data.fiyat_farki.formul}`,
-      severity: 'info',
-    });
-  }
-
-  if (data.teknik_sartlar && data.teknik_sartlar.length > 15) {
-    refs.push({
-      fromAgentId: 'teknik',
-      toAgentId: 'maliyet',
-      fromFinding: 'Teknik Sartlar',
-      impact: `${data.teknik_sartlar.length} teknik sart — uyum maliyeti yuksek olabilir`,
-      severity: 'warning',
-    });
-  }
-
-  return refs;
-}
-
-/** Parse tender ID from mixed SavedTender shapes (string | number | undefined) */
-function parseTenderId(tender: SavedTender): number | null {
-  const rawId = tender?.tender_id ?? tender?.id;
-  const id = typeof rawId === 'string' ? Number.parseInt(rawId, 10) : rawId;
-  return id && !Number.isNaN(id) ? id : null;
-}
-
-/** Create a "no-data" stub for a single agent */
-function createNoDataAnalysis(agentId: AgentPersona['id'], summary: string): AgentAnalysis {
-  return { agentId, status: 'no-data', findings: [], riskScore: 0, summary };
-}
-
-function extractSearchTerms(finding: AgentFinding): string[] {
-  const terms: string[] = [];
-  if (finding.value && finding.value.length > 4 && finding.value.length < 100) {
-    terms.push(finding.value);
-  }
-  const quoted = finding.value?.match(/"([^"]+)"/g);
-  if (quoted) {
-    for (const q of quoted) terms.push(q.replace(/"/g, ''));
-  }
-  if (finding.label && finding.label.length > 4) {
-    terms.push(finding.label);
-  }
-  return terms;
-}
+import type { AgentAnalysis, AgentPersona, SnippetDrop, VerdictData, ViewMode } from '../types';
+import {
+  createAnalyzingState,
+  createNoDataAnalysis,
+  createNoDataState,
+  generateAgentHighlights,
+  mapBackendToAgentAnalysis,
+  parseTenderId,
+} from './analysis-helpers';
+import { AGENT_WEIGHTS, generateCrossReferences, generateVerdict } from './verdict-engine';
 
 // ─── Hook ────────────────────────────────────────────────────
 
@@ -372,6 +25,7 @@ export function useSanalMasa(tender: SavedTender) {
   const [agentAnalyses, setAgentAnalyses] = useState<AgentAnalysis[]>(createAnalyzingState);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [verdictLoading, setVerdictLoading] = useState(false);
+  const [teklifModalOpen, setTeklifModalOpen] = useState(false);
 
   // Track tender ID to avoid duplicate calls
   const analyzedTenderRef = useRef<number | null>(null);
@@ -421,8 +75,15 @@ export function useSanalMasa(tender: SavedTender) {
         } else {
           setAgentAnalyses(createNoDataState());
         }
-      } catch {
+      } catch (err) {
         setAgentAnalyses(createNoDataState());
+        notifications.show({
+          title: 'Analiz Hatasi',
+          message:
+            err instanceof Error ? err.message : 'Ajan analizleri yuklenirken bir hata olustu. Lutfen tekrar deneyin.',
+          color: 'red',
+          autoClose: 8000,
+        });
       } finally {
         setIsAnalyzing(false);
       }
@@ -435,49 +96,38 @@ export function useSanalMasa(tender: SavedTender) {
       const tenderId = parseTenderId(tender);
       if (!tenderId) return;
 
-      // Set this agent to analyzing
       setAgentAnalyses((prev) =>
         prev.map((a) =>
           a.agentId === agentId
-            ? {
-                ...a,
-                status: 'analyzing' as const,
-                findings: [],
-                riskScore: 0,
-                summary: 'Yeniden analiz ediliyor...',
-              }
+            ? { ...a, status: 'analyzing' as const, findings: [], riskScore: 0, summary: 'Yeniden analiz ediliyor...' }
             : a
         )
       );
 
       try {
-        // Agent'a atanan snippet'leri ek context olarak gönder
-        const agentSnippetTexts = snippetDrops
-          .filter((s) => s.agentId === agentId)
-          .map((s) => s.text);
+        const agentSnippetTexts = snippetDrops.filter((s) => s.agentId === agentId).map((s) => s.text);
 
-        const additionalContext =
-          agentSnippetTexts.length > 0 ? { snippets: agentSnippetTexts } : undefined;
+        const additionalContext = agentSnippetTexts.length > 0 ? { snippets: agentSnippetTexts } : undefined;
 
         const response = await aiAPI.analyzeSingleAgent(tenderId, agentId, true, additionalContext);
         if (response.success && response.data?.analysis) {
           const result = response.data.analysis;
           setAgentAnalyses((prev) =>
             prev.map((a) =>
-              a.agentId === agentId
-                ? mapBackendToAgentAnalysis(agentId as AgentPersona['id'], result)
-                : a
+              a.agentId === agentId ? mapBackendToAgentAnalysis(agentId as AgentPersona['id'], result) : a
             )
           );
         }
-      } catch {
+      } catch (err) {
         setAgentAnalyses((prev) =>
-          prev.map((a) =>
-            a.agentId === agentId
-              ? { ...a, status: 'no-data' as const, summary: 'Analiz hatasi' }
-              : a
-          )
+          prev.map((a) => (a.agentId === agentId ? { ...a, status: 'no-data' as const, summary: 'Analiz hatasi' } : a))
         );
+        notifications.show({
+          title: 'Ajan Analiz Hatasi',
+          message: err instanceof Error ? err.message : `${agentId} ajani yeniden analiz edilirken hata olustu.`,
+          color: 'red',
+          autoClose: 6000,
+        });
       }
     },
     [tender, snippetDrops]
@@ -509,14 +159,13 @@ export function useSanalMasa(tender: SavedTender) {
 
   const handleAssemble = useCallback(async () => {
     setViewMode('ASSEMBLE');
-    // Hemen kural-bazlı fallback verdict göster
+    // Rule-based fallback verdict immediately
     setVerdictData(generateVerdict(agentAnalyses, tender?.analysis_summary));
 
-    // Arka planda AI verdict üret
+    // Background AI verdict
     const tenderId = parseTenderId(tender);
     if (!tenderId) return;
 
-    // Completed analizleri backend formatına dönüştür
     const completedAnalyses: Record<
       string,
       {
@@ -529,11 +178,7 @@ export function useSanalMasa(tender: SavedTender) {
     > = {};
     for (const a of agentAnalyses) {
       if (a.status !== 'no-data' && a.status !== 'analyzing') {
-        completedAnalyses[a.agentId] = {
-          riskScore: a.riskScore,
-          summary: a.summary,
-          findings: a.findings,
-        };
+        completedAnalyses[a.agentId] = { riskScore: a.riskScore, summary: a.summary, findings: a.findings };
       }
     }
 
@@ -541,10 +186,7 @@ export function useSanalMasa(tender: SavedTender) {
 
     setVerdictLoading(true);
     try {
-      const vResp = await aiAPI.generateAIVerdict(
-        tenderId,
-        completedAnalyses as Record<string, AgentAnalysisResult>
-      );
+      const vResp = await aiAPI.generateAIVerdict(tenderId, completedAnalyses as Record<string, AgentAnalysisResult>);
       if (vResp.success && vResp.data?.verdict) {
         const v = vResp.data.verdict;
         setVerdictData({
@@ -566,8 +208,15 @@ export function useSanalMasa(tender: SavedTender) {
           generatedBy: 'ai',
         });
       }
-    } catch {
-      // Fallback zaten set edildi, AI başarısız olsa da kural-bazlı verdict görünür
+    } catch (err) {
+      // Fallback rule-based verdict already set above
+      notifications.show({
+        title: 'AI Verdict Hatasi',
+        message:
+          err instanceof Error ? err.message : 'AI karar raporu olusturulamadi, kural tabanli sonuc gosteriliyor.',
+        color: 'yellow',
+        autoClose: 6000,
+      });
     } finally {
       setVerdictLoading(false);
     }
@@ -586,12 +235,11 @@ export function useSanalMasa(tender: SavedTender) {
     ]);
   }, []);
 
-  const focusedAgent = focusedAgentId
-    ? (AGENTS.find((a) => a.id === focusedAgentId) ?? null)
-    : null;
-  const focusedAnalysis = focusedAgentId
-    ? (agentAnalyses.find((a) => a.agentId === focusedAgentId) ?? null)
-    : null;
+  const handleOpenTeklif = useCallback(() => setTeklifModalOpen(true), []);
+  const handleCloseTeklif = useCallback(() => setTeklifModalOpen(false), []);
+
+  const focusedAgent = focusedAgentId ? (AGENTS.find((a) => a.id === focusedAgentId) ?? null) : null;
+  const focusedAnalysis = focusedAgentId ? (agentAnalyses.find((a) => a.agentId === focusedAgentId) ?? null) : null;
 
   return {
     viewMode,
@@ -604,11 +252,14 @@ export function useSanalMasa(tender: SavedTender) {
     crossReferences,
     snippetDrops,
     isAnalyzing,
+    teklifModalOpen,
     handleAgentClick,
     handleBackToOrbit,
     handleAssemble,
     handleReset,
     handleSnippetDrop,
     reanalyzeAgent,
+    handleOpenTeklif,
+    handleCloseTeklif,
   };
 }

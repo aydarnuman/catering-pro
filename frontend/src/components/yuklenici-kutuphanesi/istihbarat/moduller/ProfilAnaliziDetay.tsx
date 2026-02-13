@@ -32,9 +32,7 @@ export function ProfilAnaliziDetay({ veri }: Props) {
   const aktifSehirler = (veri.aktif_sehirler ?? []) as string[];
 
   if (!analiz) {
-    return (
-      <Text c="dimmed">Analiz verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>
-    );
+    return <Text c="dimmed">Analiz verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
   }
 
   const ozet = analiz.ozet as Record<string, unknown> | undefined;
@@ -186,41 +184,19 @@ function OzetBolum({ ozet }: { ozet: Record<string, unknown> }) {
     <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
       <OzetKart baslik="Toplam İhale" deger={ozet.gecmis_ihale as number} />
       <OzetKart baslik="Aktif İhale" deger={ozet.aktif_ihale as number} renk="blue" />
-      {!!tamamlanan?.sayi && (
-        <OzetKart baslik="Tamamlanan" deger={tamamlanan.sayi as number} renk="green" />
-      )}
-      {!!devamEden?.sayi && (
-        <OzetKart baslik="Devam Eden" deger={devamEden.sayi as number} renk="cyan" />
-      )}
-      {!!toplam?.tutar && (
-        <OzetKart baslik="Toplam Sözleşme" deger={formatCurrency(toplam.tutar as number)} />
-      )}
+      {!!tamamlanan?.sayi && <OzetKart baslik="Tamamlanan" deger={tamamlanan.sayi as number} renk="green" />}
+      {!!devamEden?.sayi && <OzetKart baslik="Devam Eden" deger={devamEden.sayi as number} renk="cyan" />}
+      {!!toplam?.tutar && <OzetKart baslik="Toplam Sözleşme" deger={formatCurrency(toplam.tutar as number)} />}
       {!!yillik?.tutar && (
-        <OzetKart
-          baslik="Yıllık Ortalama"
-          deger={formatCurrency(yillik.tutar as number)}
-          renk="indigo"
-        />
+        <OzetKart baslik="Yıllık Ortalama" deger={formatCurrency(yillik.tutar as number)} renk="indigo" />
       )}
       {!!isBitirme?.tutar && (
-        <OzetKart
-          baslik="İş Bitirme (5 Yıl)"
-          deger={formatCurrency(isBitirme.tutar as number)}
-          renk="grape"
-        />
+        <OzetKart baslik="İş Bitirme (5 Yıl)" deger={formatCurrency(isBitirme.tutar as number)} renk="grape" />
       )}
-      {!!tenzilat?.yuzde && (
-        <OzetKart baslik="Ort. Tenzilat" deger={`%${tenzilat.yuzde}`} renk="teal" />
-      )}
-      {!!ozet.ort_sozlesme_suresi_gun && (
-        <OzetKart baslik="Ort. Süre" deger={`${ozet.ort_sozlesme_suresi_gun} gün`} />
-      )}
-      {!!ozet.ilk_sozlesme && (
-        <OzetKart baslik="İlk Sözleşme" deger={ozet.ilk_sozlesme as string} renk="dimmed" />
-      )}
-      {!!ozet.son_sozlesme && (
-        <OzetKart baslik="Son Sözleşme" deger={ozet.son_sozlesme as string} renk="dimmed" />
-      )}
+      {!!tenzilat?.yuzde && <OzetKart baslik="Ort. Tenzilat" deger={`%${tenzilat.yuzde}`} renk="teal" />}
+      {!!ozet.ort_sozlesme_suresi_gun && <OzetKart baslik="Ort. Süre" deger={`${ozet.ort_sozlesme_suresi_gun} gün`} />}
+      {!!ozet.ilk_sozlesme && <OzetKart baslik="İlk Sözleşme" deger={ozet.ilk_sozlesme as string} renk="dimmed" />}
+      {!!ozet.son_sozlesme && <OzetKart baslik="Son Sözleşme" deger={ozet.son_sozlesme as string} renk="dimmed" />}
     </SimpleGrid>
   );
 }
@@ -242,12 +218,7 @@ function OzetKart({ baslik, deger, renk }: { baslik: string; deger: unknown; ren
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (
     <div>
-      <Text
-        size="sm"
-        fw={600}
-        mb="xs"
-        style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}
-      >
+      <Text size="sm" fw={600} mb="xs" style={{ color: 'var(--yk-text-secondary)', letterSpacing: '0.02em' }}>
         {baslik}
       </Text>
       {children}

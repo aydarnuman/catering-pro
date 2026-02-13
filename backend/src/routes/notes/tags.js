@@ -6,6 +6,7 @@
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 
@@ -32,7 +33,8 @@ router.get('/', async (req, res) => {
       success: true,
       tags: result.rows,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Etiketler yüklenirken hata oluştu' });
   }
 });
@@ -67,7 +69,8 @@ router.get('/suggestions', async (req, res) => {
       success: true,
       suggestions: result.rows,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Etiket önerileri yüklenirken hata oluştu' });
   }
 });
@@ -98,7 +101,8 @@ router.post('/', async (req, res) => {
       tag: result.rows[0],
       message: 'Etiket oluşturuldu',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Etiket oluşturulurken hata oluştu' });
   }
 });
@@ -154,7 +158,8 @@ router.put('/:tagId', async (req, res) => {
       tag: result.rows[0],
       message: 'Etiket güncellendi',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Etiket güncellenirken hata oluştu' });
   }
 });
@@ -180,7 +185,8 @@ router.delete('/:tagId', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Etiket silindi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Etiket silinirken hata oluştu' });
   }
 });

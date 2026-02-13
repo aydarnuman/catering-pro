@@ -59,47 +59,13 @@ import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { personelAPI } from '@/lib/api/services/personel';
 import { formatDate, formatMoney } from '@/lib/formatters';
-import {
-  validateEmail,
-  validateRequired,
-  validateTcKimlik,
-  validateTelefon,
-} from '@/lib/validation/tr';
+import { validateEmail, validateRequired, validateTcKimlik, validateTelefon } from '@/lib/validation/tr';
 import 'dayjs/locale/tr';
+import type { Personel, Proje } from '@/types/domain';
 
 // =====================================================
 // TİP TANIMLARI
 // =====================================================
-
-interface Proje {
-  id: number;
-  ad: string;
-  kod: string | null;
-  musteri: string | null;
-  lokasyon: string | null;
-  durum: 'aktif' | 'pasif' | 'tamamlandi' | 'beklemede';
-  personel_sayisi: number;
-  toplam_maas: number;
-}
-
-interface Personel {
-  id: number;
-  sicil_no: string | null;
-  tc_kimlik: string;
-  ad: string;
-  soyad: string;
-  telefon: string | null;
-  email: string | null;
-  departman: string | null;
-  pozisyon: string | null;
-  ise_giris_tarihi: string;
-  maas: number;
-  bordro_maas: number;
-  durum: 'aktif' | 'izinli' | 'pasif';
-  medeni_durum?: string;
-  cocuk_sayisi?: number;
-  sgk_no?: string;
-}
 
 interface TahakkukBilgisi {
   exists: boolean;
@@ -256,10 +222,8 @@ export default function PersonelPage() {
 
   // === MODAL STATE ===
   const [bordroImportOpen, setBordroImportOpen] = useState(false);
-  const [personelModalOpened, { open: openPersonelModal, close: closePersonelModal }] =
-    useDisclosure(false);
-  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] =
-    useDisclosure(false);
+  const [personelModalOpened, { open: openPersonelModal, close: closePersonelModal }] = useDisclosure(false);
+  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
 
   // === FORM STATE ===
   const [editingPersonel, setEditingPersonel] = useState<Personel | null>(null);
@@ -577,15 +541,7 @@ export default function PersonelPage() {
       fetchMaasOdeme();
       fetchAylikOdeme();
     }
-  }, [
-    selectedProje,
-    activeTab,
-    fetchBordro,
-    fetchMaasOdeme,
-    fetchAylikOdeme,
-    authLoading,
-    isAuthenticated,
-  ]);
+  }, [selectedProje, activeTab, fetchBordro, fetchMaasOdeme, fetchAylikOdeme, authLoading, isAuthenticated]);
 
   // 🔴 REALTIME - Personel ve bordro tablolarını dinle
   const refetchPersonelData = useCallback(() => {
@@ -689,13 +645,13 @@ export default function PersonelPage() {
     setPersonelForm({
       ad: p.ad,
       soyad: p.soyad,
-      tc_kimlik: p.tc_kimlik,
+      tc_kimlik: p.tc_kimlik || '',
       telefon: p.telefon || '',
       email: p.email || '',
       departman: p.departman || '',
       pozisyon: p.pozisyon || '',
-      ise_giris_tarihi: new Date(p.ise_giris_tarihi),
-      maas: p.maas,
+      ise_giris_tarihi: p.ise_giris_tarihi ? new Date(p.ise_giris_tarihi) : new Date(),
+      maas: p.maas ?? 0,
       bordro_maas: p.bordro_maas || 0,
       durum: p.durum || 'aktif',
       medeni_durum: p.medeni_durum || 'bekar',
@@ -834,8 +790,7 @@ export default function PersonelPage() {
                   radius="md"
                   style={{
                     cursor: 'pointer',
-                    borderColor:
-                      selectedProje === proje.id ? 'var(--mantine-color-violet-5)' : undefined,
+                    borderColor: selectedProje === proje.id ? 'var(--mantine-color-violet-5)' : undefined,
                     background:
                       selectedProje === proje.id
                         ? isDark
@@ -901,12 +856,7 @@ export default function PersonelPage() {
               <Card.Section withBorder inheritPadding py="md">
                 <Group justify="space-between">
                   <Group>
-                    <ThemeIcon
-                      size="lg"
-                      radius="xl"
-                      variant="gradient"
-                      gradient={{ from: 'violet', to: 'grape' }}
-                    >
+                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
                       <IconBuilding size={20} />
                     </ThemeIcon>
                     <Box>
@@ -914,8 +864,8 @@ export default function PersonelPage() {
                         {selectedProjeData.ad}
                       </Text>
                       <Text size="sm" c="dimmed">
-                        {selectedProjeData.personel_sayisi} personel •{' '}
-                        {formatMoney(selectedProjeData.toplam_maas || 0)} maaş
+                        {selectedProjeData.personel_sayisi} personel • {formatMoney(selectedProjeData.toplam_maas || 0)}{' '}
+                        maaş
                       </Text>
                     </Box>
                   </Group>
@@ -1006,7 +956,7 @@ export default function PersonelPage() {
                               <Table.Tr key={personel.id}>
                                 <Table.Td>
                                   <Group gap="sm">
-                                    <Avatar color={getAvatarColor(personel.departman)} radius="xl">
+                                    <Avatar color={getAvatarColor(personel.departman ?? null)} radius="xl">
                                       {personel.ad[0]}
                                       {personel.soyad[0]}
                                     </Avatar>
@@ -1021,7 +971,7 @@ export default function PersonelPage() {
                                   </Group>
                                 </Table.Td>
                                 <Table.Td>
-                                  <Badge variant="light" color={getAvatarColor(personel.departman)}>
+                                  <Badge variant="light" color={getAvatarColor(personel.departman ?? null)}>
                                     {personel.departman || 'Belirsiz'}
                                   </Badge>
                                 </Table.Td>
@@ -1053,9 +1003,7 @@ export default function PersonelPage() {
                                     </Menu.Target>
                                     <Menu.Dropdown>
                                       <Menu.Item
-                                        leftSection={
-                                          <IconEye style={{ width: rem(14), height: rem(14) }} />
-                                        }
+                                        leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />}
                                         onClick={() => {
                                           setSelectedPersonel(personel);
                                           openDetailModal();
@@ -1065,9 +1013,7 @@ export default function PersonelPage() {
                                       </Menu.Item>
                                       {canEditPersonel && (
                                         <Menu.Item
-                                          leftSection={
-                                            <IconEdit style={{ width: rem(14), height: rem(14) }} />
-                                          }
+                                          leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
                                           onClick={() => handleEditPersonel(personel)}
                                         >
                                           Düzenle
@@ -1078,11 +1024,7 @@ export default function PersonelPage() {
                                           <Menu.Divider />
                                           <Menu.Item
                                             color="red"
-                                            leftSection={
-                                              <IconTrash
-                                                style={{ width: rem(14), height: rem(14) }}
-                                              />
-                                            }
+                                            leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
                                             onClick={() => handleDeletePersonel(personel.id)}
                                           >
                                             Sil
@@ -1153,8 +1095,7 @@ export default function PersonelPage() {
                       /* ==================== TAHAKKUK BİLGİLERİ ==================== */
                       <Stack gap="md">
                         <Badge color="green" variant="light" size="lg">
-                          ✅ {aylar.find((a) => a.value === bordroAy.toString())?.label} {bordroYil}{' '}
-                          Tahakkuk Yüklendi
+                          ✅ {aylar.find((a) => a.value === bordroAy.toString())?.label} {bordroYil} Tahakkuk Yüklendi
                         </Badge>
 
                         {/* ÖZET KARTLARI */}
@@ -1249,8 +1190,7 @@ export default function PersonelPage() {
                             <Group justify="space-between" mb="md">
                               <Group gap="md">
                                 <Text fw={700} size="lg">
-                                  {aylar.find((a) => a.value === bordroAy.toString())?.label}{' '}
-                                  {bordroYil} Ödemeleri
+                                  {aylar.find((a) => a.value === bordroAy.toString())?.label} {bordroYil} Ödemeleri
                                 </Text>
                                 {aylikOdeme.maas_banka_odendi &&
                                 aylikOdeme.maas_elden_odendi &&
@@ -1321,9 +1261,7 @@ export default function PersonelPage() {
                               const resmiToplam = parseFloat(String(tahakkuk.toplam_gider || 0));
 
                               // EK ÖDEMELER (Kayıt dışı)
-                              const eldenFark = parseFloat(
-                                String(maasOdemeOzet?.toplam_elden || 0)
-                              );
+                              const eldenFark = parseFloat(String(maasOdemeOzet?.toplam_elden || 0));
                               const prim = parseFloat(String(maasOdemeOzet?.toplam_prim || 0));
                               const avans = parseFloat(String(maasOdemeOzet?.toplam_avans || 0));
                               const ekOdemeler = eldenFark + prim - avans;
@@ -1336,12 +1274,8 @@ export default function PersonelPage() {
                               const sgkPrimi =
                                 parseFloat(String(tahakkuk.odenecek_sgk_primi || 0)) +
                                 parseFloat(String(tahakkuk.odenecek_sgd_primi || 0));
-                              const gelirVergisi = parseFloat(
-                                String(tahakkuk.odenecek_gelir_vergisi || 0)
-                              );
-                              const damgaVergisi = parseFloat(
-                                String(tahakkuk.odenecek_damga_vergisi || 0)
-                              );
+                              const gelirVergisi = parseFloat(String(tahakkuk.odenecek_gelir_vergisi || 0));
+                              const damgaVergisi = parseFloat(String(tahakkuk.odenecek_damga_vergisi || 0));
                               const issizlik = parseFloat(String(tahakkuk.odenecek_issizlik || 0));
 
                               // ÖDENEN (kartlardaki değerlere göre)
@@ -1371,11 +1305,7 @@ export default function PersonelPage() {
                                       <Text size="xs" c="dimmed">
                                         💵 Ek Ödemeler (Elden/Prim)
                                       </Text>
-                                      <Text
-                                        fw={700}
-                                        size="lg"
-                                        c={ekOdemeler > 0 ? 'orange' : 'dimmed'}
-                                      >
+                                      <Text fw={700} size="lg" c={ekOdemeler > 0 ? 'orange' : 'dimmed'}>
                                         {ekOdemeler >= 0 ? '+' : ''}
                                         {formatMoney(ekOdemeler)}
                                       </Text>
@@ -1407,13 +1337,10 @@ export default function PersonelPage() {
                                     }}
                                   >
                                     <Text size="xs">
-                                      Elden: {formatMoney(eldenFark)} | Prim: +{formatMoney(prim)} |
-                                      Avans: -{formatMoney(avans)}
+                                      Elden: {formatMoney(eldenFark)} | Prim: +{formatMoney(prim)} | Avans: -
+                                      {formatMoney(avans)}
                                     </Text>
-                                    <Text
-                                      size="xs"
-                                      c={genelToplam - toplamOdenen > 0 ? 'orange' : 'green'}
-                                    >
+                                    <Text size="xs" c={genelToplam - toplamOdenen > 0 ? 'orange' : 'green'}>
                                       Kalan: {formatMoney(genelToplam - toplamOdenen)}
                                     </Text>
                                   </Group>
@@ -1441,10 +1368,7 @@ export default function PersonelPage() {
                             }
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                             onClick={() =>
-                              handleToggleOdeme(
-                                'maas_banka_odendi',
-                                aylikOdeme?.maas_banka_odendi || false
-                              )
+                              handleToggleOdeme('maas_banka_odendi', aylikOdeme?.maas_banka_odendi || false)
                             }
                           >
                             <Group justify="space-between" mb="xs">
@@ -1486,10 +1410,7 @@ export default function PersonelPage() {
                             }
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                             onClick={() =>
-                              handleToggleOdeme(
-                                'maas_elden_odendi',
-                                aylikOdeme?.maas_elden_odendi || false
-                              )
+                              handleToggleOdeme('maas_elden_odendi', aylikOdeme?.maas_elden_odendi || false)
                             }
                           >
                             <Group justify="space-between" mb="xs">
@@ -1520,19 +1441,9 @@ export default function PersonelPage() {
                             withBorder
                             p="md"
                             radius="md"
-                            bg={
-                              aylikOdeme?.sgk_odendi
-                                ? isDark
-                                  ? 'green.9'
-                                  : 'green.1'
-                                : isDark
-                                  ? 'dark.7'
-                                  : 'white'
-                            }
+                            bg={aylikOdeme?.sgk_odendi ? (isDark ? 'green.9' : 'green.1') : isDark ? 'dark.7' : 'white'}
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                            onClick={() =>
-                              handleToggleOdeme('sgk_odendi', aylikOdeme?.sgk_odendi || false)
-                            }
+                            onClick={() => handleToggleOdeme('sgk_odendi', aylikOdeme?.sgk_odendi || false)}
                           >
                             <Group justify="space-between" mb="xs">
                               <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
@@ -1576,10 +1487,7 @@ export default function PersonelPage() {
                             }
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                             onClick={() =>
-                              handleToggleOdeme(
-                                'gelir_vergisi_odendi',
-                                aylikOdeme?.gelir_vergisi_odendi || false
-                              )
+                              handleToggleOdeme('gelir_vergisi_odendi', aylikOdeme?.gelir_vergisi_odendi || false)
                             }
                           >
                             <Group justify="space-between" mb="xs">
@@ -1621,10 +1529,7 @@ export default function PersonelPage() {
                             }
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                             onClick={() =>
-                              handleToggleOdeme(
-                                'damga_vergisi_odendi',
-                                aylikOdeme?.damga_vergisi_odendi || false
-                              )
+                              handleToggleOdeme('damga_vergisi_odendi', aylikOdeme?.damga_vergisi_odendi || false)
                             }
                           >
                             <Group justify="space-between" mb="xs">
@@ -1665,12 +1570,7 @@ export default function PersonelPage() {
                                   : 'white'
                             }
                             style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                            onClick={() =>
-                              handleToggleOdeme(
-                                'issizlik_odendi',
-                                aylikOdeme?.issizlik_odendi || false
-                              )
-                            }
+                            onClick={() => handleToggleOdeme('issizlik_odendi', aylikOdeme?.issizlik_odendi || false)}
                           >
                             <Group justify="space-between" mb="xs">
                               <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
@@ -1698,14 +1598,8 @@ export default function PersonelPage() {
 
                         {/* PERSONEL DETAY BUTONU */}
                         <Group justify="center" mb="md">
-                          <Button
-                            size="xs"
-                            variant="subtle"
-                            onClick={() => setShowOdemeDetay(!showOdemeDetay)}
-                          >
-                            {showOdemeDetay
-                              ? '👆 Personel Listesini Gizle'
-                              : '👇 Personel Bazlı Detay Göster'}
+                          <Button size="xs" variant="subtle" onClick={() => setShowOdemeDetay(!showOdemeDetay)}>
+                            {showOdemeDetay ? '👆 Personel Listesini Gizle' : '👇 Personel Bazlı Detay Göster'}
                           </Button>
                         </Group>
 
@@ -1757,25 +1651,13 @@ export default function PersonelPage() {
                                   </Table.Td>
                                   <Table.Td style={{ textAlign: 'center' }}>
                                     <Group gap={4} justify="center">
-                                      <Tooltip
-                                        label={p.banka_odendi ? 'Banka ödendi' : 'Banka bekleniyor'}
-                                      >
-                                        <Badge
-                                          size="xs"
-                                          color={p.banka_odendi ? 'green' : 'gray'}
-                                          variant="light"
-                                        >
+                                      <Tooltip label={p.banka_odendi ? 'Banka ödendi' : 'Banka bekleniyor'}>
+                                        <Badge size="xs" color={p.banka_odendi ? 'green' : 'gray'} variant="light">
                                           🏦
                                         </Badge>
                                       </Tooltip>
-                                      <Tooltip
-                                        label={p.elden_odendi ? 'Elden ödendi' : 'Elden bekleniyor'}
-                                      >
-                                        <Badge
-                                          size="xs"
-                                          color={p.elden_odendi ? 'green' : 'gray'}
-                                          variant="light"
-                                        >
+                                      <Tooltip label={p.elden_odendi ? 'Elden ödendi' : 'Elden bekleniyor'}>
+                                        <Badge size="xs" color={p.elden_odendi ? 'green' : 'gray'} variant="light">
                                           💵
                                         </Badge>
                                       </Tooltip>
@@ -1866,17 +1748,13 @@ export default function PersonelPage() {
                 label="TC Kimlik No"
                 required
                 value={personelForm.tc_kimlik}
-                onChange={(e) =>
-                  setPersonelForm({ ...personelForm, tc_kimlik: e.currentTarget.value })
-                }
+                onChange={(e) => setPersonelForm({ ...personelForm, tc_kimlik: e.currentTarget.value })}
                 leftSection={<IconId size={16} />}
               />
               <TextInput
                 label="SGK No"
                 value={personelForm.sgk_no}
-                onChange={(e) =>
-                  setPersonelForm({ ...personelForm, sgk_no: e.currentTarget.value })
-                }
+                onChange={(e) => setPersonelForm({ ...personelForm, sgk_no: e.currentTarget.value })}
               />
             </SimpleGrid>
 
@@ -1884,9 +1762,7 @@ export default function PersonelPage() {
               <TextInput
                 label="Telefon"
                 value={personelForm.telefon}
-                onChange={(e) =>
-                  setPersonelForm({ ...personelForm, telefon: e.currentTarget.value })
-                }
+                onChange={(e) => setPersonelForm({ ...personelForm, telefon: e.currentTarget.value })}
                 leftSection={<IconPhone size={16} />}
               />
               <TextInput
@@ -1902,9 +1778,7 @@ export default function PersonelPage() {
                 label="Departman"
                 data={departmanlar}
                 value={personelForm.departman}
-                onChange={(v) =>
-                  setPersonelForm({ ...personelForm, departman: v || '', pozisyon: '' })
-                }
+                onChange={(v) => setPersonelForm({ ...personelForm, departman: v || '', pozisyon: '' })}
               />
               <Select
                 label="Pozisyon"
@@ -1919,9 +1793,7 @@ export default function PersonelPage() {
               <StyledDatePicker
                 label="İşe Giriş Tarihi"
                 value={personelForm.ise_giris_tarihi}
-                onChange={(v) =>
-                  setPersonelForm({ ...personelForm, ise_giris_tarihi: v || new Date() })
-                }
+                onChange={(v) => setPersonelForm({ ...personelForm, ise_giris_tarihi: v || new Date() })}
                 required
               />
               <Select
@@ -2010,29 +1882,24 @@ export default function PersonelPage() {
           {selectedPersonel &&
             (() => {
               // Kıdem hesapla
-              const iseGiris = new Date(selectedPersonel.ise_giris_tarihi);
+              const iseGiris = new Date(selectedPersonel.ise_giris_tarihi || Date.now());
               const bugun = new Date();
               const farkMs = bugun.getTime() - iseGiris.getTime();
               const gunFark = Math.floor(farkMs / (1000 * 60 * 60 * 24));
               const yil = Math.floor(gunFark / 365);
               const ay = Math.floor((gunFark % 365) / 30);
               const gun = gunFark % 30;
-              const kidemStr =
-                yil > 0 ? `${yil} yıl ${ay} ay` : ay > 0 ? `${ay} ay ${gun} gün` : `${gun} gün`;
+              const kidemStr = yil > 0 ? `${yil} yıl ${ay} ay` : ay > 0 ? `${ay} ay ${gun} gün` : `${gun} gün`;
 
               // Maaş farkı
-              const maasFark = selectedPersonel.maas - (selectedPersonel.bordro_maas || 0);
+              const maasFark = (selectedPersonel.maas ?? 0) - (selectedPersonel.bordro_maas || 0);
 
               return (
                 <Stack gap="md">
                   {/* PROFİL HEADER */}
                   <Paper withBorder p="lg" radius="md" bg={isDark ? 'dark.6' : 'violet.0'}>
                     <Group>
-                      <Avatar
-                        size={80}
-                        color={getAvatarColor(selectedPersonel.departman)}
-                        radius="xl"
-                      >
+                      <Avatar size={80} color={getAvatarColor(selectedPersonel.departman ?? null)} radius="xl">
                         <Text size="xl" fw={700}>
                           {selectedPersonel.ad[0]}
                           {selectedPersonel.soyad[0]}
@@ -2043,10 +1910,7 @@ export default function PersonelPage() {
                           {selectedPersonel.ad} {selectedPersonel.soyad}
                         </Text>
                         <Group gap="xs" mt={4}>
-                          <Badge
-                            variant="filled"
-                            color={getAvatarColor(selectedPersonel.departman)}
-                          >
+                          <Badge variant="filled" color={getAvatarColor(selectedPersonel.departman ?? null)}>
                             {selectedPersonel.departman || 'Belirsiz'}
                           </Badge>
                           <Badge variant="light" color="gray">
@@ -2160,7 +2024,7 @@ export default function PersonelPage() {
                           Yıllık Maliyet
                         </Text>
                         <Text size="xl" fw={700} c="blue">
-                          {formatMoney(selectedPersonel.maas * 12)}
+                          {formatMoney((selectedPersonel.maas ?? 0) * 12)}
                         </Text>
                       </Box>
                     </SimpleGrid>
@@ -2276,10 +2140,7 @@ export default function PersonelPage() {
                 Net Ödenecek:{' '}
                 <Text component="span" fw={700} c="blue">
                   {formatMoney(
-                    (editingOdeme?.bordro_maas || 0) +
-                      odemeForm.elden_fark +
-                      odemeForm.prim -
-                      odemeForm.avans
+                    (editingOdeme?.bordro_maas || 0) + odemeForm.elden_fark + odemeForm.prim - odemeForm.avans
                   )}
                 </Text>
               </Text>
@@ -2299,8 +2160,7 @@ export default function PersonelPage() {
           onClose={() => setTahakkukDetailOpen(false)}
           title={
             <Text fw={600} size="lg">
-              📋 Tahakkuk Detayı - {aylar.find((a) => a.value === bordroAy.toString())?.label}{' '}
-              {bordroYil}
+              📋 Tahakkuk Detayı - {aylar.find((a) => a.value === bordroAy.toString())?.label} {bordroYil}
             </Text>
           }
           size="xl"

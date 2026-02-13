@@ -6,9 +6,5 @@ interface StageBackgroundProps {
 }
 
 export function StageBackground({ viewMode }: StageBackgroundProps) {
-  return (
-    <Box
-      className={`sanal-masa-stage${viewMode === 'ASSEMBLE' ? ' assembled' : ''}`}
-    />
-  );
+  return <Box className={`sanal-masa-stage${viewMode === 'ASSEMBLE' ? ' assembled' : ''}`} />;
 }

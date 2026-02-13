@@ -2,7 +2,7 @@
 
 import { Box, Stack, Text, UnstyledButton, useMantineColorScheme } from '@mantine/core';
 import { IconNote } from '@tabler/icons-react';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { useNotesModal } from '@/context/NotesContext';
 import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
@@ -33,28 +33,10 @@ function toLocalDateKey(d: Date): number {
 }
 
 const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt'];
-const AYLAR_KISA = [
-  'Oca',
-  'Sub',
-  'Mar',
-  'Nis',
-  'May',
-  'Haz',
-  'Tem',
-  'Agu',
-  'Eyl',
-  'Eki',
-  'Kas',
-  'Ara',
-];
+const AYLAR_KISA = ['Oca', 'Sub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Agu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 /** Vade etiketi */
-function formatVadeEtiket(
-  d: Date,
-  todayKey: number,
-  tomorrowKey: number,
-  weekEndKey: number
-): string {
+function formatVadeEtiket(d: Date, todayKey: number, tomorrowKey: number, weekEndKey: number): string {
   const key = toLocalDateKey(d);
   const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
   const timeStr = hasTime
@@ -104,13 +86,13 @@ export function ToolbarNotesWidget() {
   const isDark = colorScheme === 'dark';
   const { openNotes } = useNotesModal();
 
-  const { data } = useSWR<NotesResponse>(
-    'toolbar-notlar',
-    () => authFetch(`${API_BASE_URL}/api/notes?limit=30`).then((r) => r.json()),
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  );
+  const { data } = useQuery<NotesResponse>({
+    queryKey: ['toolbar-notlar'],
+    queryFn: () => authFetch(`${API_BASE_URL}/api/notes?limit=30`).then((r) => r.json()),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
-  // Unified API returns 'notes' field
   const notlar = data?.notes ?? [];
   const todayStart = getTodayStart();
   const todayKey = toLocalDateKey(todayStart);
@@ -129,7 +111,6 @@ export function ToolbarNotesWidget() {
       return { ...n, vadeEtiket };
     });
 
-  /* Gomulu his: parlak olmayan, arka planla uyumlu tonlar */
   const noteTextColor = isDark ? 'rgba(255,255,255,0.58)' : 'rgba(0,0,0,0.52)';
   const noteMetaColor = isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.42)';
   const hoverBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)';
@@ -164,7 +145,6 @@ export function ToolbarNotesWidget() {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              {/* Sol cubuk */}
               <Box
                 style={{
                   width: 3,
@@ -175,7 +155,6 @@ export function ToolbarNotesWidget() {
                   opacity: 0.9,
                 }}
               />
-              {/* Not metni */}
               <Text
                 size="sm"
                 lineClamp={1}
@@ -191,7 +170,6 @@ export function ToolbarNotesWidget() {
               >
                 {preview(n.content)}
               </Text>
-              {/* Vade */}
               {n.vadeEtiket && (
                 <Text
                   size="xs"

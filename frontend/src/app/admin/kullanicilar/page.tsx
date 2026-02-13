@@ -6,25 +6,15 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
   Center,
   Checkbox,
   Container,
   Group,
   Loader,
-  Menu,
-  Modal,
   Paper,
-  PasswordInput,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
   Stack,
-  Switch,
   Table,
   Text,
-  TextInput,
-  ThemeIcon,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -33,16 +23,12 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconCheck,
-  IconChevronDown,
-  IconClock,
   IconCrown,
   IconEdit,
-  IconFilter,
   IconHistory,
   IconLock,
   IconLockOpen,
   IconRefresh,
-  IconSearch,
   IconShield,
   IconShieldLock,
   IconSquare,
@@ -51,13 +37,13 @@ import {
   IconUserPlus,
   IconUserShield,
   IconUsers,
-  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDialog } from '@/components/ConfirmDialog';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI, type User } from '@/lib/api/services/admin';
+import { LoginHistoryModal, UserFilters, UserFormModal, UserStatsCards } from './components';
 
 export default function KullanicilarPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -74,8 +60,7 @@ export default function KullanicilarPage() {
     is_active: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] =
-    useDisclosure(false);
+  const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] = useDisclosure(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -221,9 +206,7 @@ export default function KullanicilarPage() {
         body.password = formData.password;
       }
 
-      const data = editingUser
-        ? await adminAPI.updateUser(editingUser.id, body)
-        : await adminAPI.createUser(body);
+      const data = editingUser ? await adminAPI.updateUser(editingUser.id, body) : await adminAPI.createUser(body);
 
       if (data.success) {
         notifications.show({
@@ -504,95 +487,21 @@ export default function KullanicilarPage() {
         </Group>
 
         {/* Arama ve Filtreleme */}
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between" wrap="wrap">
-            <Group>
-              <TextInput
-                placeholder="Ad veya email ara..."
-                leftSection={<IconSearch size={16} />}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                w={250}
-              />
-              <Select
-                placeholder="Rol filtrele"
-                leftSection={<IconFilter size={16} />}
-                data={[
-                  { value: 'super_admin', label: 'Süper Admin' },
-                  { value: 'admin', label: 'Yönetici' },
-                  { value: 'user', label: 'Kullanıcı' },
-                ]}
-                value={roleFilter}
-                onChange={setRoleFilter}
-                clearable
-                w={160}
-              />
-              <SegmentedControl
-                value={statusFilter}
-                onChange={setStatusFilter}
-                data={[
-                  { value: 'all', label: 'Tümü' },
-                  { value: 'active', label: 'Aktif' },
-                  { value: 'inactive', label: 'Pasif' },
-                  { value: 'locked', label: 'Kilitli' },
-                ]}
-              />
-            </Group>
-
-            {/* Toplu İşlem Butonları */}
-            {selectedUsers.size > 0 && (
-              <Group>
-                <Badge variant="light" size="lg">
-                  {selectedUsers.size} seçili
-                </Badge>
-                <Menu shadow="md" width={200}>
-                  <Menu.Target>
-                    <Button variant="light" rightSection={<IconChevronDown size={16} />}>
-                      Toplu İşlem
-                    </Button>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      leftSection={<IconCheck size={16} />}
-                      onClick={() => handleBulkToggleActive(true)}
-                    >
-                      Aktif Et
-                    </Menu.Item>
-                    <Menu.Item
-                      leftSection={<IconX size={16} />}
-                      onClick={() => handleBulkToggleActive(false)}
-                    >
-                      Pasif Et
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item
-                      color="red"
-                      leftSection={<IconTrash size={16} />}
-                      onClick={handleBulkDelete}
-                    >
-                      Sil
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  onClick={() => setSelectedUsers(new Set())}
-                  title="Seçimi Temizle"
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Group>
-            )}
-          </Group>
-
-          {/* Sonuç bilgisi */}
-          {(searchQuery || roleFilter || statusFilter !== 'all') && (
-            <Text size="sm" c="dimmed" mt="sm">
-              {filteredUsers.length} / {users.length} kullanıcı gösteriliyor
-            </Text>
-          )}
-        </Paper>
+        <UserFilters
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          roleFilter={roleFilter}
+          setRoleFilter={setRoleFilter}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          selectedCount={selectedUsers.size}
+          filteredCount={filteredUsers.length}
+          totalCount={users.length}
+          onBulkActivate={() => handleBulkToggleActive(true)}
+          onBulkDeactivate={() => handleBulkToggleActive(false)}
+          onBulkDelete={handleBulkDelete}
+          onClearSelection={() => setSelectedUsers(new Set())}
+        />
 
         {/* Kullanıcı Listesi */}
         <Paper p="lg" radius="md" withBorder>
@@ -602,22 +511,14 @@ export default function KullanicilarPage() {
             </Center>
           ) : filteredUsers.length === 0 ? (
             <Alert color="blue" icon={<IconUsers size={16} />}>
-              {users.length === 0
-                ? 'Henüz kullanıcı bulunmuyor'
-                : 'Filtrelere uygun kullanıcı bulunamadı'}
+              {users.length === 0 ? 'Henüz kullanıcı bulunmuyor' : 'Filtrelere uygun kullanıcı bulunamadı'}
             </Alert>
           ) : (
             <Table>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th w={40}>
-                    <Tooltip
-                      label={
-                        selectedUsers.size === filteredUsers.length
-                          ? 'Tüm seçimi kaldır'
-                          : 'Tümünü seç'
-                      }
-                    >
+                    <Tooltip label={selectedUsers.size === filteredUsers.length ? 'Tüm seçimi kaldır' : 'Tümünü seç'}>
                       <ActionIcon
                         variant="subtle"
                         onClick={toggleSelectAll}
@@ -646,18 +547,11 @@ export default function KullanicilarPage() {
                     bg={selectedUsers.has(user.id) ? 'var(--mantine-color-blue-light)' : undefined}
                   >
                     <Table.Td>
-                      <Checkbox
-                        checked={selectedUsers.has(user.id)}
-                        onChange={() => toggleUserSelect(user.id)}
-                      />
+                      <Checkbox checked={selectedUsers.has(user.id)} onChange={() => toggleUserSelect(user.id)} />
                     </Table.Td>
                     <Table.Td>
                       <Group gap="sm">
-                        <Avatar
-                          size="sm"
-                          radius="xl"
-                          color={user.role === 'admin' ? 'red' : 'blue'}
-                        >
+                        <Avatar size="sm" radius="xl" color={user.role === 'admin' ? 'red' : 'blue'}>
                           {getInitials(user.name)}
                         </Avatar>
                         <Text size="sm" fw={500}>
@@ -672,13 +566,7 @@ export default function KullanicilarPage() {
                     </Table.Td>
                     <Table.Td>
                       <Badge
-                        color={
-                          user.user_type === 'super_admin'
-                            ? 'red'
-                            : user.role === 'admin'
-                              ? 'orange'
-                              : 'blue'
-                        }
+                        color={user.user_type === 'super_admin' ? 'red' : user.role === 'admin' ? 'orange' : 'blue'}
                         variant="light"
                         leftSection={
                           user.user_type === 'super_admin' ? (
@@ -790,204 +678,28 @@ export default function KullanicilarPage() {
         </Paper>
 
         {/* İstatistikler */}
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-          <Card padding="lg" radius="md" withBorder>
-            <Group justify="space-between">
-              <div>
-                <Text size="xl" fw={700}>
-                  {users.length}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Toplam Kullanıcı
-                </Text>
-              </div>
-              <ThemeIcon size={40} radius="md" variant="light" color="blue">
-                <IconUsers size={22} />
-              </ThemeIcon>
-            </Group>
-          </Card>
-          <Card padding="lg" radius="md" withBorder>
-            <Group justify="space-between">
-              <div>
-                <Text size="xl" fw={700}>
-                  {users.filter((u) => u.role === 'admin').length}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Admin
-                </Text>
-              </div>
-              <ThemeIcon size={40} radius="md" variant="light" color="red">
-                <IconShield size={22} />
-              </ThemeIcon>
-            </Group>
-          </Card>
-          <Card padding="lg" radius="md" withBorder>
-            <Group justify="space-between">
-              <div>
-                <Text size="xl" fw={700}>
-                  {users.filter((u) => u.is_active).length}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Aktif
-                </Text>
-              </div>
-              <ThemeIcon size={40} radius="md" variant="light" color="green">
-                <IconCheck size={22} />
-              </ThemeIcon>
-            </Group>
-          </Card>
-          <Card padding="lg" radius="md" withBorder>
-            <Group justify="space-between">
-              <div>
-                <Text size="xl" fw={700}>
-                  {users.filter((u) => !u.is_active).length}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Pasif
-                </Text>
-              </div>
-              <ThemeIcon size={40} radius="md" variant="light" color="gray">
-                <IconX size={22} />
-              </ThemeIcon>
-            </Group>
-          </Card>
-        </SimpleGrid>
+        <UserStatsCards users={users} />
       </Stack>
 
       {/* Kullanıcı Modal */}
-      <Modal
+      <UserFormModal
         opened={opened}
         onClose={close}
-        title={editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'}
-        size="md"
-      >
-        <Stack gap="md">
-          <TextInput
-            label="Ad Soyad"
-            placeholder="Ahmet Yılmaz"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <TextInput
-            label="Email"
-            placeholder="ahmet@sirket.com"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-          <PasswordInput
-            label={editingUser ? 'Yeni Şifre (boş bırakılırsa değişmez)' : 'Şifre'}
-            placeholder="••••••••"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            required={!editingUser}
-          />
-          <Select
-            label="Kullanıcı Tipi"
-            description="Kullanıcının yetki seviyesini belirler"
-            data={[
-              { value: 'user', label: '👤 Kullanıcı' },
-              { value: 'admin', label: '🛡️ Yönetici' },
-              { value: 'super_admin', label: '👑 Süper Admin' },
-            ]}
-            value={formData.user_type}
-            onChange={(value) => {
-              const userType = (value || 'user') as 'super_admin' | 'admin' | 'user';
-              // user_type'a göre role'ü otomatik ayarla
-              const role = userType === 'super_admin' || userType === 'admin' ? 'admin' : 'user';
-              setFormData({ ...formData, user_type: userType, role });
-            }}
-          />
-          <Switch
-            label="Aktif"
-            checked={formData.is_active}
-            onChange={(e) => setFormData({ ...formData, is_active: e.currentTarget.checked })}
-          />
-          <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={close}>
-              İptal
-            </Button>
-            <Button onClick={handleSave} loading={submitting}>
-              {editingUser ? 'Güncelle' : 'Oluştur'}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        editingUser={editingUser}
+        formData={formData}
+        setFormData={setFormData}
+        onSave={handleSave}
+        submitting={submitting}
+      />
 
       {/* Login Geçmişi Modal */}
-      <Modal
+      <LoginHistoryModal
         opened={loginHistoryModal}
         onClose={closeLoginHistory}
-        title={
-          <Group>
-            <IconHistory size={20} />
-            <Text fw={600}>{selectedUser?.name} - Giriş Geçmişi</Text>
-          </Group>
-        }
-        size="xl"
-      >
-        {loadingHistory ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : loginHistory.length === 0 ? (
-          <Alert color="blue" icon={<IconHistory size={16} />}>
-            Henüz giriş kaydı bulunmuyor
-          </Alert>
-        ) : (
-          <Stack gap="md">
-            <Table>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Tarih</Table.Th>
-                  <Table.Th>Durum</Table.Th>
-                  <Table.Th>IP Adresi</Table.Th>
-                  <Table.Th>User Agent</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {loginHistory.map((attempt: any, index: number) => (
-                  <Table.Tr key={index}>
-                    <Table.Td>
-                      <Group gap="xs">
-                        <IconClock size={14} />
-                        <Text size="sm">
-                          {new Date(attempt.attempted_at || attempt.created_at).toLocaleString(
-                            'tr-TR'
-                          )}
-                        </Text>
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={attempt.success ? 'green' : 'red'}
-                        variant="light"
-                        leftSection={
-                          attempt.success ? <IconCheck size={12} /> : <IconX size={12} />
-                        }
-                      >
-                        {attempt.success ? 'Başarılı' : 'Başarısız'}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" ff="monospace">
-                        {attempt.ip_address || 'N/A'}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed" style={{ maxWidth: 300 }} truncate>
-                        {attempt.user_agent || 'N/A'}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Stack>
-        )}
-      </Modal>
+        selectedUser={selectedUser}
+        loginHistory={loginHistory}
+        loading={loadingHistory}
+      />
 
       {/* Confirm Dialog */}
       <ConfirmDialogComponent />

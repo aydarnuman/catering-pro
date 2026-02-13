@@ -1,34 +1,12 @@
 import { API_BASE_URL } from '@/lib/config';
+import type { Proje } from '@/types/domain';
 
 const API_URL = `${API_BASE_URL}/api/satin-alma`;
 const PROJELER_API_URL = `${API_BASE_URL}/api/projeler`;
 
 // ==================== TİPLER ====================
 
-export interface Proje {
-  id: number;
-  kod: string;
-  ad: string;
-  // Satın Alma alanları
-  adres?: string;
-  yetkili?: string;
-  telefon?: string;
-  renk: string;
-  aktif: boolean;
-  // Personel alanları
-  musteri?: string;
-  lokasyon?: string;
-  durum?: string;
-  butce?: number;
-  baslangic_tarihi?: string;
-  bitis_tarihi?: string;
-  aciklama?: string;
-  // Hesaplanan
-  personel_sayisi?: number;
-  toplam_maas?: number;
-  siparis_sayisi?: number;
-  toplam_harcama?: number;
-}
+export type { Proje };
 
 export interface SiparisKalem {
   id?: number;
@@ -168,10 +146,7 @@ export const siparislerAPI = {
     return res.json();
   },
 
-  updateDurum: async (
-    id: number,
-    durum: Siparis['durum']
-  ): Promise<{ success: boolean; data: Siparis }> => {
+  updateDurum: async (id: number, durum: Siparis['durum']): Promise<{ success: boolean; data: Siparis }> => {
     const res = await fetch(`${API_URL}/siparisler/${id}/durum`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -192,10 +167,7 @@ export const siparislerAPI = {
   },
 
   // Proje bazlı rapor
-  getProjeBazliRapor: async (
-    baslangic?: string,
-    bitis?: string
-  ): Promise<{ success: boolean; data: any[] }> => {
+  getProjeBazliRapor: async (baslangic?: string, bitis?: string): Promise<{ success: boolean; data: any[] }> => {
     const params = new URLSearchParams();
     if (baslangic) params.append('baslangic', baslangic);
     if (bitis) params.append('bitis', bitis);
@@ -204,10 +176,7 @@ export const siparislerAPI = {
   },
 
   // Tedarikçi bazlı rapor
-  getTedarikciRapor: async (
-    baslangic?: string,
-    bitis?: string
-  ): Promise<{ success: boolean; data: any[] }> => {
+  getTedarikciRapor: async (baslangic?: string, bitis?: string): Promise<{ success: boolean; data: any[] }> => {
     const params = new URLSearchParams();
     if (baslangic) params.append('baslangic', baslangic);
     if (bitis) params.append('bitis', bitis);

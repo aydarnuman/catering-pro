@@ -35,9 +35,7 @@ export default function AIDataSelector({ aiData, onApply, onCancel }: AIDataSele
   );
 
   const toggleField = (field: string) => {
-    setSelectedFields((prev) =>
-      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
-    );
+    setSelectedFields((prev) => (prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]));
   };
 
   const validFields = Object.entries(aiData).filter(
@@ -55,12 +53,8 @@ export default function AIDataSelector({ aiData, onApply, onCancel }: AIDataSele
             withBorder
             style={{
               cursor: 'pointer',
-              borderColor: selectedFields.includes(key)
-                ? 'var(--mantine-color-violet-5)'
-                : undefined,
-              background: selectedFields.includes(key)
-                ? 'var(--mantine-color-violet-light)'
-                : undefined,
+              borderColor: selectedFields.includes(key) ? 'var(--mantine-color-violet-5)' : undefined,
+              background: selectedFields.includes(key) ? 'var(--mantine-color-violet-light)' : undefined,
             }}
             onClick={() => toggleField(key)}
           >
@@ -73,11 +67,7 @@ export default function AIDataSelector({ aiData, onApply, onCancel }: AIDataSele
                   {String(value)}
                 </Text>
               </div>
-              <Switch
-                checked={selectedFields.includes(key)}
-                onChange={() => toggleField(key)}
-                size="sm"
-              />
+              <Switch checked={selectedFields.includes(key)} onChange={() => toggleField(key)} size="sm" />
             </Group>
           </Paper>
         ))}

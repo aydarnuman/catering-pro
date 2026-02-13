@@ -51,11 +51,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  type MessageStatus,
-  useWhatsAppSocket,
-  type WhatsAppMessage,
-} from '@/hooks/useWhatsAppSocket';
+import { type MessageStatus, useWhatsAppSocket, type WhatsAppMessage } from '@/hooks/useWhatsAppSocket';
 import { getApiBaseUrlDynamic } from '@/lib/config';
 
 interface Chat {
@@ -208,90 +204,78 @@ export function WhatsAppNavButton() {
   const [mediaLoading, setMediaLoading] = useState<string | null>(null); // messageId being loaded
 
   // WebSocket connection
-  const {
-    isSocketConnected,
-    waStatus,
-    qrCode,
-    sendTypingStart,
-    sendTypingStop,
-    subscribeToPresence,
-    getTypingUser,
-  } = useWhatsAppSocket({
-    onNewMessage: (msg: WhatsAppMessage) => {
-      // Update chat list with new message
-      setChats((prev) => {
-        const chatIndex = prev.findIndex((c) => c.id === msg.chatId);
-        if (chatIndex >= 0) {
-          const updated = [...prev];
-          updated[chatIndex] = {
-            ...updated[chatIndex],
-            lastMessage: msg.body,
-            timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            unreadCount: selectedChat?.id === msg.chatId ? 0 : updated[chatIndex].unreadCount + 1,
-          };
-          // Move to top
-          const [chat] = updated.splice(chatIndex, 1);
-          return [chat, ...updated];
-        }
-        return prev;
-      });
-
-      // Add to messages if chat is open
-      if (selectedChat?.id === msg.chatId) {
-        setMessages((prev) => {
-          // Check if message already exists
-          if (prev.some((m) => m.id === msg.messageId)) return prev;
-          return [
-            ...prev,
-            {
-              id: msg.messageId,
-              content: msg.body,
+  const { isSocketConnected, waStatus, qrCode, sendTypingStart, sendTypingStop, subscribeToPresence, getTypingUser } =
+    useWhatsAppSocket({
+      onNewMessage: (msg: WhatsAppMessage) => {
+        // Update chat list with new message
+        setChats((prev) => {
+          const chatIndex = prev.findIndex((c) => c.id === msg.chatId);
+          if (chatIndex >= 0) {
+            const updated = [...prev];
+            updated[chatIndex] = {
+              ...updated[chatIndex],
+              lastMessage: msg.body,
               timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
                 hour: '2-digit',
                 minute: '2-digit',
               }),
-              fromMe: msg.fromMe,
-              type: 'text' as const,
-              status: 'sent' as const,
-              sender: msg.sender,
-              hasMedia: false,
-            },
-          ];
+              unreadCount: selectedChat?.id === msg.chatId ? 0 : updated[chatIndex].unreadCount + 1,
+            };
+            // Move to top
+            const [chat] = updated.splice(chatIndex, 1);
+            return [chat, ...updated];
+          }
+          return prev;
         });
-        // Scroll after state update
-        setTimeout(scrollToBottom, 100);
-      }
 
-      // Show browser notification for incoming messages
-      if (!msg.fromMe && notificationsEnabled) {
-        showBrowserNotification(
-          msg.senderName,
-          msg.body.substring(0, 100) + (msg.body.length > 100 ? '...' : '')
-        );
-      }
-    },
-    onMessageStatus: (status: MessageStatus) => {
-      // Update message status in UI
-      if (selectedChat?.id === status.chatId) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === status.messageId ? { ...m, status: status.status as Message['status'] } : m
-          )
-        );
-      }
-    },
-    onConnectionStatus: (status) => {
-      if (status.connected) {
-        setConnectionError(null);
-        fetchChats();
-      } else if (status.error) {
-        setConnectionError(status.error);
-      }
-    },
-  });
+        // Add to messages if chat is open
+        if (selectedChat?.id === msg.chatId) {
+          setMessages((prev) => {
+            // Check if message already exists
+            if (prev.some((m) => m.id === msg.messageId)) return prev;
+            return [
+              ...prev,
+              {
+                id: msg.messageId,
+                content: msg.body,
+                timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                fromMe: msg.fromMe,
+                type: 'text' as const,
+                status: 'sent' as const,
+                sender: msg.sender,
+                hasMedia: false,
+              },
+            ];
+          });
+          // Scroll after state update
+          setTimeout(scrollToBottom, 100);
+        }
+
+        // Show browser notification for incoming messages
+        if (!msg.fromMe && notificationsEnabled) {
+          showBrowserNotification(msg.senderName, msg.body.substring(0, 100) + (msg.body.length > 100 ? '...' : ''));
+        }
+      },
+      onMessageStatus: (status: MessageStatus) => {
+        // Update message status in UI
+        if (selectedChat?.id === status.chatId) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === status.messageId ? { ...m, status: status.status as Message['status'] } : m))
+          );
+        }
+      },
+      onConnectionStatus: (status) => {
+        if (status.connected) {
+          setConnectionError(null);
+          fetchChats();
+        } else if (status.error) {
+          setConnectionError(status.error);
+        }
+      },
+    });
 
   const connected = waStatus.connected;
   const totalUnread = chats.reduce((sum, chat) => sum + chat.unreadCount, 0);
@@ -317,9 +301,7 @@ export function WhatsAppNavButton() {
 
       if (!res.ok) {
         if (res.status === 503) {
-          setConnectionError(
-            'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-          );
+          setConnectionError('WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
           return;
         }
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -332,10 +314,7 @@ export function WhatsAppNavButton() {
           let timestamp = '';
           if (chat.timestamp) {
             try {
-              const ts =
-                typeof chat.timestamp === 'number'
-                  ? chat.timestamp
-                  : parseInt(String(chat.timestamp), 10);
+              const ts = typeof chat.timestamp === 'number' ? chat.timestamp : parseInt(String(chat.timestamp), 10);
               if (!Number.isNaN(ts) && ts > 0) {
                 // Today check
                 const msgDate = new Date(ts * 1000);
@@ -401,8 +380,7 @@ export function WhatsAppNavButton() {
               if (typeLower.includes('image')) type = 'image';
               else if (typeLower.includes('video')) type = 'video';
               else if (typeLower.includes('audio') || typeLower === 'ptt') type = 'audio';
-              else if (typeLower.includes('document') || typeLower.includes('pdf'))
-                type = 'document';
+              else if (typeLower.includes('document') || typeLower.includes('pdf')) type = 'document';
               else if (typeLower.includes('sticker')) type = 'sticker';
             }
 
@@ -410,10 +388,7 @@ export function WhatsAppNavButton() {
             let timestamp = '';
             if (msg.timestamp) {
               try {
-                const ts =
-                  typeof msg.timestamp === 'number'
-                    ? msg.timestamp
-                    : parseInt(String(msg.timestamp), 10);
+                const ts = typeof msg.timestamp === 'number' ? msg.timestamp : parseInt(String(msg.timestamp), 10);
                 if (!Number.isNaN(ts) && ts > 0) {
                   timestamp = new Date(ts * 1000).toLocaleTimeString('tr-TR', {
                     hour: '2-digit',
@@ -497,9 +472,7 @@ export function WhatsAppNavButton() {
         if (!res.ok) {
           // HTTP status koduna göre özel mesajlar
           if (res.status === 503) {
-            setConnectionError(
-              'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-            );
+            setConnectionError('WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
             setLoading(false);
             return;
           }
@@ -522,9 +495,7 @@ export function WhatsAppNavButton() {
           console.error("WhatsApp status check failed: Backend'e bağlanılamıyor", err);
           setConnectionError('Backend servisi çalışmıyor olabilir');
         } else if (err.message?.includes('503')) {
-          setConnectionError(
-            'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-          );
+          setConnectionError('WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
         } else if (err.message?.includes('429')) {
           setConnectionError('Çok fazla istek. Lütfen birkaç dakika sonra tekrar deneyin.');
         } else {
@@ -552,9 +523,7 @@ export function WhatsAppNavButton() {
 
       if (!res.ok) {
         if (res.status === 503) {
-          setConnectionError(
-            'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-          );
+          setConnectionError('WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
           notifications.show({
             title: '⚠️ Servis Kullanılamıyor',
             message: 'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
@@ -582,9 +551,7 @@ export function WhatsAppNavButton() {
       setConnecting(false);
       const err = error as Error;
       if (err.message?.includes('503')) {
-        setConnectionError(
-          'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-        );
+        setConnectionError('WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
         notifications.show({
           title: '⚠️ Servis Kullanılamıyor',
           message: 'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
@@ -637,9 +604,7 @@ export function WhatsAppNavButton() {
     try {
       const apiBaseUrl = getApiBaseUrlDynamic();
       if (!apiBaseUrl) return;
-      const res = await fetch(
-        `${apiBaseUrl}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`
-      );
+      const res = await fetch(`${apiBaseUrl}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`);
       const data = await res.json();
 
       if (data.success && data.data) {
@@ -734,9 +699,7 @@ export function WhatsAppNavButton() {
 
       if (data.success) {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === tempId ? { ...m, id: data.messageId || tempId, status: 'sent' } : m
-          )
+          prev.map((m) => (m.id === tempId ? { ...m, id: data.messageId || tempId, status: 'sent' } : m))
         );
       } else {
         throw new Error(data.error || 'Mesaj gönderilemedi');
@@ -779,9 +742,7 @@ export function WhatsAppNavButton() {
   };
 
   // Filter chats by search
-  const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter((chat) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // Filter messages by search
   const filteredMessages = messageSearch
@@ -794,10 +755,7 @@ export function WhatsAppNavButton() {
   return (
     <>
       {/* Navbar Button */}
-      <Tooltip
-        label={connected ? `WhatsApp (${totalUnread} okunmamış)` : 'WhatsApp - Bağlı Değil'}
-        withArrow
-      >
+      <Tooltip label={connected ? `WhatsApp (${totalUnread} okunmamış)` : 'WhatsApp - Bağlı Değil'} withArrow>
         <Indicator
           inline
           label={totalUnread > 0 ? totalUnread : undefined}
@@ -849,19 +807,13 @@ export function WhatsAppNavButton() {
           <Box
             p="md"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(18,140,126,0.1) 100%)',
+              background: 'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(18,140,126,0.1) 100%)',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}
           >
             <Group justify="space-between">
               <Group gap="sm">
-                <ThemeIcon
-                  size={40}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: '#25D366', to: '#128C7E' }}
-                >
+                <ThemeIcon size={40} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
                   <IconBrandWhatsapp size={22} />
                 </ThemeIcon>
                 <Box>
@@ -874,11 +826,7 @@ export function WhatsAppNavButton() {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        background: connected
-                          ? '#25D366'
-                          : isSocketConnected
-                            ? '#FFA500'
-                            : '#EF4444',
+                        background: connected ? '#25D366' : isSocketConnected ? '#FFA500' : '#EF4444',
                       }}
                     />
                     <Text size="xs" c={connected ? 'green' : isSocketConnected ? 'orange' : 'red'}>
@@ -896,12 +844,7 @@ export function WhatsAppNavButton() {
                   </Tooltip>
                 )}
                 <Tooltip label={expanded ? 'Küçült' : 'Genişlet'}>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    onClick={() => setExpanded(!expanded)}
-                  >
+                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setExpanded(!expanded)}>
                     {expanded ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
                   </ActionIcon>
                 </Tooltip>
@@ -973,12 +916,7 @@ export function WhatsAppNavButton() {
                       {connectionError}
                     </Text>
                   </Stack>
-                  <Button
-                    variant="light"
-                    color="red"
-                    leftSection={<IconRefresh size={18} />}
-                    onClick={handleConnect}
-                  >
+                  <Button variant="light" color="red" leftSection={<IconRefresh size={18} />} onClick={handleConnect}>
                     Tekrar Dene
                   </Button>
                 </>
@@ -1026,20 +964,10 @@ export function WhatsAppNavButton() {
                       size={36}
                       style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}
                     >
-                      {selectedChat.isGroup ? (
-                        <IconUsers size={16} />
-                      ) : (
-                        selectedChat.name[0]?.toUpperCase()
-                      )}
+                      {selectedChat.isGroup ? <IconUsers size={16} /> : selectedChat.name[0]?.toUpperCase()}
                     </Avatar>
                     <Box>
-                      <Text
-                        fw={500}
-                        c="white"
-                        size="sm"
-                        truncate
-                        style={{ maxWidth: expanded ? 280 : 160 }}
-                      >
+                      <Text fw={500} c="white" size="sm" truncate style={{ maxWidth: expanded ? 280 : 160 }}>
                         {selectedChat.name}
                       </Text>
                       <Text size="xs" c={typingUser ? 'green' : 'gray.5'}>
@@ -1116,19 +1044,12 @@ export function WhatsAppNavButton() {
                     </Text>
                   </Stack>
                 ) : (
-                  <div
-                    style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}
-                  >
+                  <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {filteredMessages.map((msg) => (
                       <div key={msg.id} style={{ textAlign: msg.fromMe ? 'right' : 'left' }}>
                         {/* Sender name for group messages */}
                         {selectedChat.isGroup && !msg.fromMe && msg.sender && (
-                          <Text
-                            size="xs"
-                            fw={500}
-                            mb={2}
-                            style={{ color: getUserColor(msg.sender.id) }}
-                          >
+                          <Text size="xs" fw={500} mb={2} style={{ color: getUserColor(msg.sender.id) }}>
                             {msg.sender.name}
                           </Text>
                         )}
@@ -1154,10 +1075,7 @@ export function WhatsAppNavButton() {
                           {msg.hasMedia && (
                             <Box
                               mb={
-                                msg.content &&
-                                !['📷', '🎬', '🎵', '📄', '🏷️'].some((e) =>
-                                  msg.content.startsWith(e)
-                                )
+                                msg.content && !['📷', '🎬', '🎵', '📄', '🏷️'].some((e) => msg.content.startsWith(e))
                                   ? 4
                                   : 0
                               }
@@ -1259,12 +1177,7 @@ export function WhatsAppNavButton() {
                                       📄
                                     </ThemeIcon>
                                   )}
-                                  <Text
-                                    size="xs"
-                                    c="dimmed"
-                                    style={{ maxWidth: 150 }}
-                                    lineClamp={1}
-                                  >
+                                  <Text size="xs" c="dimmed" style={{ maxWidth: 150 }} lineClamp={1}>
                                     {msg.filename || 'Belge'}
                                   </Text>
                                 </Group>
@@ -1292,9 +1205,7 @@ export function WhatsAppNavButton() {
                           )}
                           {/* Text Content (if not just media placeholder) */}
                           {msg.content &&
-                            !['📷 Fotoğraf', '🎬 Video', '🎵 Ses', '🏷️ Sticker'].includes(
-                              msg.content
-                            ) &&
+                            !['📷 Fotoğraf', '🎬 Video', '🎵 Ses', '🏷️ Sticker'].includes(msg.content) &&
                             !msg.content.startsWith('📄 ') &&
                             (messageSearch ? (
                               <Highlight
@@ -1331,9 +1242,7 @@ export function WhatsAppNavButton() {
                               opacity: 0.6,
                             }}
                           >
-                            <span style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}>
-                              {msg.timestamp}
-                            </span>
+                            <span style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}>{msg.timestamp}</span>
                             {msg.fromMe && getStatusIcon(msg.status)}
                           </div>
                         </div>
@@ -1477,12 +1386,7 @@ export function WhatsAppNavButton() {
 
                 {showArchived &&
                   archivedChats.map((chat) => (
-                    <ChatItem
-                      key={chat.id}
-                      chat={chat}
-                      onClick={() => handleSelectChat(chat)}
-                      selected={false}
-                    />
+                    <ChatItem key={chat.id} chat={chat} onClick={() => handleSelectChat(chat)} selected={false} />
                   ))}
 
                 {filteredChats.length === 0 ? (
@@ -1494,12 +1398,7 @@ export function WhatsAppNavButton() {
                   </Stack>
                 ) : (
                   filteredChats.map((chat) => (
-                    <ChatItem
-                      key={chat.id}
-                      chat={chat}
-                      onClick={() => handleSelectChat(chat)}
-                      selected={false}
-                    />
+                    <ChatItem key={chat.id} chat={chat} onClick={() => handleSelectChat(chat)} selected={false} />
                   ))
                 )}
               </ScrollArea>
@@ -1632,15 +1531,7 @@ export function WhatsAppNavButton() {
 }
 
 // Chat Item Component
-function ChatItem({
-  chat,
-  onClick,
-  selected,
-}: {
-  chat: Chat;
-  onClick: () => void;
-  selected: boolean;
-}) {
+function ChatItem({ chat, onClick, selected }: { chat: Chat; onClick: () => void; selected: boolean }) {
   return (
     <button
       type="button"
@@ -1648,9 +1539,7 @@ function ChatItem({
       style={{
         cursor: 'pointer',
         padding: '8px 12px',
-        background: selected
-          ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
-          : 'transparent',
+        background: selected ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)' : 'transparent',
         borderLeft: selected ? '3px solid #25D366' : '3px solid transparent',
         borderBottom: '1px solid var(--surface-border-subtle)',
         borderTop: 'none',
@@ -1673,11 +1562,7 @@ function ChatItem({
               : 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
           }}
         >
-          {chat.isGroup ? (
-            <IconUsers size={16} />
-          ) : (
-            <span style={{ fontSize: 14 }}>{chat.name[0]?.toUpperCase()}</span>
-          )}
+          {chat.isGroup ? <IconUsers size={16} /> : <span style={{ fontSize: 14 }}>{chat.name[0]?.toUpperCase()}</span>}
         </Avatar>
         {chat.unreadCount > 0 && (
           <div
@@ -1694,9 +1579,7 @@ function ChatItem({
         )}
       </div>
       <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-        <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span
             style={{
               fontSize: 13,

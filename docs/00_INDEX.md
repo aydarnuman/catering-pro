@@ -1,7 +1,7 @@
 # Catering Pro - Teknik Dokumantasyon Indeksi
 
-> Son Guncelleme: 7 Subat 2026  
-> Versiyon: 4.1
+> Son Guncelleme: 13 Subat 2026  
+> Versiyon: 4.2
 
 ---
 
@@ -25,7 +25,11 @@
 
 | Döküman | Açıklama |
 |---------|----------|
+| [AI_CHAT_AGENT.md](./AI_CHAT_AGENT.md) | AI Chat, Agent & Tools dokumantasyonu |
+| [AI_PIPELINE.md](./AI_PIPELINE.md) | AI Pipeline (Unified + Zero-Loss) dokumantasyonu |
+| [AZURE_TRAINING.md](./AZURE_TRAINING.md) | Azure Model egitimi & training pipeline |
 | [AZURE_DOCUMENT_AI_SETUP.md](./AZURE_DOCUMENT_AI_SETUP.md) | Azure Document AI kurulumu |
+| [piyasa-fiyat-sistemi.md](./piyasa-fiyat-sistemi.md) | Piyasa fiyat sistemi (3 katmanli veri toplama) |
 | [REALTIME_SETUP.md](./REALTIME_SETUP.md) | Supabase Realtime kurulumu |
 | [supabase-setup.md](./supabase-setup.md) | Supabase DB kurulumu (Auth bölümü geçersiz) |
 | [yuklenici-kutuphanesi-diagram.md](./yuklenici-kutuphanesi-diagram.md) | Yüklenici kütüphanesi frontend diagramı |

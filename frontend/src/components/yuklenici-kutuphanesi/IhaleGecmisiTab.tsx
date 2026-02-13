@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Group,
-  Paper,
-  ScrollArea,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-} from '@mantine/core';
+import { Badge, Button, Group, Paper, ScrollArea, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconCalendar, IconMapPin, IconSearch, IconSpy } from '@tabler/icons-react';
 import type { KazanilanIhale, YukleniciIhale } from '@/types/yuklenici';
 import { formatCurrency } from '@/types/yuklenici';
@@ -52,8 +41,8 @@ export function IhaleGecmisiTab({
             Ihale gecmisi henuz cekilmedi
           </Text>
           <Text size="sm" c="dimmed" maw={400}>
-            Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak ihale gecmisi,
-            analiz verisi ve katilimci bilgilerini otomatik olarak cekin.
+            Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak ihale gecmisi, analiz verisi ve
+            katilimci bilgilerini otomatik olarak cekin.
           </Text>
         </div>
       </Stack>
@@ -168,10 +157,7 @@ export function IhaleGecmisiTab({
       if (tarih && !tarih.startsWith(filtreYil)) return false;
     }
     if (lowerSearch) {
-      if (
-        !i.title.toLowerCase().includes(lowerSearch) &&
-        !i.organization_name.toLowerCase().includes(lowerSearch)
-      )
+      if (!i.title.toLowerCase().includes(lowerSearch) && !i.organization_name.toLowerCase().includes(lowerSearch))
         return false;
     }
     return true;
@@ -360,9 +346,7 @@ export function IhaleGecmisiTab({
                   )}
                   {(ihale.sozlesme_tarihi || ihale.tender_date) && (
                     <Text size="xs" c="dimmed">
-                      {new Date(ihale.sozlesme_tarihi || ihale.tender_date).toLocaleDateString(
-                        'tr-TR'
-                      )}
+                      {new Date(ihale.sozlesme_tarihi || ihale.tender_date).toLocaleDateString('tr-TR')}
                     </Text>
                   )}
                 </div>

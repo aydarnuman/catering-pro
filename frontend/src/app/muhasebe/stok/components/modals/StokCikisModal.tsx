@@ -56,9 +56,7 @@ export default function StokCikisModal({
           placeholder="Çıkış yapılacak depo"
           data={depolar.map((d) => ({ value: String(d.id), label: d.ad }))}
           value={cikisForm.depo_id ? String(cikisForm.depo_id) : null}
-          onChange={(val) =>
-            setCikisForm({ ...cikisForm, depo_id: val ? parseInt(val, 10) : null })
-          }
+          onChange={(val) => setCikisForm({ ...cikisForm, depo_id: val ? parseInt(val, 10) : null })}
           required
         />
         <Select
@@ -67,9 +65,7 @@ export default function StokCikisModal({
           searchable
           data={stoklar.map((s) => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
           value={cikisForm.stok_kart_id ? String(cikisForm.stok_kart_id) : null}
-          onChange={(val) =>
-            setCikisForm({ ...cikisForm, stok_kart_id: val ? parseInt(val, 10) : null })
-          }
+          onChange={(val) => setCikisForm({ ...cikisForm, stok_kart_id: val ? parseInt(val, 10) : null })}
           required
         />
         <NumberInput
@@ -91,12 +87,7 @@ export default function StokCikisModal({
           <Button variant="light" onClick={onClose}>
             İptal
           </Button>
-          <Button
-            color="red"
-            onClick={onCikis}
-            loading={loading}
-            leftSection={<IconTrendingDown size={16} />}
-          >
+          <Button color="red" onClick={onCikis} loading={loading} leftSection={<IconTrendingDown size={16} />}>
             Çıkış Yap
           </Button>
         </Group>

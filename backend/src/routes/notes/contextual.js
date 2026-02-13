@@ -6,6 +6,7 @@
 import express from 'express';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
 
@@ -103,7 +104,8 @@ router.get('/:type/:id', async (req, res) => {
       context_type: type,
       context_id: parseInt(id, 10),
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Notlar yüklenirken hata oluştu' });
   }
 });
@@ -226,7 +228,8 @@ router.post('/:type/:id', async (req, res) => {
       },
       message: 'Not başarıyla oluşturuldu',
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: 'Not oluşturulurken hata oluştu' });
   } finally {
@@ -269,7 +272,8 @@ router.put('/:type/:id/reorder', async (req, res) => {
     await client.query('COMMIT');
 
     res.json({ success: true, message: 'Sıralama güncellendi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Notes endpoint hatasi', { error: error.message, stack: error.stack });
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: 'Sıralama güncellenirken hata oluştu' });
   } finally {

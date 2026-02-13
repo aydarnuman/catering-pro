@@ -8,19 +8,7 @@
  * ihale bazlı rakip analizi tetiklenebilir.
  */
 
-import {
-  Alert,
-  Badge,
-  Button,
-  Center,
-  Group,
-  Loader,
-  Modal,
-  Paper,
-  ScrollArea,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Center, Group, Loader, Modal, Paper, ScrollArea, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconRobot, IconUsers } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -66,11 +54,7 @@ export function IhaleGecmisiDetay({ veri }: Props) {
   const toplam = (veri.toplam as number) || ihaleler.length;
 
   if (ihaleler.length === 0) {
-    return (
-      <Text c="dimmed">
-        İhale geçmişi verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.
-      </Text>
-    );
+    return <Text c="dimmed">İhale geçmişi verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
   }
 
   return (
@@ -81,18 +65,11 @@ export function IhaleGecmisiDetay({ veri }: Props) {
         </Text>
 
         {ihaleler.slice(0, 30).map((ihale) => (
-          <Paper
-            key={`ihale-${ihale.tender_id || ihale.ihale_basligi || Math.random()}`}
-            withBorder
-            p="xs"
-            radius="sm"
-          >
+          <Paper key={`ihale-${ihale.tender_id || ihale.ihale_basligi || Math.random()}`} withBorder p="xs" radius="sm">
             <Group justify="space-between" wrap="nowrap">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Text size="xs" fw={600} lineClamp={1}>
-                  {(ihale.ihale_basligi as string) ||
-                    (ihale.ihale_adi as string) ||
-                    'İsimsiz İhale'}
+                  {(ihale.ihale_basligi as string) || (ihale.ihale_adi as string) || 'İsimsiz İhale'}
                 </Text>
                 <Group gap={4} mt={2}>
                   {!!ihale.kurum_adi && (
@@ -106,11 +83,7 @@ export function IhaleGecmisiDetay({ veri }: Props) {
                     </Badge>
                   )}
                   {!!ihale.rol && (
-                    <Badge
-                      size="xs"
-                      variant="light"
-                      color={ihale.rol === 'yuklenici' ? 'green' : 'gray'}
-                    >
+                    <Badge size="xs" variant="light" color={ihale.rol === 'yuklenici' ? 'green' : 'gray'}>
                       {String(ihale.rol)}
                     </Badge>
                   )}
@@ -118,13 +91,7 @@ export function IhaleGecmisiDetay({ veri }: Props) {
                     <Badge
                       size="xs"
                       variant="light"
-                      color={
-                        ihale.durum === 'tamamlandi'
-                          ? 'teal'
-                          : ihale.durum === 'iptal'
-                            ? 'red'
-                            : 'blue'
-                      }
+                      color={ihale.durum === 'tamamlandi' ? 'teal' : ihale.durum === 'iptal' ? 'red' : 'blue'}
                     >
                       {String(ihale.durum)}
                     </Badge>
@@ -223,13 +190,7 @@ export function IhaleGecmisiDetay({ veri }: Props) {
                     Katılımcılar
                   </Text>
                   {(rakipAnaliz.katilimcilar as Array<Record<string, unknown>>).map((k) => (
-                    <Paper
-                      key={`rk-${k.yuklenici_id || k.unvan}`}
-                      withBorder
-                      p="xs"
-                      mb={4}
-                      radius="sm"
-                    >
+                    <Paper key={`rk-${k.yuklenici_id || k.unvan}`} withBorder p="xs" mb={4} radius="sm">
                       <Group justify="space-between">
                         <Text size="xs" fw={500}>
                           {k.unvan as string}

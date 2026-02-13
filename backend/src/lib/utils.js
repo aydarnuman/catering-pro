@@ -3,7 +3,7 @@
  * Tüm modüllerin kullanacağı ortak yardımcı fonksiyonlar
  */
 
-import { TURKISH_CITIES } from './constants.js';
+import { TURKISH_CHAR_MAP, TURKISH_CITIES } from './constants.js';
 
 // ============================================
 // ASYNC HELPERS
@@ -87,26 +87,10 @@ export function sanitizeFileName(name) {
  * @returns {string}
  */
 export function makeUrlSafe(name) {
-  const turkishMap = {
-    ç: 'c',
-    Ç: 'C',
-    ğ: 'g',
-    Ğ: 'G',
-    ı: 'i',
-    I: 'I',
-    İ: 'I',
-    ö: 'o',
-    Ö: 'O',
-    ş: 's',
-    Ş: 'S',
-    ü: 'u',
-    Ü: 'U',
-  };
-
   let result = name;
 
   // Türkçe karakterleri değiştir
-  for (const [tr, en] of Object.entries(turkishMap)) {
+  for (const [tr, en] of Object.entries(TURKISH_CHAR_MAP)) {
     result = result.replace(new RegExp(tr, 'g'), en);
   }
 
@@ -119,25 +103,9 @@ export function makeUrlSafe(name) {
  * @returns {string}
  */
 export function turkishToAscii(text) {
-  const map = {
-    ç: 'c',
-    Ç: 'C',
-    ğ: 'g',
-    Ğ: 'G',
-    ı: 'i',
-    I: 'I',
-    İ: 'I',
-    ö: 'o',
-    Ö: 'O',
-    ş: 's',
-    Ş: 'S',
-    ü: 'u',
-    Ü: 'U',
-  };
-
   return text
     .split('')
-    .map((char) => map[char] || char)
+    .map((char) => TURKISH_CHAR_MAP[char] || char)
     .join('');
 }
 

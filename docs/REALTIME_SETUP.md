@@ -6,8 +6,8 @@
 Frontend `.env.local` dosyasına eklendi:
 ```env
 NEXT_PUBLIC_ENABLE_REALTIME=true
-NEXT_PUBLIC_SUPABASE_URL=https://vpobejfxqihvgsjwnyku.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+NEXT_PUBLIC_SUPABASE_URL=https://[PROJECT-REF].supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[YOUR-ANON-KEY]
 ```
 
 ### 2. Navbar Indicator ✅
@@ -35,7 +35,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 
 ### Adım 1: Supabase Dashboard'a Git
 ```
-https://vpobejfxqihvgsjwnyku.supabase.co
+https://[PROJECT-REF].supabase.co
 ```
 
 ### Adım 2: SQL Editor'ü Aç

@@ -4,10 +4,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import type {
-  AnalysisProgressData,
-  FileProgress,
-} from '@/components/analysis/AnalysisProgressModal';
+import type { AnalysisProgressData, FileProgress } from '@/components/analysis/AnalysisProgressModal';
 import { API_BASE_URL } from '@/lib/config';
 
 interface AnalysisResult {
@@ -38,9 +35,7 @@ const initialProgress: AnalysisProgressData = {
   files: [],
 };
 
-export function useAnalysisProgress(
-  options: UseAnalysisProgressOptions = {}
-): UseAnalysisProgressReturn {
+export function useAnalysisProgress(options: UseAnalysisProgressOptions = {}): UseAnalysisProgressReturn {
   const { onComplete, onError, onProgress } = options;
 
   const [progress, setProgress] = useState<AnalysisProgressData>(initialProgress);
@@ -197,11 +192,7 @@ export function useAnalysisProgress(
               // All complete
               if (data.stage === 'complete') {
                 data.results?.forEach((r: any) => {
-                  if (
-                    r.success &&
-                    r.analysis &&
-                    !allResults.find((a) => a.documentId === r.documentId)
-                  ) {
+                  if (r.success && r.analysis && !allResults.find((a) => a.documentId === r.documentId)) {
                     allResults.push(r);
                   }
                 });

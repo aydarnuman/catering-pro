@@ -4,16 +4,7 @@
 
 'use client';
 
-import {
-  Button,
-  Group,
-  Modal,
-  NumberInput,
-  Select,
-  SimpleGrid,
-  Textarea,
-  TextInput,
-} from '@mantine/core';
+import { Button, Group, Modal, NumberInput, Select, SimpleGrid, Textarea, TextInput } from '@mantine/core';
 
 import type { Birim, Kategori, UrunForm } from '../../types';
 

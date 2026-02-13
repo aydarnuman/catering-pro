@@ -11,9 +11,9 @@ Catering Pro backend servisi, Node.js + Express.js üzerine inşa edilmiş RESTf
 ```bash
 cd backend
 npm install
-npm run dev        # Development (nodemon)
+npm run dev        # Development (node --watch)
 npm start          # Production
-npm run migrate    # Database migrations
+# Migration: Supabase CLI kullanin → supabase db push
 ```
 
 **Port:** 3001 (default)
@@ -25,7 +25,7 @@ npm run migrate    # Database migrations
 ```
 backend/
 ├── src/
-│   ├── routes/              # API endpoint'leri (39 dosya)
+│   ├── routes/              # API endpoint'leri (~56 dosya)
 │   │   ├── auth.js          # Kimlik doğrulama
 │   │   ├── tenders.js       # İhale yönetimi
 │   │   ├── tender-tracking.js # İhale takip listesi
@@ -87,7 +87,7 @@ backend/
 │   │   │   └── ihale-katilimci-cek.js    # Katılımcılar
 │   │   └── uyumsoft/        # e-Fatura sistemi
 │   │
-│   ├── migrations/          # SQL migrations (54 dosya)
+│   ├── migrations/          # Legacy SQL migrations (106+ dosya, Supabase CLI ile yonetiliyor)
 │   │   └── ... (detay: migrations/README.md)
 │   │
 │   ├── database.js          # PostgreSQL connection pool
@@ -111,18 +111,19 @@ backend/
 
 ## 🔐 Kimlik Doğrulama
 
-JWT tabanlı authentication kullanılır.
+Custom JWT + bcrypt + HttpOnly Cookie tabanli authentication kullanilir.
+Supabase Auth KULLANILMIYOR.
 
 ```javascript
-// Header
-Authorization: Bearer <token>
-
-// Token alımı
+// Login
 POST /api/auth/login
 { "email": "user@example.com", "password": "xxx" }
 
-// Response
-{ "success": true, "token": "eyJ...", "user": {...} }
+// Response (token HttpOnly cookie olarak set edilir)
+{ "success": true, "user": {...} }
+
+// Cookie: access_token (24 saat) + refresh_token (30 gun)
+// Sonraki isteklerde cookie otomatik gonderilir
 ```
 
 ---
@@ -226,18 +227,28 @@ try {
 
 ---
 
-## 📝 Migration Kullanımı
+## Migration Kullanimi
+
+Migration'lar artik **Supabase CLI** ile yonetiliyor:
 
 ```bash
-# Migration çalıştır
-npm run migrate
+# Migration durumu
+supabase migration list
 
-# Manuel çalıştırma
-psql $DATABASE_URL -f src/migrations/XXX_dosya.sql
+# Yeni migration olustur
+supabase migration new migration_name
+
+# Migration'lari uygula
+supabase db push
+
+# Schema farklari
+supabase db diff
 ```
 
-**Konum:** `src/migrations/` (54 dosya)
-**Detay:** `src/migrations/README.md`
+> **Not:** `npm run migrate` komutu deprecated olup hata verir. Supabase CLI kullanin.
+
+**Konum:** `supabase/migrations/` (106+ dosya)
+**Legacy:** `src/migrations/` (eski dosyalar)
 
 ---
 
@@ -289,7 +300,7 @@ http://localhost:3001/api-docs.json
 DATABASE_URL=postgresql://user:pass@host:5432/db
 
 # AI Services
-ANTHROPIC_API_KEY=xxx
+CLAUDE_API_KEY=sk-ant-...  # veya ANTHROPIC_API_KEY
 AZURE_DOCUMENT_AI_ENDPOINT=xxx
 AZURE_DOCUMENT_AI_KEY=xxx
 

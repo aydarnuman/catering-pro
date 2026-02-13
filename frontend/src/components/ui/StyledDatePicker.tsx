@@ -14,13 +14,7 @@ import {
   TextInput,
   UnstyledButton,
 } from '@mantine/core';
-import {
-  IconCalendar,
-  IconCalendarEvent,
-  IconChevronLeft,
-  IconChevronRight,
-  IconX,
-} from '@tabler/icons-react';
+import { IconCalendar, IconCalendarEvent, IconChevronLeft, IconChevronRight, IconX } from '@tabler/icons-react';
 import { useRef, useState } from 'react';
 import styles from './StyledDatePicker.module.css';
 
@@ -211,10 +205,8 @@ export default function StyledDatePicker({
       <SimpleGrid cols={3} spacing="xs">
         {MONTHS_TR.map((month, index) => {
           const _date = new Date(year, index, 1);
-          const isCurrentMonth =
-            new Date().getMonth() === index && new Date().getFullYear() === year;
-          const isSelectedMonth =
-            value && value.getMonth() === index && value.getFullYear() === year;
+          const isCurrentMonth = new Date().getMonth() === index && new Date().getFullYear() === year;
+          const isSelectedMonth = value && value.getMonth() === index && value.getFullYear() === year;
 
           return (
             <UnstyledButton
@@ -570,9 +562,7 @@ export function StyledDateRangePicker({
             <Group justify="space-between">
               <ActionIcon
                 variant="subtle"
-                onClick={() =>
-                  setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))
-                }
+                onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
                 radius="xl"
               >
                 <IconChevronLeft size={18} />
@@ -582,9 +572,7 @@ export function StyledDateRangePicker({
               </Text>
               <ActionIcon
                 variant="subtle"
-                onClick={() =>
-                  setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
-                }
+                onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
                 radius="xl"
               >
                 <IconChevronRight size={18} />

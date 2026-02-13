@@ -48,11 +48,7 @@ export function DraftTool({ result, onClose }: DraftToolProps) {
             overflowY: 'auto',
           }}
         >
-          <Text
-            size="xs"
-            c="gray.4"
-            style={{ lineHeight: 1.7, whiteSpace: 'pre-line' }}
-          >
+          <Text size="xs" c="gray.4" style={{ lineHeight: 1.7, whiteSpace: 'pre-line' }}>
             {result.draftBody}
           </Text>
         </Box>

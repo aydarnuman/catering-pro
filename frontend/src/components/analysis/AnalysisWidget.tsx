@@ -19,14 +19,7 @@ import {
   Tooltip,
   Transition,
 } from '@mantine/core';
-import {
-  IconCheck,
-  IconChevronDown,
-  IconChevronUp,
-  IconLoader,
-  IconPlayerPause,
-  IconX,
-} from '@tabler/icons-react';
+import { IconCheck, IconChevronDown, IconChevronUp, IconLoader, IconPlayerPause, IconX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { type AnalysisJob, useAnalysis } from '@/context/AnalysisContext';
 
@@ -43,17 +36,8 @@ function formatDuration(ms: number): string {
 }
 
 // Tek job item
-function JobItem({
-  job,
-  onCancel,
-  onRemove,
-}: {
-  job: AnalysisJob;
-  onCancel: () => void;
-  onRemove: () => void;
-}) {
-  const percentage =
-    job.progress.total > 0 ? Math.round((job.progress.current / job.progress.total) * 100) : 0;
+function JobItem({ job, onCancel, onRemove }: { job: AnalysisJob; onCancel: () => void; onRemove: () => void }) {
+  const percentage = job.progress.total > 0 ? Math.round((job.progress.current / job.progress.total) * 100) : 0;
 
   const elapsed = job.endTime ? job.endTime - job.startTime : Date.now() - job.startTime;
 
@@ -149,8 +133,7 @@ export function AnalysisWidget() {
     runningJobs.length > 0
       ? Math.round(
           runningJobs.reduce((acc, job) => {
-            const jobProgress =
-              job.progress.total > 0 ? (job.progress.current / job.progress.total) * 100 : 0;
+            const jobProgress = job.progress.total > 0 ? (job.progress.current / job.progress.total) * 100 : 0;
             return acc + jobProgress;
           }, 0) / runningJobs.length
         )

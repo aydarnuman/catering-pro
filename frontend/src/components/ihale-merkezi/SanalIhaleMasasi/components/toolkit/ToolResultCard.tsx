@@ -24,7 +24,7 @@ export function ToolResultCard({ title, color, onClose, children }: ToolResultCa
           style={{
             background: 'rgba(255,255,255,0.02)',
             borderRadius: 12,
-            border: `1px solid rgba(255,255,255,0.06)`,
+            border: '1px solid rgba(255,255,255,0.06)',
             borderLeft: `3px solid var(--mantine-color-${color}-5)`,
           }}
         >

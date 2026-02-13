@@ -45,13 +45,7 @@ interface SheetListProps {
   onUpdateSheet: (updated: TrackerSheet) => void;
 }
 
-export function SheetList({
-  sheets,
-  onCreate,
-  onSelect,
-  onDeleteSheet,
-  onUpdateSheet,
-}: SheetListProps) {
+export function SheetList({ sheets, onCreate, onSelect, onDeleteSheet, onUpdateSheet }: SheetListProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -189,9 +183,7 @@ export function SheetList({
                 e.currentTarget.style.borderColor = `var(--mantine-color-${p.color}-${isDark ? '6' : '3'})`;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = isDark
-                  ? 'rgba(255,255,255,0.06)'
-                  : 'rgba(0,0,0,0.06)';
+                e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
               }}
             >
               <Stack gap={6} align="center">
@@ -235,11 +227,7 @@ export function SheetList({
                 size="xs"
                 leftSection={<IconTrash size={12} />}
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      `${sheets.length} sayfanin tumunu silmek istediginize emin misiniz?`
-                    )
-                  ) {
+                  if (window.confirm(`${sheets.length} sayfanin tumunu silmek istediginize emin misiniz?`)) {
                     for (const s of sheets) onDeleteSheet(s.id);
                   }
                 }}
@@ -285,26 +273,15 @@ export function SheetList({
                     {/* Sheet actions menu */}
                     <Menu position="bottom-end" withArrow>
                       <Menu.Target>
-                        <ActionIcon
-                          variant="subtle"
-                          size="xs"
-                          color="gray"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <ActionIcon variant="subtle" size="xs" color="gray" onClick={(e) => e.stopPropagation()}>
                           <IconDotsVertical size={12} />
                         </ActionIcon>
                       </Menu.Target>
                       <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
-                        <Menu.Item
-                          leftSection={<IconCopy size={12} />}
-                          onClick={() => copySheet(s.id, true)}
-                        >
+                        <Menu.Item leftSection={<IconCopy size={12} />} onClick={() => copySheet(s.id, true)}>
                           Kopyala (veri ile)
                         </Menu.Item>
-                        <Menu.Item
-                          leftSection={<IconCopy size={12} />}
-                          onClick={() => copySheet(s.id, false)}
-                        >
+                        <Menu.Item leftSection={<IconCopy size={12} />} onClick={() => copySheet(s.id, false)}>
                           Yapiyi kopyala (bos)
                         </Menu.Item>
                         <Menu.Divider />
@@ -320,14 +297,8 @@ export function SheetList({
                                     borderRadius: '50%',
                                     cursor: 'pointer',
                                     background: `var(--mantine-color-${color}-5)`,
-                                    border:
-                                      s.color === color
-                                        ? '2px solid white'
-                                        : '2px solid transparent',
-                                    boxShadow:
-                                      s.color === color
-                                        ? `0 0 4px var(--mantine-color-${color}-5)`
-                                        : 'none',
+                                    border: s.color === color ? '2px solid white' : '2px solid transparent',
+                                    boxShadow: s.color === color ? `0 0 4px var(--mantine-color-${color}-5)` : 'none',
                                   }}
                                   onClick={() => changeColor(s.id, color)}
                                 />
@@ -437,13 +408,7 @@ const AI_SUGGESTIONS = [
 ];
 
 // ─── AI Sheet Creator (v0-tarzi enhance ikonu) ───
-function AISheetCreator({
-  onCreate,
-  isDark,
-}: {
-  onCreate: (sheet: TrackerSheet) => void;
-  isDark: boolean;
-}) {
+function AISheetCreator({ onCreate, isDark }: { onCreate: (sheet: TrackerSheet) => void; isDark: boolean }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
@@ -486,16 +451,14 @@ function AISheetCreator({
           'Kullanici Takip Defteri tablo olusturma araci kullaniyor. Sadece istenen JSON formatinda yanit ver.',
       });
 
-      const aiText =
-        response.data?.response ?? (response as unknown as { response?: string }).response;
+      const aiText = response.data?.response ?? (response as unknown as { response?: string }).response;
       if (!aiText) {
         notifications.show({ message: 'AI yanit veremedi', color: 'red' });
         return;
       }
 
       let jsonStr = aiText.trim();
-      if (jsonStr.startsWith('```'))
-        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
 
       const parsed = JSON.parse(jsonStr) as {
         name?: string;
@@ -619,13 +582,7 @@ function AISheetCreator({
           {/* Enhance ikonu - input'un sag ust kosesinde */}
           {prompt.trim() && !loading && (
             <Tooltip
-              label={
-                enhancing
-                  ? 'Zenginlestiriliyor...'
-                  : enhanced
-                    ? 'Zenginlestirildi!'
-                    : "Prompt'u iyilestir"
-              }
+              label={enhancing ? 'Zenginlestiriliyor...' : enhanced ? 'Zenginlestirildi!' : "Prompt'u iyilestir"}
               withArrow
               position="left"
             >

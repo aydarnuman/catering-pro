@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Group,
-  Paper,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Group, Paper, SimpleGrid, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconBuilding, IconEdit } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -77,13 +66,7 @@ export default function ProjelerSection({ API_BASE_URL }: ProjelerSectionProps) 
             Merkezi proje yönetimi - tüm modüller buradan veri çeker
           </Text>
         </div>
-        <Button
-          leftSection={<IconEdit size={16} />}
-          onClick={openProjeModal}
-          color="orange"
-          variant="light"
-          size="sm"
-        >
+        <Button leftSection={<IconEdit size={16} />} onClick={openProjeModal} color="orange" variant="light" size="sm">
           Proje Yönetimi
         </Button>
       </Group>
@@ -185,11 +168,7 @@ export default function ProjelerSection({ API_BASE_URL }: ProjelerSectionProps) 
         </Stack>
       )}
 
-      <ProjeYonetimModal
-        opened={projeModalOpened}
-        onClose={handleCloseProjeModal}
-        initialProjeId={selectedProjeId}
-      />
+      <ProjeYonetimModal opened={projeModalOpened} onClose={handleCloseProjeModal} initialProjeId={selectedProjeId} />
     </div>
   );
 }

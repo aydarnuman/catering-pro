@@ -1,25 +1,7 @@
 'use client';
 
-import {
-  Badge,
-  Card,
-  Divider,
-  Group,
-  ScrollArea,
-  Stack,
-  Table,
-  Tabs,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
-import {
-  IconBuildingBank,
-  IconChartPie,
-  IconMapPin,
-  IconSpy,
-  IconTrendingUp,
-  IconUsers,
-} from '@tabler/icons-react';
+import { Badge, Card, Divider, Group, ScrollArea, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { IconBuildingBank, IconChartPie, IconMapPin, IconSpy, IconTrendingUp, IconUsers } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { AnalyzData } from '@/types/yuklenici';
 import { formatCurrency } from '@/types/yuklenici';
@@ -46,9 +28,8 @@ export function AnalyzTabContent({
               Analiz Verisi Henuz Cekilmedi
             </Text>
             <Text size="sm" c="dimmed" maw={400}>
-              Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak analiz
-              verilerini otomatik olarak cekin. Idareler, rakipler, ortak girisimler, yillik trend
-              ve daha fazlasi cekilecek.
+              Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak analiz verilerini otomatik olarak
+              cekin. Idareler, rakipler, ortak girisimler, yillik trend ve daha fazlasi cekilecek.
             </Text>
           </div>
         </Stack>
@@ -61,8 +42,8 @@ export function AnalyzTabContent({
   return (
     <Stack gap="md" pb="md">
       <Text size="xs" c="dimmed">
-        Son analiz: {analizScrapedAt ? new Date(analizScrapedAt).toLocaleString('tr-TR') : '-'} —
-        Istihbarat butonuyla guncellenir
+        Son analiz: {analizScrapedAt ? new Date(analizScrapedAt).toLocaleString('tr-TR') : '-'} — Istihbarat butonuyla
+        guncellenir
       </Text>
 
       {o && (
@@ -358,12 +339,7 @@ export function AnalyzTabContent({
                         <Badge size="xs" variant="light">
                           {row.gecmis} ihale
                         </Badge>
-                        <Text
-                          size="xs"
-                          c="orange"
-                          fw={500}
-                          style={{ minWidth: 80, textAlign: 'right' }}
-                        >
+                        <Text size="xs" c="orange" fw={500} style={{ minWidth: 80, textAlign: 'right' }}>
                           {formatCurrency(row.toplam_sozlesme)}
                         </Text>
                       </Group>
@@ -390,12 +366,7 @@ export function AnalyzTabContent({
                         <Badge size="xs" variant="light">
                           {row.gecmis} ihale
                         </Badge>
-                        <Text
-                          size="xs"
-                          c="orange"
-                          fw={500}
-                          style={{ minWidth: 80, textAlign: 'right' }}
-                        >
+                        <Text size="xs" c="orange" fw={500} style={{ minWidth: 80, textAlign: 'right' }}>
                           {formatCurrency(row.toplam_sozlesme)}
                         </Text>
                       </Group>
@@ -421,12 +392,7 @@ export function AnalyzTabContent({
                         </Text>{' '}
                         {row.sektor_adi}
                       </Text>
-                      <Text
-                        size="xs"
-                        c="orange"
-                        fw={500}
-                        style={{ minWidth: 80, textAlign: 'right' }}
-                      >
+                      <Text size="xs" c="orange" fw={500} style={{ minWidth: 80, textAlign: 'right' }}>
                         {formatCurrency(row.toplam_sozlesme)}
                       </Text>
                     </Group>

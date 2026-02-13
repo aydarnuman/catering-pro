@@ -36,9 +36,7 @@ export function CaptionModal({
         <Group gap="sm">
           {pendingFile?.type === 'image' && <IconPhoto size={20} color="#25D366" />}
           {pendingFile?.type === 'video' && <IconVideo size={20} color="#3B82F6" />}
-          <Text fw={600}>
-            {pendingFile?.type === 'image' ? 'Fotoğraf Gönder' : 'Video Gönder'}
-          </Text>
+          <Text fw={600}>{pendingFile?.type === 'image' ? 'Fotoğraf Gönder' : 'Video Gönder'}</Text>
         </Group>
       }
       styles={{
@@ -99,9 +97,7 @@ export function CaptionModal({
             {pendingFile?.file.name}
           </Badge>
           <Badge size="sm" variant="light" color="blue">
-            {pendingFile?.file.size
-              ? `${(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB`
-              : ''}
+            {pendingFile?.file.size ? `${(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
           </Badge>
         </Group>
 

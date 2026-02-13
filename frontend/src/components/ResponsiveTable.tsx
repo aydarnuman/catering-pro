@@ -110,9 +110,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
                     {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
                   </Table.Td>
                 ))}
-                {actions && (
-                  <Table.Td onClick={(e) => e.stopPropagation()}>{actions(item)}</Table.Td>
-                )}
+                {actions && <Table.Td onClick={(e) => e.stopPropagation()}>{actions(item)}</Table.Td>}
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -162,10 +160,7 @@ function MobileCardComponent<T extends Record<string, unknown>>({
   // Primary field (başlık) - useMemo ile cache'le
   const primaryColumn = useMemo(() => columns.find((c) => c.isPrimaryField), [columns]);
   // Mobilde gösterilecek alanlar - useMemo ile cache'le
-  const mobileVisibleColumns = useMemo(
-    () => columns.filter((c) => c.showOnMobile !== false),
-    [columns]
-  );
+  const mobileVisibleColumns = useMemo(() => columns.filter((c) => c.showOnMobile !== false), [columns]);
   // Sadece expanded'da gösterilecek alanlar - useMemo ile cache'le
   const expandedColumns = useMemo(() => columns.filter((c) => c.showOnMobile === false), [columns]);
 
@@ -203,9 +198,7 @@ function MobileCardComponent<T extends Record<string, unknown>>({
         <Box style={{ flex: 1 }}>
           {primaryColumn && (
             <Text fw={600} size="sm" lineClamp={2}>
-              {primaryColumn.render
-                ? primaryColumn.render(item)
-                : (item[primaryColumn.key as keyof T] as ReactNode)}
+              {primaryColumn.render ? primaryColumn.render(item) : (item[primaryColumn.key as keyof T] as ReactNode)}
             </Text>
           )}
         </Box>
@@ -249,9 +242,7 @@ function MobileCardComponent<T extends Record<string, unknown>>({
                 <Text size="xs" c="dimmed" style={{ minWidth: 80 }}>
                   {col.label}:
                 </Text>
-                <Text size="xs">
-                  {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
-                </Text>
+                <Text size="xs">{col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}</Text>
               </Group>
             ))}
             {/* Sadece expanded'da görünen alanlar */}
@@ -260,9 +251,7 @@ function MobileCardComponent<T extends Record<string, unknown>>({
                 <Text size="xs" c="dimmed" style={{ minWidth: 80 }}>
                   {col.label}:
                 </Text>
-                <Text size="xs">
-                  {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
-                </Text>
+                <Text size="xs">{col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}</Text>
               </Group>
             ))}
           </Stack>

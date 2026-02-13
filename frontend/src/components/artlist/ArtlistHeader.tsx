@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Text,
-  TextInput,
-  Tooltip,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, Text, TextInput, Tooltip, useMantineColorScheme } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconSearch, IconSparkles, IconUser } from '@tabler/icons-react';
 
@@ -44,8 +34,7 @@ export function ArtlistHeader() {
         <Group gap={8} justify="center">
           <IconSparkles size={16} color={isDark ? '#a78bfa' : '#7c3aed'} />
           <Text size="sm" c="dimmed">
-            Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya
-            getirildi.
+            Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya getirildi.
           </Text>
           <Text
             size="sm"
@@ -62,12 +51,7 @@ export function ArtlistHeader() {
       <Group h={64} px={{ base: 'md', md: 'xl' }} justify="space-between">
         {/* Logo + Arama */}
         <Group gap="xl">
-          <Text
-            size="xl"
-            fw={700}
-            c={isDark ? 'white' : 'dark'}
-            style={{ letterSpacing: '-0.5px' }}
-          >
+          <Text size="xl" fw={700} c={isDark ? 'white' : 'dark'} style={{ letterSpacing: '-0.5px' }}>
             ∆rtlist
           </Text>
 

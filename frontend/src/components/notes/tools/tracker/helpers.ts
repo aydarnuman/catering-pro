@@ -100,9 +100,7 @@ export function importCSV(csvText: string): CSVParseResult {
     if (values.length === 0) continue;
 
     const allNumbers = values.every((v) => !Number.isNaN(Number(v.replace(',', '.'))));
-    const allDates = values.every(
-      (v) => /^\d{4}[-/]\d{2}[-/]\d{2}/.test(v) || /^\d{2}[-/.]\d{2}[-/.]\d{4}/.test(v)
-    );
+    const allDates = values.every((v) => /^\d{4}[-/]\d{2}[-/]\d{2}/.test(v) || /^\d{2}[-/.]\d{2}[-/.]\d{4}/.test(v));
 
     if (allNumbers) {
       columns[colIdx].type = 'number';

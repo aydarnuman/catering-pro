@@ -88,7 +88,6 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     mapModalOpen: false,
     addUrlModalOpen: false,
     teklifModalOpen: false,
-    sanalMasaOpen: false,
   });
 
   // ========== DATA FETCHING (TanStack Query) ==========
@@ -106,18 +105,14 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
 
   // Derived values
   const loading =
-    allTendersQuery.isLoading ||
-    trackedTendersQuery.isLoading ||
-    statsQuery.isLoading ||
-    firmalarQuery.isLoading;
+    allTendersQuery.isLoading || trackedTendersQuery.isLoading || statsQuery.isLoading || firmalarQuery.isLoading;
   const totalPages = allTendersQuery.data?.totalPages || 1;
   const totalCount = allTendersQuery.data?.total || 0;
 
   // Mutations
   const toggleTrackingMutation = useToggleTracking();
   const updateStatusMutation = useUpdateTenderStatus();
-  const { invalidateTenders, invalidateTracked, invalidateStats, refetchTracked } =
-    useInvalidateTenderQueries();
+  const { invalidateTenders, invalidateTracked, invalidateStats, refetchTracked } = useInvalidateTenderQueries();
 
   // Compose full state for panels (backward compatible)
   const state: IhaleMerkeziState = {
@@ -249,9 +244,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
 
         if (uiState.selectedTender) {
           const selectedId =
-            'tender_id' in uiState.selectedTender
-              ? uiState.selectedTender.tender_id
-              : uiState.selectedTender.id;
+            'tender_id' in uiState.selectedTender ? uiState.selectedTender.tender_id : uiState.selectedTender.id;
           if (selectedId === tenderId) {
             const freshTracked = freshList.find((t) => t.tender_id === tenderId);
             if (freshTracked) {
@@ -263,13 +256,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
         console.error('Toggle tracking error:', error);
       }
     },
-    [
-      trackedTendersQuery.data,
-      uiState.selectedTender,
-      toggleTrackingMutation,
-      refetchTracked,
-      selectTender,
-    ]
+    [trackedTendersQuery.data, uiState.selectedTender, toggleTrackingMutation, refetchTracked, selectTender]
   );
 
   const updateTenderStatus = useCallback(
@@ -313,9 +300,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     const trackedList = await refetchTracked();
     if (uiState.selectedTender) {
       const tenderId =
-        'tender_id' in uiState.selectedTender
-          ? uiState.selectedTender.tender_id
-          : uiState.selectedTender.id;
+        'tender_id' in uiState.selectedTender ? uiState.selectedTender.tender_id : uiState.selectedTender.id;
       const tracked = trackedList.find((t) => t.tender_id === tenderId);
       if (tracked) {
         selectTender(tracked);

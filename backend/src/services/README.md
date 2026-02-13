@@ -56,21 +56,6 @@ await agentChat(messages, tools, onChunk);
 - Tool execution dispatcher
 - System context generator
 
-### claude.js - Claude AI Döküman Analiz Servisi
-Döküman analizi ve OCR işlemleri için Claude Vision API kullanır.
-
-```javascript
-// Özellikler
-- PDF/Döküman analizi (Claude Vision)
-- OCR (görüntüden metin)
-- Yapılandırılmış veri çıkarma
-- Multimodal analysis
-
-// Kullanım (ES Modules)
-import { analyzeDocument } from './services/claude.js';
-const result = await analyzeDocument(filePath);
-```
-
 ### ai-analyzer/ - Unified Pipeline (v9.0)
 İhale dökümanlarından yapılandırılmış veri çıkarır. **Tek merkezi sistem** mimarisi kullanır.
 

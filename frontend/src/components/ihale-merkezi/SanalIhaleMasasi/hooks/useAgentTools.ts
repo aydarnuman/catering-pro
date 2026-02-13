@@ -1,11 +1,9 @@
 import { useCallback, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 import { AGENT_TOOLS } from '../constants';
 import type { AgentPersona, ToolExecution, ToolResult } from '../types';
 
 // ─── API Call ─────────────────────────────────────────────
-
-const API = `${API_BASE_URL}/api`;
 
 async function executeAgentTool(
   agentId: string,
@@ -14,24 +12,16 @@ async function executeAgentTool(
   analysisContext: Record<string, unknown>,
   input?: string
 ): Promise<ToolResult> {
-  const res = await fetch(`${API}/ai/ihale-masasi/agent-action`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      agentId,
-      toolId,
-      tenderId,
-      input,
-      analysisContext,
-    }),
+  const res = await api.post('/api/ai/ihale-masasi/agent-action', {
+    agentId,
+    toolId,
+    tenderId,
+    input,
+    analysisContext,
   });
 
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  const data = await res.json();
-
-  if (!data.success) throw new Error(data.error || 'AI hatasi');
-  return data.result;
+  if (!res.data?.success) throw new Error(res.data?.error || 'AI hatasi');
+  return res.data.result;
 }
 
 // ─── Hook ──────────────────────────────────────────────────
@@ -49,7 +39,6 @@ export function useAgentTools(agentId: AgentPersona['id'], options?: UseAgentToo
 
   const executeTool = useCallback(
     async (toolId: string, input?: string) => {
-      // Set generating state
       setExecutions((prev) => ({
         ...prev,
         [toolId]: {
@@ -78,7 +67,6 @@ export function useAgentTools(agentId: AgentPersona['id'], options?: UseAgentToo
           },
         }));
 
-        // Notify orbit ring about completed tool
         options?.onToolComplete?.(agentId, toolId, result);
       } catch (err) {
         setExecutions((prev) => ({
@@ -102,10 +90,7 @@ export function useAgentTools(agentId: AgentPersona['id'], options?: UseAgentToo
     });
   }, []);
 
-  const getExecution = useCallback(
-    (toolId: string): ToolExecution | undefined => executions[toolId],
-    [executions]
-  );
+  const getExecution = useCallback((toolId: string): ToolExecution | undefined => executions[toolId], [executions]);
 
   return {
     agentTools,

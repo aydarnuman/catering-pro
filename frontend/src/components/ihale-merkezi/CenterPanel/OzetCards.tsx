@@ -287,13 +287,7 @@ export function TeknikSartlarCard({
           {isEditing
             ? editItems.map((text, idx) => (
                 <Group key={`ts-edit-${idx}`} gap="xs" wrap="nowrap" align="flex-start">
-                  <Badge
-                    size="xs"
-                    variant="filled"
-                    color="blue"
-                    circle
-                    style={{ flexShrink: 0, marginTop: 8 }}
-                  >
+                  <Badge size="xs" variant="filled" color="blue" circle style={{ flexShrink: 0, marginTop: 8 }}>
                     {idx + 1}
                   </Badge>
                   <Textarea
@@ -322,25 +316,11 @@ export function TeknikSartlarCard({
               ))
             : displayItems.map((sart, idx) => {
                 const sartText = getTeknikSartTextFromItem(sart);
-                const onem =
-                  typeof sart === 'object' && sart !== null
-                    ? (sart as Record<string, unknown>).onem
-                    : null;
+                const onem = typeof sart === 'object' && sart !== null ? (sart as Record<string, unknown>).onem : null;
                 const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
                 return (
-                  <Group
-                    key={`ts-${idx}-${sartText.substring(0, 20)}`}
-                    gap="xs"
-                    wrap="nowrap"
-                    align="flex-start"
-                  >
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color={onemColor}
-                      circle
-                      style={{ flexShrink: 0, marginTop: 2 }}
-                    >
+                  <Group key={`ts-${idx}-${sartText.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                    <Badge size="xs" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
                       {idx + 1}
                     </Badge>
                     <Text size="xs" style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
@@ -391,9 +371,7 @@ export function BirimFiyatlarCard({
   isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [editItems, setEditItems] = useState<
-    Array<{ kalem: string; birim: string; miktar: string }>
-  >([]);
+  const [editItems, setEditItems] = useState<Array<{ kalem: string; birim: string; miktar: string }>>([]);
 
   useEffect(() => {
     if (isEditing) {
@@ -492,13 +470,7 @@ export function BirimFiyatlarCard({
           {isEditing
             ? editItems.map((item, idx) => (
                 <Group key={`bf-edit-${idx}`} gap="xs" wrap="nowrap">
-                  <Badge
-                    size="xs"
-                    variant="filled"
-                    color="green"
-                    circle
-                    style={{ flexShrink: 0, marginTop: 8 }}
-                  >
+                  <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0, marginTop: 8 }}>
                     {idx + 1}
                   </Badge>
                   <TextInput
@@ -537,13 +509,7 @@ export function BirimFiyatlarCard({
                 const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
                 return (
                   <Group key={`bf-${idx}-${itemText.substring(0, 15)}`} gap="xs" wrap="nowrap">
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color="green"
-                      circle
-                      style={{ flexShrink: 0 }}
-                    >
+                    <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
                       {idx + 1}
                     </Badge>
                     <Text size="xs" lineClamp={1} style={{ flex: 1, minWidth: 0 }}>
@@ -632,8 +598,7 @@ export function OnemliNotlarCard({
         <Stack gap={4}>
           {displayItems.map((not, idx) => {
             const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not;
-            const turColor =
-              notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
+            const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
             const TurIcon =
               notItem.tur === 'uyari'
                 ? IconAlertTriangle
@@ -641,20 +606,8 @@ export function OnemliNotlarCard({
                   ? IconExclamationMark
                   : IconInfoCircle;
             return (
-              <Group
-                key={`not-${idx}-${notItem.not.substring(0, 20)}`}
-                gap="xs"
-                wrap="nowrap"
-                align="flex-start"
-              >
-                <ThemeIcon
-                  size="xs"
-                  variant="light"
-                  color={turColor}
-                  radius="xl"
-                  mt={2}
-                  style={{ flexShrink: 0 }}
-                >
+              <Group key={`not-${idx}-${notItem.not.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                <ThemeIcon size="xs" variant="light" color={turColor} radius="xl" mt={2} style={{ flexShrink: 0 }}>
                   <TurIcon size={10} />
                 </ThemeIcon>
                 <Text size="xs" style={{ flex: 1 }}>
@@ -719,12 +672,7 @@ export function EksikBilgilerCard({ eksikBilgiler }: { eksikBilgiler: string[] }
       <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
         <Group gap={6}>
           {displayItems.map((eksik, idx) => (
-            <Badge
-              key={`eksik-${eksik.substring(0, 15)}-${idx}`}
-              size="xs"
-              variant="outline"
-              color="yellow"
-            >
+            <Badge key={`eksik-${eksik.substring(0, 15)}-${idx}`} size="xs" variant="outline" color="yellow">
               {eksik}
             </Badge>
           ))}
@@ -941,9 +889,7 @@ export function PersonelCard({
   isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [editItems, setEditItems] = useState<
-    Array<{ pozisyon: string; adet: string; ucret_orani: string }>
-  >([]);
+  const [editItems, setEditItems] = useState<Array<{ pozisyon: string; adet: string; ucret_orani: string }>>([]);
 
   useEffect(() => {
     if (isEditing) {
@@ -1034,12 +980,7 @@ export function PersonelCard({
                 variant="subtle"
                 color="indigo"
                 onClick={() => setExpanded(!expanded)}
-                rightSection={
-                  <IconChevronDown
-                    size={12}
-                    style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-                  />
-                }
+                rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
               >
                 {expanded ? 'Daralt' : `Tümü (${realPersonel.length})`}
               </Button>
@@ -1119,9 +1060,7 @@ export function PersonelCard({
             color="indigo"
             mt="xs"
             leftSection={<IconPlus size={12} />}
-            onClick={() =>
-              setEditItems([...editItems, { pozisyon: '', adet: '1', ucret_orani: '' }])
-            }
+            onClick={() => setEditItems([...editItems, { pozisyon: '', adet: '1', ucret_orani: '' }])}
           >
             Yeni Pozisyon Ekle
           </Button>
@@ -1150,8 +1089,7 @@ export function OgunBilgileriCard({
   const toplamOgun = toplamOgunSayisi || flatOgunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
 
   // Badge metni
-  const badgeText =
-    toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
+  const badgeText = toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
 
   return (
     <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
@@ -1173,12 +1111,7 @@ export function OgunBilgileriCard({
             variant="subtle"
             color="orange"
             onClick={() => setExpanded(!expanded)}
-            rightSection={
-              <IconChevronDown
-                size={12}
-                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-              />
-            }
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
           >
             {expanded ? 'Daralt' : 'Detay'}
           </Button>
@@ -1214,11 +1147,7 @@ export function OgunBilgileriCard({
                           {headers.map((h, hIdx) => (
                             <Table.Th
                               key={`th-${tIdx}-${hIdx}`}
-                              style={
-                                hIdx === 0
-                                  ? { minWidth: 120 }
-                                  : { textAlign: 'right', minWidth: 60 }
-                              }
+                              style={hIdx === 0 ? { minWidth: 120 } : { textAlign: 'right', minWidth: 60 }}
                             >
                               {h.replace(/\n.*$/g, '')}
                             </Table.Th>
@@ -1294,10 +1223,10 @@ function CateringInfoRow({
   icon,
 }: {
   label: string;
-  value: string | null | undefined;
+  value: string | number | null | undefined;
   icon?: React.ReactNode;
 }) {
-  if (!value) return null;
+  if (value === null || value === undefined || value === '') return null;
   return (
     <Group gap="xs" wrap="nowrap" py={3}>
       {icon && (
@@ -1315,11 +1244,7 @@ function CateringInfoRow({
   );
 }
 
-export function CateringDetayKartlari({
-  analysisSummary,
-}: {
-  analysisSummary?: AnalysisData | null;
-}) {
+export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: AnalysisData | null }) {
   if (!analysisSummary) return null;
 
   const {
@@ -1373,8 +1298,7 @@ export function CateringDetayKartlari({
   const hasMenuFiyat = menuFields.some(Boolean);
 
   // Hiçbir kategori dolmamışsa gösterme
-  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat)
-    return null;
+  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat) return null;
 
   return (
     <>
@@ -1523,12 +1447,7 @@ export function IsYerleriCard({ yerler }: { yerler: string[] }) {
             variant="subtle"
             color="teal"
             onClick={() => setExpanded(!expanded)}
-            rightSection={
-              <IconChevronDown
-                size={12}
-                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-              />
-            }
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
           >
             {expanded ? 'Daralt' : `Tümü (${yerler.length})`}
           </Button>
@@ -1706,12 +1625,7 @@ export function CezaKosullariCard({ cezalar }: { cezalar: CezaKosulu[] }) {
             variant="subtle"
             color="red"
             onClick={() => setExpanded(!expanded)}
-            rightSection={
-              <IconChevronDown
-                size={12}
-                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-              />
-            }
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
           >
             {expanded ? 'Daralt' : `Tümü (${cezalar.length})`}
           </Button>
@@ -1804,12 +1718,7 @@ export function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) 
             variant="subtle"
             color="lime"
             onClick={() => setExpanded(!expanded)}
-            rightSection={
-              <IconChevronDown
-                size={12}
-                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-              />
-            }
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
           >
             {expanded ? 'Daralt' : `Tümü (${belgeler.length})`}
           </Button>
@@ -2071,13 +1980,7 @@ export function ServisSaatleriCard({
       ) : (
         <Group gap="md">
           {entries.map(([key, value]) => (
-            <Badge
-              key={key}
-              size="lg"
-              variant="light"
-              color="cyan"
-              leftSection={<IconClock size={12} />}
-            >
+            <Badge key={key} size="lg" variant="light" color="cyan" leftSection={<IconClock size={12} />}>
               {labels[key] || key}: {value}
             </Badge>
           ))}

@@ -8,18 +8,7 @@
  * Hover'da tooltip: il adı, ihale sayısı, toplam bedel, ort indirim.
  */
 
-import {
-  Alert,
-  Badge,
-  Card,
-  Center,
-  Group,
-  Loader,
-  Paper,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Badge, Card, Center, Group, Loader, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconMapPin } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
@@ -83,8 +72,7 @@ export function BolgeselHaritaPaneli({ yukleniciId }: Props) {
   if (sehirler.length === 0) {
     return (
       <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" title="Veri Yetersiz">
-        Bölgesel harita için yeterli şehir verisi bulunamadı. Önce &quot;İhale Geçmişi&quot;
-        modülünü çalıştırın.
+        Bölgesel harita için yeterli şehir verisi bulunamadı. Önce &quot;İhale Geçmişi&quot; modülünü çalıştırın.
       </Alert>
     );
   }

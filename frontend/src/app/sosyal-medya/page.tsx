@@ -131,12 +131,7 @@ export default function SosyalMedyaDashboard() {
 
             <Group justify="space-between" mb="lg">
               <Group>
-                <ThemeIcon
-                  size={56}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: '#E4405F', to: '#F77737' }}
-                >
+                <ThemeIcon size={56} radius="xl" variant="gradient" gradient={{ from: '#E4405F', to: '#F77737' }}>
                   <IconBrandInstagram size={32} />
                 </ThemeIcon>
                 <Box>
@@ -151,9 +146,7 @@ export default function SosyalMedyaDashboard() {
               <Badge
                 size="lg"
                 color={instagramStatus.connected ? 'green' : 'gray'}
-                leftSection={
-                  instagramStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />
-                }
+                leftSection={instagramStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />}
               >
                 {instagramStatus.connected ? 'Bağlı' : 'Bağlı Değil'}
               </Badge>
@@ -243,12 +236,7 @@ export default function SosyalMedyaDashboard() {
 
             <Group justify="space-between" mb="lg">
               <Group>
-                <ThemeIcon
-                  size={56}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: '#25D366', to: '#128C7E' }}
-                >
+                <ThemeIcon size={56} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
                   <IconBrandWhatsapp size={32} />
                 </ThemeIcon>
                 <Box>
@@ -263,9 +251,7 @@ export default function SosyalMedyaDashboard() {
               <Badge
                 size="lg"
                 color={whatsappStatus.connected ? 'green' : 'gray'}
-                leftSection={
-                  whatsappStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />
-                }
+                leftSection={whatsappStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />}
               >
                 {whatsappStatus.connected ? 'Bağlı' : 'Bağlı Değil'}
               </Badge>
@@ -389,8 +375,8 @@ export default function SosyalMedyaDashboard() {
                 Sosyal Medya Modülü Beta Sürümünde
               </Text>
               <Text size="sm" c="dimmed">
-                Bu modül aktif geliştirme aşamasındadır. Instagram ve WhatsApp entegrasyonları ayrı
-                servisler üzerinden çalışır. Geri bildirimleriniz bizim için değerli!
+                Bu modül aktif geliştirme aşamasındadır. Instagram ve WhatsApp entegrasyonları ayrı servisler üzerinden
+                çalışır. Geri bildirimleriniz bizim için değerli!
               </Text>
             </Box>
           </Group>

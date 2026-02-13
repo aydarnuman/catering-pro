@@ -137,14 +137,11 @@ export default function SatinAlmaPage() {
         muhasebeAPI.getCariler({ tip: 'tedarikci' }),
       ]);
 
-      if (siparisResult.success && Array.isArray(siparisResult.data))
-        setSiparisler(siparisResult.data);
+      if (siparisResult.success && Array.isArray(siparisResult.data)) setSiparisler(siparisResult.data);
       if (projeResult.success && Array.isArray(projeResult.data)) setProjeler(projeResult.data);
       if (ozetResult.success) setOzet(ozetResult.data);
       if (tedarikciResult.success && Array.isArray(tedarikciResult.data))
-        setTedarikciler(
-          tedarikciResult.data.map((c) => ({ id: c.id, unvan: c.unvan, vkn: c.vergi_no ?? '' }))
-        );
+        setTedarikciler(tedarikciResult.data.map((c) => ({ id: c.id, unvan: c.unvan, vkn: c.vergi_no ?? '' })));
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
@@ -173,8 +170,7 @@ export default function SatinAlmaPage() {
   const filteredSiparisler = siparisler.filter((s) => {
     const matchesTab =
       activeTab === 'tumu' ||
-      (activeTab === 'bekleyen' &&
-        ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi'].includes(s.durum)) ||
+      (activeTab === 'bekleyen' && ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi'].includes(s.durum)) ||
       (activeTab && s.proje_id === parseInt(activeTab, 10)) ||
       s.durum === activeTab;
     const matchesSearch =
@@ -650,9 +646,7 @@ export default function SatinAlmaPage() {
             <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }}>
               {projeler.map((proje) => {
                 const projeSiparisleri = siparisler.filter((s) => s.proje_id === proje.id);
-                const bekleyen = projeSiparisleri.filter(
-                  (s) => !['teslim_alindi', 'iptal'].includes(s.durum)
-                ).length;
+                const bekleyen = projeSiparisleri.filter((s) => !['teslim_alindi', 'iptal'].includes(s.durum)).length;
                 return (
                   <Paper
                     key={proje.id}
@@ -662,13 +656,10 @@ export default function SatinAlmaPage() {
                     style={{
                       borderLeft: `4px solid ${proje.renk}`,
                       cursor: 'pointer',
-                      backgroundColor:
-                        activeTab === String(proje.id) ? `${proje.renk}15` : undefined,
+                      backgroundColor: activeTab === String(proje.id) ? `${proje.renk}15` : undefined,
                       position: 'relative',
                     }}
-                    onClick={() =>
-                      setActiveTab(activeTab === String(proje.id) ? 'tumu' : String(proje.id))
-                    }
+                    onClick={() => setActiveTab(activeTab === String(proje.id) ? 'tumu' : String(proje.id))}
                   >
                     <ActionIcon
                       size="xs"
@@ -822,9 +813,7 @@ export default function SatinAlmaPage() {
                         <Table.Td>
                           <Menu position="bottom" shadow="md">
                             <Menu.Target>
-                              <Box style={{ cursor: 'pointer' }}>
-                                {getOncelikBadge(siparis.oncelik)}
-                              </Box>
+                              <Box style={{ cursor: 'pointer' }}>{getOncelikBadge(siparis.oncelik)}</Box>
                             </Menu.Target>
                             <Menu.Dropdown>
                               <Menu.Item
@@ -872,17 +861,13 @@ export default function SatinAlmaPage() {
                             </Menu.Target>
                             <Menu.Dropdown>
                               <Menu.Item
-                                leftSection={
-                                  <IconEye style={{ width: rem(14), height: rem(14) }} />
-                                }
+                                leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />}
                                 onClick={() => handleViewDetail(siparis)}
                               >
                                 Detay
                               </Menu.Item>
                               <Menu.Item
-                                leftSection={
-                                  <IconClipboardList style={{ width: rem(14), height: rem(14) }} />
-                                }
+                                leftSection={<IconClipboardList style={{ width: rem(14), height: rem(14) }} />}
                                 onClick={() => handlePrintOrder(siparis)}
                               >
                                 Sipariş Formu
@@ -890,9 +875,7 @@ export default function SatinAlmaPage() {
                               <Menu.Divider />
                               <Menu.Label>Durum</Menu.Label>
                               <Menu.Item
-                                leftSection={
-                                  <IconTruck style={{ width: rem(14), height: rem(14) }} />
-                                }
+                                leftSection={<IconTruck style={{ width: rem(14), height: rem(14) }} />}
                                 color="cyan"
                                 onClick={() => updateDurum(siparis.id, 'siparis_verildi')}
                                 disabled={siparis.durum === 'siparis_verildi'}
@@ -900,9 +883,7 @@ export default function SatinAlmaPage() {
                                 {siparis.durum === 'siparis_verildi' ? '✓ ' : ''}Sipariş Verildi
                               </Menu.Item>
                               <Menu.Item
-                                leftSection={
-                                  <IconPackage style={{ width: rem(14), height: rem(14) }} />
-                                }
+                                leftSection={<IconPackage style={{ width: rem(14), height: rem(14) }} />}
                                 color="green"
                                 onClick={() => updateDurum(siparis.id, 'teslim_alindi')}
                                 disabled={siparis.durum === 'teslim_alindi'}
@@ -911,13 +892,9 @@ export default function SatinAlmaPage() {
                               </Menu.Item>
                               {siparis.durum === 'teslim_alindi' && siparis.tedarikci_id && (
                                 <Menu.Item
-                                  leftSection={
-                                    <IconReceipt style={{ width: rem(14), height: rem(14) }} />
-                                  }
+                                  leftSection={<IconReceipt style={{ width: rem(14), height: rem(14) }} />}
                                   color="violet"
-                                  onClick={() =>
-                                    router.push(`/muhasebe/faturalar?cari=${siparis.tedarikci_id}`)
-                                  }
+                                  onClick={() => router.push(`/muhasebe/faturalar?cari=${siparis.tedarikci_id}`)}
                                 >
                                   Faturayı Gör
                                 </Menu.Item>
@@ -925,9 +902,7 @@ export default function SatinAlmaPage() {
                               <Menu.Divider />
                               <Menu.Item
                                 color="red"
-                                leftSection={
-                                  <IconTrash style={{ width: rem(14), height: rem(14) }} />
-                                }
+                                leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
                                 onClick={() => handleDelete(siparis.id)}
                               >
                                 Sil
@@ -983,9 +958,7 @@ export default function SatinAlmaPage() {
                 placeholder="Seçin (opsiyonel)"
                 data={tedarikciler.map((t) => ({ value: String(t.id), label: t.unvan }))}
                 value={formData.tedarikci_id ? String(formData.tedarikci_id) : null}
-                onChange={(v) =>
-                  setFormData({ ...formData, tedarikci_id: v ? parseInt(v, 10) : null })
-                }
+                onChange={(v) => setFormData({ ...formData, tedarikci_id: v ? parseInt(v, 10) : null })}
                 searchable
                 clearable
               />
@@ -1011,9 +984,7 @@ export default function SatinAlmaPage() {
                   { label: 'ACİL', value: 'acil' },
                 ]}
                 value={formData.oncelik}
-                onChange={(v) =>
-                  setFormData({ ...formData, oncelik: (v as Siparis['oncelik']) || 'normal' })
-                }
+                onChange={(v) => setFormData({ ...formData, oncelik: (v as Siparis['oncelik']) || 'normal' })}
               />
             </SimpleGrid>
 
@@ -1088,12 +1059,7 @@ export default function SatinAlmaPage() {
             </Table>
 
             <Group justify="space-between">
-              <Button
-                variant="light"
-                size="xs"
-                leftSection={<IconPlus size={14} />}
-                onClick={addKalem}
-              >
+              <Button variant="light" size="xs" leftSection={<IconPlus size={14} />} onClick={addKalem}>
                 Ürün Ekle
               </Button>
               <Group gap="xs">
@@ -1226,9 +1192,7 @@ export default function SatinAlmaPage() {
                         <Table.Td>
                           {k.miktar} {k.birim}
                         </Table.Td>
-                        <Table.Td style={{ textAlign: 'right' }}>
-                          {formatMoney(k.tahmini_fiyat)}
-                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>{formatMoney(k.tahmini_fiyat)}</Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -1334,9 +1298,7 @@ export default function SatinAlmaPage() {
                           <Table.Td>
                             {k.miktar} {k.birim}
                           </Table.Td>
-                          <Table.Td style={{ textAlign: 'right' }}>
-                            {formatMoney(k.tahmini_fiyat)}
-                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>{formatMoney(k.tahmini_fiyat)}</Table.Td>
                         </Table.Tr>
                       ))}
                     </Table.Tbody>
@@ -1390,11 +1352,7 @@ export default function SatinAlmaPage() {
               </Box>
 
               {/* Butonlar */}
-              <Group
-                justify="flex-end"
-                p="md"
-                style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
-              >
+              <Group justify="flex-end" p="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
                 <Button variant="default" onClick={closeFormModal}>
                   Kapat
                 </Button>
@@ -1424,9 +1382,7 @@ export default function SatinAlmaPage() {
                 label="Proje Kodu"
                 placeholder="KYK, HASTANE..."
                 value={newProje.kod}
-                onChange={(e) =>
-                  setNewProje({ ...newProje, kod: e.currentTarget.value.toUpperCase() })
-                }
+                onChange={(e) => setNewProje({ ...newProje, kod: e.currentTarget.value.toUpperCase() })}
                 required
               />
               <TextInput
@@ -1483,11 +1439,7 @@ export default function SatinAlmaPage() {
         </Modal>
 
         {/* Rapor Merkezi Modal */}
-        <RaporMerkeziModal
-          opened={raporMerkeziOpen}
-          onClose={() => setRaporMerkeziOpen(false)}
-          module="operasyon"
-        />
+        <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="operasyon" />
       </Container>
     </Box>
   );

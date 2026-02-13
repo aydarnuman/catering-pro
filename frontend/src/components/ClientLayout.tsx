@@ -6,13 +6,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 // FloatingAIChat'i lazy load et - bundle size'ı küçültür
-const FloatingAIChat = dynamic(
-  () => import('./FloatingAIChat').then((mod) => ({ default: mod.FloatingAIChat })),
-  {
-    ssr: false,
-    loading: () => null, // Yüklenirken hiçbir şey gösterme
-  }
-);
+const FloatingAIChat = dynamic(() => import('./FloatingAIChat').then((mod) => ({ default: mod.FloatingAIChat })), {
+  ssr: false,
+  loading: () => null, // Yüklenirken hiçbir şey gösterme
+});
 
 // Altta sabit AI input toolbar (Artlist tarzı)
 const GenerationToolbar = dynamic(
@@ -42,8 +39,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Notes modal artık NotesContext üzerinden global olarak yönetiliyor
   // Toolbar widget doğrudan useNotesModal().openNotes() kullanıyor
 
-  const shouldShowChat =
-    !isLoading && isAuthenticated && !EXCLUDED_PATHS.some((path) => pathname?.startsWith(path));
+  const shouldShowChat = !isLoading && isAuthenticated && !EXCLUDED_PATHS.some((path) => pathname?.startsWith(path));
 
   return (
     <>

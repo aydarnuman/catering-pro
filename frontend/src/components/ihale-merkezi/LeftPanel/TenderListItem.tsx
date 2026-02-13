@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Button,
-  Collapse,
-  Group,
-  Paper,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Collapse, Group, Paper, Text, Tooltip } from '@mantine/core';
 import {
   IconBuilding,
   IconCalendar,
@@ -117,11 +107,7 @@ function getUrgencyBadge(daysRemaining: number | null) {
   }
   if (daysRemaining <= 3) {
     return (
-      <Badge
-        size="xs"
-        variant="light"
-        style={{ background: 'rgba(201, 162, 39, 0.1)', color: '#C9A227' }}
-      >
+      <Badge size="xs" variant="light" style={{ background: 'rgba(201, 162, 39, 0.1)', color: '#C9A227' }}>
         {daysRemaining} gün
       </Badge>
     );
@@ -459,12 +445,7 @@ export function TenderListItem({
 
       {/* === EXPANDED VIEW: Full ihalebul.com details === */}
       <Collapse in={isExpanded}>
-        <Box
-          mt={8}
-          pt={8}
-          style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-          onClick={onClick}
-        >
+        <Box mt={8} pt={8} style={{ borderTop: '1px solid var(--mantine-color-default-border)' }} onClick={onClick}>
           {/* İhale Kayıt No */}
           {externalId && (
             <Text size="xs" c="dimmed" mb={4}>
@@ -484,10 +465,7 @@ export function TenderListItem({
             )}
             {dateStr && (
               <Group gap={4} wrap="nowrap">
-                <IconCalendar
-                  size={11}
-                  color={isUrgent ? '#C9A227' : 'var(--mantine-color-gray-5)'}
-                />
+                <IconCalendar size={11} color={isUrgent ? '#C9A227' : 'var(--mantine-color-gray-5)'} />
                 <Text size="xs" c={isUrgent ? 'yellow.6' : 'dimmed'} fw={isUrgent ? 600 : 400}>
                   Teklif: {formatDateTime(dateStr)}
                 </Text>
@@ -495,11 +473,7 @@ export function TenderListItem({
             )}
             {daysRemaining !== null && daysRemaining >= 0 && (
               <Badge size="xs" variant="light" color={daysRemaining <= 3 ? 'red' : 'gray'}>
-                {daysRemaining === 0
-                  ? 'Bugün'
-                  : daysRemaining === 1
-                    ? 'Yarın'
-                    : `${daysRemaining} gün kaldı`}
+                {daysRemaining === 0 ? 'Bugün' : daysRemaining === 1 ? 'Yarın' : `${daysRemaining} gün kaldı`}
               </Badge>
             )}
           </Group>

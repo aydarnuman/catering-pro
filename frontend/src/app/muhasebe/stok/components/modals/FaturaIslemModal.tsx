@@ -133,12 +133,7 @@ export default function FaturaIslemModal({
           `${selectedFatura.sender_name}`
         ) : (
           <Group gap="sm">
-            <ThemeIcon
-              size="lg"
-              radius="xl"
-              variant="gradient"
-              gradient={{ from: 'green', to: 'teal' }}
-            >
+            <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'green', to: 'teal' }}>
               <IconTrendingUp size={18} />
             </ThemeIcon>
             <Text fw={600}>Stok Girişi</Text>
@@ -173,12 +168,7 @@ export default function FaturaIslemModal({
             </Paper>
             <Paper p="lg" withBorder radius="md" bg="teal.0" style={{ cursor: 'default' }}>
               <Stack align="center" gap="sm">
-                <ThemeIcon
-                  size={50}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: 'teal', to: 'green' }}
-                >
+                <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'green' }}>
                   <IconFileInvoice size={24} />
                 </ThemeIcon>
                 <Text fw={600}>Faturadan Ekle</Text>
@@ -220,9 +210,8 @@ export default function FaturaIslemModal({
 
           <Alert color="blue" variant="light" mb="sm">
             <Text size="xs">
-              <strong>Toplu İşlem:</strong> Depo seçip "Tümünü İşle" butonuna basarsanız, %90+ güven
-              skorlu tüm kalemler otomatik stok girişi yapılır. Düşük güvenli olanlar manuel onay
-              için bekletilir.
+              <strong>Toplu İşlem:</strong> Depo seçip "Tümünü İşle" butonuna basarsanız, %90+ güven skorlu tüm kalemler
+              otomatik stok girişi yapılır. Düşük güvenli olanlar manuel onay için bekletilir.
             </Text>
           </Alert>
 
@@ -295,12 +284,7 @@ export default function FaturaIslemModal({
         // === FATURA KALEMLERİ VE EŞLEŞTİRME ===
         <Stack>
           <Group justify="space-between">
-            <Button
-              variant="subtle"
-              size="xs"
-              leftSection={<IconX size={14} />}
-              onClick={handleBack}
-            >
+            <Button variant="subtle" size="xs" leftSection={<IconX size={14} />} onClick={handleBack}>
               Geri Dön
             </Button>
             <Badge size="lg">
@@ -381,8 +365,7 @@ export default function FaturaIslemModal({
                   )}
                 </Group>
                 <Group gap="sm">
-                  {faturaKalemler.filter((k) => k.eslesme && !kalemEslestirme[k.sira]).length >
-                    0 && (
+                  {faturaKalemler.filter((k) => k.eslesme && !kalemEslestirme[k.sira]).length > 0 && (
                     <Button
                       size="xs"
                       variant="light"
@@ -427,9 +410,7 @@ export default function FaturaIslemModal({
             <Table.Tbody>
               {faturaKalemler.map((kalem) => {
                 const secilenUrunId = kalemEslestirme[kalem.sira];
-                const secilenUrun = secilenUrunId
-                  ? tumUrunler.find((u) => u.id === secilenUrunId)
-                  : null;
+                const secilenUrun = secilenUrunId ? tumUrunler.find((u) => u.id === secilenUrunId) : null;
                 const guvenSkoru = kalem.eslesme?.guven_skoru || 0;
                 const otomatikEslesti = kalem.eslesme?.otomatik_onay && !kalem.anomali?.var;
 
@@ -451,12 +432,7 @@ export default function FaturaIslemModal({
                             {kalem.urun_adi}
                           </Text>
                           {kalem.anomali?.var && (
-                            <ThemeIcon
-                              size="xs"
-                              color="red"
-                              variant="light"
-                              title={kalem.anomali.aciklama}
-                            >
+                            <ThemeIcon size="xs" color="red" variant="light" title={kalem.anomali.aciklama}>
                               <IconAlertTriangle size={12} />
                             </ThemeIcon>
                           )}
@@ -563,14 +539,10 @@ export default function FaturaIslemModal({
                               Öneri: %{guvenSkoru.toFixed(0)}
                             </Badge>
                             <Text size="xs" c="dimmed">
-                              {kalem.eslesme.eslestirme_yontemi === 'tedarikci_gecmisi' &&
-                                'Öğrenilmiş'}
-                              {kalem.eslesme.eslestirme_yontemi === 'kod_eslesmesi' &&
-                                'Kod eşleşti'}
-                              {kalem.eslesme.eslestirme_yontemi === 'isim_benzerlik' &&
-                                'İsim benzerliği'}
-                              {kalem.eslesme.eslestirme_yontemi === 'normalize_eslesmesi' &&
-                                'Normalize'}
+                              {kalem.eslesme.eslestirme_yontemi === 'tedarikci_gecmisi' && 'Öğrenilmiş'}
+                              {kalem.eslesme.eslestirme_yontemi === 'kod_eslesmesi' && 'Kod eşleşti'}
+                              {kalem.eslesme.eslestirme_yontemi === 'isim_benzerlik' && 'İsim benzerliği'}
+                              {kalem.eslesme.eslestirme_yontemi === 'normalize_eslesmesi' && 'Normalize'}
                             </Text>
                             <Button
                               size="compact-xs"
@@ -594,14 +566,10 @@ export default function FaturaIslemModal({
                               Eşleşti
                             </Badge>
                             <Text size="xs" c="dimmed">
-                              {kalem.eslesme.eslestirme_yontemi === 'tedarikci_gecmisi' &&
-                                'Öğrenilmiş'}
-                              {kalem.eslesme.eslestirme_yontemi === 'kod_eslesmesi' &&
-                                'Kod eşleşti'}
-                              {kalem.eslesme.eslestirme_yontemi === 'isim_benzerlik' &&
-                                'İsim benzerliği'}
-                              {kalem.eslesme.eslestirme_yontemi === 'normalize_eslesmesi' &&
-                                'Normalize'}
+                              {kalem.eslesme.eslestirme_yontemi === 'tedarikci_gecmisi' && 'Öğrenilmiş'}
+                              {kalem.eslesme.eslestirme_yontemi === 'kod_eslesmesi' && 'Kod eşleşti'}
+                              {kalem.eslesme.eslestirme_yontemi === 'isim_benzerlik' && 'İsim benzerliği'}
+                              {kalem.eslesme.eslestirme_yontemi === 'normalize_eslesmesi' && 'Normalize'}
                             </Text>
                           </Group>
                         )}
@@ -614,25 +582,23 @@ export default function FaturaIslemModal({
                               <Text size="xs" c="dimmed">
                                 Öneriler:
                               </Text>
-                              {kalem.alternatif_eslesmeler
-                                .slice(0, 2)
-                                .map((alt: any, idx: number) => (
-                                  <Badge
-                                    key={idx}
-                                    size="xs"
-                                    variant="outline"
-                                    color="blue"
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() =>
-                                      setKalemEslestirme((prev) => ({
-                                        ...prev,
-                                        [kalem.sira]: alt.stok_kart_id,
-                                      }))
-                                    }
-                                  >
-                                    {alt.stok_adi?.substring(0, 15)}...
-                                  </Badge>
-                                ))}
+                              {kalem.alternatif_eslesmeler.slice(0, 2).map((alt: any, idx: number) => (
+                                <Badge
+                                  key={idx}
+                                  size="xs"
+                                  variant="outline"
+                                  color="blue"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() =>
+                                    setKalemEslestirme((prev) => ({
+                                      ...prev,
+                                      [kalem.sira]: alt.stok_kart_id,
+                                    }))
+                                  }
+                                >
+                                  {alt.stok_adi?.substring(0, 15)}...
+                                </Badge>
+                              ))}
                             </Group>
                           )}
                       </Stack>
@@ -694,15 +660,12 @@ export default function FaturaIslemModal({
 
           <Group justify="space-between" mt="md">
             <Text size="sm" c="dimmed">
-              Eşleştirilen: {Object.values(kalemEslestirme).filter((v) => v).length} /{' '}
-              {faturaKalemler.length} kalem
+              Eşleştirilen: {Object.values(kalemEslestirme).filter((v) => v).length} / {faturaKalemler.length} kalem
             </Text>
             <Button
               onClick={onFaturaStokGirisi}
               loading={faturaLoading}
-              disabled={
-                !faturaGirisDepo || Object.values(kalemEslestirme).filter((v) => v).length === 0
-              }
+              disabled={!faturaGirisDepo || Object.values(kalemEslestirme).filter((v) => v).length === 0}
               leftSection={<IconCheck size={16} />}
             >
               Stok Girişi Yap

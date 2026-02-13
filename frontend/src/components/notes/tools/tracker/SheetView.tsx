@@ -12,7 +12,6 @@ import {
   Box,
   Button,
   Group,
-  Loader,
   Menu,
   Paper,
   Popover,
@@ -47,15 +46,11 @@ import { aiAPI } from '@/lib/api/services/ai';
 import { EditableCell } from './EditableCell';
 import { computeAgg, exportCSV, fmtNum, getColumnMax, mkCol, uid } from './helpers';
 import { AI_ANALYZE_PROMPT } from './presets';
-import type { AggFunc, ColumnType, TrackerColumn, TrackerRow, TrackerSheet } from './types';
+import type { AggFunc, ColumnType, TrackerRow, TrackerSheet } from './types';
 import { AGG_LABELS } from './types';
 
 // ─── Add Column Popover ───
-function AddColumnButton({
-  onAdd,
-}: {
-  onAdd: (name: string, type: ColumnType, options?: string[]) => void;
-}) {
+function AddColumnButton({ onAdd }: { onAdd: (name: string, type: ColumnType, options?: string[]) => void }) {
   const [opened, setOpened] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<ColumnType>('text');
@@ -208,8 +203,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
 
   // Helper to update sheet
   const touch = useCallback(
-    (partial: Partial<TrackerSheet>) =>
-      onUpdate({ ...sheet, ...partial, updatedAt: new Date().toISOString() }),
+    (partial: Partial<TrackerSheet>) => onUpdate({ ...sheet, ...partial, updatedAt: new Date().toISOString() }),
     [sheet, onUpdate]
   );
 
@@ -217,9 +211,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
   const updateCell = useCallback(
     (rowId: string, colId: string, value: string | number) => {
       touch({
-        rows: sheet.rows.map((r) =>
-          r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: value } } : r
-        ),
+        rows: sheet.rows.map((r) => (r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: value } } : r)),
       });
     },
     [sheet, touch]
@@ -370,8 +362,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
   const hasNumberCols = sheet.columns.some((c) => c.type === 'number');
   const selectColumns = sheet.columns.filter((c) => c.type === 'select' && c.options);
   const hasActiveFilter = searchQuery.trim() || Object.values(selectFilter).some(Boolean);
-  const lastRowId =
-    filteredSortedRows.length > 0 ? filteredSortedRows[filteredSortedRows.length - 1].id : null;
+  const lastRowId = filteredSortedRows.length > 0 ? filteredSortedRows[filteredSortedRows.length - 1].id : null;
   const lastColId = sheet.columns.length > 0 ? sheet.columns[sheet.columns.length - 1].id : null;
 
   // ─── AI Analyze ───
@@ -397,12 +388,10 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
       const response = await aiAPI.sendAgentMessage({
         message: prompt,
         department: 'GENEL',
-        systemContext:
-          'Kullanici Takip Defteri tablo analizi istiyor. Turkce, kisa ve faydali yanit ver.',
+        systemContext: 'Kullanici Takip Defteri tablo analizi istiyor. Turkce, kisa ve faydali yanit ver.',
       });
 
-      const text =
-        response.data?.response ?? (response as unknown as { response?: string }).response;
+      const text = response.data?.response ?? (response as unknown as { response?: string }).response;
       if (text) setAiResult(text);
       else notifications.show({ message: 'AI analiz yapilamadi', color: 'orange' });
     } catch {
@@ -445,13 +434,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
             </ActionIcon>
           </Tooltip>
           <Tooltip label="CSV indir">
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              color="gray"
-              onClick={() => exportCSV(sheet)}
-              radius="md"
-            >
+            <ActionIcon variant="subtle" size="sm" color="gray" onClick={() => exportCSV(sheet)} radius="md">
               <IconDownload size={14} />
             </ActionIcon>
           </Tooltip>
@@ -473,10 +456,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
                 CSV olarak indir
               </Menu.Item>
               {hasNumberCols && (
-                <Menu.Item
-                  leftSection={<IconPercentage size={14} />}
-                  onClick={() => setShowPercentRow((p) => !p)}
-                >
+                <Menu.Item leftSection={<IconPercentage size={14} />} onClick={() => setShowPercentRow((p) => !p)}>
                   {showPercentRow ? 'Yuzde satirini gizle' : 'Yuzde satirini goster'}
                 </Menu.Item>
               )}
@@ -538,10 +518,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
           <Select
             key={c.id}
             placeholder={c.name}
-            data={[
-              { value: '', label: `Tumu (${c.name})` },
-              ...(c.options || []).map((o) => ({ value: o, label: o })),
-            ]}
+            data={[{ value: '', label: `Tumu (${c.name})` }, ...(c.options || []).map((o) => ({ value: o, label: o }))]}
             value={selectFilter[c.id] ?? ''}
             onChange={(v) => setSelectFilter((prev) => ({ ...prev, [c.id]: v || null }))}
             size="xs"
@@ -608,12 +585,7 @@ export function SheetView({ sheet, onUpdate, onBack, onDelete }: SheetViewProps)
                     </Group>
                     <Menu position="bottom-end" withArrow>
                       <Menu.Target>
-                        <ActionIcon
-                          variant="subtle"
-                          size="xs"
-                          color="gray"
-                          style={{ opacity: 0.4, flexShrink: 0 }}
-                        >
+                        <ActionIcon variant="subtle" size="xs" color="gray" style={{ opacity: 0.4, flexShrink: 0 }}>
                           <IconChevronDown size={10} />
                         </ActionIcon>
                       </Menu.Target>

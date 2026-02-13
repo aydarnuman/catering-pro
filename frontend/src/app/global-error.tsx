@@ -1,25 +1,11 @@
 'use client';
 
 import '@mantine/core/styles.css';
-import {
-  Button,
-  ColorSchemeScript,
-  Container,
-  MantineProvider,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Button, ColorSchemeScript, Container, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconHome, IconRefresh } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     // Log error to console for debugging
     console.error('Global application error:', error);
@@ -50,20 +36,14 @@ export default function GlobalError({
                 '#1864ab',
               ],
             },
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             headings: {
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               fontWeight: '700',
             },
           }}
         >
-          <Container
-            size="sm"
-            py="xl"
-            style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}
-          >
+          <Container size="sm" py="xl" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
             <Stack align="center" gap="lg" style={{ width: '100%' }}>
               <IconAlertCircle size={64} color="red" />
               <Title order={1} ta="center">
@@ -78,16 +58,8 @@ export default function GlobalError({
                 </Text>
               )}
               {process.env.NODE_ENV === 'development' && error.stack && (
-                <Text
-                  component="div"
-                  size="xs"
-                  c="dimmed"
-                  ta="left"
-                  style={{ maxWidth: '100%', overflow: 'auto' }}
-                >
-                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {error.stack}
-                  </pre>
+                <Text component="div" size="xs" c="dimmed" ta="left" style={{ maxWidth: '100%', overflow: 'auto' }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{error.stack}</pre>
                 </Text>
               )}
               <Stack gap="sm" mt="md">

@@ -1525,7 +1525,7 @@ class AIToolsRegistry {
           userId,
           toolName,
         ]
-      ).catch(() => {});
+      ).catch((err) => logger.error('[AITools] God mode audit log hatasi', { error: err.message }));
 
       logger.warn(`[GOD MODE] ${toolName} completed in ${executionTime}ms`, { userId, toolName, executionTime });
 
@@ -1542,7 +1542,7 @@ class AIToolsRegistry {
         ORDER BY created_at DESC LIMIT 1
       `,
         [error.message, userId, toolName]
-      ).catch(() => {});
+      ).catch((err) => logger.error('[AITools] God mode audit log hatasi', { error: err.message }));
 
       return {
         success: false,

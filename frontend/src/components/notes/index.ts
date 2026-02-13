@@ -22,15 +22,21 @@ export {
   PRIORITY_COLORS,
   PRIORITY_LABELS,
 } from '@/types/notes';
+// Sub-components
+export { CalcPopup } from './CalcPopup';
+export { ContextNotesButton } from './ContextNotesButton';
+export { EditNoteModal } from './EditNoteModal';
+export { FolderBar } from './FolderBar';
 export { NoteAttachments } from './NoteAttachments';
 export { NoteCard } from './NoteCard';
 export type { ChecklistItem } from './NoteChecklist';
 export { NoteChecklist } from './NoteChecklist';
 export { NoteColorPicker } from './NoteColorPicker';
+export { NoteComposer } from './NoteComposer';
 export { NoteEditor } from './NoteEditor';
 export { NotePrioritySelect } from './NotePrioritySelect';
-export type { SidebarFilter, ToolType } from './NotesSidebar';
-export { NotesSidebar } from './NotesSidebar';
+export { NotesList } from './NotesList';
+export { NotesToolbar } from './NotesToolbar';
 export { NoteTagsInput } from './NoteTagsInput';
 // Tools
 export { AIHelpTool } from './tools/AIHelpTool';
@@ -39,3 +45,4 @@ export { ExportTool } from './tools/ExportTool';
 export { TemplatesTool } from './tools/TemplatesTool';
 export { TrackerTool } from './tools/tracker';
 export { UnifiedNotesModal } from './UnifiedNotesModal';
+export { useNoteExport } from './useNoteExport';

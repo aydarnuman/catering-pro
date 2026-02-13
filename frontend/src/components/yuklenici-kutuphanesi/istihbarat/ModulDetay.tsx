@@ -56,12 +56,7 @@ export interface HavuzVeri {
 }
 
 /** Gruplar için veri_havuzu'ndan zenginleştirme gerekli mi? */
-const HAVUZ_ZENGINLESTIR: DockGrupAdi[] = [
-  'ihale_performansi',
-  'hukuki_durum',
-  'haberler',
-  'sirket_bilgileri',
-];
+const HAVUZ_ZENGINLESTIR: DockGrupAdi[] = ['ihale_performansi', 'hukuki_durum', 'haberler', 'sirket_bilgileri'];
 
 export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Çoklu modül verisi: { ihale_gecmisi: {...}, profil_analizi: {...}, ... }
@@ -153,12 +148,7 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Hata
   if (hata) {
     return (
-      <Alert
-        icon={<IconInfoCircle size={16} />}
-        title="Veri yüklenemedi"
-        color="red"
-        variant="light"
-      >
+      <Alert icon={<IconInfoCircle size={16} />} title="Veri yüklenemedi" color="red" variant="light">
         {hata}
       </Alert>
     );

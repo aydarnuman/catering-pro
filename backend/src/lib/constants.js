@@ -92,6 +92,30 @@ export const TURKISH_CITIES = [
 ];
 
 // ============================================
+// TURKISH CHARACTER MAP
+// ============================================
+
+/**
+ * Türkçe karakterlerin ASCII karşılıkları
+ * Tüm Türkçe->ASCII dönüşümleri bu map'i kullanmalı (DRY)
+ */
+export const TURKISH_CHAR_MAP = {
+  ç: 'c',
+  Ç: 'C',
+  ğ: 'g',
+  Ğ: 'G',
+  ı: 'i',
+  I: 'I',
+  İ: 'I',
+  ö: 'o',
+  Ö: 'O',
+  ş: 's',
+  Ş: 'S',
+  ü: 'u',
+  Ü: 'U',
+};
+
+// ============================================
 // DOCUMENT TYPES
 // ============================================
 

@@ -21,66 +21,52 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required');
 }
 
+const USER_QUERY = `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`;
+
 /**
- * Token doğrulama middleware (Ana middleware)
- * Sadece kendi JWT token'ımızı doğrular - Supabase YOK
+ * Token'ı request'ten çıkar (Cookie > Header) ve kullanıcıyı doğrula.
+ * Ortak mantık: authenticate, optionalAuth ve publicRoute bu fonksiyonu kullanır.
+ *
+ * @param {object} req - Express request
+ * @returns {{ user: object|null, error: { message: string, code: string, status: number }|null }}
  */
-const authenticate = async (req, res, next) => {
+async function extractAndVerifyUser(req) {
+  // Token'ı al: Cookie > Header
+  let token = req.cookies?.access_token;
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    }
+  }
+
+  if (!token) {
+    return { user: null, error: { message: 'Token gerekli', code: 'NO_TOKEN', status: 401 } };
+  }
+
+  // JWT doğrula
+  let decoded;
   try {
-    // Token'ı al: Cookie > Header
-    let token = req.cookies?.access_token;
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
-      }
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (jwtError) {
+    if (jwtError.name === 'TokenExpiredError') {
+      return { user: null, error: { message: 'Token süresi dolmuş', code: 'TOKEN_EXPIRED', status: 401 } };
     }
+    return { user: null, error: { message: 'Geçersiz token', code: 'INVALID_TOKEN', status: 401 } };
+  }
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token gerekli',
-        code: 'NO_TOKEN',
-      });
-    }
+  // Kullanıcıyı veritabanından al
+  const profileResult = await query(USER_QUERY, [decoded.id]);
 
-    // JWT doğrula
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
-      if (jwtError.name === 'TokenExpiredError') {
-        return res.status(401).json({
-          success: false,
-          error: 'Token süresi dolmuş',
-          code: 'TOKEN_EXPIRED',
-        });
-      }
-      return res.status(401).json({
-        success: false,
-        error: 'Geçersiz token',
-        code: 'INVALID_TOKEN',
-      });
-    }
+  if (!profileResult.rows.length) {
+    return { user: null, error: { message: 'Kullanıcı bulunamadı', code: 'USER_NOT_FOUND', status: 401 } };
+  }
 
-    // Kullanıcıyı veritabanından al
-    const profileResult = await query(
-      `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
-      [decoded.id]
-    );
+  const profile = profileResult.rows[0];
+  const userType = profile.user_type || 'user';
 
-    if (!profileResult.rows.length) {
-      return res.status(401).json({
-        success: false,
-        error: 'Kullanıcı bulunamadı',
-        code: 'USER_NOT_FOUND',
-      });
-    }
-
-    const profile = profileResult.rows[0];
-    const userType = profile.user_type || 'user';
-
-    req.user = {
+  return {
+    user: {
       id: profile.id,
       email: profile.email,
       name: profile.name,
@@ -88,8 +74,28 @@ const authenticate = async (req, res, next) => {
       userType,
       role: profile.role,
       isSuperAdmin: userType === 'super_admin',
-    };
+    },
+    error: null,
+  };
+}
 
+/**
+ * Token doğrulama middleware (Ana middleware)
+ * Sadece kendi JWT token'ımızı doğrular - Supabase YOK
+ */
+const authenticate = async (req, res, next) => {
+  try {
+    const { user, error } = await extractAndVerifyUser(req);
+
+    if (error) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+      });
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     logger.error('Auth middleware error', { error: err.message });
@@ -106,46 +112,8 @@ const authenticate = async (req, res, next) => {
  */
 const optionalAuth = async (req, _res, next) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
-      }
-    }
-
-    if (!token) {
-      req.user = null;
-      return next();
-    }
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-
-      const profileResult = await query(
-        `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
-        [decoded.id]
-      );
-
-      if (profileResult.rows.length) {
-        const profile = profileResult.rows[0];
-        const userType = profile.user_type || 'user';
-
-        req.user = {
-          id: profile.id,
-          email: profile.email,
-          name: profile.name,
-          user_type: userType,
-          userType,
-          role: profile.role,
-          isSuperAdmin: userType === 'super_admin',
-        };
-      } else {
-        req.user = null;
-      }
-    } catch {
-      req.user = null;
-    }
+    const { user } = await extractAndVerifyUser(req);
+    req.user = user;
   } catch {
     req.user = null;
   }
@@ -272,46 +240,12 @@ const addRequestInfo = (req, _res, next) => {
 /**
  * PUBLIC ROUTE - Auth gerektirmez
  * Token varsa kullanıcı bilgisini alır, yoksa da devam eder
+ * optionalAuth ile aynı davranış (alias)
  */
 const publicRoute = async (req, _res, next) => {
   try {
-    let token = req.cookies?.access_token;
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
-      }
-    }
-
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        const profileResult = await query(
-          `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
-          [decoded.id]
-        );
-
-        if (profileResult.rows.length) {
-          const profile = profileResult.rows[0];
-          req.user = {
-            id: profile.id,
-            email: profile.email,
-            name: profile.name,
-            user_type: profile.user_type || 'user',
-            userType: profile.user_type || 'user',
-            role: profile.role,
-            isSuperAdmin: profile.user_type === 'super_admin',
-          };
-        } else {
-          req.user = null;
-        }
-      } catch {
-        req.user = null;
-      }
-    } else {
-      req.user = null;
-    }
+    const { user } = await extractAndVerifyUser(req);
+    req.user = user;
   } catch {
     req.user = null;
   }

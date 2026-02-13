@@ -193,7 +193,7 @@ export function parseWithRegex(productName) {
 export async function parseWithAI(productName) {
   try {
     const anthropic = new Anthropic({
-      apiKey: process.env.CLAUDE_API_KEY,
+      apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
     const message = await anthropic.messages.create({

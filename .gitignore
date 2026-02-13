@@ -20,6 +20,7 @@ backend/logs/*-audit.json
 
 # Build artifacts
 frontend/tsconfig.tsbuildinfo
+backend/coverage/
 
 # Build
 dist/
@@ -46,6 +47,7 @@ backend/storage/session.json
 backend/storage/uyumsoft-session.json
 backend/storage/uyumsoft-session-sync.json
 backend/storage/ekap-session.json
+services/instagram/session.json
 
 # Backups
 backups/

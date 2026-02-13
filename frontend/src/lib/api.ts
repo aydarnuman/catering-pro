@@ -132,13 +132,7 @@ api.interceptors.response.use(
 
 // API functions
 export const apiClient = {
-  async getTenders(params?: {
-    page?: number;
-    limit?: number;
-    city?: string;
-    search?: string;
-    status?: string;
-  }) {
+  async getTenders(params?: { page?: number; limit?: number; city?: string; search?: string; status?: string }) {
     const response = await api.get('/api/tenders', { params });
     return response.data;
   },

@@ -206,19 +206,10 @@ export const ATTACHMENT_TYPES: AttachmentTypeConfig[] = [
   },
 ];
 
-export const ATTACHMENT_TYPE_MAP = Object.fromEntries(
-  ATTACHMENT_TYPES.map((t) => [t.type, t])
-) as Record<string, AttachmentTypeConfig>;
-
-// ─── Orbit Ring Geometry ─────────────────────────────────
-
-export const ORBIT_RING_CONFIG = {
-  radiusX: 200,
-  radiusY: 280,
-  nodeSize: 36,
-  maxVisibleNodes: 12,
-  startAngle: -Math.PI / 2,
-} as const;
+export const ATTACHMENT_TYPE_MAP = Object.fromEntries(ATTACHMENT_TYPES.map((t) => [t.type, t])) as Record<
+  string,
+  AttachmentTypeConfig
+>;
 
 /** framer-motion transition presets */
 export const SPRING_CONFIG = {

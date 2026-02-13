@@ -57,7 +57,6 @@ export function useRealtimeTable(
           table: tableName,
         },
         (payload: PostgresChangesPayload) => {
-          console.log(`[Realtime] ${tableName} değişti:`, payload.eventType);
           onUpdate(payload);
         }
       );
@@ -66,7 +65,7 @@ export function useRealtimeTable(
     // Subscribe
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log(`[Realtime] Bağlandı: ${tablesArray.join(', ')}`);
+        console.debug(`[Realtime] Bağlandı: ${tablesArray.join(', ')}`);
       } else if (status === 'CHANNEL_ERROR') {
         console.error(`[Realtime] Bağlantı hatası: ${tablesArray.join(', ')}`);
       }
@@ -77,7 +76,7 @@ export function useRealtimeTable(
     // Cleanup
     return () => {
       if (channelRef.current) {
-        console.log(`[Realtime] Bağlantı kapatılıyor: ${tablesArray.join(', ')}`);
+        console.debug(`[Realtime] Bağlantı kapatılıyor: ${tablesArray.join(', ')}`);
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
@@ -118,7 +117,6 @@ export function useRealtimeTables(
           table: tableName,
         },
         (payload: PostgresChangesPayload) => {
-          console.log(`[Realtime] ${tableName} değişti:`, payload.eventType);
           tableCallbacks[tableName]?.(payload);
         }
       );
@@ -126,7 +124,7 @@ export function useRealtimeTables(
 
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log(`[Realtime] Multi-table bağlandı: ${tables.join(', ')}`);
+        console.debug(`[Realtime] Multi-table bağlandı: ${tables.join(', ')}`);
       }
     });
 

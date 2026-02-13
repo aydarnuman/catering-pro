@@ -4,6 +4,7 @@
  */
 
 import { pool } from '../database.js';
+import logger from '../utils/logger.js';
 
 const AuditService = {
   /**
@@ -84,8 +85,16 @@ const AuditService = {
       );
 
       return result.rows[0].id;
-    } catch (_error) {
-      // Audit hataları uygulamayı durdurmamamalı
+    } catch (error) {
+      // Audit hataları uygulamayı durdurmamalı ama loglanmalı
+      logger.error('Audit log yazma hatasi', {
+        userId: params.userId,
+        action: params.action,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        error: error.message,
+        stack: error.stack,
+      });
       return null;
     }
   },

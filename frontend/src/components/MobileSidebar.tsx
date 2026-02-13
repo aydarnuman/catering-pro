@@ -123,7 +123,7 @@ const allMenuGroups: MenuGroup[] = [
       },
       {
         label: 'Menü Planlama',
-        href: '/muhasebe/menu-planlama',
+        href: '/menu-planlama',
         icon: IconToolsKitchen2,
         permission: 'planlama',
       },
@@ -320,16 +320,11 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                   left: 0,
                   right: 0,
                   height: 3,
-                  background:
-                    'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
                 }}
               />
 
-              <Group
-                justify="space-between"
-                align="center"
-                style={{ position: 'relative', zIndex: 1 }}
-              >
+              <Group justify="space-between" align="center" style={{ position: 'relative', zIndex: 1 }}>
                 <Box
                   style={{
                     display: 'flex',
@@ -414,23 +409,12 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                           justifyContent: 'center',
                         }}
                       >
-                        <IconHome
-                          size={22}
-                          color={isActive('/') ? 'white' : isDark ? '#9CA3AF' : '#6B7280'}
-                        />
+                        <IconHome size={22} color={isActive('/') ? 'white' : isDark ? '#9CA3AF' : '#6B7280'} />
                       </Box>
                       <Text
                         fw={600}
                         size="md"
-                        c={
-                          isActive('/')
-                            ? isDark
-                              ? 'white'
-                              : '#1F2937'
-                            : isDark
-                              ? '#E5E7EB'
-                              : '#374151'
-                        }
+                        c={isActive('/') ? (isDark ? 'white' : '#1F2937') : isDark ? '#E5E7EB' : '#374151'}
                       >
                         Ana Sayfa
                       </Text>
@@ -449,9 +433,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                       border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
                       borderLeft: `3px solid ${group.color}`,
                       overflow: 'hidden',
-                      boxShadow: isDark
-                        ? '0 4px 20px rgba(0,0,0,0.3)'
-                        : '0 4px 20px rgba(0,0,0,0.05)',
+                      boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.05)',
                     }}
                   >
                     {/* Group Header */}
@@ -548,15 +530,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                                     <Text
                                       fw={active ? 600 : 500}
                                       size="sm"
-                                      c={
-                                        active
-                                          ? isDark
-                                            ? 'white'
-                                            : '#111827'
-                                          : isDark
-                                            ? '#D1D5DB'
-                                            : '#4B5563'
-                                      }
+                                      c={active ? (isDark ? 'white' : '#111827') : isDark ? '#D1D5DB' : '#4B5563'}
                                     >
                                       {item.label}
                                     </Text>
@@ -683,7 +657,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
 
                 <Group grow gap="xs">
                   <UnstyledButton
-                    onClick={() => handleNavigation('/profil')}
+                    onClick={() => handleNavigation('/ayarlar?section=profil')}
                     style={{
                       padding: '10px 12px',
                       borderRadius: 8,
@@ -709,9 +683,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                     style={{
                       padding: '10px 12px',
                       borderRadius: 8,
-                      backgroundColor: isDark
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : 'rgba(239, 68, 68, 0.1)',
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
                       textAlign: 'center',
                       transition: 'all 0.2s ease',
                     }}

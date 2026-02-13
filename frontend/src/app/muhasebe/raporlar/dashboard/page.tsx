@@ -129,12 +129,8 @@ export default function DashboardPage() {
   }, [loadDashboardData]);
 
   // Toplam hesaplamaları
-  const totalPurchase = categorySummary.reduce(
-    (sum, cat) => sum + parseFloat(cat.total_amount || 0),
-    0
-  );
-  const totalSales =
-    currentMonthData?.invoice_type === 'sales' ? parseFloat(currentMonthData.total_amount || 0) : 0;
+  const totalPurchase = categorySummary.reduce((sum, cat) => sum + parseFloat(cat.total_amount || 0), 0);
+  const totalSales = currentMonthData?.invoice_type === 'sales' ? parseFloat(currentMonthData.total_amount || 0) : 0;
   const totalInvoiceCount = (currentMonthData?.count || 0) + (uyumsoftSummary?.total_count || 0);
 
   // En yüksek kategori
@@ -285,12 +281,7 @@ export default function DashboardPage() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Net Durum
                   </Text>
-                  <Text
-                    fw={700}
-                    size="xl"
-                    mt="sm"
-                    c={totalSales - totalPurchase >= 0 ? 'green' : 'red'}
-                  >
+                  <Text fw={700} size="xl" mt="sm" c={totalSales - totalPurchase >= 0 ? 'green' : 'red'}>
                     {formatMoney(totalSales - totalPurchase)}
                   </Text>
                   <Text size="xs" c="dimmed" mt={5}>
@@ -303,11 +294,7 @@ export default function DashboardPage() {
                   size={48}
                   radius="md"
                 >
-                  {totalSales - totalPurchase >= 0 ? (
-                    <IconTrendingUp size={24} />
-                  ) : (
-                    <IconTrendingDown size={24} />
-                  )}
+                  {totalSales - totalPurchase >= 0 ? <IconTrendingUp size={24} /> : <IconTrendingDown size={24} />}
                 </ThemeIcon>
               </Group>
             </Card>
@@ -335,10 +322,7 @@ export default function DashboardPage() {
                   categorySummary.slice(0, 5).map((cat) => {
                     const Icon = categoryIcons[cat.category] || IconPackage;
                     const color = categoryColors[cat.category] || 'gray';
-                    const percentage = calculatePercentage(
-                      parseFloat(cat.total_amount),
-                      totalPurchase
-                    );
+                    const percentage = calculatePercentage(parseFloat(cat.total_amount), totalPurchase);
 
                     return (
                       <Box key={cat.category}>
@@ -390,9 +374,7 @@ export default function DashboardPage() {
                       <Text size="xs" c="dimmed" tt="uppercase">
                         En Yüksek Harcama
                       </Text>
-                      <Badge color={categoryColors[topCategory.category]}>
-                        {topCategory.category.toUpperCase()}
-                      </Badge>
+                      <Badge color={categoryColors[topCategory.category]}>{topCategory.category.toUpperCase()}</Badge>
                     </Group>
                     <Text size="xl" fw={700} c={categoryColors[topCategory.category]}>
                       {formatMoney(parseFloat(topCategory.total_amount))}

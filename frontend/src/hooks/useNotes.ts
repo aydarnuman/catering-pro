@@ -2,19 +2,13 @@
 
 /**
  * useNotes Hook
- * Main hook for unified notes system with SWR caching
+ * Main hook for unified notes system with TanStack React Query
  */
 
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import useSWR from 'swr';
 import { notesAPI } from '@/lib/api/services/notes';
-import type {
-  CreateNoteDTO,
-  NotesFilter,
-  NoteTag,
-  UnifiedNote,
-  UpdateNoteDTO,
-} from '@/types/notes';
+import type { CreateNoteDTO, NotesFilter, NoteTag, UnifiedNote, UpdateNoteDTO } from '@/types/notes';
 
 interface UseNotesOptions {
   /** Filter options for notes */
@@ -25,87 +19,80 @@ interface UseNotesOptions {
   contextId?: number | null;
   /** Whether to enable fetching */
   enabled?: boolean;
-  /** SWR revalidation interval in ms (0 to disable) */
+  /** Refetch interval in ms (0 to disable) */
   refreshInterval?: number;
 }
 
 interface UseNotesReturn {
-  /** List of notes */
   notes: UnifiedNote[];
-  /** Loading state */
   isLoading: boolean;
-  /** Error state */
   error: Error | null;
-  /** Total count of notes */
   total: number;
-  /** Create a new note */
   createNote: (data: CreateNoteDTO) => Promise<UnifiedNote | null>;
-  /** Update a note */
   updateNote: (id: string, data: UpdateNoteDTO) => Promise<UnifiedNote | null>;
-  /** Delete a note */
   deleteNote: (id: string) => Promise<boolean>;
-  /** Toggle note completion */
   toggleComplete: (id: string) => Promise<UnifiedNote | null>;
-  /** Toggle note pin status */
   togglePin: (id: string) => Promise<UnifiedNote | null>;
-  /** Reorder notes (drag-drop) */
   reorderNotes: (noteIds: string[]) => Promise<boolean>;
-  /** Delete all completed notes */
   deleteCompleted: () => Promise<number>;
-  /** Refresh notes list */
   refresh: () => void;
-  /** Mutate notes (for optimistic updates) */
   mutate: (
     data?: UnifiedNote[] | ((current: UnifiedNote[] | undefined) => UnifiedNote[] | undefined),
     shouldRevalidate?: boolean
   ) => void;
 }
 
+type NotesData = { notes: UnifiedNote[]; total: number };
+
 /**
  * Hook for managing unified notes
  */
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   const { filter, contextType, contextId, enabled = true, refreshInterval = 0 } = options;
+  const queryClient = useQueryClient();
 
   const isContextual = !!contextType && contextId !== undefined;
 
-  // Build cache key
-  const cacheKey = useMemo(() => {
-    if (!enabled) return null;
-
+  // Build query key
+  const queryKey = useMemo(() => {
     if (isContextual) {
       return ['notes', 'context', contextType, contextId, JSON.stringify(filter)];
     }
     return ['notes', 'personal', JSON.stringify(filter)];
-  }, [enabled, isContextual, contextType, contextId, filter]);
-
-  // Fetcher function
-  const fetcher = useCallback(async () => {
-    if (isContextual && contextType && contextId != null) {
-      const res = await notesAPI.getContextNotes(contextType, contextId as number, filter);
-      return { notes: res.notes ?? [], total: res.total ?? 0 };
-    }
-    const res = await notesAPI.getNotes(filter);
-    return { notes: res.notes ?? [], total: res.total ?? 0 };
   }, [isContextual, contextType, contextId, filter]);
 
-  // SWR hook
-  const { data, error, isLoading, mutate } = useSWR<{ notes: UnifiedNote[]; total: number }>(
-    cacheKey,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000,
-      refreshInterval,
-    }
-  );
+  // TanStack Query
+  const { data, error, isLoading } = useQuery<NotesData>({
+    queryKey,
+    queryFn: async () => {
+      if (isContextual && contextType && contextId != null) {
+        const res = await notesAPI.getContextNotes(contextType, contextId as number, filter);
+        return { notes: res.notes ?? [], total: res.total ?? 0 };
+      }
+      const res = await notesAPI.getNotes(filter);
+      return { notes: res.notes ?? [], total: res.total ?? 0 };
+    },
+    enabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: refreshInterval || false,
+  });
 
   const notes = data?.notes ?? [];
   const total = data?.total ?? 0;
 
-  /**
-   * Create a new note
-   */
+  // Helper to update cache optimistically
+  const setData = useCallback(
+    (updater: (prev: NotesData | undefined) => NotesData | undefined) => {
+      queryClient.setQueryData<NotesData>(queryKey, (prev) => updater(prev) ?? prev);
+    },
+    [queryClient, queryKey]
+  );
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey });
+  }, [queryClient, queryKey]);
+
   const createNote = useCallback(
     async (noteData: CreateNoteDTO): Promise<UnifiedNote | null> => {
       try {
@@ -115,14 +102,10 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
             : await notesAPI.createNote(noteData);
 
         if (res.success && res.note) {
-          // Optimistic update - add new note at the beginning
-          mutate(
-            (current) => ({
-              notes: [res.note, ...(current?.notes ?? [])],
-              total: (current?.total ?? 0) + 1,
-            }),
-            false
-          );
+          setData((prev) => ({
+            notes: [res.note, ...(prev?.notes ?? [])],
+            total: (prev?.total ?? 0) + 1,
+          }));
           return res.note;
         }
         return null;
@@ -131,26 +114,18 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return null;
       }
     },
-    [isContextual, contextType, contextId, mutate]
+    [isContextual, contextType, contextId, setData]
   );
 
-  /**
-   * Update a note
-   */
   const updateNote = useCallback(
     async (id: string, noteData: UpdateNoteDTO): Promise<UnifiedNote | null> => {
       try {
         const res = await notesAPI.updateNote(id, noteData);
-
         if (res.success && res.note) {
-          // Optimistic update
-          mutate(
-            (current) => ({
-              notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
-              total: current?.total ?? 0,
-            }),
-            false
-          );
+          setData((prev) => ({
+            notes: (prev?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
+            total: prev?.total ?? 0,
+          }));
           return res.note;
         }
         return null;
@@ -159,26 +134,18 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return null;
       }
     },
-    [mutate]
+    [setData]
   );
 
-  /**
-   * Delete a note
-   */
   const deleteNote = useCallback(
     async (id: string): Promise<boolean> => {
       try {
         const res = await notesAPI.deleteNote(id);
-
         if (res.success) {
-          // Optimistic update
-          mutate(
-            (current) => ({
-              notes: (current?.notes ?? []).filter((n) => n.id !== id),
-              total: Math.max((current?.total ?? 1) - 1, 0),
-            }),
-            false
-          );
+          setData((prev) => ({
+            notes: (prev?.notes ?? []).filter((n) => n.id !== id),
+            total: Math.max((prev?.total ?? 1) - 1, 0),
+          }));
           return true;
         }
         return false;
@@ -187,26 +154,18 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return false;
       }
     },
-    [mutate]
+    [setData]
   );
 
-  /**
-   * Toggle note completion
-   */
   const toggleComplete = useCallback(
     async (id: string): Promise<UnifiedNote | null> => {
       try {
         const res = await notesAPI.toggleComplete(id);
-
         if (res.success && res.note) {
-          // Optimistic update
-          mutate(
-            (current) => ({
-              notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
-              total: current?.total ?? 0,
-            }),
-            false
-          );
+          setData((prev) => ({
+            notes: (prev?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
+            total: prev?.total ?? 0,
+          }));
           return res.note;
         }
         return null;
@@ -215,32 +174,23 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return null;
       }
     },
-    [mutate]
+    [setData]
   );
 
-  /**
-   * Toggle note pin status
-   */
   const togglePin = useCallback(
     async (id: string): Promise<UnifiedNote | null> => {
       try {
         const res = await notesAPI.togglePin(id);
-
         if (res.success && res.note) {
-          // Optimistic update with re-sorting (pinned first)
-          mutate((current) => {
-            const updatedNotes = (current?.notes ?? []).map((n) => (n.id === id ? res.note : n));
-            // Re-sort: pinned first, then by sort_order
+          setData((prev) => {
+            const updatedNotes = (prev?.notes ?? []).map((n) => (n.id === id ? res.note : n));
             updatedNotes.sort((a, b) => {
               if (a.pinned && !b.pinned) return -1;
               if (!a.pinned && b.pinned) return 1;
               return a.sort_order - b.sort_order;
             });
-            return {
-              notes: updatedNotes,
-              total: current?.total ?? 0,
-            };
-          }, false);
+            return { notes: updatedNotes, total: prev?.total ?? 0 };
+          });
           return res.note;
         }
         return null;
@@ -249,31 +199,24 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return null;
       }
     },
-    [mutate]
+    [setData]
   );
 
-  /**
-   * Reorder notes (drag-drop)
-   */
   const reorderNotes = useCallback(
     async (noteIds: string[]): Promise<boolean> => {
       try {
-        // Optimistic update
-        mutate((current) => {
-          const noteMap = new Map((current?.notes ?? []).map((n) => [n.id, n]));
+        // Optimistic
+        setData((prev) => {
+          const noteMap = new Map((prev?.notes ?? []).map((n) => [n.id, n]));
           const reorderedNotes = noteIds
             .map((id, idx) => {
               const note = noteMap.get(id);
               return note ? { ...note, sort_order: idx } : null;
             })
             .filter(Boolean) as UnifiedNote[];
-          return {
-            notes: reorderedNotes,
-            total: current?.total ?? 0,
-          };
-        }, false);
+          return { notes: reorderedNotes, total: prev?.total ?? 0 };
+        });
 
-        // API call
         const res =
           isContextual && contextType && contextId != null
             ? await notesAPI.reorderContextNotes(contextType, contextId as number, noteIds)
@@ -282,30 +225,21 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         return res.success;
       } catch (err) {
         console.error('Error reordering notes:', err);
-        // Revalidate on error
-        mutate();
+        invalidate();
         return false;
       }
     },
-    [isContextual, contextType, contextId, mutate]
+    [isContextual, contextType, contextId, setData, invalidate]
   );
 
-  /**
-   * Delete all completed notes
-   */
   const deleteCompleted = useCallback(async (): Promise<number> => {
     try {
       const res = await notesAPI.deleteCompleted();
-
       if (res.success) {
-        // Optimistic update
-        mutate(
-          (current) => ({
-            notes: (current?.notes ?? []).filter((n) => !n.is_completed),
-            total: Math.max((current?.total ?? res.deleted) - res.deleted, 0),
-          }),
-          false
-        );
+        setData((prev) => ({
+          notes: (prev?.notes ?? []).filter((n) => !n.is_completed),
+          total: Math.max((prev?.total ?? res.deleted) - res.deleted, 0),
+        }));
         return res.deleted;
       }
       return 0;
@@ -313,14 +247,11 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
       console.error('Error deleting completed notes:', err);
       return 0;
     }
-  }, [mutate]);
+  }, [setData]);
 
-  /**
-   * Refresh notes
-   */
   const refresh = useCallback(() => {
-    mutate();
-  }, [mutate]);
+    invalidate();
+  }, [invalidate]);
 
   return {
     notes,
@@ -337,14 +268,15 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
     refresh,
     mutate: (data, shouldRevalidate) => {
       if (typeof data === 'function') {
-        mutate((current) => {
-          const result = data(current?.notes);
-          return result ? { notes: result, total: result.length } : current;
-        }, shouldRevalidate);
+        queryClient.setQueryData<NotesData>(queryKey, (prev) => {
+          const result = data(prev?.notes);
+          return result ? { notes: result, total: result.length } : prev;
+        });
       } else if (data) {
-        mutate({ notes: data, total: data.length }, shouldRevalidate);
-      } else {
-        mutate();
+        queryClient.setQueryData<NotesData>(queryKey, { notes: data, total: data.length });
+      }
+      if (shouldRevalidate !== false && !data) {
+        invalidate();
       }
     },
   };
@@ -354,17 +286,17 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
  * Hook for tag suggestions
  */
 export function useNoteTags() {
-  const { data, error, isLoading, mutate } = useSWR<{ suggestions: NoteTag[] }>(
-    ['notes', 'tags', 'suggestions'],
-    async () => {
+  const queryClient = useQueryClient();
+
+  const { data, error, isLoading } = useQuery<{ suggestions: NoteTag[] }>({
+    queryKey: ['notes', 'tags', 'suggestions'],
+    queryFn: async () => {
       const res = await notesAPI.getTagSuggestions();
       return { suggestions: res.suggestions ?? [] };
     },
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute cache
-    }
-  );
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   const suggestions = data?.suggestions ?? [];
 
@@ -382,7 +314,7 @@ export function useNoteTags() {
       try {
         const res = await notesAPI.createTag(name, color);
         if (res.success && res.tag) {
-          mutate();
+          queryClient.invalidateQueries({ queryKey: ['notes', 'tags', 'suggestions'] });
           return res.tag;
         }
         return null;
@@ -390,7 +322,7 @@ export function useNoteTags() {
         return null;
       }
     },
-    [mutate]
+    [queryClient]
   );
 
   return {
@@ -399,7 +331,7 @@ export function useNoteTags() {
     error: error ?? null,
     searchTags,
     createTag,
-    refresh: () => mutate(),
+    refresh: () => queryClient.invalidateQueries({ queryKey: ['notes', 'tags', 'suggestions'] }),
   };
 }
 
@@ -407,17 +339,17 @@ export function useNoteTags() {
  * Hook for upcoming reminders
  */
 export function useNoteReminders(limit?: number) {
-  const { data, error, isLoading, mutate } = useSWR(
-    ['notes', 'reminders', 'upcoming', limit],
-    async () => {
+  const queryClient = useQueryClient();
+
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['notes', 'reminders', 'upcoming', limit],
+    queryFn: async () => {
       const res = await notesAPI.getUpcomingReminders(limit);
       return { reminders: res.reminders ?? [] };
     },
-    {
-      revalidateOnFocus: true,
-      refreshInterval: 60000, // Refresh every minute
-    }
-  );
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+  });
 
   const reminders = data?.reminders ?? [];
 
@@ -426,7 +358,7 @@ export function useNoteReminders(limit?: number) {
       try {
         const res = await notesAPI.markReminderSent(reminderId);
         if (res.success) {
-          mutate();
+          queryClient.invalidateQueries({ queryKey: ['notes', 'reminders', 'upcoming'] });
           return true;
         }
         return false;
@@ -434,7 +366,7 @@ export function useNoteReminders(limit?: number) {
         return false;
       }
     },
-    [mutate]
+    [queryClient]
   );
 
   return {
@@ -442,7 +374,7 @@ export function useNoteReminders(limit?: number) {
     isLoading,
     error: error ?? null,
     markAsSent,
-    refresh: () => mutate(),
+    refresh: () => queryClient.invalidateQueries({ queryKey: ['notes', 'reminders', 'upcoming'] }),
   };
 }
 

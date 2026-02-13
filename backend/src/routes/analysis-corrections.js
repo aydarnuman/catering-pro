@@ -8,6 +8,7 @@ import {
 } from '../services/ai-analyzer/providers/azure-document-ai.js';
 import { checkRetrainThreshold, getModelVersionInfo, triggerManualTraining } from '../services/auto-retrain.js';
 import { getCorrectionStats, syncCorrectionToBlob, syncPendingCorrections } from '../services/correction-blob-sync.js';
+import { analyzeCorrectionsAndLearn, getCorrectionHintsForPrompt } from '../services/pipeline-learning-service.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -464,6 +465,74 @@ router.get('/azure/health', authenticate, async (_req, res) => {
     res.json({ success: result.healthy, data: result });
   } catch (error) {
     logger.error('Azure health check hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /api/analysis-corrections/learn
+// Düzeltme verilerinden öğrenme pattern'leri çıkar
+// ═══════════════════════════════════════════════════════════════
+router.post('/learn', authenticate, async (_req, res) => {
+  try {
+    const result = await analyzeCorrectionsAndLearn();
+    res.json({
+      success: true,
+      data: result,
+      message: `${result.analyzed} alan analiz edildi, ${result.newPatterns} yeni pattern bulundu.`,
+    });
+  } catch (error) {
+    logger.error('Pipeline learning hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// GET /api/analysis-corrections/learned-patterns
+// Öğrenilmiş düzeltme pattern'lerini listele
+// ═══════════════════════════════════════════════════════════════
+router.get('/learned-patterns', authenticate, async (req, res) => {
+  try {
+    const { promptType, active = 'true' } = req.query;
+
+    let sql = `SELECT * FROM pipeline_learned_patterns WHERE 1=1`;
+    const params = [];
+    let idx = 1;
+
+    if (active === 'true') {
+      sql += ` AND is_active = true`;
+    }
+    if (promptType) {
+      sql += ` AND prompt_type = $${idx}`;
+      params.push(promptType);
+      idx++;
+    }
+
+    sql += ` ORDER BY frequency DESC, confidence DESC LIMIT 50`;
+
+    const result = await query(sql, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('Learned patterns listeleme hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// GET /api/analysis-corrections/correction-hints/:promptType
+// Belirli bir prompt türü için düzeltme ipuçlarını getir
+// ═══════════════════════════════════════════════════════════════
+router.get('/correction-hints/:promptType', authenticate, async (req, res) => {
+  try {
+    const hints = await getCorrectionHintsForPrompt(req.params.promptType);
+    res.json({
+      success: true,
+      promptType: req.params.promptType,
+      hints,
+      hintsLength: hints.length,
+    });
+  } catch (error) {
+    logger.error('Correction hints hatası', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

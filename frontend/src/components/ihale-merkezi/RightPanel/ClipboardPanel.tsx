@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Box,
-  Button,
-  Group,
-  Paper,
-  ScrollArea,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Paper, ScrollArea, Stack, Text, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconClipboard, IconCopy, IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -108,12 +98,7 @@ export function ClipboardPanel({ tenderId }: ClipboardPanelProps) {
     <Box p="xs">
       {/* Actions */}
       <Group justify="space-between" mb="xs">
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconClipboard size={14} />}
-          onClick={handlePaste}
-        >
+        <Button size="xs" variant="light" leftSection={<IconClipboard size={14} />} onClick={handlePaste}>
           Panodan Ekle
         </Button>
         {items.length > 0 && (
@@ -139,22 +124,12 @@ export function ClipboardPanel({ tenderId }: ClipboardPanelProps) {
                   </Text>
                   <Group gap={2}>
                     <Tooltip label="Kopyala">
-                      <ActionIcon
-                        size="xs"
-                        variant="subtle"
-                        color="blue"
-                        onClick={() => handleCopy(item.text)}
-                      >
+                      <ActionIcon size="xs" variant="subtle" color="blue" onClick={() => handleCopy(item.text)}>
                         <IconCopy size={12} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Sil">
-                      <ActionIcon
-                        size="xs"
-                        variant="subtle"
-                        color="red"
-                        onClick={() => handleDelete(item.id)}
-                      >
+                      <ActionIcon size="xs" variant="subtle" color="red" onClick={() => handleDelete(item.id)}>
                         <IconTrash size={12} />
                       </ActionIcon>
                     </Tooltip>

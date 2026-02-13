@@ -1,19 +1,6 @@
 'use client';
 
-import {
-  Alert,
-  Button,
-  Code,
-  Container,
-  Group,
-  Menu,
-  Modal,
-  Paper,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Button, Code, Container, Group, Menu, Modal, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -39,8 +26,7 @@ export default function AIAyarlariPage() {
   const [activeTab, setActiveTab] = useState<string | null>('templates');
 
   // Import/Export state
-  const [importModalOpened, { open: openImportModal, close: closeImportModal }] =
-    useDisclosure(false);
+  const [importModalOpened, { open: openImportModal, close: closeImportModal }] = useDisclosure(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreviewData | null>(null);
   const [importing, setImporting] = useState(false);
@@ -192,11 +178,7 @@ export default function AIAyarlariPage() {
               </Button>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item
-                leftSection={<IconDownload size={14} />}
-                onClick={handleExportSettings}
-                disabled={exporting}
-              >
+              <Menu.Item leftSection={<IconDownload size={14} />} onClick={handleExportSettings} disabled={exporting}>
                 {exporting ? 'Export ediliyor...' : 'Ayarları Export Et'}
               </Menu.Item>
               <Menu.Item leftSection={<IconUpload size={14} />} onClick={openImportModal}>
@@ -224,10 +206,9 @@ export default function AIAyarlariPage() {
             <Stack gap="lg">
               <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
                 <Text size="sm">
-                  <strong>Prompt şablonları</strong>, AI asistanın farklı görevler için nasıl yanıt
-                  vereceğini belirler. Her şablon belirli bir kategori ve kullanım senaryosu için
-                  optimize edilmiştir. Şablonları düzenleyerek AI&apos;ın ton, detay seviyesi ve
-                  odak noktasını değiştirebilirsiniz.
+                  <strong>Prompt şablonları</strong>, AI asistanın farklı görevler için nasıl yanıt vereceğini belirler.
+                  Her şablon belirli bir kategori ve kullanım senaryosu için optimize edilmiştir. Şablonları
+                  düzenleyerek AI&apos;ın ton, detay seviyesi ve odak noktasını değiştirebilirsiniz.
                 </Text>
               </Alert>
               <TemplatesTab availableModels={availableModels} />
@@ -238,10 +219,9 @@ export default function AIAyarlariPage() {
             <Stack gap="lg">
               <Alert icon={<IconInfoCircle size={16} />} color="cyan" variant="light">
                 <Text size="sm">
-                  <strong>Model ayarları</strong>, AI&apos;ın temel davranış parametrelerini kontrol
-                  eder. Temperature (yaratıcılık), max tokens (yanıt uzunluğu) ve varsayılan model
-                  seçimi burada yapılır. Düşük temperature daha tutarlı, yüksek temperature daha
-                  yaratıcı yanıtlar üretir.
+                  <strong>Model ayarları</strong>, AI&apos;ın temel davranış parametrelerini kontrol eder. Temperature
+                  (yaratıcılık), max tokens (yanıt uzunluğu) ve varsayılan model seçimi burada yapılır. Düşük
+                  temperature daha tutarlı, yüksek temperature daha yaratıcı yanıtlar üretir.
                 </Text>
               </Alert>
               <ModelSettingsTab />
@@ -252,10 +232,10 @@ export default function AIAyarlariPage() {
             <Stack gap="lg">
               <Alert icon={<IconInfoCircle size={16} />} color="violet" variant="light">
                 <Text size="sm">
-                  <strong>Agent&apos;lar</strong>, belirli uzmanlık alanlarında analiz ve görev
-                  yapabilen özelleştirilmiş AI modülleridir. Her agent kendi system prompt&apos;u,
-                  araçları ve bilgi tabanı (kütüphane) ile çalışır. Yeni agent&apos;lar ekleyebilir,
-                  mevcut agent&apos;ların davranışlarını ve kaynaklarını buradan yönetebilirsiniz.
+                  <strong>Agent&apos;lar</strong>, belirli uzmanlık alanlarında analiz ve görev yapabilen
+                  özelleştirilmiş AI modülleridir. Her agent kendi system prompt&apos;u, araçları ve bilgi tabanı
+                  (kütüphane) ile çalışır. Yeni agent&apos;lar ekleyebilir, mevcut agent&apos;ların davranışlarını ve
+                  kaynaklarını buradan yönetebilirsiniz.
                 </Text>
               </Alert>
               <AgentsSection />
@@ -264,12 +244,7 @@ export default function AIAyarlariPage() {
         </Tabs>
 
         {/* Import Modal */}
-        <Modal
-          opened={importModalOpened}
-          onClose={closeImportModal}
-          title="AI Ayarları Import"
-          size="lg"
-        >
+        <Modal opened={importModalOpened} onClose={closeImportModal} title="AI Ayarları Import" size="lg">
           <Stack gap="md">
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="sm">JSON formatında export edilmiş ayar dosyasını seçin.</Text>
@@ -287,12 +262,7 @@ export default function AIAyarlariPage() {
                 id="import-file-input"
               />
               <label htmlFor="import-file-input">
-                <Button
-                  component="span"
-                  variant="light"
-                  leftSection={<IconUpload size={16} />}
-                  fullWidth
-                >
+                <Button component="span" variant="light" leftSection={<IconUpload size={16} />} fullWidth>
                   {importFile ? importFile.name : 'Dosya Seç'}
                 </Button>
               </label>
@@ -308,10 +278,8 @@ export default function AIAyarlariPage() {
                 </Paper>
                 {importPreview.metadata && (
                   <Text size="xs" c="dimmed" mt="xs">
-                    Export Tarihi:{' '}
-                    {new Date(importPreview.metadata.exported_at).toLocaleString('tr-TR')} |
-                    Versiyon: {importPreview.metadata.version} | Ayar Sayısı:{' '}
-                    {importPreview.metadata.count}
+                    Export Tarihi: {new Date(importPreview.metadata.exported_at).toLocaleString('tr-TR')} | Versiyon:{' '}
+                    {importPreview.metadata.version} | Ayar Sayısı: {importPreview.metadata.count}
                   </Text>
                 )}
               </div>

@@ -1,16 +1,4 @@
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Group,
-  Image,
-  Loader,
-  Paper,
-  Stack,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Group, Image, Loader, Paper, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import {
   IconDeviceFloppy,
   IconDownload,
@@ -97,8 +85,7 @@ export function MessageContent({
           <Box
             p="xl"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(0,0,0,0.2) 100%)',
+              background: 'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(0,0,0,0.2) 100%)',
               borderRadius: 12,
               cursor: 'pointer',
               minWidth: 200,
@@ -204,11 +191,7 @@ export function MessageContent({
   }
 
   // Ses mesajı (ptt = push to talk)
-  if (
-    msg.type === 'audio' ||
-    msg.type === 'ptt' ||
-    (msg.hasMedia && msg.mimetype?.startsWith('audio/'))
-  ) {
+  if (msg.type === 'audio' || msg.type === 'ptt' || (msg.hasMedia && msg.mimetype?.startsWith('audio/'))) {
     return (
       <Box>
         {msg.mediaUrl ? (
@@ -457,11 +440,7 @@ export function MessageContent({
     return (
       <Box>
         {msg.mediaUrl ? (
-          <Image
-            src={msg.mediaUrl}
-            alt="Sticker"
-            style={{ width: 128, height: 128, objectFit: 'contain' }}
-          />
+          <Image src={msg.mediaUrl} alt="Sticker" style={{ width: 128, height: 128, objectFit: 'contain' }} />
         ) : (
           <Box
             p="md"

@@ -302,9 +302,7 @@ export default function SyncControlPage() {
 
   // İhale Scheduler başlat/durdur
   const toggleTenderScheduler = async () => {
-    const endpoint = tenderSchedulerStatus?.isRunning
-      ? '/tenders/scheduler/stop'
-      : '/tenders/scheduler/start';
+    const endpoint = tenderSchedulerStatus?.isRunning ? '/tenders/scheduler/stop' : '/tenders/scheduler/start';
 
     try {
       const res = await authFetch(`${API_BASE_URL}/api${endpoint}`, {
@@ -316,9 +314,7 @@ export default function SyncControlPage() {
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
-          message: tenderSchedulerStatus?.isRunning
-            ? 'İhale Scheduler durduruldu'
-            : 'İhale Scheduler başlatıldı',
+          message: tenderSchedulerStatus?.isRunning ? 'İhale Scheduler durduruldu' : 'İhale Scheduler başlatıldı',
           color: 'green',
           icon: <IconCheck size={16} />,
         });
@@ -440,31 +436,19 @@ export default function SyncControlPage() {
           <div>
             <Title order={1}>
               <Group gap="sm">
-                <ThemeIcon
-                  size={50}
-                  radius="md"
-                  variant="gradient"
-                  gradient={{ from: 'blue', to: 'cyan' }}
-                >
+                <ThemeIcon size={50} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
                   <IconDatabase size={30} />
                 </ThemeIcon>
                 📊 Veri Yönetimi Merkezi
               </Group>
             </Title>
             <Text c="dimmed" size="sm" mt="xs">
-              Tüm verilerinizi tek merkezden yönetin: Otomatik güncelleme, senkronizasyon ve
-              yedekleme
+              Tüm verilerinizi tek merkezden yönetin: Otomatik güncelleme, senkronizasyon ve yedekleme
             </Text>
           </div>
 
           <Group>
-            <Button
-              component="a"
-              href="/ayarlar"
-              variant="light"
-              leftSection={<IconSettings size={16} />}
-              size="sm"
-            >
+            <Button component="a" href="/ayarlar" variant="light" leftSection={<IconSettings size={16} />} size="sm">
               Ayarlar
             </Button>
           </Group>
@@ -473,28 +457,16 @@ export default function SyncControlPage() {
         {/* Tabs */}
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Tab
-              value="invoices"
-              leftSection={<IconFileInvoice style={{ width: rem(16), height: rem(16) }} />}
-            >
+            <Tabs.Tab value="invoices" leftSection={<IconFileInvoice style={{ width: rem(16), height: rem(16) }} />}>
               Fatura Senkronizasyonu
             </Tabs.Tab>
-            <Tabs.Tab
-              value="tenders"
-              leftSection={<IconGavel style={{ width: rem(16), height: rem(16) }} />}
-            >
+            <Tabs.Tab value="tenders" leftSection={<IconGavel style={{ width: rem(16), height: rem(16) }} />}>
               İhale Güncellemeleri
             </Tabs.Tab>
-            <Tabs.Tab
-              value="backup"
-              leftSection={<IconDatabase style={{ width: rem(16), height: rem(16) }} />}
-            >
+            <Tabs.Tab value="backup" leftSection={<IconDatabase style={{ width: rem(16), height: rem(16) }} />}>
               Yedekleme & Geri Yükleme
             </Tabs.Tab>
-            <Tabs.Tab
-              value="database"
-              leftSection={<IconChartBar style={{ width: rem(16), height: rem(16) }} />}
-            >
+            <Tabs.Tab value="database" leftSection={<IconChartBar style={{ width: rem(16), height: rem(16) }} />}>
               Veritabanı Özeti
             </Tabs.Tab>
           </Tabs.List>
@@ -509,20 +481,12 @@ export default function SyncControlPage() {
                     <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                       UYUMSOFT DURUM
                     </Text>
-                    <ThemeIcon
-                      color={schedulerStatus?.isRunning ? 'green' : 'gray'}
-                      variant="light"
-                      size={30}
-                    >
+                    <ThemeIcon color={schedulerStatus?.isRunning ? 'green' : 'gray'} variant="light" size={30}>
                       <IconPlayerPlay size={16} />
                     </ThemeIcon>
                   </Group>
                   <Group align="flex-end" gap="xs">
-                    <Badge
-                      size="xl"
-                      color={schedulerStatus?.isRunning ? 'green' : 'gray'}
-                      variant="filled"
-                    >
+                    <Badge size="xl" color={schedulerStatus?.isRunning ? 'green' : 'gray'} variant="filled">
                       {schedulerStatus?.isRunning ? 'ÇALIŞIYOR' : 'DURDURULDU'}
                     </Badge>
                   </Group>
@@ -570,8 +534,7 @@ export default function SyncControlPage() {
                   <Text fw={700} size="lg">
                     {(schedulerStatus?.stats?.totalRuns ?? 0) > 0
                       ? Math.round(
-                          ((schedulerStatus?.stats?.successfulRuns ?? 0) /
-                            (schedulerStatus?.stats?.totalRuns ?? 1)) *
+                          ((schedulerStatus?.stats?.successfulRuns ?? 0) / (schedulerStatus?.stats?.totalRuns ?? 1)) *
                             100
                         )
                       : 0}
@@ -589,11 +552,7 @@ export default function SyncControlPage() {
                     </Text>
                     <Button
                       leftSection={
-                        schedulerStatus?.isRunning ? (
-                          <IconPlayerStop size={16} />
-                        ) : (
-                          <IconPlayerPlay size={16} />
-                        )
+                        schedulerStatus?.isRunning ? <IconPlayerStop size={16} /> : <IconPlayerPlay size={16} />
                       }
                       color={schedulerStatus?.isRunning ? 'red' : 'green'}
                       onClick={toggleScheduler}
@@ -689,13 +648,7 @@ export default function SyncControlPage() {
 
                   <Group>
                     <Button
-                      leftSection={
-                        syncing ? (
-                          <Loader size={14} color="white" />
-                        ) : (
-                          <IconCloudDownload size={16} />
-                        )
-                      }
+                      leftSection={syncing ? <Loader size={14} color="white" /> : <IconCloudDownload size={16} />}
                       onClick={handleManualSync}
                       loading={syncing}
                     >
@@ -739,19 +692,11 @@ export default function SyncControlPage() {
                     <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                       SCRAPER DURUM
                     </Text>
-                    <ThemeIcon
-                      color={tenderSchedulerStatus?.isRunning ? 'blue' : 'gray'}
-                      variant="light"
-                      size={30}
-                    >
+                    <ThemeIcon color={tenderSchedulerStatus?.isRunning ? 'blue' : 'gray'} variant="light" size={30}>
                       <IconPlayerPlay size={16} />
                     </ThemeIcon>
                   </Group>
-                  <Badge
-                    size="xl"
-                    color={tenderSchedulerStatus?.isRunning ? 'blue' : 'gray'}
-                    variant="filled"
-                  >
+                  <Badge size="xl" color={tenderSchedulerStatus?.isRunning ? 'blue' : 'gray'} variant="filled">
                     {tenderSchedulerStatus?.isRunning ? 'AKTİF' : 'PASİF'}
                   </Badge>
                 </Paper>
@@ -810,11 +755,7 @@ export default function SyncControlPage() {
                     </Text>
                     <Button
                       leftSection={
-                        tenderSchedulerStatus?.isRunning ? (
-                          <IconPlayerStop size={16} />
-                        ) : (
-                          <IconPlayerPlay size={16} />
-                        )
+                        tenderSchedulerStatus?.isRunning ? <IconPlayerStop size={16} /> : <IconPlayerPlay size={16} />
                       }
                       color={tenderSchedulerStatus?.isRunning ? 'red' : 'blue'}
                       onClick={toggleTenderScheduler}
@@ -826,19 +767,13 @@ export default function SyncControlPage() {
                   <Divider />
 
                   <Text size="sm" c="dimmed">
-                    İhale sitelerinden yeni ihaleleri tarayıp veritabanına kaydedin. Sayfa sayısı
-                    arttıkça tarama süresi uzar.
+                    İhale sitelerinden yeni ihaleleri tarayıp veritabanına kaydedin. Sayfa sayısı arttıkça tarama süresi
+                    uzar.
                   </Text>
 
                   <Group>
                     <Button
-                      leftSection={
-                        scrapingTenders ? (
-                          <Loader size={14} color="white" />
-                        ) : (
-                          <IconFileText size={16} />
-                        )
-                      }
+                      leftSection={scrapingTenders ? <Loader size={14} color="white" /> : <IconFileText size={16} />}
                       onClick={() => handleTenderScrape(3)}
                       loading={scrapingTenders}
                       color="blue"
@@ -946,8 +881,7 @@ export default function SyncControlPage() {
 
                   <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
                     <Text size="sm">
-                      <strong>Otomatik Yedekleme:</strong> Her gece saat 03:00'te otomatik yedekleme
-                      alınır.
+                      <strong>Otomatik Yedekleme:</strong> Her gece saat 03:00'te otomatik yedekleme alınır.
                     </Text>
                     <Text size="xs" c="dimmed" mt="xs">
                       Son 30 günlük yedekler saklanır, daha eskiler otomatik silinir.
@@ -959,11 +893,7 @@ export default function SyncControlPage() {
                       <Text size="sm" fw={600}>
                         Manuel Yedekleme
                       </Text>
-                      <Button
-                        leftSection={<IconDatabase size={16} />}
-                        variant="filled"
-                        color="green"
-                      >
+                      <Button leftSection={<IconDatabase size={16} />} variant="filled" color="green">
                         Şimdi Yedekle
                       </Button>
                       <Text size="xs" c="dimmed">
@@ -975,11 +905,7 @@ export default function SyncControlPage() {
                       <Text size="sm" fw={600}>
                         Yedekten Geri Yükle
                       </Text>
-                      <Button
-                        leftSection={<IconCloudDownload size={16} />}
-                        variant="light"
-                        color="orange"
-                      >
+                      <Button leftSection={<IconCloudDownload size={16} />} variant="light" color="orange">
                         Yedek Seç
                       </Button>
                       <Text size="xs" c="dimmed">
@@ -1088,15 +1014,10 @@ export default function SyncControlPage() {
           <Tabs.Panel value="database" pt="xl">
             <Stack gap="lg">
               {/* Supabase Erişim */}
-              <Alert
-                icon={<IconDatabase size={16} />}
-                title="Detaylı Veritabanı Yönetimi"
-                color="blue"
-              >
+              <Alert icon={<IconDatabase size={16} />} title="Detaylı Veritabanı Yönetimi" color="blue">
                 <Stack gap="sm">
                   <Text size="sm">
-                    Tablo düzenleme, SQL sorguları ve detaylı veri yönetimi için Supabase
-                    Dashboard'u kullanın.
+                    Tablo düzenleme, SQL sorguları ve detaylı veri yönetimi için Supabase Dashboard'u kullanın.
                   </Text>
                   <Group>
                     <Button
@@ -1130,8 +1051,7 @@ export default function SyncControlPage() {
                     {databaseStats?.invoices?.total || 0}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    Manuel: {databaseStats?.invoices?.manual || 0} | Uyumsoft:{' '}
-                    {databaseStats?.invoices?.uyumsoft || 0}
+                    Manuel: {databaseStats?.invoices?.manual || 0} | Uyumsoft: {databaseStats?.invoices?.uyumsoft || 0}
                   </Text>
                 </Paper>
 
@@ -1148,8 +1068,7 @@ export default function SyncControlPage() {
                     {databaseStats?.tenders?.total || 0}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    Aktif: {databaseStats?.tenders?.active || 0} | Kapalı:{' '}
-                    {databaseStats?.tenders?.closed || 0}
+                    Aktif: {databaseStats?.tenders?.active || 0} | Kapalı: {databaseStats?.tenders?.closed || 0}
                   </Text>
                 </Paper>
 
@@ -1166,8 +1085,7 @@ export default function SyncControlPage() {
                     {databaseStats?.documents?.total || 0}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    PDF: {databaseStats?.documents?.pdf || 0} | Excel:{' '}
-                    {databaseStats?.documents?.excel || 0}
+                    PDF: {databaseStats?.documents?.pdf || 0} | Excel: {databaseStats?.documents?.excel || 0}
                   </Text>
                 </Paper>
 
@@ -1185,9 +1103,7 @@ export default function SyncControlPage() {
                   </Text>
                   <Progress
                     value={
-                      databaseStats?.database?.size
-                        ? (databaseStats.database.size / (1024 * 1024 * 1024)) * 100
-                        : 0
+                      databaseStats?.database?.size ? (databaseStats.database.size / (1024 * 1024 * 1024)) * 100 : 0
                     }
                     color="orange"
                     size="xs"
@@ -1232,9 +1148,7 @@ export default function SyncControlPage() {
                           <Table.Td>{table.count.toLocaleString('tr-TR')}</Table.Td>
                           <Table.Td>{databaseStats?.tableSizes?.[index]?.size || 'N/A'}</Table.Td>
                           <Table.Td>
-                            {table.lastUpdate
-                              ? format(new Date(table.lastUpdate), 'dd.MM.yyyy HH:mm')
-                              : '-'}
+                            {table.lastUpdate ? format(new Date(table.lastUpdate), 'dd.MM.yyyy HH:mm') : '-'}
                           </Table.Td>
                         </Table.Tr>
                       )) || (
@@ -1327,12 +1241,7 @@ export default function SyncControlPage() {
               <Text size="lg" fw={600}>
                 📝 Son İşlem Logları
               </Text>
-              <Button
-                size="xs"
-                variant="subtle"
-                leftSection={<IconRefresh size={14} />}
-                onClick={loadSyncLogs}
-              >
+              <Button size="xs" variant="subtle" leftSection={<IconRefresh size={14} />} onClick={loadSyncLogs}>
                 Yenile
               </Button>
             </Group>
@@ -1363,13 +1272,7 @@ export default function SyncControlPage() {
                       <Table.Td>
                         <Badge
                           variant="light"
-                          color={
-                            log.status === 'success'
-                              ? 'green'
-                              : log.status === 'running'
-                                ? 'blue'
-                                : 'red'
-                          }
+                          color={log.status === 'success' ? 'green' : log.status === 'running' ? 'blue' : 'red'}
                           size="sm"
                         >
                           {log.status}

@@ -6,6 +6,7 @@ import express from 'express';
 import { KATEGORI_SITELERI, KREDI_AYARLARI, REFERANS_SITELERI } from '../config/piyasa-kaynak.js';
 import { query } from '../database.js';
 import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
+import { godModeLimiter } from '../middleware/rate-limiter.js';
 import systemMonitor from '../services/system-monitor.js';
 import { getKrediKullanimi, isTavilyConfigured } from '../services/tavily-service.js';
 import logger from '../utils/logger.js';
@@ -27,30 +28,70 @@ const WHATSAPP_SERVICE_PATH = process.env.WHATSAPP_SERVICE_PATH || path.join(PRO
 
 // Tehlikeli komut blacklist
 const COMMAND_BLACKLIST = [
+  // Dosya sistemi yikici komutlar
   /rm\s+-rf\s+\/(?!\w)/i, // rm -rf / (root silme)
   /rm\s+-rf\s+~\s*/i, // rm -rf ~ (home silme)
+  /rm\s+-rf\s+\.\.\//i, // rm -rf ../ (ust dizin silme)
+  /rm\s+-rf\s+\/root/i, // rm -rf /root
+  /rm\s+-rf\s+\/etc/i, // rm -rf /etc
+  /rm\s+-rf\s+\/var/i, // rm -rf /var
+  /rm\s+-rf\s+\*/i, // rm -rf * (tum dosyalari silme)
+  // Disk islemleri
   /mkfs\./i, // disk format
   /dd\s+if=.*of=\/dev/i, // disk yazma
+  />\s*\/dev\/sd[a-z]/i, // disk uzerine yazma
+  /wipefs/i, // disk imza silme
+  // Sistem kontrol
   /shutdown/i, // sistem kapatma
   /init\s+0/i, // sistem kapatma
-  /halt/i, // sistem durdurma
-  /poweroff/i, // güç kapatma
-  /:(){ :|:& };:/, // fork bomb
-  />\s*\/dev\/sda/i, // disk yazma
-  /DROP\s+DATABASE\s+postgres/i, // ana db silme
+  /halt\b/i, // sistem durdurma
+  /poweroff/i, // guc kapatma
+  /reboot/i, // yeniden baslatma
+  /systemctl\s+(stop|disable)\s+(sshd|nginx)/i, // kritik servis durdurma
+  // Fork bomb ve kaynak tuketme
+  /:\(\)\{\s*:\|:&\s*\};:/, // fork bomb
+  /while\s+true.*done/i, // sonsuz dongu
+  // Veritabani yikici islemler
+  /DROP\s+DATABASE/i, // herhangi bir DB silme
+  /DROP\s+SCHEMA\s+public/i, // public schema silme
+  /TRUNCATE\s+.*CASCADE/i, // cascade truncate
+  /DROP\s+OWNED\s+BY/i, // kullanici objelerini silme
+  /ALTER\s+SYSTEM/i, // PostgreSQL sistem ayari degistirme
+  // Ag ve guvenlik
+  /iptables\s+-F/i, // firewall kurallarini silme
+  /ufw\s+disable/i, // firewall kapatma
+  /passwd\s+root/i, // root sifre degistirme
+  /chmod\s+-R\s+777\s+\//i, // root'u herkese acma
+  /chown\s+-R.*\s+\//i, // root sahipligini degistirme
+  // SSH ve kimlik bilgileri
+  /cat\s+.*\.ssh.*id_/i, // SSH private key okuma
+  /cat\s+.*\.env/i, // env dosyalarini okuma
+  /cat\s+.*password/i, // password dosyalari okuma
+  /curl.*\|.*sh/i, // pipe to shell (remote code exec)
+  /wget.*\|.*sh/i, // pipe to shell
+  // Node/npm yikici
+  /npm\s+cache\s+clean\s+--force/i, // npm cache silme
+  /node\s+-e.*require.*child_process/i, // Node shell escape
 ];
 
 // Uyarı gerektiren komutlar
 const WARNING_COMMANDS = [
   /rm\s+-/i, // rm with flags
-  /DROP\s+(TABLE|DATABASE)/i, // SQL drop
+  /DROP\s+(TABLE|INDEX|VIEW|FUNCTION)/i, // SQL drop
   /DELETE\s+FROM/i, // SQL delete
   /TRUNCATE/i, // SQL truncate
+  /ALTER\s+TABLE.*DROP/i, // kolon silme
+  /UPDATE\s+.*SET\s+.*WHERE\s*$/i, // WHERE'siz update (tehlikeli)
   /kill\s+-9/i, // force kill
   /pkill/i, // process kill
+  /killall/i, // process kill
   /npm\s+uninstall/i, // paket kaldırma
   /git\s+reset\s+--hard/i, // git hard reset
   /git\s+push\s+--force/i, // force push
+  /git\s+clean\s+-fd/i, // untracked dosyalari silme
+  /pm2\s+(delete|stop)\s+all/i, // tum servisleri durdurma
+  /pg_dump/i, // DB dump (hassas veri)
+  /psql.*-c/i, // dogrudan SQL calistirma
 ];
 
 // Hazır komutlar - dinamik path ile
@@ -106,7 +147,7 @@ router.get('/terminal/presets', authenticate, requireSuperAdmin, (_req, res) => 
 });
 
 // Hazır komut çalıştır
-router.post('/terminal/preset/:id', authenticate, requireSuperAdmin, async (req, res) => {
+router.post('/terminal/preset/:id', godModeLimiter, authenticate, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const preset = PRESET_COMMANDS[id];
 
@@ -150,7 +191,7 @@ router.post('/terminal/preset/:id', authenticate, requireSuperAdmin, async (req,
 });
 
 // Manuel komut çalıştır
-router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, res) => {
+router.post('/terminal/execute', godModeLimiter, authenticate, requireSuperAdmin, async (req, res) => {
   const { command, cwd, confirmed } = req.body;
 
   if (!command || typeof command !== 'string') {
@@ -668,7 +709,7 @@ router.get('/env/check', async (_req, res) => {
       },
       supabase: {
         url: !!process.env.SUPABASE_URL,
-        serviceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        serviceKey: !!(process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
       },
       jwt: {
         configured: !!process.env.JWT_SECRET,
@@ -737,6 +778,103 @@ router.get('/tavily/config', authenticate, async (_req, res) => {
       krediAyarlari: KREDI_AYARLARI,
     });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// STATS & LOGS (server.js'den taşındı)
+// ==========================================
+
+/**
+ * @swagger
+ * /api/system/stats:
+ *   get:
+ *     summary: Genel istatistikler
+ *     description: Sistem genelindeki ihale ve döküman istatistiklerini döner
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: İstatistikler başarıyla alındı
+ */
+router.get('/stats', async (_req, res) => {
+  try {
+    const tenderResult = await query('SELECT COUNT(*) as total FROM tenders');
+    const activeTenderResult = await query('SELECT COUNT(*) as active FROM tenders WHERE tender_date > NOW()');
+
+    let documentsCount = 0;
+    try {
+      const documentResult = await query('SELECT COUNT(*) as total FROM documents');
+      documentsCount = parseInt(documentResult.rows[0].total, 10);
+    } catch (_e) {
+      // Documents table doesn't exist yet
+    }
+
+    let aiAnalysisCount = 0;
+    try {
+      const aiResult = await query('SELECT COUNT(*) as analyzed FROM tenders WHERE raw_data IS NOT NULL');
+      aiAnalysisCount = parseInt(aiResult.rows[0].analyzed, 10);
+    } catch (_e) {
+      // Column doesn't exist yet
+    }
+
+    const stats = {
+      totalTenders: parseInt(tenderResult.rows[0].total, 10),
+      activeTenders: parseInt(activeTenderResult.rows[0].active, 10),
+      expiredTenders: parseInt(tenderResult.rows[0].total, 10) - parseInt(activeTenderResult.rows[0].active, 10),
+      totalDocuments: documentsCount,
+      aiAnalysisCount: aiAnalysisCount,
+    };
+
+    res.json(stats);
+  } catch (error) {
+    logger.error('Stats hatası', { error: error.message });
+    res.status(500).json({
+      error: 'İstatistikler alınamadı',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/system/logs/recent:
+ *   get:
+ *     summary: Son hata logları
+ *     description: Son 50 hata kaydını döner (Admin only)
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Log listesi
+ */
+router.get('/logs/recent', async (_req, res) => {
+  try {
+    const fs = await import('node:fs').then((m) => m.promises);
+    const logPath = path.join(__dirname, '../../logs');
+
+    // Bugünün error log dosyasını oku
+    const today = new Date().toISOString().split('T')[0];
+    const errorLogFile = path.join(logPath, `error-${today}.log`);
+
+    try {
+      const content = await fs.readFile(errorLogFile, 'utf-8');
+      const lines = content.trim().split('\n').slice(-50); // Son 50 satır
+      res.json({
+        success: true,
+        data: lines,
+        file: `error-${today}.log`,
+      });
+    } catch (_e) {
+      res.json({
+        success: true,
+        data: [],
+        message: 'Bugün için hata kaydı yok',
+      });
+    }
+  } catch (error) {
+    logger.error('Logs API hatası', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

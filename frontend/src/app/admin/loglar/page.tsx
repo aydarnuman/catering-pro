@@ -97,8 +97,7 @@ export default function LoglarPage() {
   const [filterEndDate, setFilterEndDate] = useState<Date | null>(null);
 
   // Detay modal
-  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] =
-    useDisclosure(false);
+  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [raporMerkeziOpen, setRaporMerkeziOpen] = useState(false);
 
@@ -125,15 +124,7 @@ export default function LoglarPage() {
     } finally {
       setLoading(false);
     }
-  }, [
-    page,
-    filterUserId,
-    filterAction,
-    filterEntityType,
-    filterSearch,
-    filterStartDate,
-    filterEndDate,
-  ]);
+  }, [page, filterUserId, filterAction, filterEntityType, filterSearch, filterStartDate, filterEndDate]);
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -290,12 +281,7 @@ export default function LoglarPage() {
               </Button>
             </Group>
             <Group gap="sm" mb={4}>
-              <ThemeIcon
-                size="lg"
-                radius="md"
-                variant="gradient"
-                gradient={{ from: 'cyan', to: 'teal' }}
-              >
+              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'cyan', to: 'teal' }}>
                 <IconHistory size={20} />
               </ThemeIcon>
               <Title order={1} size="h2">
@@ -307,12 +293,7 @@ export default function LoglarPage() {
 
           <Group>
             <Tooltip label="Dışa Aktar">
-              <ActionIcon
-                variant="light"
-                color="indigo"
-                size="lg"
-                onClick={() => setRaporMerkeziOpen(true)}
-              >
+              <ActionIcon variant="light" color="indigo" size="lg" onClick={() => setRaporMerkeziOpen(true)}>
                 <IconDownload size={18} />
               </ActionIcon>
             </Tooltip>
@@ -420,10 +401,7 @@ export default function LoglarPage() {
               placeholder="Kullanıcı"
               value={filterUserId}
               onChange={setFilterUserId}
-              data={
-                filters?.users.map((u) => ({ value: u.user_id.toString(), label: u.user_name })) ||
-                []
-              }
+              data={filters?.users.map((u) => ({ value: u.user_id.toString(), label: u.user_name })) || []}
               clearable
               searchable
             />
@@ -438,23 +416,11 @@ export default function LoglarPage() {
               placeholder="Modül"
               value={filterEntityType}
               onChange={setFilterEntityType}
-              data={
-                filters?.entityTypes.map((t) => ({ value: t, label: getEntityTypeName(t) })) || []
-              }
+              data={filters?.entityTypes.map((t) => ({ value: t, label: getEntityTypeName(t) })) || []}
               clearable
             />
-            <StyledDatePicker
-              placeholder="Başlangıç"
-              value={filterStartDate}
-              onChange={setFilterStartDate}
-              clearable
-            />
-            <StyledDatePicker
-              placeholder="Bitiş"
-              value={filterEndDate}
-              onChange={setFilterEndDate}
-              clearable
-            />
+            <StyledDatePicker placeholder="Başlangıç" value={filterStartDate} onChange={setFilterStartDate} clearable />
+            <StyledDatePicker placeholder="Bitiş" value={filterEndDate} onChange={setFilterEndDate} clearable />
             <TextInput
               placeholder="Ara..."
               value={filterSearch}
@@ -538,11 +504,7 @@ export default function LoglarPage() {
                         </Table.Td>
                         <Table.Td ta="right">
                           <Tooltip label="Detay Görüntüle">
-                            <ActionIcon
-                              variant="light"
-                              color="gray"
-                              onClick={() => viewLogDetail(log.id)}
-                            >
+                            <ActionIcon variant="light" color="gray" onClick={() => viewLogDetail(log.id)}>
                               <IconEye size={16} />
                             </ActionIcon>
                           </Tooltip>
@@ -600,10 +562,7 @@ export default function LoglarPage() {
                 <Text size="xs" c="dimmed">
                   İşlem
                 </Text>
-                <Badge
-                  leftSection={getActionIcon(selectedLog.action)}
-                  color={getActionColor(selectedLog.action)}
-                >
+                <Badge leftSection={getActionIcon(selectedLog.action)} color={getActionColor(selectedLog.action)}>
                   {getActionName(selectedLog.action)}
                 </Badge>
               </div>
@@ -676,11 +635,7 @@ export default function LoglarPage() {
       </Modal>
 
       {/* Rapor Merkezi Modal */}
-      <RaporMerkeziModal
-        opened={raporMerkeziOpen}
-        onClose={() => setRaporMerkeziOpen(false)}
-        module="admin"
-      />
+      <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="admin" />
     </Container>
   );
 }

@@ -1,25 +1,7 @@
 'use client';
 
-import {
-  Anchor,
-  Badge,
-  Box,
-  Group,
-  Paper,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconExternalLink,
-  IconGavel,
-  IconLeaf,
-  IconSparkles,
-  IconTrendingUp,
-} from '@tabler/icons-react';
+import { Anchor, Badge, Box, Group, Paper, SimpleGrid, Skeleton, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconExternalLink, IconGavel, IconLeaf, IconSparkles, IconTrendingUp } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
 import type { SavedTender } from '../types';
@@ -51,8 +33,10 @@ const KONU_ICON: Record<string, { icon: React.ReactNode; color: string }> = {
 
 export function AraclarSection({ tender }: { tender: SavedTender; onRefresh?: () => void }) {
   // Tespit edilen veriler
-  const hesaplamaVerileri = ((tender as unknown as Record<string, unknown>).hesaplama_verileri ||
-    {}) as Record<string, unknown>;
+  const hesaplamaVerileri = ((tender as unknown as Record<string, unknown>).hesaplama_verileri || {}) as Record<
+    string,
+    unknown
+  >;
   const isSuresi = (hesaplamaVerileri.is_suresi ||
     tender.analysis_summary?.teslim_suresi ||
     tender.analysis_summary?.sure) as string | undefined;
@@ -216,12 +200,7 @@ export function AraclarSection({ tender }: { tender: SavedTender; onRefresh?: ()
         )}
 
         {/* KIK link */}
-        <Group
-          gap="xs"
-          mt="xs"
-          pt="xs"
-          style={{ borderTop: '1px solid var(--mantine-color-dark-5)' }}
-        >
+        <Group gap="xs" mt="xs" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-dark-5)' }}>
           <Tooltip label="KİK Karar Arama Motoru" position="top">
             <Anchor
               href="https://ekk.kik.gov.tr/EKAP/"

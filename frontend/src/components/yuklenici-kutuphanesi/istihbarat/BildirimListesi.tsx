@@ -111,14 +111,7 @@ export function BildirimListesi() {
   }, [fetchBildirimler]);
 
   return (
-    <Popover
-      opened={acik}
-      onChange={setAcik}
-      position="bottom-end"
-      width={380}
-      shadow="lg"
-      withArrow
-    >
+    <Popover opened={acik} onChange={setAcik} position="bottom-end" width={380} shadow="lg" withArrow>
       <Popover.Target>
         <Indicator
           inline
@@ -141,21 +134,12 @@ export function BildirimListesi() {
 
       <Popover.Dropdown p={0}>
         {/* Başlık */}
-        <Group
-          justify="space-between"
-          p="sm"
-          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
-        >
+        <Group justify="space-between" p="sm" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
           <Text size="sm" fw={700}>
             Yüklenici Bildirimleri
           </Text>
           {okunmamisSayisi > 0 && (
-            <Button
-              size="xs"
-              variant="subtle"
-              onClick={tumunuOkunduYap}
-              leftSection={<IconCheck size={12} />}
-            >
+            <Button size="xs" variant="subtle" onClick={tumunuOkunduYap} leftSection={<IconCheck size={12} />}>
               Tümünü oku
             </Button>
           )}

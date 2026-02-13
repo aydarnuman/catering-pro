@@ -8,7 +8,6 @@
 import {
   ActionIcon,
   Badge,
-  Box,
   Button,
   Card,
   Container,
@@ -16,7 +15,6 @@ import {
   Group,
   Loader,
   Paper,
-  Progress,
   ScrollArea,
   SimpleGrid,
   Stack,
@@ -32,9 +30,7 @@ import {
   IconCheck,
   IconClock,
   IconFile,
-  IconFileText,
   IconLoader,
-  IconPlayerPause,
   IconRefresh,
   IconTrendingUp,
   IconX,
@@ -207,7 +203,7 @@ function DocumentRow({ doc }: { doc: DocumentItem }) {
 }
 
 export default function AnalizKuyrugu() {
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
 
   // Dashboard verisi
   const { data, isLoading, error, refetch } = useQuery<{

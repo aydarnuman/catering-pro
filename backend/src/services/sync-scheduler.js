@@ -437,6 +437,7 @@ class SyncScheduler {
         total: savedCount,
         new: newCount,
         updated: duplicateCount,
+        duration: Date.now() - startTime.getTime(),
       });
 
       // Yeni fatura bildirimi (ileride webhook veya email gönderilebilir)

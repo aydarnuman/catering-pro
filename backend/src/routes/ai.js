@@ -10,7 +10,14 @@ import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../
 import aiAgent from '../services/ai-agent.js';
 import aiTools from '../services/ai-tools/index.js';
 import claudeAI from '../services/claude-ai.js';
+import { getSharedLearningsForAgent, shareLearning } from '../services/cross-agent-learning-service.js';
+import {
+  getModelRankings,
+  getTemplateRankings,
+  invalidateFeedbackCache,
+} from '../services/feedback-learning-service.js';
 import ihaleAgentService from '../services/ihale-agent-service.js';
+import { invalidatePastLearningCache } from '../services/ihale-past-learning-service.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import SettingsVersionService from '../services/settings-version-service.js';
 import logger from '../utils/logger.js';
@@ -1270,6 +1277,9 @@ router.post('/feedback', async (req, res) => {
       feedbackType,
     });
 
+    // Feedback cache'ini temizle — yeni feedback prompt'a yansısın
+    invalidateFeedbackCache();
+
     return res.json({
       success: true,
       feedbackId: result.rows[0].id,
@@ -1325,6 +1335,34 @@ router.get('/feedback/stats', async (_req, res) => {
       success: false,
       error: 'İstatistikler yüklenemedi',
     });
+  }
+});
+
+/**
+ * GET /api/ai/feedback/template-rankings
+ * Template bazlı performans sıralaması (feedback verisinden)
+ */
+router.get('/feedback/template-rankings', authenticate, async (_req, res) => {
+  try {
+    const rankings = await getTemplateRankings();
+    return res.json({ success: true, data: rankings });
+  } catch (error) {
+    logger.error('[AI Feedback] Template rankings hatası', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Template sıralaması yüklenemedi' });
+  }
+});
+
+/**
+ * GET /api/ai/feedback/model-rankings
+ * Model bazlı performans sıralaması (feedback verisinden)
+ */
+router.get('/feedback/model-rankings', authenticate, async (_req, res) => {
+  try {
+    const rankings = await getModelRankings();
+    return res.json({ success: true, data: rankings });
+  } catch (error) {
+    logger.error('[AI Feedback] Model rankings hatası', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Model sıralaması yüklenemedi' });
   }
 });
 
@@ -2495,7 +2533,7 @@ router.post('/ihale-masasi/verdict', optionalAuth, async (req, res) => {
     const tenderResult = await query(
       `SELECT t.title, t.organization_name AS organization, t.estimated_cost, t.tender_date
        FROM tenders t WHERE t.id = $1 LIMIT 1`,
-      [tenderId],
+      [tenderId]
     );
     const tenderInfo = tenderResult.rows[0] || {};
 
@@ -2849,6 +2887,655 @@ router.get('/ihale-masasi/session/:tenderId', optionalAuth, async (req, res) => 
   } catch (error) {
     logger.error('[İhale Masası Session List] Hata', { error: error.message });
     return res.status(500).json({ success: false, error: 'Oturumlar yüklenemedi' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// İHALE MASASI — MALZEME EŞLEŞTİRME (Porsiyon Maliyet Hesabı)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Porsiyon maliyeti hesapla (gramaj x birim fiyat, birim dönüşümlü)
+ */
+function hesaplaPorsiyonMaliyet(fiyat, birim, gramaj, gramajBirim) {
+  if (!fiyat || !gramaj) return null;
+  const b = (birim || '').toLowerCase();
+  let maliyet = 0;
+
+  if (b === 'kg') {
+    maliyet = (fiyat / 1000) * gramaj;
+  } else if (b === 'lt' || b === 'litre') {
+    maliyet = (fiyat / 1000) * gramaj;
+  } else if (b === 'adet') {
+    const adet = gramajBirim === 'adet' ? gramaj : gramaj / 60;
+    maliyet = fiyat * adet;
+  } else if (b === 'demet') {
+    maliyet = fiyat * (gramaj / 50);
+  } else if (b === 'gr') {
+    maliyet = fiyat > 10 ? (fiyat / 1000) * gramaj : fiyat * gramaj;
+  } else {
+    maliyet = (fiyat / 1000) * gramaj;
+  }
+
+  return Math.round(maliyet * 100) / 100;
+}
+
+// AI eşleştirme prompt'u -- catering bağlamında malzeme eşleştirmesi
+const INGREDIENT_MATCH_PROMPT = `Sen bir catering/toplu yemek üretimi uzmanısın. Şartnamede geçen malzeme isimlerini, firmamızın ürün kataloğundaki doğru ürünle eşleştir.
+
+## KURALLAR
+1. Her şartname malzemesi için katalogdan EN UYGUN ürünü seç
+2. Kısaltmaları çöz: "S.yağ" = Sıvı Yağ = Ayçiçek Yağı, "S.biber" = Sivri Biber, "Et" = Dana Kuşbaşı (catering bağlamında)
+3. Genel isimler için en yaygın catering tercihini seç: "Yağ" = Ayçiçek Yağı, "Pirinç" = Pirinç (Baldo/Osmancık)
+4. Hazır ürünler (Güllaç, Kadayıf, Helva, Kemalpaşa) katalogda yoksa "YOK" yaz
+5. Emin olmadığında "YOK" yerine en yakın ürünü seç ve confidence düşük ver
+6. SADECE verilen katalogdaki ürün ID'lerini kullan, uydurma
+
+## ÇIKTI FORMATI (sadece JSON, açıklama yok)
+[
+  {"sartname": "Et", "urun_id": 4729, "urun_ad": "Dana Kuşbaşı", "confidence": 0.95, "not": "Catering'de 'et' genelde dana kuşbaşı"},
+  {"sartname": "Güllaç", "urun_id": null, "urun_ad": null, "confidence": 0, "not": "Hazır ürün, katalogda yok"}
+]`;
+
+/**
+ * POST /api/ai/ihale-masasi/match-ingredients
+ * Şartnamedeki örnek menü tariflerini parse et, ürün kartlarıyla eşleştir,
+ * yemek bazlı maliyet hesapla.
+ *
+ * Kaynak: documents.analysis_result.analysis.catering.sample_menus
+ * Bu tablolar "Yemek Adı: X" header'ı ile başlar, satırlarda malzeme + gramaj bulunur.
+ */
+router.post('/ihale-masasi/match-ingredients', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId } = req.body;
+    if (!tenderId) {
+      return res.status(400).json({ success: false, error: 'tenderId gerekli' });
+    }
+
+    // 1. Dokümanlardan sample_menus tablolarını çek
+    const docResult = await query(
+      `SELECT id, analysis_result->'analysis'->'catering'->'sample_menus' as sample_menus
+       FROM documents
+       WHERE tender_id = $1
+         AND analysis_result->'analysis'->'catering'->'sample_menus' IS NOT NULL
+         AND jsonb_array_length(COALESCE(analysis_result->'analysis'->'catering'->'sample_menus', '[]'::jsonb)) > 0
+       ORDER BY id DESC
+       LIMIT 1`,
+      [tenderId]
+    );
+
+    // Fallback: gramaj verisinden "Toplam" satırlarıyla grupla
+    let recipes = [];
+    let dataSource = 'sample_menus';
+
+    if (docResult.rows.length > 0 && docResult.rows[0].sample_menus) {
+      recipes = parseRecipesFromSampleMenus(docResult.rows[0].sample_menus);
+    }
+
+    // Fallback: gramaj listesinden gruplama
+    if (recipes.length === 0) {
+      const trackingResult = await query(
+        `SELECT analysis_summary->'gramaj' as gramaj,
+                analysis_summary->'gramaj_gruplari' as gramaj_gruplari
+         FROM tender_tracking WHERE tender_id = $1 LIMIT 1`,
+        [tenderId]
+      );
+      if (trackingResult.rows.length > 0) {
+        const gramaj = trackingResult.rows[0].gramaj || [];
+        const gruplari = trackingResult.rows[0].gramaj_gruplari || [];
+        recipes = parseRecipesFromGramaj(gramaj, gruplari);
+        dataSource = gruplari.length > 0 ? 'gramaj_gruplari' : 'gramaj_fallback';
+      }
+    }
+
+    if (recipes.length === 0) {
+      return res.json({
+        success: true,
+        recipes: [],
+        stats: { total_recipes: 0, total_ingredients: 0 },
+        message: 'Menü tarifi bulunamadı',
+      });
+    }
+
+    // 2. Ürün kartlarını çek
+    const urunResult = await query(
+      `SELECT id, ad, varsayilan_birim, manuel_fiyat,
+              (SELECT uk2.ad FROM urun_kategorileri uk2 WHERE uk2.id = urun_kartlari.kategori_id) as kategori
+       FROM urun_kartlari
+       WHERE aktif = true
+       ORDER BY ad`
+    );
+    const urunler = urunResult.rows;
+
+    // 3. Benzersiz malzeme isimlerini topla (tüm tariflerden)
+    const uniqueItems = new Set();
+    for (const recipe of recipes) {
+      for (const ing of recipe.ingredients) {
+        uniqueItems.add(ing.item);
+      }
+    }
+
+    // 4. AI ile eşleştirme
+    const itemList = [...uniqueItems];
+    const katalog = urunler.map((u) => ({ id: u.id, ad: u.ad }));
+
+    const aiClient = new (await import('@anthropic-ai/sdk')).default({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    const aiResponse = await aiClient.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8192,
+      temperature: 0.1,
+      system: INGREDIENT_MATCH_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: `ŞARTNAME MALZEMELERİ:\n${JSON.stringify(itemList)}\n\nÜRÜN KATALOĞU:\n${JSON.stringify(katalog)}`,
+        },
+      ],
+    });
+
+    // AI yanıtından JSON çıkar
+    const aiText = aiResponse.content[0]?.text || '[]';
+    let aiMatches = [];
+    try {
+      const jsonMatch = aiText.match(/\[[\s\S]*\]/);
+      aiMatches = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    } catch {
+      logger.warn('[İhale Masası] AI eşleştirme JSON parse hatası', { text: aiText.slice(0, 200) });
+    }
+
+    // Eşleştirme haritası oluştur — case-insensitive + trim normalizasyonu
+    const matchMap = new Map();
+    logger.info(`[İhale Masası] AI ${aiMatches.length} eşleştirme döndü, ${uniqueItems.size} benzersiz malzeme`);
+
+    for (const aiMatch of aiMatches) {
+      if (!aiMatch.sartname || !aiMatch.urun_id) continue;
+      const urun = urunler.find((u) => u.id === aiMatch.urun_id);
+      if (!urun) continue;
+      const matchData = {
+        urun_id: urun.id,
+        urun_ad: urun.ad,
+        birim: urun.varsayilan_birim,
+        fiyat: urun.manuel_fiyat ? Number(urun.manuel_fiyat) : null,
+        kategori: urun.kategori,
+        confidence: aiMatch.confidence || 0,
+        note: aiMatch.not || null,
+      };
+      // Hem orijinal hem lowercase key ile kaydet (case-insensitive lookup)
+      matchMap.set(aiMatch.sartname.trim(), matchData);
+      matchMap.set(aiMatch.sartname.trim().toLowerCase(), matchData);
+    }
+
+    // 5. Her tarif için malzeme eşleştirmesi ve maliyet hesabı
+    let toplamGenel = 0;
+    let totalIngredients = 0;
+    let matchedCount = 0;
+    let pricedCount = 0;
+
+    const enrichedRecipes = recipes.map((recipe) => {
+      let recipeToplam = 0;
+      const ingredients = recipe.ingredients.map((ing) => {
+        totalIngredients++;
+        // Case-insensitive + trim lookup
+        const match = matchMap.get(ing.item.trim()) || matchMap.get(ing.item.trim().toLowerCase());
+        if (!match) {
+          return {
+            ...ing,
+            matched: false,
+            urun: null,
+            porsiyon_maliyet: null,
+            confidence: 0,
+          };
+        }
+        matchedCount++;
+        const porsiyon = hesaplaPorsiyonMaliyet(match.fiyat, match.birim, ing.gramaj, ing.unit || 'g');
+        if (porsiyon !== null) {
+          recipeToplam += porsiyon;
+          pricedCount++;
+        }
+        return {
+          ...ing,
+          matched: true,
+          urun: {
+            id: match.urun_id,
+            ad: match.urun_ad,
+            birim: match.birim,
+            fiyat: match.fiyat,
+          },
+          porsiyon_maliyet: porsiyon,
+          confidence: match.confidence,
+          note: match.note,
+        };
+      });
+
+      toplamGenel += recipeToplam;
+
+      return {
+        yemek_adi: recipe.name,
+        kategori: recipe.category || null,
+        toplam_gramaj: recipe.totalGramaj || null,
+        ingredients,
+        porsiyon_maliyet: Math.round(recipeToplam * 100) / 100,
+      };
+    });
+
+    // Tarifleri maliyete göre sırala (pahalıdan ucuza)
+    enrichedRecipes.sort((a, b) => (b.porsiyon_maliyet || 0) - (a.porsiyon_maliyet || 0));
+
+    return res.json({
+      success: true,
+      recipes: enrichedRecipes,
+      data_source: dataSource,
+      stats: {
+        total_recipes: recipes.length,
+        total_ingredients: totalIngredients,
+        unique_ingredients: uniqueItems.size,
+        matched: matchedCount,
+        priced: pricedCount,
+        match_rate: Math.round((matchedCount / totalIngredients) * 100),
+      },
+      maliyet: {
+        porsiyon_toplam: Math.round(toplamGenel * 100) / 100,
+        ortalama_yemek: recipes.length > 0 ? Math.round((toplamGenel / recipes.length) * 100) / 100 : 0,
+        hesaplanan_kalem: pricedCount,
+        eksik_kalem: totalIngredients - pricedCount,
+      },
+      ai_model: 'claude-sonnet-4-20250514',
+      ai_tokens: {
+        input: aiResponse.usage?.input_tokens || 0,
+        output: aiResponse.usage?.output_tokens || 0,
+      },
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] Malzeme eşleştirme hatası', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * sample_menus tablolarından yemek tariflerini çıkar.
+ * Her tablo: headers[0]="Yemek Adı:", headers[1]="Yemek İsmi"
+ * Satırlar: [malzeme, gramaj, ...besin değerleri]
+ */
+function parseRecipesFromSampleMenus(sampleMenus) {
+  const recipes = [];
+  for (const table of sampleMenus) {
+    const headers = table.headers || [];
+    // Yemek tarifi tablosu mu?
+    if (headers[0] !== 'Yemek Adı:' || !headers[1]) continue;
+
+    const name = headers[1].trim();
+    if (!name) continue;
+
+    const ingredients = [];
+    let totalGramaj = null;
+
+    for (const row of table.rows || []) {
+      if (!row || row.length < 2) continue;
+      const itemName = (row[0] || '').trim();
+      const gramajStr = (row[1] || '').trim();
+
+      // Başlık satırı atla
+      if (itemName.toLowerCase() === 'malzemeler' || itemName.toLowerCase() === 'malzeme') continue;
+
+      // Toplam satırı
+      if (itemName.toLowerCase() === 'toplam') {
+        totalGramaj = Number.parseFloat(gramajStr) || null;
+        continue;
+      }
+
+      if (!itemName) continue;
+      const gramaj = Number.parseFloat(gramajStr) || null;
+
+      ingredients.push({
+        item: itemName,
+        gramaj,
+        unit: 'g',
+      });
+    }
+
+    if (ingredients.length > 0) {
+      recipes.push({ name, ingredients, totalGramaj, category: null });
+    }
+  }
+  return recipes;
+}
+
+/**
+ * Fallback: gramaj listesindeki "Toplam" satırlarını ayırıcı olarak kullanarak
+ * yemek grupları oluştur. gramaj_gruplari varsa onları kullan.
+ */
+function parseRecipesFromGramaj(gramaj, gramajGruplari) {
+  // Önce gramaj_gruplari varsa onu kullan
+  if (gramajGruplari && gramajGruplari.length > 0) {
+    return gramajGruplari.map((g) => ({
+      name: g.yemek_adi || 'Bilinmeyen Yemek',
+      category: g.kategori || null,
+      totalGramaj: g.toplam_gramaj || null,
+      ingredients: (g.malzemeler || []).map((m) => ({
+        item: m.item,
+        gramaj: typeof m.weight === 'number' ? m.weight : Number.parseFloat(String(m.weight)) || null,
+        unit: m.unit || 'g',
+      })),
+    }));
+  }
+
+  // Fallback: Toplam satırlarını ayırıcı olarak kullan
+  const recipes = [];
+  let currentIngredients = [];
+  let recipeIndex = 1;
+
+  for (const g of gramaj) {
+    const item = (g.item || '').trim();
+    if (!item) continue;
+
+    if (item.toLowerCase() === 'toplam') {
+      if (currentIngredients.length > 0) {
+        const totalGramaj = Number.parseFloat(String(g.weight)) || null;
+        recipes.push({
+          name: `Yemek ${recipeIndex}`,
+          category: null,
+          totalGramaj,
+          ingredients: currentIngredients,
+        });
+        currentIngredients = [];
+        recipeIndex++;
+      }
+      continue;
+    }
+
+    currentIngredients.push({
+      item,
+      gramaj: typeof g.weight === 'number' ? g.weight : Number.parseFloat(String(g.weight)) || null,
+      unit: g.unit || 'g',
+    });
+  }
+
+  // Son grubu da ekle
+  if (currentIngredients.length > 0) {
+    recipes.push({
+      name: `Yemek ${recipeIndex}`,
+      category: null,
+      totalGramaj: null,
+      ingredients: currentIngredients,
+    });
+  }
+
+  return recipes;
+}
+
+/**
+ * POST /api/ai/ihale-masasi/save-ingredient-matches
+ * Onaylanan malzeme eşleştirmelerini kaydet (tender_tracking.ingredient_matches JSON alanına)
+ */
+router.post('/ihale-masasi/save-ingredient-matches', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId, matches } = req.body;
+    if (!tenderId || !matches) {
+      return res.status(400).json({ success: false, error: 'tenderId ve matches gerekli' });
+    }
+
+    // tender_tracking tablosundaki analysis_summary JSON'una ingredient_matches ekle
+    const result = await query(
+      `UPDATE tender_tracking
+       SET analysis_summary = jsonb_set(
+         COALESCE(analysis_summary, '{}'::jsonb),
+         '{ingredient_matches}',
+         $2::jsonb
+       ),
+       updated_at = NOW()
+       WHERE tender_id = $1
+       RETURNING id`,
+      [tenderId, JSON.stringify({ matches, saved_at: new Date().toISOString(), saved_by: req.user?.id || null })]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
+    }
+
+    logger.info(`[İhale Masası] ${matches.length} malzeme eşleştirmesi kaydedildi`, { tenderId });
+
+    return res.json({
+      success: true,
+      saved: matches.length,
+      message: `${matches.length} eşleştirme kaydedildi`,
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] Eşleştirme kaydetme hatası', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/ai/ihale-masasi/ingredient-matches/:tenderId
+ * Kaydedilmiş malzeme eşleştirmelerini getir
+ */
+router.get('/ihale-masasi/ingredient-matches/:tenderId', optionalAuth, async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+    if (!tenderId) {
+      return res.status(400).json({ success: false, error: 'tenderId gerekli' });
+    }
+
+    const result = await query(
+      `SELECT analysis_summary->'ingredient_matches' as ingredient_matches
+       FROM tender_tracking
+       WHERE tender_id = $1
+       LIMIT 1`,
+      [tenderId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
+    }
+
+    const data = result.rows[0].ingredient_matches;
+
+    return res.json({
+      success: true,
+      matches: data?.matches || null,
+      saved_at: data?.saved_at || null,
+      saved_by: data?.saved_by || null,
+    });
+  } catch (error) {
+    logger.error('[İhale Masası] Eşleştirme getirme hatası', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// CROSS-AGENT LEARNING
+// ==========================================
+
+/**
+ * POST /api/ai/shared-learnings
+ * Ajanlar arasi bilgi paylas
+ */
+router.post('/shared-learnings', authenticate, async (req, res) => {
+  try {
+    const { sourceAgent, targetAgents, learningType, category, key, value, importance } = req.body;
+
+    if (!sourceAgent || !learningType || !category || !key || !value) {
+      return res.status(400).json({
+        success: false,
+        error: 'sourceAgent, learningType, category, key ve value zorunlu',
+      });
+    }
+
+    const result = await shareLearning({
+      sourceAgent,
+      targetAgents: targetAgents || [],
+      learningType,
+      category,
+      key,
+      value,
+      importance: importance || 5,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    logger.error('[Shared Learnings] Paylasim hatasi', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/ai/shared-learnings/:agentId
+ * Belirli bir ajan icin paylasilan ogrenmeler
+ */
+router.get('/shared-learnings/:agentId', authenticate, async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { category } = req.query;
+    const section = await getSharedLearningsForAgent(agentId, category || null);
+
+    const rawResult = await query(
+      `SELECT * FROM shared_learnings
+       WHERE is_active = true
+         AND (target_agents = '{}' OR $1 = ANY(target_agents))
+         AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY importance DESC, usage_count DESC
+       LIMIT 50`,
+      [agentId]
+    );
+
+    return res.json({
+      success: true,
+      promptSection: section,
+      data: rawResult.rows,
+    });
+  } catch (error) {
+    logger.error('[Shared Learnings] Liste hatasi', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// IHALE SONUC KAYDI (Ogrenme Icin)
+// ==========================================
+
+/**
+ * POST /api/ai/ihale-masasi/outcome
+ * Ihale sonucunu kaydet (kazanilan/kaybedilen)
+ */
+router.post('/ihale-masasi/outcome', authenticate, async (req, res) => {
+  try {
+    const {
+      tenderId,
+      outcome,
+      ourBidAmount,
+      winningBidAmount,
+      winnerCompany,
+      reason,
+      lessonsLearned,
+      actualProfitMargin,
+    } = req.body;
+
+    if (!tenderId || !outcome) {
+      return res.status(400).json({ success: false, error: 'tenderId ve outcome zorunlu' });
+    }
+
+    if (!['won', 'lost', 'cancelled', 'no_bid'].includes(outcome)) {
+      return res.status(400).json({ success: false, error: 'outcome: won, lost, cancelled veya no_bid olmali' });
+    }
+
+    // Mevcut AI verdict ve risk skorlarini al
+    const analysesResult = await query(
+      `SELECT agent_id, risk_score FROM agent_analyses
+       WHERE tender_id = $1 AND status = 'complete'`,
+      [tenderId]
+    );
+    const agentRiskScores = {};
+    for (const row of analysesResult.rows) {
+      agentRiskScores[row.agent_id] = row.risk_score;
+    }
+
+    const verdictResult = await query(
+      `SELECT analysis_summary->'ai_verdict' as verdict
+       FROM tender_tracking WHERE tender_id = $1 LIMIT 1`,
+      [tenderId]
+    );
+    const agentVerdict = verdictResult.rows[0]?.verdict?.verdict || null;
+
+    const result = await query(
+      `INSERT INTO tender_outcomes
+        (tender_id, outcome, our_bid_amount, winning_bid_amount, winner_company,
+         reason, lessons_learned, agent_verdict, agent_risk_scores, actual_profit_margin, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (tender_id) DO UPDATE SET
+         outcome = EXCLUDED.outcome,
+         our_bid_amount = EXCLUDED.our_bid_amount,
+         winning_bid_amount = EXCLUDED.winning_bid_amount,
+         winner_company = EXCLUDED.winner_company,
+         reason = EXCLUDED.reason,
+         lessons_learned = EXCLUDED.lessons_learned,
+         agent_verdict = COALESCE(EXCLUDED.agent_verdict, tender_outcomes.agent_verdict),
+         agent_risk_scores = COALESCE(EXCLUDED.agent_risk_scores, tender_outcomes.agent_risk_scores),
+         actual_profit_margin = EXCLUDED.actual_profit_margin,
+         updated_at = NOW()
+       RETURNING id`,
+      [
+        tenderId,
+        outcome,
+        ourBidAmount || null,
+        winningBidAmount || null,
+        winnerCompany || null,
+        reason || null,
+        lessonsLearned || null,
+        agentVerdict,
+        JSON.stringify(agentRiskScores),
+        actualProfitMargin || null,
+        req.user?.username || 'default',
+      ]
+    );
+
+    // Past learning cache temizle
+    invalidatePastLearningCache();
+
+    logger.info(`[Ihale Outcome] Sonuc kaydedildi: tender=${tenderId}, outcome=${outcome}`, {
+      tenderId,
+      outcome,
+      id: result.rows[0].id,
+    });
+
+    return res.json({
+      success: true,
+      id: result.rows[0].id,
+      message: `Ihale sonucu "${outcome}" olarak kaydedildi. Ajanlar bu veriden ogrenecek.`,
+    });
+  } catch (error) {
+    logger.error('[Ihale Outcome] Kayit hatasi', { error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/ai/ihale-masasi/outcomes
+ * Tum ihale sonuclarini listele
+ */
+router.get('/ihale-masasi/outcomes', authenticate, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = req.query;
+    const result = await query(
+      `SELECT
+        to2.*,
+        t.title as tender_title,
+        t.organization_name,
+        t.city,
+        t.estimated_cost
+       FROM tender_outcomes to2
+       JOIN tenders t ON t.id = to2.tender_id
+       ORDER BY to2.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('[Ihale Outcomes] Liste hatasi', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

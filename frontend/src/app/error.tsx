@@ -4,13 +4,7 @@ import { Button, Container, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconHome, IconRefresh } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     // Chunk load error - auto reload page
     if (error.message?.includes('Loading chunk') || error.message?.includes('ChunkLoadError')) {
@@ -46,13 +40,7 @@ export default function Error({
           >
             Tekrar Dene
           </Button>
-          <Button
-            leftSection={<IconHome size={18} />}
-            component="a"
-            href="/"
-            variant="light"
-            size="md"
-          >
+          <Button leftSection={<IconHome size={18} />} component="a" href="/" variant="light" size="md">
             Ana Sayfaya Dön
           </Button>
         </Stack>

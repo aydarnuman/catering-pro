@@ -55,6 +55,21 @@ export interface DocumentDetail {
   doc_type: string;
 }
 
+// Gramaj grubu (yemek bazlı gruplanmış)
+export interface GramajMalzeme {
+  item: string;
+  weight: number | null;
+  unit: string;
+}
+
+export interface GramajGrubu {
+  yemek_adi: string;
+  kategori?: string;
+  malzemeler: GramajMalzeme[];
+  toplam_gramaj: number | null;
+  porsiyon_notu?: string | null;
+}
+
 // Personel detayı
 export interface PersonelDetay {
   pozisyon: string;
@@ -158,14 +173,21 @@ export interface AnalysisData {
   ihale_turu?: string | null;
   tahmini_bedel?: string | null;
   teslim_suresi?: string | null;
-  gunluk_ogun_sayisi?: string;
-  kisi_sayisi?: string;
+  gunluk_ogun_sayisi?: number | string | null;
+  gunluk_ogun_sayisi_raw?: string;
+  kisi_sayisi?: number | string | null;
+  kisi_sayisi_raw?: string;
   // Azure v5 Catering-Spesifik Alanlar
-  kahvalti_kisi_sayisi?: string | null;
-  ogle_kisi_sayisi?: string | null;
-  aksam_kisi_sayisi?: string | null;
-  diyet_kisi_sayisi?: string | null;
-  hizmet_gun_sayisi?: string | null;
+  kahvalti_kisi_sayisi?: number | string | null;
+  kahvalti_kisi_sayisi_raw?: string;
+  ogle_kisi_sayisi?: number | string | null;
+  ogle_kisi_sayisi_raw?: string;
+  aksam_kisi_sayisi?: number | string | null;
+  aksam_kisi_sayisi_raw?: string;
+  diyet_kisi_sayisi?: number | string | null;
+  diyet_kisi_sayisi_raw?: string;
+  hizmet_gun_sayisi?: number | string | null;
+  hizmet_gun_sayisi_raw?: string;
   mutfak_tipi?: string | null;
   servis_tipi?: string | null;
   et_tipi?: string | null;
@@ -225,8 +247,18 @@ export interface AnalysisData {
   };
   // Konsolidasyon alanları
   toplam_ogun_sayisi?: number;
+  /** @deprecated kisi_sayisi kullan — bu alan geriye donuk uyumluluk icin korunuyor */
   toplam_personel?: number;
+  /** @deprecated kisi_sayisi_raw kullan */
+  toplam_personel_raw?: string;
+  /** @deprecated kisi_sayisi kullan — bu alan geriye donuk uyumluluk icin korunuyor */
   personel_sayisi?: number;
+  /** @deprecated kisi_sayisi_raw kullan */
+  personel_sayisi_raw?: string;
+  // Yemek bazlı gramaj grupları
+  gramaj_gruplari?: GramajGrubu[];
+  // Tahmini bedel (metin gösterim + sayısal hesaplama)
+  tahmini_bedel_numeric?: number;
   // Ek bilgiler
   tam_metin?: string;
   iletisim?: IletisimBilgileri;
@@ -272,13 +304,7 @@ export interface SavedTender {
   } | null;
 }
 
-export type TenderStatus =
-  | 'inceleniyor'
-  | 'bekliyor'
-  | 'basvuruldu'
-  | 'kazanildi'
-  | 'kaybedildi'
-  | 'iptal';
+export type TenderStatus = 'inceleniyor' | 'bekliyor' | 'basvuruldu' | 'kazanildi' | 'kaybedildi' | 'iptal';
 
 export const statusConfig: Record<TenderStatus, { color: string; label: string; icon: string }> = {
   inceleniyor: { color: 'cyan', label: 'İnceleniyor', icon: '👁️' },
@@ -353,7 +379,6 @@ export interface IhaleMerkeziState {
   mapModalOpen: boolean;
   addUrlModalOpen: boolean;
   teklifModalOpen: boolean;
-  sanalMasaOpen: boolean;
 }
 
 // HITL Düzeltme tipleri

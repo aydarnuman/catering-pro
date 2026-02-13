@@ -37,11 +37,7 @@ export interface UseFaturaFormReturn {
   // Kalem metodları
   addKalem: () => void;
   removeKalem: (id: string) => void;
-  updateKalem: (
-    id: string,
-    field: keyof FaturaKalem,
-    value: FaturaKalem[keyof FaturaKalem]
-  ) => void;
+  updateKalem: (id: string, field: keyof FaturaKalem, value: FaturaKalem[keyof FaturaKalem]) => void;
   setKalemler: React.Dispatch<React.SetStateAction<FaturaKalem[]>>;
 
   // Validasyon ve reset
@@ -146,51 +142,48 @@ export function useFaturaForm(options: UseFaturaFormOptions = {}): UseFaturaForm
     setIsDirty(true);
   }, []);
 
-  const updateKalem = useCallback(
-    (id: string, field: keyof FaturaKalem, value: FaturaKalem[keyof FaturaKalem]) => {
-      // Validasyon kontrolleri
-      if (field === 'miktar' && typeof value === 'number' && value < 0) {
-        notifications.show({
-          title: 'Uyarı',
-          message: 'Miktar negatif olamaz',
-          color: 'orange',
-        });
-        return;
-      }
+  const updateKalem = useCallback((id: string, field: keyof FaturaKalem, value: FaturaKalem[keyof FaturaKalem]) => {
+    // Validasyon kontrolleri
+    if (field === 'miktar' && typeof value === 'number' && value < 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Miktar negatif olamaz',
+        color: 'orange',
+      });
+      return;
+    }
 
-      if (field === 'birimFiyat' && typeof value === 'number' && value < 0) {
-        notifications.show({
-          title: 'Uyarı',
-          message: 'Birim fiyat negatif olamaz',
-          color: 'orange',
-        });
-        return;
-      }
+    if (field === 'birimFiyat' && typeof value === 'number' && value < 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Birim fiyat negatif olamaz',
+        color: 'orange',
+      });
+      return;
+    }
 
-      if (field === 'kdvOrani' && typeof value === 'number' && (value < 0 || value > 100)) {
-        notifications.show({
-          title: 'Uyarı',
-          message: 'KDV oranı 0-100 arasında olmalıdır',
-          color: 'orange',
-        });
-        return;
-      }
+    if (field === 'kdvOrani' && typeof value === 'number' && (value < 0 || value > 100)) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'KDV oranı 0-100 arasında olmalıdır',
+        color: 'orange',
+      });
+      return;
+    }
 
-      setKalemler((prev) =>
-        prev.map((k) => {
-          if (k.id === id) {
-            const updated = { ...k, [field]: value };
-            // Tutarı yeniden hesapla
-            updated.tutar = hesaplaKalemTutar(updated);
-            return updated;
-          }
-          return k;
-        })
-      );
-      setIsDirty(true);
-    },
-    []
-  );
+    setKalemler((prev) =>
+      prev.map((k) => {
+        if (k.id === id) {
+          const updated = { ...k, [field]: value };
+          // Tutarı yeniden hesapla
+          updated.tutar = hesaplaKalemTutar(updated);
+          return updated;
+        }
+        return k;
+      })
+    );
+    setIsDirty(true);
+  }, []);
 
   // === VALİDASYON ===
 

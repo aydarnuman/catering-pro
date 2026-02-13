@@ -28,13 +28,32 @@ pg.types.setTypeParser(TIMESTAMP_WITHOUT_TZ_OID, (val) => {
 // SSL zorunlu, idle baglantilari 30 saniye sonra kapatilir.
 // ============================================================
 
+const DB_POOL_CONFIG = {
+  MAX_CONNECTIONS: 20,
+  IDLE_TIMEOUT_MS: 30_000,
+  CONNECTION_TIMEOUT_MS: 5_000,
+  HEALTH_CHECK_INTERVAL_MS: 60_000,
+};
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20, // Ayni anda en fazla 20 baglanti
-  idleTimeoutMillis: 30000, // 30 saniye bos kalan baglanti kapatilir
-  connectionTimeoutMillis: 5000, // 5 saniye icerisinde baglanamaz ise hata
+  max: DB_POOL_CONFIG.MAX_CONNECTIONS,
+  idleTimeoutMillis: DB_POOL_CONFIG.IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: DB_POOL_CONFIG.CONNECTION_TIMEOUT_MS,
 });
+
+// Pool olusturma logu (hassas veri olmadan)
+try {
+  const dbUrl = new URL(process.env.DATABASE_URL || '');
+  logger.info('PostgreSQL pool olusturuldu', {
+    host: dbUrl.hostname,
+    database: dbUrl.pathname.slice(1),
+    max: DB_POOL_CONFIG.MAX_CONNECTIONS,
+  });
+} catch {
+  logger.info('PostgreSQL pool olusturuldu', { max: DB_POOL_CONFIG.MAX_CONNECTIONS });
+}
 
 // ============================================================
 // Baglanti Hatasi Yonetimi
@@ -82,7 +101,7 @@ function startHealthCheck() {
         ardisikHata: healthCheckFailCount,
       });
     }
-  }, 60_000); // 60 saniye
+  }, DB_POOL_CONFIG.HEALTH_CHECK_INTERVAL_MS);
 }
 
 // Uygulama basladiginda health check'i baslat

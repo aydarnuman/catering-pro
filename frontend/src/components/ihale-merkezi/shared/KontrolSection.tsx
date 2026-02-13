@@ -147,16 +147,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
       gelir_tablosu: ['gelir tablosu'],
       iso_9001: ['iso 9001', 'kalite yonetim'],
       iso_22000: ['iso 22000', 'gida guvenligi'],
-      iso_sertifika: [
-        'iso',
-        'sertifika',
-        'tse',
-        'ts 8985',
-        'ts 13075',
-        'haccp',
-        'helal',
-        'hizmet yeri yeterlilik',
-      ],
+      iso_sertifika: ['iso', 'sertifika', 'tse', 'ts 8985', 'ts 13075', 'haccp', 'helal', 'hizmet yeri yeterlilik'],
       haccp: ['haccp'],
       tse: ['tse'],
       gida_uretim_izni: ['gida uretim', 'uretim izin'],
@@ -184,8 +175,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
 
         // 2. Belge tipi'ni normalize edip eşleştir (underscore → boşluk)
         const fbReadable = fb.replace(/_/g, ' ');
-        if (labelNorm.includes(fbReadable) || fbReadable.includes(labelNorm.slice(0, 12)))
-          return true;
+        if (labelNorm.includes(fbReadable) || fbReadable.includes(labelNorm.slice(0, 12))) return true;
 
         return false;
       });
@@ -392,8 +382,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
               sections={[
                 {
                   value: Math.max(progressPercent, 2), // min 2% for visibility
-                  color:
-                    progressPercent === 100 ? 'green' : progressPercent > 50 ? 'blue' : 'yellow',
+                  color: progressPercent === 100 ? 'green' : progressPercent > 50 ? 'blue' : 'yellow',
                 },
               ]}
               label={
@@ -447,15 +436,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
                   <Text
                     size="lg"
                     fw={700}
-                    c={
-                      kalanGun <= 0
-                        ? 'red'
-                        : kalanGun <= 3
-                          ? 'orange'
-                          : kalanGun <= 7
-                            ? 'yellow'
-                            : 'green'
-                    }
+                    c={kalanGun <= 0 ? 'red' : kalanGun <= 3 ? 'orange' : kalanGun <= 7 ? 'yellow' : 'green'}
                     lh={1}
                   >
                     {kalanGun <= 0 ? 'Geçti' : `${kalanGun} gün`}
@@ -501,11 +482,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
                   const Icon = icons[idx % icons.length];
                   return (
                     <Group key={`${item.olay}_${item.tarih}`} gap={6} wrap="nowrap">
-                      <Icon
-                        size={13}
-                        color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
-                      />
+                      <Icon size={13} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
                       <Text size="xs" c="dimmed" lineClamp={1} style={{ flex: 1 }}>
                         {item.olay}
                       </Text>
@@ -530,18 +507,12 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
         const isBelge = cat.key === 'belge';
         const firmaVarSayisi = isBelge ? catItems.filter((i) => i.firmaDaBelgeVar).length : 0;
         const eksikSayisi = isBelge && activeFirmaId ? catItems.length - firmaVarSayisi : 0;
-        const firmaAdi = activeFirmaId
-          ? firmalar?.find((f) => f.id === activeFirmaId)?.unvan
-          : undefined;
+        const firmaAdi = activeFirmaId ? firmalar?.find((f) => f.id === activeFirmaId)?.unvan : undefined;
 
         return (
           <Box key={cat.key}>
             {/* ── Kompakt özet satırı ── */}
-            <UnstyledButton
-              w="100%"
-              onClick={() => setOpenModal(cat.key)}
-              style={{ borderRadius: 8 }}
-            >
+            <UnstyledButton w="100%" onClick={() => setOpenModal(cat.key)} style={{ borderRadius: 8 }}>
               <Paper
                 p="xs"
                 px="sm"
@@ -559,12 +530,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
               >
                 <Group gap="xs" justify="space-between" wrap="nowrap">
                   <Group gap={8} style={{ flex: 1, minWidth: 0 }} wrap="nowrap">
-                    <ThemeIcon
-                      size={22}
-                      variant="light"
-                      color={allDone ? 'green' : cat.color}
-                      radius="xl"
-                    >
+                    <ThemeIcon size={22} variant="light" color={allDone ? 'green' : cat.color} radius="xl">
                       {allDone ? <IconCircleCheck size={12} /> : cat.icon}
                     </ThemeIcon>
                     <Text size="xs" fw={600} c={allDone ? 'green' : undefined}>
@@ -576,11 +542,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
                       {catCompleted}/{catItems.length}
                     </Badge>
                     {isBelge && activeFirmaId && (
-                      <Badge
-                        size="xs"
-                        variant="light"
-                        color={eksikSayisi === 0 ? 'green' : 'orange'}
-                      >
+                      <Badge size="xs" variant="light" color={eksikSayisi === 0 ? 'green' : 'orange'}>
                         {eksikSayisi === 0 ? 'Tamam' : `${eksikSayisi} eksik`}
                       </Badge>
                     )}
@@ -696,9 +658,7 @@ export function KontrolSection({ tender, firmalar, selectedFirmaId }: KontrolSec
                   {catCompleted}/{catItems.length} tamamlandı
                 </Text>
                 <Progress
-                  value={
-                    catItems.length > 0 ? Math.round((catCompleted / catItems.length) * 100) : 0
-                  }
+                  value={catItems.length > 0 ? Math.round((catCompleted / catItems.length) * 100) : 0}
                   size="sm"
                   radius="xl"
                   w={120}

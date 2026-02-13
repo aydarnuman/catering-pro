@@ -36,6 +36,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cron from 'node-cron';
 import { query } from '../database.js';
+import logger from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,11 +131,13 @@ class TenderScheduler {
         const text = data.toString();
         _output += text;
 
-        // Log to console with prefix
+        // Log runner output
         text
           .split('\n')
           .filter((l) => l.trim())
-          .forEach((_line) => {});
+          .forEach((line) => {
+            logger.debug(`[TenderRunner] ${line}`);
+          });
 
         // İstatistikleri parse et
         this.parseOutput(text, stats);
@@ -143,6 +146,7 @@ class TenderScheduler {
       child.stderr.on('data', (data) => {
         const text = data.toString();
         errorOutput += text;
+        logger.warn(`[TenderRunner:stderr] ${text.trim()}`);
       });
 
       child.on('close', async (code) => {
@@ -314,19 +318,28 @@ class TenderScheduler {
 
     // Sabah 08:00 - Ana güncelleme (5 sayfa)
     const listMorning = cron.schedule('0 8 * * *', async () => {
-      await this.runRunner('list', { pages: 5, type: 'scheduled_morning' });
+      logger.info('[TenderScheduler] Cron tetiklendi: list_morning (08:00, 5 sayfa)');
+      const result = await this.runRunner('list', { pages: 5, type: 'scheduled_morning' });
+      logger.info('[TenderScheduler] list_morning tamamlandi', { success: result.success, duration: result.duration });
     });
     this.jobs.set('list_morning', listMorning);
 
     // Öğlen 14:00 - Ara güncelleme (3 sayfa)
     const listAfternoon = cron.schedule('0 14 * * *', async () => {
-      await this.runRunner('list', { pages: 3, type: 'scheduled_afternoon' });
+      logger.info('[TenderScheduler] Cron tetiklendi: list_afternoon (14:00, 3 sayfa)');
+      const result = await this.runRunner('list', { pages: 3, type: 'scheduled_afternoon' });
+      logger.info('[TenderScheduler] list_afternoon tamamlandi', {
+        success: result.success,
+        duration: result.duration,
+      });
     });
     this.jobs.set('list_afternoon', listAfternoon);
 
     // Akşam 19:00 - Son güncelleme (2 sayfa)
     const listEvening = cron.schedule('0 19 * * *', async () => {
-      await this.runRunner('list', { pages: 2, type: 'scheduled_evening' });
+      logger.info('[TenderScheduler] Cron tetiklendi: list_evening (19:00, 2 sayfa)');
+      const result = await this.runRunner('list', { pages: 2, type: 'scheduled_evening' });
+      logger.info('[TenderScheduler] list_evening tamamlandi', { success: result.success, duration: result.duration });
     });
     this.jobs.set('list_evening', listEvening);
 
@@ -334,13 +347,20 @@ class TenderScheduler {
 
     // Sabah 09:00 - Döküman işleme (liste taramasından 1 saat sonra)
     const docsMorning = cron.schedule('0 9 * * *', async () => {
-      await this.runRunner('docs', { limit: 100, type: 'scheduled_docs_morning' });
+      logger.info('[TenderScheduler] Cron tetiklendi: docs_morning (09:00, limit 100)');
+      const result = await this.runRunner('docs', { limit: 100, type: 'scheduled_docs_morning' });
+      logger.info('[TenderScheduler] docs_morning tamamlandi', { success: result.success, duration: result.duration });
     });
     this.jobs.set('docs_morning', docsMorning);
 
     // Öğleden sonra 15:00 - Döküman işleme
     const docsAfternoon = cron.schedule('0 15 * * *', async () => {
-      await this.runRunner('docs', { limit: 50, type: 'scheduled_docs_afternoon' });
+      logger.info('[TenderScheduler] Cron tetiklendi: docs_afternoon (15:00, limit 50)');
+      const result = await this.runRunner('docs', { limit: 50, type: 'scheduled_docs_afternoon' });
+      logger.info('[TenderScheduler] docs_afternoon tamamlandi', {
+        success: result.success,
+        duration: result.duration,
+      });
     });
     this.jobs.set('docs_afternoon', docsAfternoon);
 
@@ -348,7 +368,9 @@ class TenderScheduler {
 
     // Gece 03:00 - Temizlik işlemleri
     const cleanup = cron.schedule('0 3 * * *', async () => {
-      await this.runRunner('cleanup', { days: 7, type: 'scheduled_cleanup' });
+      logger.info('[TenderScheduler] Cron tetiklendi: cleanup (03:00)');
+      const result = await this.runRunner('cleanup', { days: 7, type: 'scheduled_cleanup' });
+      logger.info('[TenderScheduler] cleanup tamamlandi', { success: result.success, duration: result.duration });
     });
     this.jobs.set('cleanup', cleanup);
 
@@ -356,20 +378,39 @@ class TenderScheduler {
 
     // Gece 02:00 - Düzeltme eşik kontrolü ve otomatik eğitim tetikleme
     const retrainCheck = cron.schedule('0 2 * * *', async () => {
+      logger.info('[TenderScheduler] Cron tetiklendi: retrain_check (02:00)');
       try {
         const { scheduledRetrainCheck } = await import('./auto-retrain.js');
         await scheduledRetrainCheck();
-      } catch (_err) {}
+        logger.info('[TenderScheduler] retrain_check tamamlandi');
+      } catch (err) {
+        logger.error('[TenderScheduler] retrain_check hatasi', { error: err.message, stack: err.stack });
+      }
     });
     this.jobs.set('retrain_check', retrainCheck);
 
     // ========== STARTUP ==========
 
+    logger.info('[TenderScheduler] Scheduler baslatildi', {
+      jobs: [
+        'list_morning',
+        'list_afternoon',
+        'list_evening',
+        'docs_morning',
+        'docs_afternoon',
+        'cleanup',
+        'retrain_check',
+      ],
+    });
+
     // Sunucu başladığında 30 saniye bekle, sonra kontrol et
     setTimeout(async () => {
       const shouldRun = await this.shouldRunStartupScrape();
       if (shouldRun) {
+        logger.info('[TenderScheduler] Startup scrape baslatiliyor');
         await this.runRunner('list', { pages: 2, type: 'startup' });
+      } else {
+        logger.info('[TenderScheduler] Startup scrape atlanıyor (son tarama yeterince yeni)');
       }
     }, 30000);
   }
@@ -388,7 +429,8 @@ class TenderScheduler {
         return false;
       }
       return true;
-    } catch (_error) {
+    } catch (error) {
+      logger.warn('[TenderScheduler] shouldRunStartupScrape kontrol hatasi, calisitirilacak', { error: error.message });
       return true; // Hata durumunda çalıştır
     }
   }
@@ -479,7 +521,13 @@ class TenderScheduler {
           throw newSchemaError;
         }
       }
-    } catch (_error) {}
+    } catch (error) {
+      logger.error('[TenderScheduler] logScrape DB yazma hatasi', {
+        status,
+        mode: details.mode,
+        error: error.message,
+      });
+    }
   }
 
   /**
@@ -517,7 +565,8 @@ class TenderScheduler {
         LIMIT 1
       `);
       return result.rows[0] || null;
-    } catch (_error) {
+    } catch (error) {
+      logger.warn('[TenderScheduler] getLastSuccessfulScrape hatasi', { error: error.message });
       return null;
     }
   }
@@ -566,7 +615,8 @@ class TenderScheduler {
         [limit]
       );
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('[TenderScheduler] getScrapeLogs hatasi', { error: error.message });
       return [];
     }
   }
@@ -602,7 +652,8 @@ class TenderScheduler {
         ...stats.rows[0],
         topCities: topCities.rows,
       };
-    } catch (_error) {
+    } catch (error) {
+      logger.error('[TenderScheduler] getTenderStats hatasi', { error: error.message });
       return null;
     }
   }

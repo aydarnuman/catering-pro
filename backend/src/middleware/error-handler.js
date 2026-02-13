@@ -46,7 +46,7 @@ export const globalErrorHandler = (err, req, res, _next) => {
     url: req.originalUrl,
     ip: req.ip,
     body: sanitizeBody(req.body),
-    query: req.query,
+    query: sanitizeBody(req.query),
   });
 
   // Status code belirle

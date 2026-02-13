@@ -25,13 +25,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconChevronDown,
-  IconChevronUp,
-  IconExternalLink,
-  IconNews,
-  IconRefresh,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconChevronUp, IconExternalLink, IconNews, IconRefresh } from '@tabler/icons-react';
 import { useFirmaHaberleri } from '@/hooks/useSektorGundem';
 
 interface FirmaHaberleriWidgetProps {
@@ -138,16 +132,10 @@ export function FirmaHaberleriWidget({ firmaAdi }: FirmaHaberleriWidgetProps) {
                 <Badge
                   size="xs"
                   variant="outline"
-                  color={
-                    haber.kaynak_tipi === 'db' || haber.kaynak_tipi === 'ihalebul' ? 'teal' : 'blue'
-                  }
+                  color={haber.kaynak_tipi === 'db' || haber.kaynak_tipi === 'ihalebul' ? 'teal' : 'blue'}
                   style={{ flexShrink: 0, fontSize: 9, padding: '0 4px' }}
                 >
-                  {haber.kaynak_tipi === 'ihalebul'
-                    ? 'İB'
-                    : haber.kaynak_tipi === 'db'
-                      ? 'DB'
-                      : 'Web'}
+                  {haber.kaynak_tipi === 'ihalebul' ? 'İB' : haber.kaynak_tipi === 'db' ? 'DB' : 'Web'}
                 </Badge>
               )}
               {haber.url ? (

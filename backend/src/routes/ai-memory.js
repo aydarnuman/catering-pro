@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../database.js';
+import { backfillEmbeddings, searchMemorySemantic } from '../services/vector-memory-service.js';
 
 const router = express.Router();
 
@@ -351,6 +352,40 @@ router.post('/learn', async (req, res) => {
     }
 
     res.status(201).json({ success: true, learned: results.length, items: results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// SEMANTIC SEARCH & VECTOR OPS
+// =====================================================
+
+// Semantic memory search
+router.get('/semantic-search', async (req, res) => {
+  try {
+    const { q, user_id = 'default', limit = 10 } = req.query;
+    if (!q) {
+      return res.status(400).json({ success: false, error: 'q (query) parametresi gerekli' });
+    }
+
+    const results = await searchMemorySemantic(q, user_id, parseInt(limit, 10));
+    res.json({ success: true, data: results, query: q });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mevcut hafızalara toplu embedding ekle (admin)
+router.post('/backfill-embeddings', async (req, res) => {
+  try {
+    const { batchSize = 50 } = req.body;
+    const result = await backfillEmbeddings(parseInt(batchSize, 10));
+    res.json({
+      success: true,
+      data: result,
+      message: `${result.processed} hafızaya embedding eklendi (${result.errors} hata)`,
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

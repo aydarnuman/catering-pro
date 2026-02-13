@@ -75,17 +75,7 @@ interface KPICardProps {
   isLoading?: boolean;
 }
 
-function KPICard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  color,
-  gradient,
-  trend,
-  onClick,
-  isLoading,
-}: KPICardProps) {
+function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, onClick, isLoading }: KPICardProps) {
   return (
     <Paper
       p="md"
@@ -310,8 +300,7 @@ function HomePageContent() {
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
   type FinansOzetKasa = { kasa?: { toplam?: number }; kasaBakiye?: number };
-  const kasaBakiye =
-    (finansOzet as FinansOzetKasa)?.kasa?.toplam ?? (finansOzet as FinansOzetKasa)?.kasaBakiye ?? 0;
+  const kasaBakiye = (finansOzet as FinansOzetKasa)?.kasa?.toplam ?? (finansOzet as FinansOzetKasa)?.kasaBakiye ?? 0;
 
   return (
     <Box
@@ -378,12 +367,7 @@ function HomePageContent() {
 
                 <Group gap="sm" align="center">
                   <GreetingIcon size={isMobile ? 24 : 28} color="#e6c530" />
-                  <Text
-                    size={isMobile ? 'lg' : 'xl'}
-                    fw={700}
-                    c="white"
-                    style={{ lineHeight: 1.2 }}
-                  >
+                  <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="white" style={{ lineHeight: 1.2 }}>
                     {greeting.text}
                     {isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
                   </Text>
@@ -540,13 +524,7 @@ function HomePageContent() {
 
           {/* Error Alert */}
           {error && (
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              title="Bağlantı Hatası"
-              color="red"
-              variant="light"
-              radius="lg"
-            >
+            <Alert icon={<IconAlertCircle size={16} />} title="Bağlantı Hatası" color="red" variant="light" radius="lg">
               Backend sunucusuna bağlanılamıyor.
             </Alert>
           )}
@@ -603,36 +581,11 @@ function HomePageContent() {
             </Text>
             <ScrollArea type="never" offsetScrollbars={false}>
               <Group gap="sm" wrap={isMobile ? 'nowrap' : 'wrap'}>
-                <QuickAction
-                  href="/upload"
-                  icon={IconUpload}
-                  label="Döküman Yükle"
-                  color="#8B5CF6"
-                />
-                <QuickAction
-                  href="/ihale-merkezi?tab=all"
-                  icon={IconList}
-                  label="İhale Listesi"
-                  color="#3B82F6"
-                />
-                <QuickAction
-                  href="/muhasebe/finans"
-                  icon={IconBuildingBank}
-                  label="Finans"
-                  color="#10B981"
-                />
-                <QuickAction
-                  href="/muhasebe/cariler"
-                  icon={IconUsers}
-                  label="Cariler"
-                  color="#06B6D4"
-                />
-                <QuickAction
-                  href="/muhasebe/faturalar"
-                  icon={IconReceipt}
-                  label="Faturalar"
-                  color="#F59E0B"
-                />
+                <QuickAction href="/upload" icon={IconUpload} label="Döküman Yükle" color="#8B5CF6" />
+                <QuickAction href="/ihale-merkezi?tab=all" icon={IconList} label="İhale Listesi" color="#3B82F6" />
+                <QuickAction href="/muhasebe/finans" icon={IconBuildingBank} label="Finans" color="#10B981" />
+                <QuickAction href="/muhasebe/cariler" icon={IconUsers} label="Cariler" color="#06B6D4" />
+                <QuickAction href="/muhasebe/faturalar" icon={IconReceipt} label="Faturalar" color="#F59E0B" />
               </Group>
             </ScrollArea>
           </Box>
@@ -658,13 +611,7 @@ function HomePageContent() {
 
                 <Stack gap="xs">
                   {yaklasanIhaleler?.slice(0, 4).map((ihale) => (
-                    <Paper
-                      key={ihale.id}
-                      p="sm"
-                      radius="md"
-                      className="stat-card"
-                      data-gradient="blue"
-                    >
+                    <Paper key={ihale.id} p="sm" radius="md" className="stat-card" data-gradient="blue">
                       <Text size="sm" fw={600} lineClamp={1}>
                         {ihale.title || 'İhale'}
                       </Text>
@@ -673,9 +620,7 @@ function HomePageContent() {
                           {ihale.city || '—'}
                         </Badge>
                         <Text size="xs" c="dimmed">
-                          {ihale.tender_date
-                            ? new Date(ihale.tender_date).toLocaleDateString('tr-TR')
-                            : '—'}
+                          {ihale.tender_date ? new Date(ihale.tender_date).toLocaleDateString('tr-TR') : '—'}
                         </Text>
                       </Group>
                     </Paper>

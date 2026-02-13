@@ -207,9 +207,7 @@ export default function IPManagementPage() {
     try {
       const data = await adminAPI.updateIpRule(rule.id, { isActive: !rule.isActive });
       if (data.success) {
-        setRules((prev) =>
-          prev.map((r) => (r.id === rule.id ? { ...r, isActive: !r.isActive } : r))
-        );
+        setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, isActive: !r.isActive } : r)));
       }
     } catch (_error) {
       notifications.show({
@@ -348,11 +346,7 @@ export default function IPManagementPage() {
                             color={rule.type === 'whitelist' ? 'green' : 'red'}
                             variant="light"
                             leftSection={
-                              rule.type === 'whitelist' ? (
-                                <IconLockOpen size={12} />
-                              ) : (
-                                <IconLock size={12} />
-                              )
+                              rule.type === 'whitelist' ? <IconLockOpen size={12} /> : <IconLock size={12} />
                             }
                           >
                             {rule.type === 'whitelist' ? 'Whitelist' : 'Blacklist'}
@@ -364,11 +358,7 @@ export default function IPManagementPage() {
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Switch
-                            checked={rule.isActive}
-                            onChange={() => handleToggleActive(rule)}
-                            size="sm"
-                          />
+                          <Switch checked={rule.isActive} onChange={() => handleToggleActive(rule)} size="sm" />
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm" c="dimmed">
@@ -378,20 +368,12 @@ export default function IPManagementPage() {
                         <Table.Td>
                           <Group gap="xs" justify="flex-end">
                             <Tooltip label="Düzenle">
-                              <ActionIcon
-                                variant="subtle"
-                                color="blue"
-                                onClick={() => handleEditRule(rule)}
-                              >
+                              <ActionIcon variant="subtle" color="blue" onClick={() => handleEditRule(rule)}>
                                 <IconEdit size={16} />
                               </ActionIcon>
                             </Tooltip>
                             <Tooltip label="Sil">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                onClick={() => handleDelete(rule.id)}
-                              >
+                              <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(rule.id)}>
                                 <IconTrash size={16} />
                               </ActionIcon>
                             </Tooltip>

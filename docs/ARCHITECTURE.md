@@ -67,14 +67,14 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 **Module System:** ES Modules (import/export)
 **Port:** 3001
 
-### Routes (46 dosya)
+### Routes (~56 dosya)
 - Auth, Tenders, Documents, Cariler, Stok
 - Personel, Bordro, Invoices, Kasa-Banka
 - Planlama, AI, Notifications, Search, Export
 - Teklifler, Tracking, Ihale Sonuclari, Scraper
 - Firmalar, Mail, Permissions, Audit-logs
 
-### Services (~36 dosya, ai-tools dahil)
+### Services (~43 dosya, ai-tools dahil)
 - claude-ai.js - Claude AI entegrasyonu
 - ai-analyzer/ - Unified document analysis pipeline (v9)
 - bordro-template-service.js - Bordro hesaplama
@@ -144,7 +144,7 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ## Veritabani
 
 **Platform:** Supabase (PostgreSQL)
-**Migrations:** 93+ dosya (Supabase CLI ile yonetiliyor)
+**Migrations:** 106+ dosya (Supabase CLI ile yonetiliyor)
 
 ### Ana Tablolar
 - tenders, documents, tender_tracking

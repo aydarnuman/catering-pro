@@ -67,14 +67,10 @@ export function useUyumsoftFaturalar(
   const filteredUyumsoftFaturalar = useMemo(() => {
     return uyumsoftFaturalar.filter((f) => {
       const matchesTab =
-        activeTab === 'tumu' ||
-        activeTab === 'uyumsoft' ||
-        (activeTab === 'alis' && f.faturaTipi === 'gelen');
+        activeTab === 'tumu' || activeTab === 'uyumsoft' || (activeTab === 'alis' && f.faturaTipi === 'gelen');
       const q = searchTerm.toLowerCase();
       const matchesSearch =
-        !q ||
-        f.gonderenUnvan.toLowerCase().includes(q) ||
-        (f.faturaNo || '').toLowerCase().includes(q);
+        !q || f.gonderenUnvan.toLowerCase().includes(q) || (f.faturaNo || '').toLowerCase().includes(q);
       return matchesTab && matchesSearch;
     });
   }, [uyumsoftFaturalar, activeTab, searchTerm]);

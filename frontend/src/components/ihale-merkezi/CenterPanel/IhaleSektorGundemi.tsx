@@ -198,24 +198,15 @@ function KonuKart({ konu }: { konu: GundemKonu }) {
       {/* Haber listesi */}
       <Stack gap={4}>
         {konu.haberler?.slice(0, 4).map((haber, idx) => (
-          <Box
-            key={`${konu.konu}-${idx}`}
-            style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}
-          >
+          <Box key={`${konu.konu}-${idx}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
             {haber.kaynak_tipi && (
               <Badge
                 size="xs"
                 variant="outline"
-                color={
-                  haber.kaynak_tipi === 'db' || haber.kaynak_tipi === 'ihalebul' ? 'teal' : 'blue'
-                }
+                color={haber.kaynak_tipi === 'db' || haber.kaynak_tipi === 'ihalebul' ? 'teal' : 'blue'}
                 style={{ flexShrink: 0, fontSize: 9, padding: '0 4px' }}
               >
-                {haber.kaynak_tipi === 'ihalebul'
-                  ? 'İB'
-                  : haber.kaynak_tipi === 'db'
-                    ? 'DB'
-                    : 'Web'}
+                {haber.kaynak_tipi === 'ihalebul' ? 'İB' : haber.kaynak_tipi === 'db' ? 'DB' : 'Web'}
               </Badge>
             )}
             {haber.url ? (

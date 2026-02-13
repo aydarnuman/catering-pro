@@ -102,9 +102,7 @@ export const firmalarAPI = {
    * Döküman verisini uygula
    */
   async applyDokumanData(firmaId: number, dokumanId: number): Promise<ApiResponse<any>> {
-    const response = await api.post(
-      `/api/firmalar/${firmaId}/dokumanlar/${dokumanId}/veriyi-uygula`
-    );
+    const response = await api.post(`/api/firmalar/${firmaId}/dokumanlar/${dokumanId}/veriyi-uygula`);
     return response.data;
   },
 
@@ -112,9 +110,7 @@ export const firmalarAPI = {
    * Dökümanı yeniden analiz et
    */
   async reanalyzeDokuman(firmaId: number, dokumanId: number): Promise<ApiResponse<any>> {
-    const response = await api.post(
-      `/api/firmalar/${firmaId}/dokumanlar/${dokumanId}/yeniden-analiz`
-    );
+    const response = await api.post(`/api/firmalar/${firmaId}/dokumanlar/${dokumanId}/yeniden-analiz`);
     return response.data;
   },
 

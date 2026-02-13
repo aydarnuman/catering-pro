@@ -415,9 +415,7 @@ export function NotificationDropdown() {
                               Kritik
                             </Badge>
                           )}
-                          {notification.link && (
-                            <IconExternalLink size={12} style={{ opacity: 0.5 }} />
-                          )}
+                          {notification.link && <IconExternalLink size={12} style={{ opacity: 0.5 }} />}
                         </Group>
                       </Box>
                     </Group>

@@ -4,23 +4,29 @@ import { ActionIcon, Badge, Box, Button, Group, Menu, Modal, Stack, Text } from 
 import { useMediaQuery } from '@mantine/hooks';
 import { IconClock, IconDeviceFloppy, IconHistory, IconX } from '@tabler/icons-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SavedTender } from '../types';
+
+// Lazy load TeklifMerkeziModal to avoid bundle bloat
+const TeklifMerkeziModal = dynamic(
+  () => import('../TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
+  { ssr: false, loading: () => null }
+);
+
 import { AgentCard } from './components/AgentCard';
 import { AgentDetailPanel } from './components/AgentDetailPanel';
 import { AssembleButton } from './components/AssembleButton';
-import { CompareOverlay } from './components/CompareOverlay';
+import { AttachmentPanel } from './components/AttachmentPanel';
 import { DocumentViewer } from './components/DocumentViewer';
 import { NetworkLines } from './components/NetworkLines';
 import { OrbitDetailOverlay } from './components/OrbitDetailOverlay';
-import { OrbitRing } from './components/OrbitRing';
-import { RingListPanel } from './components/RingListPanel';
 import { StageBackground } from './components/StageBackground';
 import { TenderDocumentCard } from './components/TenderDocumentCard';
 import { VerdictReport } from './components/VerdictReport';
 import { SPRING_CONFIG } from './constants';
 import { useAgentRegistry } from './hooks/useAgentRegistry';
-import { useOrbitAttachments } from './hooks/useOrbitAttachments';
+import { useAttachments } from './hooks/useAttachments';
 import { useSanalMasa } from './hooks/useSanalMasa';
 import { useSessionManager } from './hooks/useSessionManager';
 import type {
@@ -34,13 +40,16 @@ import type {
   ViewMode,
 } from './types';
 
-interface SanalIhaleMasasiModalProps {
-  opened: boolean;
-  onClose: () => void;
+// ─── Shared Content Component (used by both Modal and standalone Page) ────
+
+interface SanalIhaleMasasiContentProps {
   tender: SavedTender;
+  onClose: () => void;
+  /** Whether hooks should be active. Defaults to true (always active for page). Modal passes `opened`. */
+  enabled?: boolean;
 }
 
-export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMasasiModalProps) {
+export function SanalIhaleMasasiContent({ tender, onClose, enabled = true }: SanalIhaleMasasiContentProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   const {
@@ -52,18 +61,21 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
     agentHighlights,
     crossReferences,
     snippetDrops,
+    teklifModalOpen,
     handleAgentClick,
     handleBackToOrbit,
     handleAssemble,
     handleReset,
     handleSnippetDrop,
     reanalyzeAgent,
+    handleOpenTeklif,
+    handleCloseTeklif,
   } = useSanalMasa(tender);
 
   // Fetch agents from registry (DB) with fallback to hardcoded constants
   const { agents } = useAgentRegistry({
     contextKey: 'ihale_masasi',
-    enabled: opened,
+    enabled,
   });
 
   // Session tracking
@@ -74,22 +86,22 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
     agentAnalyses,
   });
 
-  const orbit = useOrbitAttachments({
+  const att = useAttachments({
     tenderId: tender?.id ?? null,
-    enabled: opened,
+    enabled,
     analysisSummary: tender?.analysis_summary ?? null,
   });
 
-  // Fetch orbit attachments when modal opens
-  const { fetchAttachments } = orbit;
+  // Fetch attachments when enabled
+  const { fetchAttachments } = att;
   useEffect(() => {
-    if (opened && tender?.id) {
+    if (enabled && tender?.id) {
       fetchAttachments();
     }
-  }, [opened, tender?.id, fetchAttachments]);
+  }, [enabled, tender?.id, fetchAttachments]);
 
-  // Agent tool → orbit auto-attach
-  const { addFromToolResult } = orbit;
+  // Agent tool → auto-attach
+  const { addFromToolResult } = att;
   const handleToolComplete = useCallback(
     (agentId: string, toolId: string, result: ToolResult) => {
       addFromToolResult(agentId as AgentPersona['id'], toolId, result);
@@ -97,15 +109,15 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
     [addFromToolResult]
   );
 
-  // Document expanded state (managed via ref for keyboard handler)
+  // Document expanded state
   const [documentExpanded, setDocumentExpanded] = useState(false);
 
   // Context menu: send selected text to a specific agent
   const handleSendToAgent = useCallback(
     (agentId: AgentPersona['id'], text: string) => {
-      setDocumentExpanded(false); // Close document when sending to agent
+      setDocumentExpanded(false);
       handleSnippetDrop(agentId, text);
-      handleAgentClick(agentId); // Switch to FOCUS mode for the target agent
+      handleAgentClick(agentId);
     },
     [handleSnippetDrop, handleAgentClick]
   );
@@ -125,29 +137,19 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
   // Deadline calculation
   const deadline = tender.tarih ? new Date(tender.tarih) : null;
   const now = new Date();
-  const daysLeft = deadline
-    ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    : null;
+  const daysLeft = deadline ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // First close document expanded if open
         if (documentExpanded) {
           setDocumentExpanded(false);
           e.stopPropagation();
           return;
         }
-        // Then close compare overlay if open
-        if (orbit.compareNodes) {
-          orbit.endCompare();
-          e.stopPropagation();
-          return;
-        }
-        // Then close orbit detail if open
-        if (orbit.detailState.attachmentId || orbit.detailState.mode === 'create') {
-          orbit.closeDetail();
+        if (att.detailState.attachmentId || att.detailState.mode === 'create') {
+          att.closeDetail();
           e.stopPropagation();
           return;
         }
@@ -163,16 +165,185 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
         handleBackToOrbit();
       }
     },
-    [viewMode, handleBackToOrbit, handleReset, orbit, documentExpanded]
+    [viewMode, handleBackToOrbit, handleReset, att, documentExpanded]
   );
 
   useEffect(() => {
-    if (opened) {
+    if (enabled) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [opened, handleKeyDown]);
+  }, [enabled, handleKeyDown]);
 
+  return (
+    <Box
+      style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', background: '#0a0a14' }}
+    >
+      {/* Stage Background */}
+      <StageBackground viewMode={viewMode} />
+
+      {/* Header */}
+      <Box
+        p="sm"
+        px="lg"
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(10,10,20,0.6)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <Group justify="space-between" align="center">
+          <div>
+            <Group gap="sm" align="center">
+              <Text size="sm" fw={700} c="white">
+                Sanal Ihale Masasi
+              </Text>
+              {daysLeft !== null && (
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color={daysLeft <= 3 ? 'red' : daysLeft <= 7 ? 'yellow' : 'green'}
+                  leftSection={<IconClock size={12} />}
+                >
+                  {daysLeft <= 0 ? 'Sure Doldu' : `${daysLeft} gun kaldi`}
+                </Badge>
+              )}
+            </Group>
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {tender.ihale_basligi}
+            </Text>
+          </div>
+          <Group gap="xs">
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconDeviceFloppy size={14} />}
+              loading={saving}
+              onClick={saveSession}
+            >
+              Kaydet
+            </Button>
+            <Menu shadow="md" width={280} position="bottom-end" onOpen={fetchSessions}>
+              <Menu.Target>
+                <ActionIcon variant="subtle" color="gray" size="lg">
+                  <IconHistory size={18} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>Gecmis Oturumlar</Menu.Label>
+                {sessions.length === 0 && <Menu.Item disabled>Henuz kayit yok</Menu.Item>}
+                {sessions.slice(0, 5).map((s) => {
+                  const sd = s.session_data;
+                  const date = new Date(s.created_at).toLocaleDateString('tr-TR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  const score = sd?.verdictData?.overallScore;
+                  return (
+                    <Menu.Item key={s.id} disabled>
+                      <Group justify="space-between" w="100%">
+                        <Stack gap={0}>
+                          <Text size="xs" fw={500}>
+                            {date}
+                          </Text>
+                          <Text size="10px" c="dimmed">
+                            {sd?.duration ? `${Math.floor(sd.duration / 60)}dk ${sd.duration % 60}sn` : ''}
+                          </Text>
+                        </Stack>
+                        {score !== undefined && score !== null && (
+                          <Badge size="sm" color={score >= 70 ? 'green' : score >= 45 ? 'yellow' : 'red'}>
+                            {score}
+                          </Badge>
+                        )}
+                      </Group>
+                    </Menu.Item>
+                  );
+                })}
+              </Menu.Dropdown>
+            </Menu>
+            <ActionIcon variant="subtle" color="gray" onClick={onClose} size="lg">
+              <IconX size={18} />
+            </ActionIcon>
+          </Group>
+        </Group>
+      </Box>
+
+      {/* Stage Content */}
+      <Box style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {isMobile ? (
+          <MobileLayout
+            tender={tender}
+            agents={agents}
+            viewMode={viewMode}
+            agentAnalyses={agentAnalyses}
+            agentHighlights={agentHighlights}
+            crossReferences={crossReferences}
+            focusedAgent={focusedAgent}
+            focusedAnalysis={focusedAnalysis}
+            verdictData={verdictData}
+            snippetDrops={snippetDrops}
+            att={att}
+            onAgentClick={handleAgentClick}
+            onBackToOrbit={handleBackToOrbit}
+            onAssemble={handleAssemble}
+            onReset={handleReset}
+            onSnippetDrop={handleSnippetDrop}
+            onSendToAgent={handleSendToAgent}
+            onBroadcast={handleBroadcast}
+            onReanalyze={reanalyzeAgent}
+            onOpenTeklif={handleOpenTeklif}
+          />
+        ) : (
+          <DesktopLayout
+            tender={tender}
+            agents={agents}
+            viewMode={viewMode}
+            agentAnalyses={agentAnalyses}
+            agentHighlights={agentHighlights}
+            crossReferences={crossReferences}
+            focusedAgent={focusedAgent}
+            focusedAnalysis={focusedAnalysis}
+            verdictData={verdictData}
+            snippetDrops={snippetDrops}
+            att={att}
+            daysLeft={daysLeft}
+            documentExpanded={documentExpanded}
+            onExpandDocument={() => setDocumentExpanded(true)}
+            onCollapseDocument={() => setDocumentExpanded(false)}
+            onToolComplete={handleToolComplete}
+            onAgentClick={handleAgentClick}
+            onBackToOrbit={handleBackToOrbit}
+            onAssemble={handleAssemble}
+            onReset={handleReset}
+            onSnippetDrop={handleSnippetDrop}
+            onSendToAgent={handleSendToAgent}
+            onBroadcast={handleBroadcast}
+            onReanalyze={reanalyzeAgent}
+            onOpenTeklif={handleOpenTeklif}
+          />
+        )}
+      </Box>
+
+      {/* Teklif Merkezi Modal */}
+      <TeklifMerkeziModal opened={teklifModalOpen} onClose={handleCloseTeklif} tender={tender} />
+    </Box>
+  );
+}
+
+// ─── Modal Wrapper (backward compatible, used by IhaleMerkeziLayout) ────
+
+interface SanalIhaleMasasiModalProps {
+  opened: boolean;
+  onClose: () => void;
+  tender: SavedTender;
+}
+
+export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMasasiModalProps) {
   return (
     <Modal
       opened={opened}
@@ -192,168 +363,13 @@ export function SanalIhaleMasasiModal({ opened, onClose, tender }: SanalIhaleMas
       }}
       transitionProps={{ transition: 'fade', duration: 300 }}
     >
-      <Box
-        style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}
-      >
-        {/* Stage Background */}
-        <StageBackground viewMode={viewMode} />
-
-        {/* Header */}
-        <Box
-          p="sm"
-          px="lg"
-          style={{
-            position: 'relative',
-            zIndex: 10,
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            background: 'rgba(10,10,20,0.6)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <Group justify="space-between" align="center">
-            <div>
-              <Group gap="sm" align="center">
-                <Text size="sm" fw={700} c="white">
-                  Sanal Ihale Masasi
-                </Text>
-                {daysLeft !== null && (
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color={daysLeft <= 3 ? 'red' : daysLeft <= 7 ? 'yellow' : 'green'}
-                    leftSection={<IconClock size={12} />}
-                  >
-                    {daysLeft <= 0 ? 'Sure Doldu' : `${daysLeft} gun kaldi`}
-                  </Badge>
-                )}
-              </Group>
-              <Text size="xs" c="dimmed" lineClamp={1}>
-                {tender.ihale_basligi}
-              </Text>
-            </div>
-            <Group gap="xs">
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={<IconDeviceFloppy size={14} />}
-                loading={saving}
-                onClick={saveSession}
-              >
-                Kaydet
-              </Button>
-              <Menu shadow="md" width={280} position="bottom-end" onOpen={fetchSessions}>
-                <Menu.Target>
-                  <ActionIcon variant="subtle" color="gray" size="lg">
-                    <IconHistory size={18} />
-                  </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Label>Gecmis Oturumlar</Menu.Label>
-                  {sessions.length === 0 && <Menu.Item disabled>Henuz kayit yok</Menu.Item>}
-                  {sessions.slice(0, 5).map((s) => {
-                    const sd = s.session_data;
-                    const date = new Date(s.created_at).toLocaleDateString('tr-TR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
-                    const score = sd?.verdictData?.overallScore;
-                    return (
-                      <Menu.Item key={s.id} disabled>
-                        <Group justify="space-between" w="100%">
-                          <Stack gap={0}>
-                            <Text size="xs" fw={500}>
-                              {date}
-                            </Text>
-                            <Text size="10px" c="dimmed">
-                              {sd?.duration
-                                ? `${Math.floor(sd.duration / 60)}dk ${sd.duration % 60}sn`
-                                : ''}
-                            </Text>
-                          </Stack>
-                          {score !== undefined && score !== null && (
-                            <Badge
-                              size="sm"
-                              color={score >= 70 ? 'green' : score >= 45 ? 'yellow' : 'red'}
-                            >
-                              {score}
-                            </Badge>
-                          )}
-                        </Group>
-                      </Menu.Item>
-                    );
-                  })}
-                </Menu.Dropdown>
-              </Menu>
-              <ActionIcon variant="subtle" color="gray" onClick={onClose} size="lg">
-                <IconX size={18} />
-              </ActionIcon>
-            </Group>
-          </Group>
-        </Box>
-
-        {/* Stage Content */}
-        <Box style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-          {isMobile ? (
-            <MobileLayout
-              tender={tender}
-              agents={agents}
-              viewMode={viewMode}
-              agentAnalyses={agentAnalyses}
-              agentHighlights={agentHighlights}
-              crossReferences={crossReferences}
-              focusedAgent={focusedAgent}
-              focusedAnalysis={focusedAnalysis}
-              verdictData={verdictData}
-              snippetDrops={snippetDrops}
-              onAgentClick={handleAgentClick}
-              onBackToOrbit={handleBackToOrbit}
-              onAssemble={handleAssemble}
-              onReset={handleReset}
-              onSnippetDrop={handleSnippetDrop}
-              onSendToAgent={handleSendToAgent}
-              onBroadcast={handleBroadcast}
-              onReanalyze={reanalyzeAgent}
-            />
-          ) : (
-            <DesktopLayout
-              tender={tender}
-              agents={agents}
-              viewMode={viewMode}
-              agentAnalyses={agentAnalyses}
-              agentHighlights={agentHighlights}
-              crossReferences={crossReferences}
-              focusedAgent={focusedAgent}
-              focusedAnalysis={focusedAnalysis}
-              verdictData={verdictData}
-              snippetDrops={snippetDrops}
-              orbit={orbit}
-              daysLeft={daysLeft}
-              documentExpanded={documentExpanded}
-              onExpandDocument={() => setDocumentExpanded(true)}
-              onCollapseDocument={() => setDocumentExpanded(false)}
-              onToolComplete={handleToolComplete}
-              onAgentClick={handleAgentClick}
-              onBackToOrbit={handleBackToOrbit}
-              onAssemble={handleAssemble}
-              onReset={handleReset}
-              onSnippetDrop={handleSnippetDrop}
-              onSendToAgent={handleSendToAgent}
-              onBroadcast={handleBroadcast}
-              onReanalyze={reanalyzeAgent}
-            />
-          )}
-        </Box>
-      </Box>
+      <SanalIhaleMasasiContent tender={tender} onClose={onClose} enabled={opened} />
     </Modal>
   );
 }
 
 // ─── Desktop Layout ──────────────────────────────────────────
 
-/** Helper: creates a default "no-data" analysis stub for agents missing analysis */
 function getDefaultAnalysis(agentId: AgentPersona['id']): AgentAnalysis {
   return {
     agentId,
@@ -375,7 +391,7 @@ interface LayoutProps {
   focusedAnalysis: AgentAnalysis | null;
   verdictData: VerdictData | null;
   snippetDrops: SnippetDrop[];
-  orbit?: ReturnType<typeof useOrbitAttachments>;
+  att: ReturnType<typeof useAttachments>;
   daysLeft?: number | null;
   documentExpanded?: boolean;
   onExpandDocument?: () => void;
@@ -389,6 +405,7 @@ interface LayoutProps {
   onSendToAgent?: (agentId: AgentPersona['id'], text: string) => void;
   onBroadcast?: (text: string) => void;
   onReanalyze?: (agentId: string) => Promise<void>;
+  onOpenTeklif?: () => void;
 }
 
 function DesktopLayout({
@@ -402,7 +419,7 @@ function DesktopLayout({
   focusedAnalysis,
   verdictData,
   snippetDrops,
-  orbit,
+  att,
   daysLeft,
   onToolComplete,
   onAgentClick,
@@ -413,6 +430,7 @@ function DesktopLayout({
   onSendToAgent,
   onBroadcast,
   onReanalyze,
+  onOpenTeklif,
   documentExpanded = false,
   onExpandDocument,
   onCollapseDocument,
@@ -423,9 +441,7 @@ function DesktopLayout({
 
   // Camera shift: determine shift direction based on focused agent side + bottom detection
   const isBottomAgent = focusedAgent ? Boolean(focusedAgent.orbitPosition.bottom) : false;
-
   const shiftX = focusedAgent ? (focusedAgent.side === 'right' ? -220 : 220) : 0;
-
   const shiftY = focusedAgent && isBottomAgent ? -100 : 0;
 
   // Drag & Drop handlers
@@ -448,9 +464,8 @@ function DesktopLayout({
       const px = e.clientX - stageRect.left;
       const py = e.clientY - stageRect.top;
 
-      // Find closest agent
       let closest: string | null = null;
-      let minDist = 120; // Snap distance threshold
+      let minDist = 120;
       for (const agent of agents) {
         const el = stageRef.current.querySelector(`[data-node="${agent.id}"]`);
         if (el) {
@@ -494,24 +509,16 @@ function DesktopLayout({
         crossReferences={crossReferences}
       />
 
-      {/* Camera Shift Wrapper — click backdrop to close FOCUS or documentExpanded */}
+      {/* Camera Shift Wrapper */}
       <motion.div
         animate={{
-          scale: documentExpanded
-            ? 1
-            : viewMode === 'FOCUS'
-              ? 0.82
-              : viewMode === 'ASSEMBLE'
-                ? 0.9
-                : 1,
+          scale: documentExpanded ? 1 : viewMode === 'FOCUS' ? 0.82 : viewMode === 'ASSEMBLE' ? 0.9 : 1,
           x: viewMode === 'FOCUS' && !documentExpanded ? shiftX : 0,
           y: viewMode === 'FOCUS' && !documentExpanded ? shiftY : 0,
           filter: viewMode === 'FOCUS' && !documentExpanded ? 'brightness(0.7)' : 'brightness(1)',
         }}
         transition={SPRING_CONFIG.gentle}
-        onClick={
-          documentExpanded ? onCollapseDocument : viewMode === 'FOCUS' ? onBackToOrbit : undefined
-        }
+        onClick={documentExpanded ? onCollapseDocument : viewMode === 'FOCUS' ? onBackToOrbit : undefined}
         style={{
           position: 'absolute',
           inset: 0,
@@ -553,24 +560,11 @@ function DesktopLayout({
               onBroadcast={onBroadcast}
             />
           </div>
-          {/* Orbit Ring — attachment nodes around center card */}
-          {orbit && (
-            <OrbitRing
-              attachments={orbit.attachments}
-              positions={orbit.nodePositions}
-              viewMode={viewMode}
-              loading={orbit.loading}
-              compareFirstId={orbit.compareFirstId}
-              onNodeClick={(id, shiftKey) => orbit.handleNodeClick(id, shiftKey)}
-              onAddClick={() => orbit.openCreate()}
-            />
-          )}
         </motion.div>
 
         {/* Agent Cards */}
         {agents.map((agent) => {
-          const analysis =
-            agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
+          const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
           const assembleX = agent.assembleOffset.x;
           const assembleY = agent.assembleOffset.y;
           const isDropTarget = dropTargetId === agent.id;
@@ -616,7 +610,6 @@ function DesktopLayout({
                 delay: viewMode === 'ASSEMBLE' ? agent.assembleDelay : 0,
               }}
             >
-              {/* stopPropagation: prevent backdrop click from closing panel */}
               {/* biome-ignore lint/a11y/noStaticElementInteractions: Propagation stopper for modal backdrop */}
               <div role="presentation" onClick={(e) => e.stopPropagation()}>
                 <AgentCard
@@ -648,7 +641,7 @@ function DesktopLayout({
         )}
       </motion.div>
 
-      {/* FOCUS: Floating Detail Panel — full-height rail (Railway style) */}
+      {/* FOCUS: Floating Detail Panel */}
       <AnimatePresence>
         {viewMode === 'FOCUS' && focusedAgent && focusedAnalysis && (
           <motion.div
@@ -685,20 +678,13 @@ function DesktopLayout({
       {/* ASSEMBLE: Verdict Report */}
       <AnimatePresence>
         {viewMode === 'ASSEMBLE' && verdictData && (
-          <VerdictReport data={verdictData} crossReferences={crossReferences} onReset={onReset} />
+          <VerdictReport
+            data={verdictData}
+            crossReferences={crossReferences}
+            onReset={onReset}
+            onOpenTeklif={onOpenTeklif}
+          />
         )}
-      </AnimatePresence>
-
-      {/* Compare Overlay */}
-      <AnimatePresence>
-        {orbit?.compareNodes &&
-          (() => {
-            const [compareIdA, compareIdB] = orbit.compareNodes;
-            const nodeA = orbit.attachments.find((a) => a.id === compareIdA);
-            const nodeB = orbit.attachments.find((a) => a.id === compareIdB);
-            if (!nodeA || !nodeB) return null;
-            return <CompareOverlay nodeA={nodeA} nodeB={nodeB} onClose={orbit.endCompare} />;
-          })()}
       </AnimatePresence>
 
       {/* Drag ghost indicator */}
@@ -710,34 +696,35 @@ function DesktopLayout({
         </Box>
       )}
 
-      {/* Ring List Panel - collapsible side panel */}
-      {orbit && viewMode === 'ORBIT' && !documentExpanded && (
-        <RingListPanel
-          attachments={orbit.attachments}
-          loading={orbit.loading}
-          onItemClick={(id) => orbit.openDetail(id)}
-          onAddClick={() => orbit.openCreate()}
+      {/* Attachment Panel — visible in all view modes */}
+      {!documentExpanded && (
+        <AttachmentPanel
+          attachments={att.attachments}
+          loading={att.loading}
+          viewMode={viewMode}
+          focusedAgentId={focusedAgent?.id ?? null}
+          onItemClick={(id) => att.openDetail(id)}
+          onAddClick={() => att.openCreate()}
+          onSaveVirtual={att.saveVirtualAttachment}
         />
       )}
 
-      {/* Orbit Detail Overlay — fixed positioned, outside camera-shift wrapper */}
-      {orbit && (
-        <OrbitDetailOverlay
-          attachment={
-            orbit.detailState.attachmentId
-              ? (orbit.attachments.find((a) => a.id === orbit.detailState.attachmentId) ?? null)
-              : null
-          }
-          mode={orbit.detailState.mode}
-          createType={orbit.detailState.createType}
-          onSave={orbit.updateAttachment}
-          onCreate={orbit.addAttachment}
-          onDelete={orbit.deleteAttachment}
-          onSaveVirtual={orbit.saveVirtualAttachment}
-          onClose={orbit.closeDetail}
-          onEdit={orbit.openEdit}
-        />
-      )}
+      {/* Attachment Detail Overlay */}
+      <OrbitDetailOverlay
+        attachment={
+          att.detailState.attachmentId
+            ? (att.attachments.find((a) => a.id === att.detailState.attachmentId) ?? null)
+            : null
+        }
+        mode={att.detailState.mode}
+        createType={att.detailState.createType}
+        onSave={att.updateAttachment}
+        onCreate={att.addAttachment}
+        onDelete={att.deleteAttachment}
+        onSaveVirtual={att.saveVirtualAttachment}
+        onClose={att.closeDetail}
+        onEdit={att.openEdit}
+      />
     </Box>
   );
 }
@@ -754,11 +741,13 @@ function MobileLayout({
   focusedAnalysis,
   verdictData,
   snippetDrops,
+  att,
   onAgentClick,
   onBackToOrbit,
   onAssemble,
   onReset,
   onReanalyze,
+  onOpenTeklif,
 }: LayoutProps) {
   return (
     <Box
@@ -783,11 +772,7 @@ function MobileLayout({
         transition={SPRING_CONFIG.gentle}
         style={{ zIndex: 5 }}
       >
-        <TenderDocumentCard
-          title={tender.ihale_basligi}
-          kurum={tender.kurum}
-          bedel={tender.bedel}
-        />
+        <TenderDocumentCard title={tender.ihale_basligi} kurum={tender.kurum} bedel={tender.bedel} />
       </motion.div>
 
       {/* Agents - bottom arc */}
@@ -806,8 +791,7 @@ function MobileLayout({
             }}
           >
             {agents.map((agent) => {
-              const analysis =
-                agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
+              const analysis = agentAnalyses.find((a) => a.agentId === agent.id) ?? getDefaultAnalysis(agent.id);
               return (
                 <AgentCard
                   key={agent.id}
@@ -862,9 +846,46 @@ function MobileLayout({
       {/* ASSEMBLE: Verdict Report */}
       <AnimatePresence>
         {viewMode === 'ASSEMBLE' && verdictData && (
-          <VerdictReport data={verdictData} crossReferences={crossReferences} onReset={onReset} />
+          <VerdictReport
+            data={verdictData}
+            crossReferences={crossReferences}
+            onReset={onReset}
+            onOpenTeklif={onOpenTeklif}
+          />
         )}
       </AnimatePresence>
+
+      {/* Attachment Panel — mobile: also available */}
+      {att && (
+        <AttachmentPanel
+          attachments={att.attachments}
+          loading={att.loading}
+          viewMode={viewMode}
+          focusedAgentId={focusedAgent?.id ?? null}
+          onItemClick={(id) => att.openDetail(id)}
+          onAddClick={() => att.openCreate()}
+          onSaveVirtual={att.saveVirtualAttachment}
+        />
+      )}
+
+      {/* Attachment Detail Overlay */}
+      {att && (
+        <OrbitDetailOverlay
+          attachment={
+            att.detailState.attachmentId
+              ? (att.attachments.find((a) => a.id === att.detailState.attachmentId) ?? null)
+              : null
+          }
+          mode={att.detailState.mode}
+          createType={att.detailState.createType}
+          onSave={att.updateAttachment}
+          onCreate={att.addAttachment}
+          onDelete={att.deleteAttachment}
+          onSaveVirtual={att.saveVirtualAttachment}
+          onClose={att.closeDetail}
+          onEdit={att.openEdit}
+        />
+      )}
     </Box>
   );
 }

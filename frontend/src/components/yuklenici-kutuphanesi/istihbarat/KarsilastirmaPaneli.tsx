@@ -27,14 +27,7 @@ import {
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
-import {
-  IconArrowsExchange,
-  IconInfoCircle,
-  IconMapPin,
-  IconSearch,
-  IconTrophy,
-  IconX,
-} from '@tabler/icons-react';
+import { IconArrowsExchange, IconInfoCircle, IconMapPin, IconSearch, IconTrophy, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
 import type { Yuklenici } from '@/types/yuklenici';
@@ -104,9 +97,7 @@ export function KarsilastirmaPaneli({ yukleniciId }: Props) {
       }
       setAramYukleniyor(true);
       try {
-        const res = await mFetch(
-          getApiUrl(`/contractors?search=${encodeURIComponent(q)}&limit=10`)
-        );
+        const res = await mFetch(getApiUrl(`/contractors?search=${encodeURIComponent(q)}&limit=10`));
         const json = await res.json();
         if (json.success) {
           setAramaListesi((json.data as Yuklenici[]).filter((y) => !secilenIdler.includes(y.id)));
@@ -256,14 +247,8 @@ export function KarsilastirmaPaneli({ yukleniciId }: Props) {
 
       {/* Yükleme / Hata / Yetersiz Seçim */}
       {secilenIdler.length < 2 && (
-        <Alert
-          icon={<IconInfoCircle size={16} />}
-          color="gray"
-          variant="light"
-          title="Seçim Gerekli"
-        >
-          Karşılaştırma için en az 2 yüklenici seçin. Arama kutusundan yeni yüklenici
-          ekleyebilirsiniz.
+        <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" title="Seçim Gerekli">
+          Karşılaştırma için en az 2 yüklenici seçin. Arama kutusundan yeni yüklenici ekleyebilirsiniz.
         </Alert>
       )}
 
@@ -436,10 +421,7 @@ export function KarsilastirmaPaneli({ yukleniciId }: Props) {
                             size="xs"
                             variant="dot"
                             color={
-                              RENKLER[
-                                veri.yukleniciler.findIndex((y) => y.id === k.yuklenici_id) %
-                                  RENKLER.length
-                              ]
+                              RENKLER[veri.yukleniciler.findIndex((y) => y.id === k.yuklenici_id) % RENKLER.length]
                             }
                           >
                             {k.unvan?.substring(0, 25)}
@@ -474,10 +456,7 @@ export function KarsilastirmaPaneli({ yukleniciId }: Props) {
                   Şehir Dağılımı Karşılaştırması
                 </Text>
               </Group>
-              <SimpleGrid
-                cols={{ base: 1, sm: Math.min(veri.yukleniciler.length, 3) }}
-                spacing="sm"
-              >
+              <SimpleGrid cols={{ base: 1, sm: Math.min(veri.yukleniciler.length, 3) }} spacing="sm">
                 {veri.yukleniciler.map((yk, idx) => {
                   const sehirler = veri.sehirDagilimi[yk.id] || [];
                   return (

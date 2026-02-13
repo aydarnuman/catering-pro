@@ -11,8 +11,12 @@ import personalRoutes from './personal.js';
 import remindersRoutes from './reminders.js';
 import sharingRoutes from './sharing.js';
 import tagsRoutes from './tags.js';
+import trackerRoutes from './tracker.js';
 
 const router = express.Router();
+
+// Tracker: /api/notes/tracker (MUST be before personal to avoid /:id conflict)
+router.use('/tracker', trackerRoutes);
 
 // Folders: /api/notes/folders (MUST be before personal to avoid /:id conflict)
 router.use('/folders', foldersRoutes);

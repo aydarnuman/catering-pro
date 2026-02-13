@@ -126,14 +126,7 @@ export interface ToolResult {
 
 // ─── Orbit Ring (Attachment Hub) ─────────────────────────
 
-export type AttachmentType =
-  | 'note'
-  | 'document'
-  | 'petition'
-  | 'ai_report'
-  | 'link'
-  | 'contact'
-  | 'calculation';
+export type AttachmentType = 'note' | 'document' | 'petition' | 'ai_report' | 'link' | 'contact' | 'calculation';
 
 export interface AttachmentFile {
   id: number;

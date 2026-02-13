@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
 import { Box, Divider, Stack, Text } from '@mantine/core';
 import { IconTools } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import { useAgentTools } from '../../hooks/useAgentTools';
 import type { AgentPersona, AgentTool, ToolResult } from '../../types';
 import { DraftTool } from './DraftTool';
@@ -32,7 +32,14 @@ function sortByUrgency(tools: AgentTool[], isUrgent: boolean): AgentTool[] {
   });
 }
 
-export function AgentToolkit({ agent, selectedText, tenderId, analysisContext, daysLeft, onToolComplete }: AgentToolkitProps) {
+export function AgentToolkit({
+  agent,
+  selectedText,
+  tenderId,
+  analysisContext,
+  daysLeft,
+  onToolComplete,
+}: AgentToolkitProps) {
   const { agentTools, executeTool, clearResult, getExecution } = useAgentTools(agent.id, {
     tenderId,
     analysisContext,
@@ -97,31 +104,13 @@ export function AgentToolkit({ agent, selectedText, tenderId, analysisContext, d
               const result = execution.result!;
 
               if (result.type === 'redline') {
-                return (
-                  <RedlineTool
-                    key={tool.id}
-                    result={result}
-                    onClose={() => clearResult(tool.id)}
-                  />
-                );
+                return <RedlineTool key={tool.id} result={result} onClose={() => clearResult(tool.id)} />;
               }
               if (result.type === 'precedent') {
-                return (
-                  <PrecedentTool
-                    key={tool.id}
-                    result={result}
-                    onClose={() => clearResult(tool.id)}
-                  />
-                );
+                return <PrecedentTool key={tool.id} result={result} onClose={() => clearResult(tool.id)} />;
               }
               if (result.type === 'draft') {
-                return (
-                  <DraftTool
-                    key={tool.id}
-                    result={result}
-                    onClose={() => clearResult(tool.id)}
-                  />
-                );
+                return <DraftTool key={tool.id} result={result} onClose={() => clearResult(tool.id)} />;
               }
               if (result.type === 'calculation' || result.type === 'generic') {
                 return (
@@ -131,11 +120,7 @@ export function AgentToolkit({ agent, selectedText, tenderId, analysisContext, d
                     color={agent.color}
                     onClose={() => clearResult(tool.id)}
                   >
-                    <Text
-                      size="xs"
-                      c="gray.4"
-                      style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}
-                    >
+                    <Text size="xs" c="gray.4" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
                       {result.content || 'Sonuc olusturuldu.'}
                     </Text>
                   </ToolResultCard>

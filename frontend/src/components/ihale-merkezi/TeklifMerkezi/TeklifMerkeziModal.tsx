@@ -26,13 +26,7 @@ import { TeklifMerkeziSidebar } from './TeklifMerkeziSidebar';
 import type { TeklifMerkeziModalProps, TeklifMerkeziSection } from './types';
 import { SECTIONS } from './types';
 
-const SECTION_ORDER: TeklifMerkeziSection[] = [
-  'tespit',
-  'maliyet',
-  'hesaplamalar',
-  'cetvel',
-  'ozet',
-];
+const SECTION_ORDER: TeklifMerkeziSection[] = ['tespit', 'maliyet', 'hesaplamalar', 'cetvel', 'ozet'];
 
 export function TeklifMerkeziModal({
   opened,
@@ -58,9 +52,7 @@ export function TeklifMerkeziModal({
 
   const handleClose = useCallback(() => {
     if (isDirty) {
-      const confirmed = window.confirm(
-        'Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?'
-      );
+      const confirmed = window.confirm('Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?');
       if (!confirmed) return;
     }
     onClose();
@@ -86,10 +78,7 @@ export function TeklifMerkeziModal({
     ['alt+ArrowRight', goForward],
   ]);
 
-  const currentSectionInfo = useMemo(
-    () => SECTIONS.find((s) => s.id === activeSection),
-    [activeSection]
-  );
+  const currentSectionInfo = useMemo(() => SECTIONS.find((s) => s.id === activeSection), [activeSection]);
 
   const renderSection = () => {
     switch (activeSection) {
@@ -152,10 +141,7 @@ export function TeklifMerkeziModal({
         </Group>
         <Group gap="xs">
           {/* Nav prev/next */}
-          <Tooltip
-            label={`Önceki: ${canGoBack ? SECTIONS[currentIndex - 1]?.label : ''}`}
-            disabled={!canGoBack}
-          >
+          <Tooltip label={`Önceki: ${canGoBack ? SECTIONS[currentIndex - 1]?.label : ''}`} disabled={!canGoBack}>
             <Button
               size="compact-xs"
               variant="subtle"
@@ -169,10 +155,7 @@ export function TeklifMerkeziModal({
           <Text size="xs" c="dimmed">
             {currentIndex + 1} / {SECTION_ORDER.length}
           </Text>
-          <Tooltip
-            label={`Sonraki: ${canGoForward ? SECTIONS[currentIndex + 1]?.label : ''}`}
-            disabled={!canGoForward}
-          >
+          <Tooltip label={`Sonraki: ${canGoForward ? SECTIONS[currentIndex + 1]?.label : ''}`} disabled={!canGoForward}>
             <Button
               size="compact-xs"
               variant="subtle"
@@ -191,9 +174,7 @@ export function TeklifMerkeziModal({
             size="compact-sm"
             variant={isDirty ? 'gradient' : 'light'}
             gradient={{ from: 'blue', to: 'cyan' }}
-            leftSection={
-              saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={14} />
-            }
+            leftSection={saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={14} />}
             onClick={handleSave}
             loading={saving}
             disabled={!isDirty && !saving}
@@ -297,9 +278,7 @@ export function TeklifMerkeziModal({
                   variant="gradient"
                   gradient={{ from: 'green', to: 'teal' }}
                   size="sm"
-                  leftSection={
-                    saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={16} />
-                  }
+                  leftSection={saving ? <Loader size={14} color="white" /> : <IconDeviceFloppy size={16} />}
                   onClick={handleSave}
                   loading={saving}
                 >

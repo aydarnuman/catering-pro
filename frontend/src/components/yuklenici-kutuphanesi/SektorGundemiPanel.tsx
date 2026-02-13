@@ -198,10 +198,7 @@ export function SektorGundemiPanel({ compact = false, maxHaber = 4 }: SektorGund
                 {/* Haber listesi */}
                 <Stack gap={4}>
                   {konu.haberler?.slice(0, maxHaber).map((haber, idx) => (
-                    <Box
-                      key={`${konu.konu}-${idx}`}
-                      style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}
-                    >
+                    <Box key={`${konu.konu}-${idx}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
                       {haber.kaynak_tipi && (
                         <Badge
                           size="xs"

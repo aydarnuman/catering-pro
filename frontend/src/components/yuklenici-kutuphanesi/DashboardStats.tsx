@@ -13,13 +13,7 @@ import {
 import type { StatsData } from '@/types/yuklenici';
 import { formatCurrency } from '@/types/yuklenici';
 
-export function DashboardStats({
-  stats,
-  onOpenDetail,
-}: {
-  stats: StatsData;
-  onOpenDetail: (id: number) => void;
-}) {
+export function DashboardStats({ stats, onOpenDetail }: { stats: StatsData; onOpenDetail: (id: number) => void }) {
   return (
     <>
       {/* Genel istatistik kartlari — premium dark + gold */}
@@ -42,11 +36,7 @@ export function DashboardStats({
             >
               <IconUsers size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Toplam Yuklenici
             </Text>
           </Group>
@@ -66,11 +56,7 @@ export function DashboardStats({
             >
               <IconBookmarkFilled size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Takipte
             </Text>
           </Group>
@@ -84,11 +70,7 @@ export function DashboardStats({
             <ThemeIcon size="sm" variant="light" color="green" radius="sm">
               <IconActivity size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Aktif Yuklenici
             </Text>
           </Group>
@@ -108,18 +90,12 @@ export function DashboardStats({
             >
               <IconCash size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Pazar Buyuklugu
             </Text>
           </Group>
           <Text fw={700} size="lg" style={{ color: 'var(--yk-gold)' }}>
-            {stats.genel.toplam_pazar_buyuklugu
-              ? formatCurrency(parseFloat(stats.genel.toplam_pazar_buyuklugu))
-              : '-'}
+            {stats.genel.toplam_pazar_buyuklugu ? formatCurrency(parseFloat(stats.genel.toplam_pazar_buyuklugu)) : '-'}
           </Text>
         </Card>
 
@@ -128,19 +104,12 @@ export function DashboardStats({
             <ThemeIcon size="sm" variant="light" color="teal" radius="sm">
               <IconTargetArrow size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Ort. Kazanma
             </Text>
           </Group>
           <Text fw={700} size="xl" c="teal">
-            %
-            {stats.genel.ortalama_kazanma_orani
-              ? parseFloat(stats.genel.ortalama_kazanma_orani).toFixed(1)
-              : '0'}
+            %{stats.genel.ortalama_kazanma_orani ? parseFloat(stats.genel.ortalama_kazanma_orani).toFixed(1) : '0'}
           </Text>
         </Card>
 
@@ -149,19 +118,12 @@ export function DashboardStats({
             <ThemeIcon size="sm" variant="light" color="grape" radius="sm">
               <IconDiscount size={12} />
             </ThemeIcon>
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Ort. Indirim
             </Text>
           </Group>
           <Text fw={700} size="xl" c="grape">
-            %
-            {stats.genel.ortalama_indirim
-              ? parseFloat(stats.genel.ortalama_indirim).toFixed(1)
-              : '0'}
+            %{stats.genel.ortalama_indirim ? parseFloat(stats.genel.ortalama_indirim).toFixed(1) : '0'}
           </Text>
         </Card>
       </div>
@@ -174,13 +136,7 @@ export function DashboardStats({
           const accentColors = ['#C9A84C', '#9CA3AF', '#B87333']; // gold, silver, bronze
 
           return (
-            <Card
-              p="md"
-              radius="md"
-              mb="md"
-              className="yk-stat-card"
-              style={{ borderColor: 'var(--yk-border)' }}
-            >
+            <Card p="md" radius="md" mb="md" className="yk-stat-card" style={{ borderColor: 'var(--yk-border)' }}>
               <Group gap={8} mb="sm">
                 <ThemeIcon
                   size="sm"
@@ -228,20 +184,13 @@ export function DashboardStats({
                     </span>
                     <div className="yk-lb-info">
                       <Tooltip label={firma.unvan} openDelay={400} multiline maw={300}>
-                        <Text
-                          size="sm"
-                          fw={600}
-                          lineClamp={1}
-                          style={{ color: 'var(--yk-text-primary)' }}
-                        >
+                        <Text size="sm" fw={600} lineClamp={1} style={{ color: 'var(--yk-text-primary)' }}>
                           {firma.kisa_ad || firma.unvan}
                         </Text>
                       </Tooltip>
                     </div>
                     <Text size="sm" fw={700} style={{ flexShrink: 0, color: accentColors[idx] }}>
-                      {firma.toplam_sozlesme_bedeli
-                        ? formatCurrency(Number(firma.toplam_sozlesme_bedeli))
-                        : '-'}
+                      {firma.toplam_sozlesme_bedeli ? formatCurrency(Number(firma.toplam_sozlesme_bedeli)) : '-'}
                     </Text>
                   </button>
                 ))}
@@ -266,22 +215,12 @@ export function DashboardStats({
                     >
                       <span className="yk-lb-num-sm">{idx + 4}</span>
                       <Tooltip label={firma.unvan} openDelay={400} multiline maw={300}>
-                        <Text
-                          size="xs"
-                          lineClamp={1}
-                          style={{ flex: 1, minWidth: 0, color: 'var(--yk-text-primary)' }}
-                        >
+                        <Text size="xs" lineClamp={1} style={{ flex: 1, minWidth: 0, color: 'var(--yk-text-primary)' }}>
                           {firma.kisa_ad || firma.unvan}
                         </Text>
                       </Tooltip>
-                      <Text
-                        size="xs"
-                        fw={500}
-                        style={{ flexShrink: 0, color: 'var(--yk-text-secondary)' }}
-                      >
-                        {firma.toplam_sozlesme_bedeli
-                          ? formatCurrency(Number(firma.toplam_sozlesme_bedeli))
-                          : '-'}
+                      <Text size="xs" fw={500} style={{ flexShrink: 0, color: 'var(--yk-text-secondary)' }}>
+                        {firma.toplam_sozlesme_bedeli ? formatCurrency(Number(firma.toplam_sozlesme_bedeli)) : '-'}
                       </Text>
                     </button>
                   ))}

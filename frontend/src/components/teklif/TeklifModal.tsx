@@ -68,13 +68,7 @@ import type {
   TeklifData,
   YasalGiderKalem,
 } from './types';
-import {
-  ARAC_TIPLERI,
-  DEFAULT_TEKLIF_DATA,
-  EKIPMAN_SABLONLARI,
-  MALIYET_KALEMLERI,
-  POZISYON_SABLONLARI,
-} from './types';
+import { ARAC_TIPLERI, DEFAULT_TEKLIF_DATA, EKIPMAN_SABLONLARI, MALIYET_KALEMLERI, POZISYON_SABLONLARI } from './types';
 
 interface TeklifModalProps {
   opened: boolean;
@@ -289,8 +283,7 @@ export default function TeklifModal({
         </Group>
 
         <Text size="xs" c="dimmed" fs="italic">
-          Sadece yemek hammadde maliyetini girin. Personel, nakliye ve diğer giderler ayrı
-          hesaplanır.
+          Sadece yemek hammadde maliyetini girin. Personel, nakliye ve diğer giderler ayrı hesaplanır.
         </Text>
 
         <Text size="sm" fw={500}>
@@ -311,9 +304,7 @@ export default function TeklifModal({
           <Table.Tbody>
             {detay.ogunler.map((ogun, idx) => {
               const toplamOgun = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi : 0;
-              const ogunToplam = ogun.aktif
-                ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
-                : 0;
+              const ogunToplam = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet : 0;
               return (
                 <Table.Tr key={ogun.ad} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
                   <Table.Td>
@@ -414,8 +405,7 @@ export default function TeklifModal({
         </Group>
 
         <Text size="xs" c="dimmed" fs="italic">
-          Brüt maaş üzerinden hesaplanır. SGK işveren payı (%22.5) ve işsizlik (%2) otomatik
-          eklenir.
+          Brüt maaş üzerinden hesaplanır. SGK işveren payı (%22.5) ve işsizlik (%2) otomatik eklenir.
         </Text>
 
         <Group>
@@ -874,8 +864,7 @@ export default function TeklifModal({
         </Group>
 
         <Text size="xs" c="dimmed" fs="italic">
-          Mutfak ekipmanları için kira veya satın alma seçebilirsiniz. Bakım maliyetini ayrıca
-          ekleyin.
+          Mutfak ekipmanları için kira veya satın alma seçebilirsiniz. Bakım maliyetini ayrıca ekleyin.
         </Text>
 
         <NumberInput
@@ -898,8 +887,7 @@ export default function TeklifModal({
                 onChange={(v) => {
                   const yeniEkipmanlar = [...detay.ekipmanlar];
                   const sablon = EKIPMAN_SABLONLARI.find((e) => e.ad === v);
-                  const fiyat =
-                    ekp.tip === 'kira' ? sablon?.varsayilanKira : sablon?.varsayilanSatin;
+                  const fiyat = ekp.tip === 'kira' ? sablon?.varsayilanKira : sablon?.varsayilanSatin;
                   yeniEkipmanlar[idx] = {
                     ...yeniEkipmanlar[idx],
                     ad: v || '',
@@ -1216,8 +1204,7 @@ export default function TeklifModal({
         </Group>
 
         <Text size="xs" c="dimmed" fs="italic">
-          Sigorta, belge, İSG ve ihale giderleri. Damga vergisi, teminat mektubu maliyetlerini
-          unutmayın.
+          Sigorta, belge, İSG ve ihale giderleri. Damga vergisi, teminat mektubu maliyetlerini unutmayın.
         </Text>
 
         {renderKategori('sigortalar', 'Sigortalar', <IconShieldCheck size={16} />)}
@@ -1479,11 +1466,7 @@ export default function TeklifModal({
       {/* Mobil: Kalem seçici buton */}
       {isMobile && isMounted && (
         <Paper p="sm" withBorder radius="md" mb="xs">
-          <Group
-            justify="space-between"
-            onClick={() => setMobileMenuOpen(true)}
-            style={{ cursor: 'pointer' }}
-          >
+          <Group justify="space-between" onClick={() => setMobileMenuOpen(true)} style={{ cursor: 'pointer' }}>
             <Group gap="sm">
               <IconMenu2 size={18} />
               <Text fw={500}>{MALIYET_KALEMLERI.find((k) => k.key === selectedKalem)?.label}</Text>
@@ -1517,10 +1500,7 @@ export default function TeklifModal({
                 <Text size="11px" c="dark.4" fw={700} tt="uppercase" style={{ letterSpacing: 1.5 }}>
                   Direkt
                 </Text>
-                <Box
-                  mt={4}
-                  style={{ height: 2, width: 24, background: '#3b82f6', borderRadius: 1 }}
-                />
+                <Box mt={4} style={{ height: 2, width: 24, background: '#3b82f6', borderRadius: 1 }} />
               </Box>
               {MALIYET_KALEMLERI.slice(0, 3).map((kalem) => {
                 const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
@@ -1551,11 +1531,7 @@ export default function TeklifModal({
                             flexShrink: 0,
                           }}
                         />
-                        <Text
-                          size="xs"
-                          fw={600}
-                          c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                        >
+                        <Text size="xs" fw={600} c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}>
                           {kalem.label}
                         </Text>
                       </Group>
@@ -1563,13 +1539,7 @@ export default function TeklifModal({
                         {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                       </Text>
                     </Group>
-                    <Text
-                      size="sm"
-                      fw={700}
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
-                      mt={2}
-                      pl={14}
-                    >
+                    <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
                       {tutar > 0 ? formatParaKisa(tutar) : '—'}
                     </Text>
                   </Box>
@@ -1581,10 +1551,7 @@ export default function TeklifModal({
                 <Text size="11px" c="dark.4" fw={700} tt="uppercase" style={{ letterSpacing: 1.5 }}>
                   Operasyonel
                 </Text>
-                <Box
-                  mt={4}
-                  style={{ height: 2, width: 24, background: '#10b981', borderRadius: 1 }}
-                />
+                <Box mt={4} style={{ height: 2, width: 24, background: '#10b981', borderRadius: 1 }} />
               </Box>
               {MALIYET_KALEMLERI.slice(3, 5).map((kalem) => {
                 const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
@@ -1615,11 +1582,7 @@ export default function TeklifModal({
                             flexShrink: 0,
                           }}
                         />
-                        <Text
-                          size="xs"
-                          fw={600}
-                          c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                        >
+                        <Text size="xs" fw={600} c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}>
                           {kalem.label}
                         </Text>
                       </Group>
@@ -1627,13 +1590,7 @@ export default function TeklifModal({
                         {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                       </Text>
                     </Group>
-                    <Text
-                      size="sm"
-                      fw={700}
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
-                      mt={2}
-                      pl={14}
-                    >
+                    <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
                       {tutar > 0 ? formatParaKisa(tutar) : '—'}
                     </Text>
                   </Box>
@@ -1645,10 +1602,7 @@ export default function TeklifModal({
                 <Text size="11px" c="dark.4" fw={700} tt="uppercase" style={{ letterSpacing: 1.5 }}>
                   Genel
                 </Text>
-                <Box
-                  mt={4}
-                  style={{ height: 2, width: 24, background: '#8b5cf6', borderRadius: 1 }}
-                />
+                <Box mt={4} style={{ height: 2, width: 24, background: '#8b5cf6', borderRadius: 1 }} />
               </Box>
               {MALIYET_KALEMLERI.slice(5).map((kalem) => {
                 const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
@@ -1679,11 +1633,7 @@ export default function TeklifModal({
                             flexShrink: 0,
                           }}
                         />
-                        <Text
-                          size="xs"
-                          fw={600}
-                          c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                        >
+                        <Text size="xs" fw={600} c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}>
                           {kalem.label}
                         </Text>
                       </Group>
@@ -1691,13 +1641,7 @@ export default function TeklifModal({
                         {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                       </Text>
                     </Group>
-                    <Text
-                      size="sm"
-                      fw={700}
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
-                      mt={2}
-                      pl={14}
-                    >
+                    <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
                       {tutar > 0 ? formatParaKisa(tutar) : '—'}
                     </Text>
                   </Box>
@@ -1720,9 +1664,7 @@ export default function TeklifModal({
           border: '1px solid #e2e8f0',
         }}
       >
-        <ScrollArea style={{ height: isMobile && isMounted ? 'auto' : '100%' }}>
-          {renderMaliyetForm()}
-        </ScrollArea>
+        <ScrollArea style={{ height: isMobile && isMounted ? 'auto' : '100%' }}>{renderMaliyetForm()}</ScrollArea>
       </Paper>
 
       {/* Mobil Kalem Menüsü */}
@@ -1876,9 +1818,7 @@ export default function TeklifModal({
                       <NumberInput
                         variant="unstyled"
                         value={kalem.birimFiyat ?? 0}
-                        onChange={(v) =>
-                          handleCetvelBirimFiyatChange(idx, typeof v === 'number' ? v : 0)
-                        }
+                        onChange={(v) => handleCetvelBirimFiyatChange(idx, typeof v === 'number' ? v : 0)}
                         min={0}
                         decimalScale={2}
                         thousandSeparator="."
@@ -1889,11 +1829,7 @@ export default function TeklifModal({
                       <Text fw={500}>{formatPara(kalem.tutar)}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <ActionIcon
-                        color="red"
-                        variant="subtle"
-                        onClick={() => handleCetvelKalemSil(idx)}
-                      >
+                      <ActionIcon color="red" variant="subtle" onClick={() => handleCetvelKalemSil(idx)}>
                         <IconTrash size={16} />
                       </ActionIcon>
                     </Table.Td>
@@ -1912,11 +1848,7 @@ export default function TeklifModal({
             </Table>
           </ScrollArea>
 
-          <Button
-            variant="light"
-            leftSection={<IconPlus size={16} />}
-            onClick={handleCetvelKalemEkle}
-          >
+          <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleCetvelKalemEkle}>
             Kalem Ekle
           </Button>
 
@@ -1944,15 +1876,10 @@ export default function TeklifModal({
                 </Text>
                 <Text
                   fw={600}
-                  c={
-                    hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami > 0
-                      ? 'red'
-                      : 'green'
-                  }
+                  c={hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami > 0 ? 'red' : 'green'}
                 >
                   {formatPara(teklifData.cetvel_toplami - hesaplanmisTeklifData.teklif_fiyati)}
-                  {Math.abs(hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami) >
-                    1000 && ' ⚠️'}
+                  {Math.abs(hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami) > 1000 && ' ⚠️'}
                 </Text>
               </div>
             </Group>
@@ -2019,12 +1946,7 @@ export default function TeklifModal({
                   TEKLİF OLUŞTUR
                 </Text>
                 {existingTeklifId && (
-                  <Badge
-                    color="green"
-                    variant="filled"
-                    size="sm"
-                    style={{ background: 'rgba(34, 197, 94, 0.9)' }}
-                  >
+                  <Badge color="green" variant="filled" size="sm" style={{ background: 'rgba(34, 197, 94, 0.9)' }}>
                     Kayıtlı #{existingTeklifId}
                   </Badge>
                 )}
@@ -2309,22 +2231,10 @@ export default function TeklifModal({
 
             {/* Butonlar */}
             <Group gap="xs">
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                onClick={onClose}
-                styles={{ root: { color: 'white' } }}
-              >
+              <Button variant="subtle" color="gray" size="xs" onClick={onClose} styles={{ root: { color: 'white' } }}>
                 İptal
               </Button>
-              <Button
-                variant="light"
-                size="xs"
-                leftSection={<IconDownload size={14} />}
-                disabled
-                color="gray"
-              >
+              <Button variant="light" size="xs" leftSection={<IconDownload size={14} />} disabled color="gray">
                 PDF
               </Button>
               <Button

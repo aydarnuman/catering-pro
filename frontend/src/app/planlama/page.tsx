@@ -8,7 +8,7 @@ export default function PlanlamaPage() {
 
   // Direkt Menü Planlama'ya yönlendir
   useEffect(() => {
-    router.push('/muhasebe/menu-planlama');
+    router.replace('/menu-planlama');
   }, [router]);
 
   return null;

@@ -59,12 +59,7 @@ export function StatMiniCard({
           {label}
         </Text>
       </Group>
-      <Text
-        fw={700}
-        size="md"
-        style={gold ? { color: 'var(--yk-gold)' } : undefined}
-        c={gold ? undefined : color}
-      >
+      <Text fw={700} size="md" style={gold ? { color: 'var(--yk-gold)' } : undefined} c={gold ? undefined : color}>
         {value ?? '-'}
       </Text>
       {sub && (

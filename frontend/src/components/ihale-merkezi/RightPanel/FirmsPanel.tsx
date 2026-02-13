@@ -16,13 +16,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconBuilding,
-  IconCurrencyLira,
-  IconPlus,
-  IconTrash,
-  IconTrophy,
-} from '@tabler/icons-react';
+import { IconBuilding, IconCurrencyLira, IconPlus, IconTrash, IconTrophy } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
 import { tendersAPI } from '@/lib/api/services/tenders';
@@ -153,9 +147,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
   const bizimTeklif = tender.bizim_teklif || 0;
 
   // Sıralamamız
-  const bizimSira =
-    siraliTeklifler.findIndex((t) => t.teklif_tutari > bizimTeklif) + 1 ||
-    siraliTeklifler.length + 1;
+  const bizimSira = siraliTeklifler.findIndex((t) => t.teklif_tutari > bizimTeklif) + 1 || siraliTeklifler.length + 1;
 
   return (
     <Box p="xs">
@@ -246,9 +238,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                       p={8}
                       radius="sm"
                       style={{
-                        background: isEnDusuk
-                          ? 'rgba(34, 197, 94, 0.1)'
-                          : 'var(--mantine-color-dark-6)',
+                        background: isEnDusuk ? 'rgba(34, 197, 94, 0.1)' : 'var(--mantine-color-dark-6)',
                         border: isEnDusuk
                           ? '1px solid var(--mantine-color-green-7)'
                           : '1px solid var(--mantine-color-dark-4)',
@@ -256,12 +246,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                     >
                       <Group gap={6} wrap="nowrap">
                         {/* Sıra */}
-                        <ThemeIcon
-                          size="sm"
-                          variant="light"
-                          color={isEnDusuk ? 'green' : 'gray'}
-                          radius="xl"
-                        >
+                        <ThemeIcon size="sm" variant="light" color={isEnDusuk ? 'green' : 'gray'} radius="xl">
                           {rakip.teklif_tutari > 0 ? (
                             isEnDusuk ? (
                               <IconTrophy size={12} />
@@ -295,12 +280,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                         />
 
                         {/* Sil */}
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          size="sm"
-                          onClick={() => removeRakip(index)}
-                        >
+                        <ActionIcon variant="subtle" color="red" size="sm" onClick={() => removeRakip(index)}>
                           <IconTrash size={14} />
                         </ActionIcon>
                       </Group>

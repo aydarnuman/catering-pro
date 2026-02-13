@@ -5,14 +5,16 @@
 
 import express from 'express';
 import { query } from '../database.js';
+import { asyncHandler } from '../middleware/error-handler.js';
 
 const router = express.Router();
 
 // ==================== ETİKETLER ====================
 
 // Tüm etiketleri listele
-router.get('/', async (req, res) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
     const { aktif } = req.query;
 
     let sql = 'SELECT * FROM etiketler';
@@ -31,14 +33,13 @@ router.get('/', async (req, res) => {
       success: true,
       data: result.rows,
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Yeni etiket oluştur
-router.post('/', async (req, res) => {
-  try {
+router.post(
+  '/',
+  asyncHandler(async (req, res) => {
     const { kod, ad, renk, ikon, aciklama } = req.body;
 
     if (!kod || !ad) {
@@ -48,34 +49,37 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const result = await query(
-      `
+    try {
+      const result = await query(
+        `
       INSERT INTO etiketler (kod, ad, renk, ikon, aciklama)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `,
-      [kod.toUpperCase(), ad, renk || '#6366f1', ikon || 'tag', aciklama]
-    );
+        [kod.toUpperCase(), ad, renk || '#6366f1', ikon || 'tag', aciklama]
+      );
 
-    res.status(201).json({
-      success: true,
-      data: result.rows[0],
-      message: 'Etiket oluşturuldu',
-    });
-  } catch (error) {
-    if (error.code === '23505') {
-      return res.status(400).json({
-        success: false,
-        error: 'Bu kod zaten kullanılıyor',
+      res.status(201).json({
+        success: true,
+        data: result.rows[0],
+        message: 'Etiket oluşturuldu',
       });
+    } catch (error) {
+      if (error.code === '23505') {
+        return res.status(400).json({
+          success: false,
+          error: 'Bu kod zaten kullanılıyor',
+        });
+      }
+      throw error;
     }
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Etiket güncelle
-router.put('/:id', async (req, res) => {
-  try {
+router.put(
+  '/:id',
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { ad, renk, ikon, aciklama, aktif, sira } = req.body;
 
@@ -104,14 +108,13 @@ router.put('/:id', async (req, res) => {
       data: result.rows[0],
       message: 'Etiket güncellendi',
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Etiket sil
-router.delete('/:id', async (req, res) => {
-  try {
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const result = await query('DELETE FROM etiketler WHERE id = $1 RETURNING *', [id]);
@@ -124,16 +127,15 @@ router.delete('/:id', async (req, res) => {
       success: true,
       message: 'Etiket silindi',
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // ==================== FATURA ETİKETLERİ ====================
 
 // Birden fazla faturanın etiketlerini getir (bulk) - ÖNCELİKLİ OLMALI!
-router.post('/fatura/bulk', async (req, res) => {
-  try {
+router.post(
+  '/fatura/bulk',
+  asyncHandler(async (req, res) => {
     const { ettn_list } = req.body;
 
     if (!Array.isArray(ettn_list) || ettn_list.length === 0) {
@@ -171,14 +173,13 @@ router.post('/fatura/bulk', async (req, res) => {
       success: true,
       data: grouped,
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Faturanın etiketlerini getir
-router.get('/fatura/:ettn', async (req, res) => {
-  try {
+router.get(
+  '/fatura/:ettn',
+  asyncHandler(async (req, res) => {
     const { ettn } = req.params;
 
     const result = await query(
@@ -196,14 +197,13 @@ router.get('/fatura/:ettn', async (req, res) => {
       success: true,
       data: result.rows,
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Faturaya etiket ata
-router.post('/fatura/:ettn', async (req, res) => {
-  try {
+router.post(
+  '/fatura/:ettn',
+  asyncHandler(async (req, res) => {
     const { ettn } = req.params;
     const { etiket_id, notlar } = req.body;
 
@@ -235,14 +235,13 @@ router.post('/fatura/:ettn', async (req, res) => {
       },
       message: 'Etiket atandı',
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Faturadan etiket kaldır
-router.delete('/fatura/:ettn/:etiketId', async (req, res) => {
-  try {
+router.delete(
+  '/fatura/:ettn/:etiketId',
+  asyncHandler(async (req, res) => {
     const { ettn, etiketId } = req.params;
 
     const result = await query(
@@ -262,14 +261,13 @@ router.delete('/fatura/:ettn/:etiketId', async (req, res) => {
       success: true,
       message: 'Etiket kaldırıldı',
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Faturanın tüm etiketlerini güncelle (toplu)
-router.put('/fatura/:ettn', async (req, res) => {
-  try {
+router.put(
+  '/fatura/:ettn',
+  asyncHandler(async (req, res) => {
     const { ettn } = req.params;
     const { etiket_ids } = req.body; // Array of etiket IDs
 
@@ -306,14 +304,13 @@ router.put('/fatura/:ettn', async (req, res) => {
       data: result.rows,
       message: 'Etiketler güncellendi',
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 // Etiket bazlı fatura listesi
-router.get('/raporlar/etiket-bazli', async (_req, res) => {
-  try {
+router.get(
+  '/raporlar/etiket-bazli',
+  asyncHandler(async (_req, res) => {
     const result = await query(`
       SELECT 
         e.id,
@@ -349,9 +346,7 @@ router.get('/raporlar/etiket-bazli', async (_req, res) => {
         etiketsiz: etiketsizResult.rows[0],
       },
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 export default router;

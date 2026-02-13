@@ -106,62 +106,59 @@ export function useUyumsoftConnection(): UseUyumsoftConnectionReturn {
     }
   }, [connectSaved]);
 
-  const connectImpl = useCallback(
-    async (username: string, password: string, remember = true): Promise<boolean> => {
-      if (!username?.trim() || !password?.trim()) {
-        notifications.show({
-          title: 'Hata!',
-          message: 'Kullanıcı adı ve şifre gerekli',
-          color: 'red',
-        });
-        return false;
-      }
+  const connectImpl = useCallback(async (username: string, password: string, remember = true): Promise<boolean> => {
+    if (!username?.trim() || !password?.trim()) {
+      notifications.show({
+        title: 'Hata!',
+        message: 'Kullanıcı adı ve şifre gerekli',
+        color: 'red',
+      });
+      return false;
+    }
 
-      setIsConnecting(true);
-      try {
-        const data = (await uyumsoftAPI.connect(username, password, remember)) as {
-          success?: boolean;
-          error?: string;
-          message?: string;
-        };
+    setIsConnecting(true);
+    try {
+      const data = (await uyumsoftAPI.connect(username, password, remember)) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+      };
 
-        if (data?.success) {
-          notifications.show({
-            title: 'Başarılı!',
-            message: "Uyumsoft'a bağlandı",
-            color: 'green',
-          });
-          setStatus((prev) => ({
-            ...prev,
-            connected: true,
-            hasCredentials: remember,
-          }));
-          setCredentials({ username, password, remember });
-          return true;
-        }
+      if (data?.success) {
         notifications.show({
-          title: 'Bağlantı Hatası',
-          message: data?.error || data?.message || 'Bağlantı başarısız',
-          color: 'red',
+          title: 'Başarılı!',
+          message: "Uyumsoft'a bağlandı",
+          color: 'green',
         });
-        return false;
-      } catch (err: unknown) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : 'Uyumsoft bağlantısı kurulamadı. İnternet ve Uyumsoft erişimini kontrol edin.';
-        notifications.show({
-          title: 'Bağlantı Hatası',
-          message: msg,
-          color: 'red',
-        });
-        return false;
-      } finally {
-        setIsConnecting(false);
+        setStatus((prev) => ({
+          ...prev,
+          connected: true,
+          hasCredentials: remember,
+        }));
+        setCredentials({ username, password, remember });
+        return true;
       }
-    },
-    []
-  );
+      notifications.show({
+        title: 'Bağlantı Hatası',
+        message: data?.error || data?.message || 'Bağlantı başarısız',
+        color: 'red',
+      });
+      return false;
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Uyumsoft bağlantısı kurulamadı. İnternet ve Uyumsoft erişimini kontrol edin.';
+      notifications.show({
+        title: 'Bağlantı Hatası',
+        message: msg,
+        color: 'red',
+      });
+      return false;
+    } finally {
+      setIsConnecting(false);
+    }
+  }, []);
 
   const disconnect = useCallback(async () => {
     try {

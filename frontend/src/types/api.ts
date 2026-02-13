@@ -74,9 +74,7 @@ export interface Tender {
       source?: string;
       doc_id?: number;
     }>;
-    notlar?: Array<
-      string | { text?: string; source?: string; doc_id?: number; verified?: boolean }
-    >;
+    notlar?: Array<string | { text?: string; source?: string; doc_id?: number; verified?: boolean }>;
     tam_metin?: string;
     [key: string]: unknown;
   };

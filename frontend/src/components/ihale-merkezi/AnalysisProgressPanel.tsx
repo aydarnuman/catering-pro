@@ -39,14 +39,7 @@ function DocumentProgressItem({ doc, index }: { doc: DocumentProgress; index: nu
     if (isError) return 0;
     if (!doc.stage) return 0;
 
-    const stageOrder: PipelineStage[] = [
-      'pending',
-      'extraction',
-      'ocr',
-      'chunking',
-      'analysis',
-      'completed',
-    ];
+    const stageOrder: PipelineStage[] = ['pending', 'extraction', 'ocr', 'chunking', 'analysis', 'completed'];
     const stageIndex = stageOrder.indexOf(doc.stage);
 
     // Her aşama için base progress
@@ -96,9 +89,7 @@ function DocumentProgressItem({ doc, index }: { doc: DocumentProgress; index: nu
             {doc.result ? (
               <>
                 {(doc.result.teknikSartlar || 0) > 0 && `${doc.result.teknikSartlar} şart`}
-                {(doc.result.teknikSartlar || 0) > 0 &&
-                  (doc.result.birimFiyatlar || 0) > 0 &&
-                  ' · '}
+                {(doc.result.teknikSartlar || 0) > 0 && (doc.result.birimFiyatlar || 0) > 0 && ' · '}
                 {(doc.result.birimFiyatlar || 0) > 0 && `${doc.result.birimFiyatlar} fiyat`}
                 {!(doc.result.teknikSartlar || 0) && !(doc.result.birimFiyatlar || 0) && '✓'}
               </>
@@ -129,9 +120,7 @@ function DocumentProgressItem({ doc, index }: { doc: DocumentProgress; index: nu
       </Group>
 
       {/* Progress bar - sadece aktif dökümanlar için */}
-      {isActive && (
-        <Progress value={overallProgress} size={2} color="blue" bg="dark.6" radius={0} mt={4} />
-      )}
+      {isActive && <Progress value={overallProgress} size={2} color="blue" bg="dark.6" radius={0} mt={4} />}
 
       {/* Hata mesajı */}
       {isError && doc.error && (

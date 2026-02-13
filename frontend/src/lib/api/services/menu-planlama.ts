@@ -171,16 +171,114 @@ export interface PiyasaSyncDurum {
   }>;
 }
 
+// Menu Plan Types
+export interface MenuPlanCreatePayload {
+  proje_id: number;
+  ad: string;
+  tip: string;
+  baslangic_tarihi: string;
+  bitis_tarihi: string;
+  varsayilan_kisi_sayisi: number;
+}
+
+export interface OgunCreatePayload {
+  tarih: string;
+  ogun_tipi_id: number;
+  kisi_sayisi: number;
+}
+
+export interface YemekCreatePayload {
+  recete_adi: string;
+  sira: number;
+  porsiyon_maliyet: number;
+}
+
+export interface OgunTipi {
+  id: number;
+  ad: string;
+  kod: string;
+  sira: number;
+}
+
 // Menu Planlama API
 export const menuPlanlamaAPI = {
   /**
+   * Projeleri listele
+   */
+  async getProjeler(): Promise<ApiResponse<unknown[]>> {
+    const response = await api.get('/api/menu-planlama/projeler');
+    return response.data;
+  },
+
+  /**
+   * Öğün tiplerini listele
+   */
+  async getOgunTipleri(): Promise<ApiResponse<OgunTipi[]>> {
+    const response = await api.get('/api/menu-planlama/ogun-tipleri');
+    return response.data;
+  },
+
+  /**
+   * Menü planlarını listele
+   */
+  async getMenuPlanlari(): Promise<ApiResponse<unknown[]>> {
+    const response = await api.get('/api/menu-planlama/menu-planlari');
+    return response.data;
+  },
+
+  /**
+   * Menü planı oluştur
+   */
+  async createMenuPlan(data: MenuPlanCreatePayload): Promise<ApiResponse<{ id: number }>> {
+    const response = await api.post('/api/menu-planlama/menu-planlari', data);
+    return response.data;
+  },
+
+  /**
+   * Plana öğün ekle
+   */
+  async addOgunToPlan(planId: number, data: OgunCreatePayload): Promise<ApiResponse<{ id: number }>> {
+    const response = await api.post(`/api/menu-planlama/menu-planlari/${planId}/ogunler`, data);
+    return response.data;
+  },
+
+  /**
+   * Öğüne yemek ekle
+   */
+  async addYemekToOgun(ogunId: number, data: YemekCreatePayload): Promise<ApiResponse<unknown>> {
+    const response = await api.post(`/api/menu-planlama/ogunler/${ogunId}/yemekler`, data);
+    return response.data;
+  },
+
+  /**
+   * Tüm planı tek istekte kaydet (toplu kaydetme)
+   */
+  async saveFullPlan(data: {
+    proje_id: number;
+    ad: string;
+    tip: string;
+    baslangic_tarihi: string;
+    bitis_tarihi: string;
+    varsayilan_kisi_sayisi: number;
+    ogunler: Array<{
+      tarih: string;
+      ogun_tipi_id: number;
+      kisi_sayisi?: number;
+      yemekler: Array<{
+        recete_id?: number;
+        ad: string;
+        fiyat: number;
+      }>;
+    }>;
+  }): Promise<ApiResponse<{ plan_id: number; toplam_ogun: number; toplam_yemek: number }>> {
+    const response = await api.post('/api/menu-planlama/menu-planlari/toplu-kaydet', data);
+    return response.data;
+  },
+
+  /**
    * Reçeteleri listele
    */
-  async getReceteler(params?: {
-    kategori?: string;
-    arama?: string;
-    limit?: number;
-  }): Promise<ApiResponse<Recete[]>> {
+  async getReceteler(params?: { kategori?: string; arama?: string; limit?: number }): Promise<ApiResponse<Recete[]>> {
     const response = await api.get('/api/menu-planlama/receteler', { params });
     return response.data;
   },
@@ -274,10 +372,7 @@ export const menuPlanlamaAPI = {
   /**
    * AI malzeme önerisi
    */
-  async getAiMalzemeOneri(
-    receteId: number,
-    prompt: string
-  ): Promise<ApiResponse<AiMalzemeOneriData>> {
+  async getAiMalzemeOneri(receteId: number, prompt: string): Promise<ApiResponse<AiMalzemeOneriData>> {
     const response = await api.post(`/api/menu-planlama/receteler/${receteId}/ai-malzeme-oneri`, {
       prompt,
     });
@@ -324,6 +419,79 @@ export const menuPlanlamaAPI = {
    */
   async getUrunVaryantlari(urunKartId: number): Promise<ApiResponse<VaryantListeData>> {
     const response = await api.get(`/api/menu-planlama/urun-kartlari/${urunKartId}/varyantlar`);
+    return response.data;
+  },
+
+  /**
+   * Şartname listesini getir
+   */
+  async getSartnameListesi(): Promise<ApiResponse<unknown[]>> {
+    const response = await api.get('/api/menu-planlama/sartname/liste');
+    return response.data;
+  },
+
+  /**
+   * Şartname detayını getir
+   */
+  async getSartnameDetay(sartnameId: number): Promise<ApiResponse<unknown>> {
+    const response = await api.get(`/api/menu-planlama/sartname/${sartnameId}`);
+    return response.data;
+  },
+
+  /**
+   * Şartname oluştur
+   */
+  async createSartname(data: { ad: string; kurum_id?: number }): Promise<ApiResponse<{ id: number }>> {
+    const response = await api.post('/api/menu-planlama/sartname', data);
+    return response.data;
+  },
+
+  /**
+   * Şartnameye gramaj ekle
+   */
+  async addGramaj(
+    sartnameId: number,
+    data: {
+      yemek_turu: string;
+      porsiyon_gramaj: number;
+      birim: string;
+      birim_fiyat?: number;
+    }
+  ): Promise<ApiResponse<unknown>> {
+    const response = await api.post(`/api/menu-planlama/sartname/${sartnameId}/gramaj`, data);
+    return response.data;
+  },
+
+  /**
+   * Gramaj güncelle
+   */
+  async updateGramaj(
+    gramajId: number,
+    data: {
+      yemek_turu?: string;
+      porsiyon_gramaj?: number;
+      birim?: string;
+    }
+  ): Promise<ApiResponse<unknown>> {
+    const response = await api.put(`/api/menu-planlama/sartname/gramaj/${gramajId}`, data);
+    return response.data;
+  },
+
+  /**
+   * Gramaj sil
+   */
+  async deleteGramaj(gramajId: number): Promise<ApiResponse<unknown>> {
+    const response = await api.delete(`/api/menu-planlama/sartname/gramaj/${gramajId}`);
+    return response.data;
+  },
+
+  /**
+   * Stok kartları listesi (arama için)
+   */
+  async getStokKartlariListesi(arama: string): Promise<ApiResponse<unknown[]>> {
+    const response = await api.get('/api/menu-planlama/stok-kartlari-listesi', {
+      params: { arama },
+    });
     return response.data;
   },
 

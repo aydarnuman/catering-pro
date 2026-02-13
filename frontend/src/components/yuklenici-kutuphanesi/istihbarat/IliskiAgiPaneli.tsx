@@ -14,18 +14,7 @@
  * - Node boyutu: Sözleşme tutarına orantılı
  */
 
-import {
-  Alert,
-  Badge,
-  Box,
-  Center,
-  Group,
-  Loader,
-  Paper,
-  SegmentedControl,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Box, Center, Group, Loader, Paper, SegmentedControl, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
@@ -82,13 +71,7 @@ function truncate(str: string, max = 28): string {
 }
 
 /** Değer aralığını belirli min-max'a map'le */
-function mapRange(
-  value: number,
-  inMin: number,
-  inMax: number,
-  outMin: number,
-  outMax: number
-): number {
+function mapRange(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
   if (inMax === inMin) return (outMin + outMax) / 2;
   return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin);
 }
@@ -125,10 +108,7 @@ function buildGraph(
   });
 
   // Sözleşme min/max hesapla (node boyutu)
-  const allValues = [
-    ...ortaklar.map((o) => o.toplam_sozlesme || 0),
-    ...rakipler.map((r) => r.toplam_sozlesme || 0),
-  ];
+  const allValues = [...ortaklar.map((o) => o.toplam_sozlesme || 0), ...rakipler.map((r) => r.toplam_sozlesme || 0)];
   const minVal = Math.min(...allValues, 0);
   const maxVal = Math.max(...allValues, 1);
 
@@ -182,15 +162,7 @@ function buildGraph(
 
 /* ─── Tooltip Component ─── */
 
-function GraphTooltip({
-  node,
-  mouseX,
-  mouseY,
-}: {
-  node: GraphNode;
-  mouseX: number;
-  mouseY: number;
-}) {
+function GraphTooltip({ node, mouseX, mouseY }: { node: GraphNode; mouseX: number; mouseY: number }) {
   const left = Math.min(mouseX + 12, GRAPH_WIDTH - 230);
   const top = mouseY > GRAPH_HEIGHT - 130 ? mouseY - 110 : mouseY + 12;
 
@@ -212,27 +184,19 @@ function GraphTooltip({
           boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13, color: '#C9A84C' }}>
-          {node.label}
-        </div>
+        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13, color: '#C9A84C' }}>{node.label}</div>
         {node.type === 'partner' && (
           <>
             <div style={{ color: '#a5d8ff' }}>Toplam ortaklik: {partnerCount} ihale</div>
-            {(node.devamEden ?? 0) > 0 && (
-              <div style={{ color: '#74c0fc' }}>Devam eden: {node.devamEden}</div>
-            )}
-            {(node.tamamlanan ?? 0) > 0 && (
-              <div style={{ color: '#69db7c' }}>Tamamlanan: {node.tamamlanan}</div>
-            )}
+            {(node.devamEden ?? 0) > 0 && <div style={{ color: '#74c0fc' }}>Devam eden: {node.devamEden}</div>}
+            {(node.tamamlanan ?? 0) > 0 && <div style={{ color: '#69db7c' }}>Tamamlanan: {node.tamamlanan}</div>}
           </>
         )}
         {node.type === 'rakip' && node.ihaleSayisi && (
           <div style={{ color: '#ff8787' }}>Ortak ihale: {node.ihaleSayisi}</div>
         )}
         {node.toplamSozlesme > 0 && (
-          <div style={{ color: '#C9A84C', marginTop: 2, fontWeight: 600 }}>
-            {formatCurrency(node.toplamSozlesme)}
-          </div>
+          <div style={{ color: '#C9A84C', marginTop: 2, fontWeight: 600 }}>{formatCurrency(node.toplamSozlesme)}</div>
         )}
       </div>
     </foreignObject>
@@ -410,9 +374,7 @@ function NetworkGraph({
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fa5252' }} />
           <span>Rakip ({rakipler.length})</span>
         </div>
-        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.4)', marginTop: 2 }}>
-          Node = sozlesme tutari
-        </div>
+        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.4)', marginTop: 2 }}>Node = sozlesme tutari</div>
       </div>
 
       {/* Show all toggle */}
@@ -454,8 +416,7 @@ function NetworkGraph({
         style={{
           maxHeight: 520,
           borderRadius: 12,
-          background:
-            'radial-gradient(ellipse at center, rgba(201,168,76,0.03) 0%, rgba(15,16,21,0.95) 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.03) 0%, rgba(15,16,21,0.95) 70%)',
           border: '1px solid var(--yk-border)',
           cursor: 'default',
         }}
@@ -514,10 +475,8 @@ function NetworkGraph({
           if (!src || !tgt) return null;
           const isHighlighted = hovered === edge.source || hovered === edge.target;
           const tgtNode = nodeMap.get(edge.target);
-          const edgeColor =
-            tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.35)' : 'rgba(250,82,82,0.25)';
-          const edgeColorHi =
-            tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.7)' : 'rgba(250,82,82,0.6)';
+          const edgeColor = tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.35)' : 'rgba(250,82,82,0.25)';
+          const edgeColorHi = tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.7)' : 'rgba(250,82,82,0.6)';
 
           return (
             <line
@@ -537,10 +496,7 @@ function NetworkGraph({
         {nodes.map((node) => {
           const c = colors[node.type];
           const isHov = hovered === node.id;
-          const isConnected =
-            hovered === 'center' ||
-            hovered === node.id ||
-            (node.id === 'center' && hovered !== null);
+          const isConnected = hovered === 'center' || hovered === node.id || (node.id === 'center' && hovered !== null);
           const dimmed = hovered !== null && !isHov && !isConnected;
           const filterMap = {
             center: 'url(#glow-blue)',
@@ -616,9 +572,7 @@ function NetworkGraph({
                     fontWeight={600}
                     style={{ pointerEvents: 'none' }}
                   >
-                    {node.type === 'rakip'
-                      ? node.ihaleSayisi
-                      : (node.devamEden ?? 0) + (node.tamamlanan ?? 0)}
+                    {node.type === 'rakip' ? node.ihaleSayisi : (node.devamEden ?? 0) + (node.tamamlanan ?? 0)}
                   </text>
                   {/* Dis etiket (firma adi) — sadece buyuk node'larda veya hover'da */}
                   {shouldShowLabel(node) && (
@@ -774,8 +728,8 @@ export function IliskiAgiPaneli({ yukleniciId, yukleniciAdi }: Props) {
   if (ortakGirisimler.length === 0 && rakipler.length === 0) {
     return (
       <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" title="Veri Yetersiz">
-        İlişki ağı için yeterli ortak girişim veya rakip verisi bulunamadı. Önce &quot;Profil
-        Analizi&quot; modülünü çalıştırın.
+        İlişki ağı için yeterli ortak girişim veya rakip verisi bulunamadı. Önce &quot;Profil Analizi&quot; modülünü
+        çalıştırın.
       </Alert>
     );
   }

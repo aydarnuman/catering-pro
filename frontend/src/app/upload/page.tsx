@@ -136,17 +136,12 @@ export default function UploadPage() {
   );
 
   // Tek dosya analizi
-  const analyzeFile = async (
-    fileWithStatus: FileWithStatus,
-    index: number
-  ): Promise<AnalysisResult | null> => {
+  const analyzeFile = async (fileWithStatus: FileWithStatus, index: number): Promise<AnalysisResult | null> => {
     const file = fileWithStatus.file;
 
     try {
       // Status güncelle
-      setFiles((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, status: 'analyzing' as const } : f))
-      );
+      setFiles((prev) => prev.map((f, i) => (i === index ? { ...f, status: 'analyzing' as const } : f)));
 
       const formData = new FormData();
       formData.append('file', file, file.name);
@@ -184,17 +179,13 @@ export default function UploadPage() {
                 const data = JSON.parse(jsonStr);
 
                 // Progress güncelle
-                setFiles((prev) =>
-                  prev.map((f, i) => (i === index ? { ...f, progress: data } : f))
-                );
+                setFiles((prev) => prev.map((f, i) => (i === index ? { ...f, progress: data } : f)));
 
                 if (data.stage === 'complete') {
                   result = data.result.analiz;
                   setFiles((prev) =>
                     prev.map((f, i) =>
-                      i === index
-                        ? { ...f, status: 'completed' as const, result: data.result.analiz }
-                        : f
+                      i === index ? { ...f, status: 'completed' as const, result: data.result.analiz } : f
                     )
                   );
                 } else if (data.stage === 'error') {
@@ -212,9 +203,7 @@ export default function UploadPage() {
     } catch (err: any) {
       console.error(`Analiz hatası (${file.name}):`, err);
       setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index ? { ...f, status: 'error' as const, error: err.message } : f
-        )
+        prev.map((f, i) => (i === index ? { ...f, status: 'error' as const, error: err.message } : f))
       );
       return null;
     }
@@ -329,8 +318,7 @@ export default function UploadPage() {
       if (r.sure && !combined.sure) combined.sure = r.sure;
       if (r.teknik_sartlar?.length) combined.teknik_sartlar.push(...r.teknik_sartlar);
       if (r.birim_fiyatlar?.length) combined.birim_fiyatlar.push(...r.birim_fiyatlar);
-      if (r.iletisim && Object.keys(r.iletisim).length)
-        combined.iletisim = { ...combined.iletisim, ...r.iletisim };
+      if (r.iletisim && Object.keys(r.iletisim).length) combined.iletisim = { ...combined.iletisim, ...r.iletisim };
       if (r.notlar?.length) combined.notlar.push(...r.notlar);
       if (r.tam_metin) combined.tam_metin += `${r.tam_metin}\n\n---\n\n`;
     }
@@ -347,13 +335,7 @@ export default function UploadPage() {
         kalem: item.kalem || item.is_kalemi || item.kalem_adi || item.aciklama || '-',
         birim: item.birim || item.birimi || '-',
         miktar: item.miktar || item.miktari || '-',
-        fiyat:
-          item.fiyat ||
-          item.birim_fiyat ||
-          item.birim_fiyati ||
-          item.tutari ||
-          item.toplam_tutari ||
-          '-',
+        fiyat: item.fiyat || item.birim_fiyat || item.birim_fiyati || item.tutari || item.toplam_tutari || '-',
       }));
 
     return combined;
@@ -391,12 +373,7 @@ export default function UploadPage() {
           {/* Header */}
           <Box ta="center">
             <Group justify="center" mb="md">
-              <ThemeIcon
-                size={60}
-                radius="xl"
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'grape' }}
-              >
+              <ThemeIcon size={60} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
                 <IconSparkles size={32} />
               </ThemeIcon>
             </Group>
@@ -424,12 +401,7 @@ export default function UploadPage() {
           </Box>
 
           {/* Info Alert */}
-          <Alert
-            icon={<IconAlertCircle size={16} />}
-            title="Claude AI Özellikleri"
-            color="violet"
-            variant="light"
-          >
+          <Alert icon={<IconAlertCircle size={16} />} title="Claude AI Özellikleri" color="violet" variant="light">
             <List size="sm" spacing="xs">
               <List.Item>
                 📄 <strong>PDF:</strong> Sayfa sayfa görsel analiz
@@ -465,9 +437,7 @@ export default function UploadPage() {
               accept={{
                 'application/pdf': ['.pdf'],
                 'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif'],
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
-                  '.docx',
-                ],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
                 'application/msword': ['.doc'],
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
                 'application/vnd.ms-excel': ['.xls'],
@@ -519,13 +489,7 @@ export default function UploadPage() {
                     </div>
                   </Group>
                   <Group>
-                    <Button
-                      variant="light"
-                      color="red"
-                      size="sm"
-                      onClick={clearAllFiles}
-                      disabled={uploading}
-                    >
+                    <Button variant="light" color="red" size="sm" onClick={clearAllFiles} disabled={uploading}>
                       Temizle
                     </Button>
                     <Button
@@ -536,8 +500,7 @@ export default function UploadPage() {
                       variant="gradient"
                       gradient={{ from: 'violet', to: 'grape' }}
                     >
-                      🤖 Tümünü Analiz Et (
-                      {files.filter((f) => f.status === 'pending' || f.status === 'error').length})
+                      🤖 Tümünü Analiz Et ({files.filter((f) => f.status === 'pending' || f.status === 'error').length})
                     </Button>
                   </Group>
                 </Group>
@@ -623,27 +586,15 @@ export default function UploadPage() {
                                   : 'Bekliyor'}
                           </Badge>
                           {!uploading && (
-                            <Button
-                              variant="subtle"
-                              color="red"
-                              size="xs"
-                              onClick={() => removeFile(index)}
-                            >
+                            <Button variant="subtle" color="red" size="xs" onClick={() => removeFile(index)}>
                               <IconX size={14} />
                             </Button>
                           )}
                         </Group>
                       </Group>
-                      {fileItem.status === 'analyzing' &&
-                        fileItem.progress?.progress !== undefined && (
-                          <Progress
-                            value={fileItem.progress.progress}
-                            animated
-                            color="blue"
-                            size="xs"
-                            mt="xs"
-                          />
-                        )}
+                      {fileItem.status === 'analyzing' && fileItem.progress?.progress !== undefined && (
+                        <Progress value={fileItem.progress.progress} animated color="blue" size="xs" mt="xs" />
+                      )}
                     </Paper>
                   ))}
                 </Stack>
@@ -681,8 +632,7 @@ export default function UploadPage() {
                       <Text c="white" opacity={0.9}>
                         {files.filter((f) => f.status === 'completed').length} döküman •
                         {combinedResult.teknik_sartlar?.length || 0} teknik şart •
-                        {combinedResult.birim_fiyatlar?.length || 0} kalem •
-                        {combinedResult.notlar?.length || 0} not
+                        {combinedResult.birim_fiyatlar?.length || 0} kalem •{combinedResult.notlar?.length || 0} not
                       </Text>
                     </div>
                   </Group>
@@ -721,9 +671,7 @@ export default function UploadPage() {
                       leftSection={<IconCheck size={16} />}
                       onClick={() => {
                         // LocalStorage'a kaydet
-                        const savedTenders = JSON.parse(
-                          localStorage.getItem('savedTenders') || '[]'
-                        );
+                        const savedTenders = JSON.parse(localStorage.getItem('savedTenders') || '[]');
                         const newTender = {
                           id: `tender-${Date.now()}`,
                           ihale_basligi: combinedResult.ihale_basligi || 'İsimsiz İhale',
@@ -790,12 +738,7 @@ export default function UploadPage() {
                     </Paper>
                   )}
                   {combinedResult.bedel && (
-                    <Paper
-                      p="md"
-                      withBorder
-                      radius="md"
-                      style={{ borderColor: 'var(--mantine-color-green-5)' }}
-                    >
+                    <Paper p="md" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-green-5)' }}>
                       <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                         Tahmini Bedel
                       </Text>
@@ -877,9 +820,7 @@ export default function UploadPage() {
                             {combinedResult.birim_fiyatlar.map((item: any, i) => (
                               <Table.Tr key={i}>
                                 <Table.Td>{i + 1}</Table.Td>
-                                <Table.Td>
-                                  {item.kalem || item.aciklama || item.urun || '-'}
-                                </Table.Td>
+                                <Table.Td>{item.kalem || item.aciklama || item.urun || '-'}</Table.Td>
                                 <Table.Td>{item.birim || '-'}</Table.Td>
                                 <Table.Td>{item.miktar || '-'}</Table.Td>
                                 <Table.Td ta="right">
@@ -928,10 +869,7 @@ export default function UploadPage() {
                     {combinedResult.tam_metin ? (
                       <ScrollArea h={400} type="auto" offsetScrollbars>
                         <Paper p="md" className="nested-card">
-                          <Text
-                            size="sm"
-                            style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}
-                          >
+                          <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
                             {combinedResult.tam_metin}
                           </Text>
                         </Paper>

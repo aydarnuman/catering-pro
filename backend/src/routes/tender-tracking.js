@@ -4,6 +4,131 @@ import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+// ─── Sayısal Değer Normalizasyonu Yardımcı Fonksiyonları ──────
+
+/**
+ * Metin veya sayıdan sayı çıkar.
+ * "500 kişi" → 500, "1.250" → 1250, "Haftanın 7 günü..." → null
+ * Çeviremezse null döner.
+ */
+function parseNumericValue(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val !== 'string') return null;
+  // Türkçe binlik ayıracı (.) kaldır, ondalık (,) noktaya çevir, birim/metin temizle
+  const cleaned = val
+    .replace(/\./g, '')
+    .replace(/,/g, '.')
+    .replace(/[^\d.]/g, '');
+  if (!cleaned) return null;
+  const num = Number.parseFloat(cleaned);
+  return Number.isNaN(num) ? null : Math.round(num);
+}
+
+/**
+ * Türkçe para formatını sayıya çevir.
+ * "1.250.000,00 TL" → 1250000, "750.000" → 750000
+ */
+function parseMoneyToNumeric(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val !== 'string') return null;
+  const cleaned = val
+    .replace(/\./g, '')
+    .replace(/,/g, '.')
+    .replace(/[^\d.]/g, '');
+  if (!cleaned) return null;
+  const num = Number.parseFloat(cleaned);
+  return Number.isNaN(num) ? null : num;
+}
+
+/**
+ * analysis_summary içindeki tüm sayısal alanları normalize et.
+ * Metin olanları sayıya çevirir, orijinal metni _raw alanında saklar.
+ * Çevrilemezse null bırakır (kullanıcı doğrulama ekranında dolduracak).
+ */
+function normalizeNumericFields(summary) {
+  // Kişi sayıları
+  const kisiAlanlari = [
+    'kisi_sayisi',
+    'kahvalti_kisi_sayisi',
+    'ogle_kisi_sayisi',
+    'aksam_kisi_sayisi',
+    'diyet_kisi_sayisi',
+  ];
+  for (const alan of kisiAlanlari) {
+    if (summary[alan] !== null && summary[alan] !== undefined) {
+      const parsed = parseNumericValue(summary[alan]);
+      if (typeof summary[alan] === 'string' && summary[alan].trim()) {
+        summary[`${alan}_raw`] = summary[alan]; // orijinal metni sakla
+      }
+      summary[alan] = parsed; // null veya sayı
+    }
+  }
+
+  // Gün sayıları
+  if (summary.hizmet_gun_sayisi !== null && summary.hizmet_gun_sayisi !== undefined) {
+    const raw = summary.hizmet_gun_sayisi;
+    const parsed = parseNumericValue(raw);
+    if (typeof raw === 'string' && raw.trim()) {
+      summary.hizmet_gun_sayisi_raw = raw;
+    }
+    summary.hizmet_gun_sayisi = parsed;
+  }
+
+  // Günlük öğün sayısı
+  if (summary.gunluk_ogun_sayisi !== null && summary.gunluk_ogun_sayisi !== undefined) {
+    const raw = summary.gunluk_ogun_sayisi;
+    const parsed = parseNumericValue(raw);
+    if (typeof raw === 'string' && raw.trim()) {
+      summary.gunluk_ogun_sayisi_raw = raw;
+    }
+    summary.gunluk_ogun_sayisi = parsed;
+  }
+
+  // Personel sayısı
+  for (const alan of ['toplam_personel', 'personel_sayisi']) {
+    if (summary[alan] !== null && summary[alan] !== undefined) {
+      const parsed = parseNumericValue(summary[alan]);
+      if (typeof summary[alan] === 'string' && summary[alan].trim()) {
+        summary[`${alan}_raw`] = summary[alan];
+      }
+      summary[alan] = parsed;
+    }
+  }
+
+  // Tahmini bedel — metin olarak bırak (gösterim), ek numeric alan ekle
+  if (summary.tahmini_bedel && typeof summary.tahmini_bedel === 'string') {
+    const numeric = parseMoneyToNumeric(summary.tahmini_bedel);
+    if (numeric !== null) {
+      summary.tahmini_bedel_numeric = numeric;
+    }
+  }
+
+  // Toplam öğün sayısı
+  if (summary.toplam_ogun_sayisi !== null && summary.toplam_ogun_sayisi !== undefined) {
+    summary.toplam_ogun_sayisi = parseNumericValue(summary.toplam_ogun_sayisi);
+  }
+}
+
+/**
+ * Array öğelerine kaynak dosya bilgisi ekle (source attribution).
+ * Her öğeye source ve doc_id alanları eklenir (yoksa).
+ */
+function addSourceToItems(items, doc) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (typeof item === 'string') {
+      return item; // string elemanları dönüştürme (is_yerleri, eksik_bilgiler)
+    }
+    return {
+      ...item,
+      source: item.source || doc.original_filename,
+      doc_id: item.doc_id || doc.id,
+    };
+  });
+}
+
 /**
  * Takip listesini getir
  * GET /api/tender-tracking
@@ -64,6 +189,63 @@ router.get('/', async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Tekil takip kaydını getir (ihale masası sayfası için)
+ * GET /api/tender-tracking/detail/:tenderId
+ */
+router.get('/detail/:tenderId', async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+
+    const sql = `
+      SELECT
+        tt.*,
+        COALESCE(tt.hesaplama_verileri, '{}'::jsonb) as hesaplama_verileri,
+        t.title as ihale_basligi,
+        t.organization_name as kurum,
+        t.tender_date as tarih,
+        t.estimated_cost as bedel,
+        t.city,
+        t.external_id,
+        t.url,
+        (SELECT COUNT(*) FROM documents d WHERE d.tender_id = tt.tender_id AND (d.file_type IS NULL OR d.file_type NOT LIKE '%zip%')) as dokuman_sayisi,
+        (SELECT COUNT(*) FROM documents d WHERE d.tender_id = tt.tender_id AND d.processing_status = 'completed' AND (d.file_type IS NULL OR d.file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
+        COALESCE(
+          (SELECT json_agg(json_build_object(
+            'id', un.id,
+            'text', un.content,
+            'color', un.color,
+            'pinned', un.pinned,
+            'is_completed', un.is_completed,
+            'created_at', un.created_at
+          ) ORDER BY un.pinned DESC, un.sort_order ASC, un.created_at DESC)
+          FROM unified_notes un
+          WHERE un.context_type = 'tender' AND un.context_id = tt.tender_id),
+          '[]'::json
+        ) as user_notes
+      FROM tender_tracking tt
+      JOIN tenders t ON t.id = tt.tender_id::integer
+      WHERE tt.tender_id = $1
+      ORDER BY tt.created_at DESC
+      LIMIT 1
+    `;
+
+    const result = await query(sql, [parseInt(tenderId, 10)]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Takip kaydı bulunamadı' });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Tekil takip kaydı getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -583,6 +765,7 @@ router.post('/add-from-analysis', async (req, res) => {
       gunluk_ogun_sayisi: null, // v9: catering.daily_meals
       kisi_sayisi: null, // v9: catering.total_persons
       gramaj: [], // v9: catering.gramaj
+      gramaj_gruplari: [], // yemek bazlı gruplanmış gramaj
       // ═══ Azure v5 Catering-Spesifik Alanlar ═══
       kahvalti_kisi_sayisi: null,
       ogle_kisi_sayisi: null,
@@ -722,14 +905,21 @@ router.post('/add-from-analysis', async (req, res) => {
         // Öğün bilgileri (v9: catering.meals veya catering.sample_menus)
         const ogunBilgileri = analysis.ogun_bilgileri || analysis.catering?.meals || analysis.catering?.sample_menus;
         if (ogunBilgileri && Array.isArray(ogunBilgileri)) {
-          analysisSummary.ogun_bilgileri.push(...ogunBilgileri);
+          analysisSummary.ogun_bilgileri.push(...addSourceToItems(ogunBilgileri, doc));
         }
 
         // Gramaj bilgileri (v9: catering.gramaj)
         const gramaj = analysis.gramaj || analysis.catering?.gramaj;
         if (gramaj && Array.isArray(gramaj)) {
           if (!analysisSummary.gramaj) analysisSummary.gramaj = [];
-          analysisSummary.gramaj.push(...gramaj);
+          analysisSummary.gramaj.push(...addSourceToItems(gramaj, doc));
+        }
+
+        // Gramaj grupları (yemek bazlı) -- prompt'tan geliyorsa al
+        const gramajGruplari = analysis.gramaj_gruplari || analysis.catering?.gramaj_gruplari;
+        if (gramajGruplari && Array.isArray(gramajGruplari)) {
+          if (!analysisSummary.gramaj_gruplari) analysisSummary.gramaj_gruplari = [];
+          analysisSummary.gramaj_gruplari.push(...addSourceToItems(gramajGruplari, doc));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -771,7 +961,7 @@ router.post('/add-from-analysis', async (req, res) => {
         // Personel detayları (v9: personnel.staff)
         const personelDetaylari = analysis.personel_detaylari || analysis.personnel?.staff;
         if (personelDetaylari && Array.isArray(personelDetaylari)) {
-          analysisSummary.personel_detaylari.push(...personelDetaylari);
+          analysisSummary.personel_detaylari.push(...addSourceToItems(personelDetaylari, doc));
         }
 
         // Toplam personel sayısı (v9: personnel.total_count)
@@ -828,7 +1018,7 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Teknik şartları topla
         if (analysis.teknik_sartlar) {
-          analysisSummary.teknik_sartlar.push(...analysis.teknik_sartlar);
+          analysisSummary.teknik_sartlar.push(...addSourceToItems(analysis.teknik_sartlar, doc));
         }
         if (analysis.technical_requirements && Array.isArray(analysis.technical_requirements)) {
           analysisSummary.teknik_sartlar.push(
@@ -842,7 +1032,7 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Ceza koşulları (v9: penalties)
         if (analysis.ceza_kosullari && Array.isArray(analysis.ceza_kosullari)) {
-          analysisSummary.ceza_kosullari.push(...analysis.ceza_kosullari);
+          analysisSummary.ceza_kosullari.push(...addSourceToItems(analysis.ceza_kosullari, doc));
         }
         if (analysis.penalties && Array.isArray(analysis.penalties)) {
           analysisSummary.ceza_kosullari.push(
@@ -856,18 +1046,18 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Birim fiyatları topla (v9: financial.unit_prices)
         if (analysis.birim_fiyatlar) {
-          analysisSummary.birim_fiyatlar.push(...analysis.birim_fiyatlar);
+          analysisSummary.birim_fiyatlar.push(...addSourceToItems(analysis.birim_fiyatlar, doc));
         }
         if (analysis.unit_prices) {
-          analysisSummary.birim_fiyatlar.push(...analysis.unit_prices);
+          analysisSummary.birim_fiyatlar.push(...addSourceToItems(analysis.unit_prices, doc));
         }
         if (analysis.financial?.unit_prices && Array.isArray(analysis.financial.unit_prices)) {
-          analysisSummary.birim_fiyatlar.push(...analysis.financial.unit_prices);
+          analysisSummary.birim_fiyatlar.push(...addSourceToItems(analysis.financial.unit_prices, doc));
         }
 
         // Önemli notları topla (v9: important_notes)
         if (analysis.onemli_notlar && Array.isArray(analysis.onemli_notlar)) {
-          analysisSummary.onemli_notlar.push(...analysis.onemli_notlar);
+          analysisSummary.onemli_notlar.push(...addSourceToItems(analysis.onemli_notlar, doc));
         }
         if (analysis.important_notes && Array.isArray(analysis.important_notes)) {
           analysisSummary.onemli_notlar.push(
@@ -886,10 +1076,10 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Notları topla
         if (analysis.notlar) {
-          analysisSummary.notlar.push(...analysis.notlar);
+          analysisSummary.notlar.push(...addSourceToItems(analysis.notlar, doc));
         }
         if (analysis.notes) {
-          analysisSummary.notlar.push(...analysis.notes);
+          analysisSummary.notlar.push(...addSourceToItems(analysis.notes, doc));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1044,7 +1234,7 @@ router.post('/add-from-analysis', async (req, res) => {
 
         // Gerekli belgeler topla (v9: required_documents)
         if (analysis.gerekli_belgeler && Array.isArray(analysis.gerekli_belgeler)) {
-          analysisSummary.gerekli_belgeler.push(...analysis.gerekli_belgeler);
+          analysisSummary.gerekli_belgeler.push(...addSourceToItems(analysis.gerekli_belgeler, doc));
         }
         if (analysis.required_documents && Array.isArray(analysis.required_documents)) {
           analysisSummary.gerekli_belgeler.push(
@@ -1202,12 +1392,12 @@ router.post('/add-from-analysis', async (req, res) => {
     // PROFESYONEL DEDUPE: Veri kaybı olmadan tekrarları temizle
     // ═══════════════════════════════════════════════════════════════
 
-    // Normalize fonksiyonu (karşılaştırma için)
+    // Normalize fonksiyonu (karşılaştırma + dedup için, tutarlı Türkçe normalizasyon)
     const normalizeForCompare = (text) => {
-      return (text || '')
+      // Önce büyük Türkçe harfleri dönüştür, sonra toLowerCase
+      const preLower = (text || '').replace(/İ/g, 'i').replace(/I/g, 'ı');
+      return preLower
         .toLowerCase()
-        .replace(/İ/gi, 'i')
-        .replace(/I/g, 'i')
         .replace(/ı/g, 'i')
         .replace(/ğ/g, 'g')
         .replace(/ü/g, 'u')
@@ -1379,15 +1569,33 @@ router.post('/add-from-analysis', async (req, res) => {
       return value;
     }
 
-    // Tablo verileri içindeki OCR artefaktlarını temizle
-    if (analysisSummary.ogun_bilgileri) {
-      analysisSummary.ogun_bilgileri = cleanOcrArtifacts(analysisSummary.ogun_bilgileri);
-    }
-    if (analysisSummary.teknik_sartlar) {
-      analysisSummary.teknik_sartlar = cleanOcrArtifacts(analysisSummary.teknik_sartlar);
-    }
-    if (analysisSummary.onemli_notlar) {
-      analysisSummary.onemli_notlar = cleanOcrArtifacts(analysisSummary.onemli_notlar);
+    // Tüm array ve object alanlarındaki OCR artefaktlarını temizle
+    const ocrCleanFields = [
+      'ogun_bilgileri',
+      'teknik_sartlar',
+      'onemli_notlar',
+      'birim_fiyatlar',
+      'ceza_kosullari',
+      'gerekli_belgeler',
+      'personel_detaylari',
+      'gramaj',
+      'gramaj_gruplari',
+      'takvim',
+      'is_yerleri',
+      'notlar',
+      'eksik_bilgiler',
+      'mali_kriterler',
+      'teminat_oranlari',
+      'servis_saatleri',
+      'iletisim',
+      'fiyat_farki',
+      'odeme_kosullari',
+      'operasyonel_kurallar',
+    ];
+    for (const field of ocrCleanFields) {
+      if (analysisSummary[field]) {
+        analysisSummary[field] = cleanOcrArtifacts(analysisSummary[field]);
+      }
     }
 
     // 1. ÖĞÜN TABLOLARINDAN LOKASYON + TOPLAM ÖĞÜN ÇIKARMA
@@ -1554,22 +1762,8 @@ router.post('/add-from-analysis', async (req, res) => {
     // 6. İŞ YERLERİ SON TEMİZLİK (konsolidasyon sonrası tekrar dedupe)
     analysisSummary.is_yerleri = [...new Set(analysisSummary.is_yerleri)];
 
-    // Türkçe karakterleri normalize et (İ→i, Ş→s, vb.)
-    const normalizeText = (text) => {
-      return (text || '')
-        .toLowerCase()
-        .replace(/İ/gi, 'i')
-        .replace(/I/g, 'ı')
-        .replace(/ı/g, 'i')
-        .replace(/ğ/g, 'g')
-        .replace(/ü/g, 'u')
-        .replace(/ş/g, 's')
-        .replace(/ö/g, 'o')
-        .replace(/ç/g, 'c')
-        .replace(/[^\w\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    };
+    // normalizeText = normalizeForCompare (birleştirildi, tutarlı Türkçe normalizasyon)
+    const normalizeText = normalizeForCompare;
 
     // Bulunan verilere göre "eksik" olmayan bilgileri çıkar
     // Bu şekilde veri kaybı olmaz, sadece gerçekten bulunanlar filtrelenir
@@ -1731,6 +1925,59 @@ router.post('/add-from-analysis', async (req, res) => {
 
       return true; // Gerçekten eksik
     });
+
+    // ─── Gramaj Gruplama (Fallback) ────────────────────────────────
+    // Eğer prompt gramaj_gruplari üretmediyse, düz gramaj listesindeki
+    // "Toplam" satırlarını ayırıcı olarak kullanarak yemek grupları oluştur.
+    if (
+      (!analysisSummary.gramaj_gruplari || analysisSummary.gramaj_gruplari.length === 0) &&
+      analysisSummary.gramaj &&
+      analysisSummary.gramaj.length > 3
+    ) {
+      const gruplari = [];
+      let currentGroup = { yemek_adi: null, malzemeler: [], toplam_gramaj: null };
+
+      for (const g of analysisSummary.gramaj) {
+        const itemName = (g.item || '').trim().toLowerCase();
+        const weightVal = typeof g.weight === 'number' ? g.weight : parseNumericValue(g.weight);
+
+        if (itemName === 'toplam' || itemName === 'total') {
+          // Bu grup bitti, kaydet
+          if (currentGroup.malzemeler.length > 0) {
+            currentGroup.toplam_gramaj = weightVal;
+            // Yemek adı yoksa ilk malzemeden veya sıradan adla
+            if (!currentGroup.yemek_adi) {
+              currentGroup.yemek_adi = `Yemek ${gruplari.length + 1}`;
+            }
+            gruplari.push({ ...currentGroup });
+          }
+          currentGroup = { yemek_adi: null, malzemeler: [], toplam_gramaj: null };
+        } else if (itemName) {
+          currentGroup.malzemeler.push({
+            item: g.item,
+            weight: weightVal,
+            unit: g.unit || 'g',
+          });
+        }
+      }
+
+      // Son grup (Toplam satırı olmadan biten)
+      if (currentGroup.malzemeler.length > 0) {
+        if (!currentGroup.yemek_adi) {
+          currentGroup.yemek_adi = `Yemek ${gruplari.length + 1}`;
+        }
+        gruplari.push({ ...currentGroup });
+      }
+
+      if (gruplari.length > 0) {
+        analysisSummary.gramaj_gruplari = gruplari;
+      }
+    }
+
+    // ─── Sayısal Değer Normalizasyonu ──────────────────────────────
+    // Tüm kişi sayıları, gün sayıları ve personel sayılarını sayıya çevir.
+    // Çevrilemezse null bırak, orijinal metin _raw alanında sakla.
+    normalizeNumericFields(analysisSummary);
 
     // Yaklaşık maliyeti tenders tablosundan çek (scraper'ın topladığı veri)
     const tenderDataResult = await query(`SELECT estimated_cost FROM tenders WHERE id = $1`, [tender_id]);

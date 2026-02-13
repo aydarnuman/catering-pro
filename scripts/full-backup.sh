@@ -214,8 +214,8 @@ if command -v pm2 &> /dev/null; then
 fi
 
 # SSH keys (sadece public key)
-if [ -f "/Users/numanaydar/.ssh/catering_pro.pub" ]; then
-    cp "/Users/numanaydar/.ssh/catering_pro.pub" "${BACKUP_DIR}/service-config/"
+if [ -f "/Users/numanaydar/.ssh/procheff_deploy.pub" ]; then
+    cp "/Users/numanaydar/.ssh/procheff_deploy.pub" "${BACKUP_DIR}/service-config/"
     echo -e "${GREEN}  ✓ SSH public key kopyalandı${NC}"
 fi
 

@@ -191,8 +191,7 @@ export default function AdminPage() {
         {
           id: 'model-egitimi',
           title: 'Model Eğitimi',
-          description:
-            'Azure DI model eğitim durumu, düzeltme istatistikleri ve manuel eğitim tetikleme',
+          description: 'Azure DI model eğitim durumu, düzeltme istatistikleri ve manuel eğitim tetikleme',
           icon: IconDatabase,
           color: 'cyan',
           path: '/admin/model-egitimi',
@@ -203,9 +202,7 @@ export default function AdminPage() {
   };
 
   // DB boyutu yüzdesi (500MB limit varsayımı)
-  const dbPercentage = stats
-    ? Math.min((stats.veritabani.bytes / (500 * 1024 * 1024)) * 100, 100)
-    : 0;
+  const dbPercentage = stats ? Math.min((stats.veritabani.bytes / (500 * 1024 * 1024)) * 100, 100) : 0;
 
   return (
     <Container size="xl" py="xl">
@@ -214,12 +211,7 @@ export default function AdminPage() {
         <Group justify="space-between">
           <div>
             <Group gap="sm" mb={4}>
-              <ThemeIcon
-                size="lg"
-                radius="md"
-                variant="gradient"
-                gradient={{ from: 'red', to: 'orange' }}
-              >
+              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
                 <IconShieldLock size={20} />
               </ThemeIcon>
               <Title order={1} size="h2">
@@ -366,14 +358,7 @@ export default function AdminPage() {
               <Tabs.Panel key={key} value={key}>
                 <SimpleGrid cols={{ base: 1, sm: 2, md: category.items.length }} spacing="md">
                   {category.items.map((item) => (
-                    <Tooltip
-                      key={item.id}
-                      label={item.description}
-                      position="bottom"
-                      withArrow
-                      multiline
-                      w={220}
-                    >
+                    <Tooltip key={item.id} label={item.description} position="bottom" withArrow multiline w={220}>
                       <UnstyledButton component="a" href={item.path} style={{ width: '100%' }}>
                         <Card padding="lg" radius="md" className="standard-card-hover">
                           <Stack gap="sm" align="center">
@@ -409,12 +394,7 @@ export default function AdminPage() {
               <Text size="sm" c="dimmed">
                 Backend API
               </Text>
-              <ThemeIcon
-                variant="light"
-                color={health?.status === 'healthy' ? 'green' : 'red'}
-                size="sm"
-                radius="xl"
-              >
+              <ThemeIcon variant="light" color={health?.status === 'healthy' ? 'green' : 'red'} size="sm" radius="xl">
                 <IconServer size={14} />
               </ThemeIcon>
             </Group>
@@ -493,12 +473,7 @@ export default function AdminPage() {
                 <Text fw={700} size="lg">
                   {stats?.veritabani.boyut || '-'}
                 </Text>
-                <Progress
-                  value={dbPercentage}
-                  size="xs"
-                  mt={4}
-                  color={dbPercentage > 80 ? 'red' : 'blue'}
-                />
+                <Progress value={dbPercentage} size="xs" mt={4} color={dbPercentage > 80 ? 'red' : 'blue'} />
               </>
             )}
           </Card>
@@ -646,9 +621,7 @@ export default function AdminPage() {
         {/* Son Güncelleme */}
         <Text size="xs" c="dimmed" ta="center">
           Son güncelleme:{' '}
-          {stats?.performans.timestamp
-            ? new Date(stats.performans.timestamp).toLocaleString('tr-TR')
-            : '-'}
+          {stats?.performans.timestamp ? new Date(stats.performans.timestamp).toLocaleString('tr-TR') : '-'}
           {stats?.performans.responseTime && ` (${stats.performans.responseTime}ms)`}
         </Text>
       </Stack>

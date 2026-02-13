@@ -263,9 +263,7 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
         is_active: !template.is_active,
       } as Partial<AITemplate>);
       if (data.success) {
-        setTemplates((prev) =>
-          prev.map((t) => (t.id === template.id ? { ...t, is_active: !t.is_active } : t))
-        );
+        setTemplates((prev) => prev.map((t) => (t.id === template.id ? { ...t, is_active: !t.is_active } : t)));
       }
     } catch (err) {
       console.error('Toggle error:', err);
@@ -372,11 +370,7 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
                           </Stack>
                         </Table.Td>
                         <Table.Td>
-                          <Badge
-                            variant="light"
-                            size="sm"
-                            color={getCategoryColor(template.category)}
-                          >
+                          <Badge variant="light" size="sm" color={getCategoryColor(template.category)}>
                             {template.category}
                           </Badge>
                         </Table.Td>
@@ -386,11 +380,7 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Switch
-                            checked={template.is_active}
-                            onChange={() => toggleActive(template)}
-                            size="sm"
-                          />
+                          <Switch checked={template.is_active} onChange={() => toggleActive(template)} size="sm" />
                         </Table.Td>
                         <Table.Td>
                           <Group gap="xs">
@@ -407,30 +397,18 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
                               </ActionIcon>
                             </Tooltip>
                             <Tooltip label="Düzenle">
-                              <ActionIcon
-                                variant="subtle"
-                                color="yellow"
-                                onClick={() => handleEdit(template)}
-                              >
+                              <ActionIcon variant="subtle" color="yellow" onClick={() => handleEdit(template)}>
                                 <IconEdit size={16} />
                               </ActionIcon>
                             </Tooltip>
                             <Tooltip label="Kopyala">
-                              <ActionIcon
-                                variant="subtle"
-                                color="green"
-                                onClick={() => copyPrompt(template.prompt)}
-                              >
+                              <ActionIcon variant="subtle" color="green" onClick={() => copyPrompt(template.prompt)}>
                                 <IconCopy size={16} />
                               </ActionIcon>
                             </Tooltip>
                             {!template.is_system && (
                               <Tooltip label="Sil">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  onClick={() => handleDelete(template.id)}
-                                >
+                                <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(template.id)}>
                                   <IconTrash size={16} />
                                 </ActionIcon>
                               </Tooltip>
@@ -448,12 +426,7 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
       </Stack>
 
       {/* Sablon Ekleme/Duzenleme Modal */}
-      <Modal
-        opened={opened}
-        onClose={close}
-        title={editingTemplate ? 'Şablon Düzenle' : 'Yeni Şablon'}
-        size="lg"
-      >
+      <Modal opened={opened} onClose={close} title={editingTemplate ? 'Şablon Düzenle' : 'Yeni Şablon'} size="lg">
         <Stack gap="md">
           <Group grow>
             <TextInput
@@ -570,10 +543,7 @@ export default function TemplatesTab({ availableModels }: TemplatesTabProps) {
               <Group gap="xs">
                 <Text size="xl">{selectedTemplate.icon}</Text>
                 <Title order={4}>
-                  {selectedTemplate.name.replace(
-                    /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
-                    ''
-                  )}
+                  {selectedTemplate.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
                 </Title>
               </Group>
               <Group gap="xs">

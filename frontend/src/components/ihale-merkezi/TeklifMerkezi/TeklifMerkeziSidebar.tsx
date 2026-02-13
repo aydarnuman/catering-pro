@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Box,
-  Divider,
-  Group,
-  NavLink,
-  Paper,
-  Stack,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Box, Divider, Group, NavLink, Paper, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconCalculator,
@@ -148,9 +137,7 @@ export function TeklifMerkeziSidebar({ ctx }: SidebarProps) {
               root: {
                 borderRadius: 0,
                 borderLeft:
-                  activeSection === section.id
-                    ? '3px solid var(--mantine-color-blue-6)'
-                    : '3px solid transparent',
+                  activeSection === section.id ? '3px solid var(--mantine-color-blue-6)' : '3px solid transparent',
                 '&:hover': {
                   background: 'var(--mantine-color-dark-7)',
                 },
@@ -183,9 +170,7 @@ export function TeklifMerkeziSidebar({ ctx }: SidebarProps) {
               Kâr %{karOrani}
             </Text>
             <Text size="xs" fw={500}>
-              {hesaplanmisTeklifData.kar_tutari > 0
-                ? formatParaKisa(hesaplanmisTeklifData.kar_tutari)
-                : '—'}
+              {hesaplanmisTeklifData.kar_tutari > 0 ? formatParaKisa(hesaplanmisTeklifData.kar_tutari) : '—'}
             </Text>
           </Group>
 
@@ -197,9 +182,7 @@ export function TeklifMerkeziSidebar({ ctx }: SidebarProps) {
             radius="md"
             bg={riskAnalizi.isAsiriDusuk ? 'rgba(255, 107, 107, 0.1)' : 'rgba(81, 207, 102, 0.1)'}
             style={{
-              borderColor: riskAnalizi.isAsiriDusuk
-                ? 'var(--mantine-color-red-7)'
-                : 'var(--mantine-color-green-7)',
+              borderColor: riskAnalizi.isAsiriDusuk ? 'var(--mantine-color-red-7)' : 'var(--mantine-color-green-7)',
               border: '1px solid',
             }}
           >
@@ -221,13 +204,7 @@ export function TeklifMerkeziSidebar({ ctx }: SidebarProps) {
                 size="xs"
                 color={riskAnalizi.isAsiriDusuk ? 'red' : 'green'}
                 variant="light"
-                leftSection={
-                  riskAnalizi.isAsiriDusuk ? (
-                    <IconAlertTriangle size={10} />
-                  ) : (
-                    <IconCheck size={10} />
-                  )
-                }
+                leftSection={riskAnalizi.isAsiriDusuk ? <IconAlertTriangle size={10} /> : <IconCheck size={10} />}
               >
                 {riskAnalizi.isAsiriDusuk ? 'ALTINDA' : 'ÜSTÜNDE'}
               </Badge>

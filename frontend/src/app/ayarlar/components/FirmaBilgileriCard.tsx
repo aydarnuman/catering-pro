@@ -42,9 +42,7 @@ export default function FirmaBilgileriCard({
 
   // Ekstra alanlar state
   const [ekstraAlanlar, setEkstraAlanlar] = useState<Record<string, unknown>>({});
-  const [alanSablonlari, setAlanSablonlari] = useState<
-    Array<{ alan_adi: string; gorunen_ad: string }>
-  >([]);
+  const [alanSablonlari, setAlanSablonlari] = useState<Array<{ alan_adi: string; gorunen_ad: string }>>([]);
   const [ekstraAlanlarExpanded, setEkstraAlanlarExpanded] = useState(false);
   const [newAlanAdi, setNewAlanAdi] = useState('');
   const [newAlanDeger, setNewAlanDeger] = useState('');
@@ -78,10 +76,10 @@ export default function FirmaBilgileriCard({
   const handleAddEkstraAlan = async (alanAdi: string, deger: string) => {
     if (!varsayilanFirma?.id || !alanAdi) return;
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`,
-        { method: 'PATCH', body: JSON.stringify({ alan_adi: alanAdi, deger }) }
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`, {
+        method: 'PATCH',
+        body: JSON.stringify({ alan_adi: alanAdi, deger }),
+      });
       const data = await res.json();
       if (data.success) {
         setEkstraAlanlar(data.data.ekstra_alanlar || {});
@@ -103,10 +101,9 @@ export default function FirmaBilgileriCard({
   const handleDeleteEkstraAlan = async (alanAdi: string) => {
     if (!varsayilanFirma?.id) return;
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`,
-        { method: 'DELETE' }
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`, {
+        method: 'DELETE',
+      });
       const data = await res.json();
       if (data.success) {
         setEkstraAlanlar(data.data.ekstra_alanlar || {});
@@ -228,9 +225,7 @@ export default function FirmaBilgileriCard({
                 <>
                   <Divider />
                   <SimpleGrid cols={1} spacing="xs">
-                    {varsayilanFirma.yetkili_telefon && (
-                      <Text size="sm">📞 {varsayilanFirma.yetkili_telefon}</Text>
-                    )}
+                    {varsayilanFirma.yetkili_telefon && <Text size="sm">📞 {varsayilanFirma.yetkili_telefon}</Text>}
                     {varsayilanFirma.imza_yetkisi && (
                       <Text size="xs" c="dimmed" fs="italic">
                         &quot;{varsayilanFirma.imza_yetkisi}&quot;
@@ -284,12 +279,7 @@ export default function FirmaBilgileriCard({
                       </Text>{' '}
                       {String(value)}
                     </Text>
-                    <ActionIcon
-                      size="xs"
-                      variant="subtle"
-                      color="red"
-                      onClick={() => handleDeleteEkstraAlan(key)}
-                    >
+                    <ActionIcon size="xs" variant="subtle" color="red" onClick={() => handleDeleteEkstraAlan(key)}>
                       <IconTrash size={12} />
                     </ActionIcon>
                   </Group>
@@ -299,11 +289,7 @@ export default function FirmaBilgileriCard({
                   <Select
                     placeholder="Şablon seç veya manuel yaz..."
                     data={alanSablonlari.map((s) => ({ value: s.alan_adi, label: s.gorunen_ad }))}
-                    value={
-                      newAlanAdi && alanSablonlari.find((s) => s.alan_adi === newAlanAdi)
-                        ? newAlanAdi
-                        : null
-                    }
+                    value={newAlanAdi && alanSablonlari.find((s) => s.alan_adi === newAlanAdi) ? newAlanAdi : null}
                     onChange={(val) => {
                       if (val) setNewAlanAdi(val);
                     }}
@@ -367,11 +353,7 @@ export default function FirmaBilgileriCard({
         </Paper>
       ) : (
         <Paper p="xl" radius="md" withBorder ta="center">
-          <IconBuilding
-            size={48}
-            color="var(--mantine-color-gray-5)"
-            style={{ marginBottom: 16 }}
-          />
+          <IconBuilding size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
           <Text c="dimmed" mb="md">
             Henüz firma bilgisi eklenmemiş
           </Text>

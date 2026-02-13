@@ -62,6 +62,18 @@ JSON formatında döndür:
       "source_position": [başlangıç, bitiş]
     }
   ],
+  "gramaj_gruplari": [
+    {
+      "yemek_adi": "İnegöl Köfte|Karnıyarık|Mercimek Çorbası|...",
+      "kategori": "ana_yemek|corba|salata|tatli|pilav|yan_yemek|icecek|kahvalti",
+      "malzemeler": [
+        {"item": "Kıyma", "weight": 135, "unit": "g"},
+        {"item": "Ekmek İçi", "weight": 25, "unit": "g"}
+      ],
+      "toplam_gramaj": 367,
+      "porsiyon_notu": "Pişmiş ağırlık|Çiğ ağırlık|belirtilmemiş"
+    }
+  ],
   "calories": [
     {
       "meal_type": "kahvalti|ogle|aksam|gunluk",
@@ -106,6 +118,7 @@ JSON formatında döndür:
 6. **ISI DEĞERLERİ YASAK**: °C, derece, sıcaklık değerlerini GRAMAJ listesine EKLEME. Bunlar servis sıcaklığıdır, gramaj değildir. (Örn: 65°C, +4°C, 10 derece gramaj DEĞİLDİR)
 7. **OPERASYONEL DETAYLAR YASAK**: Bulaşık, servis arabası, personel sayısı gibi operasyonel detayları gramaj listesine EKLEME
 8. **ARALIK DEĞERLERİ**: Sayı aralıklarını (örn: 55-60) matematiksel işlem yapmadan STRING olarak ver: "55-60"
+9. **GRAMAJ GRUPLAMA**: Gramaj tabloları genelde yemek başlıkları altında malzeme listesi şeklindedir. Her yemek grubu ayrı bir "gramaj_gruplari" öğesi olmalı. "Toplam" satırları toplam_gramaj'a yaz. Yemek adı yoksa bağlamdan çıkar veya "Yemek X" olarak adlandır
 
 ## ÖRNEK GİRDİ/ÇIKTI
 
@@ -199,6 +212,32 @@ export const MENU_SCHEMA = {
           context: { type: 'string' },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           source_position: { type: 'array', items: { type: 'number' } },
+        },
+      },
+    },
+    gramaj_gruplari: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          yemek_adi: { type: 'string' },
+          kategori: {
+            type: 'string',
+            enum: ['ana_yemek', 'corba', 'salata', 'tatli', 'pilav', 'yan_yemek', 'icecek', 'kahvalti', 'diger'],
+          },
+          malzemeler: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                item: { type: 'string' },
+                weight: { type: 'number' },
+                unit: { type: 'string' },
+              },
+            },
+          },
+          toplam_gramaj: { type: ['number', 'null'] },
+          porsiyon_notu: { type: ['string', 'null'] },
         },
       },
     },

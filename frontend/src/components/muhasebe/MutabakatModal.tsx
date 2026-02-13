@@ -229,13 +229,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                     <Badge
                       size="sm"
                       variant="light"
-                      color={
-                        h.kaynak_tip === 'fatura'
-                          ? 'blue'
-                          : h.kaynak_tip === 'hareket'
-                            ? 'green'
-                            : 'orange'
-                      }
+                      color={h.kaynak_tip === 'fatura' ? 'blue' : h.kaynak_tip === 'hareket' ? 'green' : 'orange'}
                     >
                       {h.belge_no || '-'}
                     </Badge>
@@ -353,13 +347,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                       size="lg"
                       radius="md"
                       variant="light"
-                      color={
-                        f.odeme_durumu === 'kapali'
-                          ? 'green'
-                          : f.odeme_durumu === 'kismi'
-                            ? 'yellow'
-                            : 'red'
-                      }
+                      color={f.odeme_durumu === 'kapali' ? 'green' : f.odeme_durumu === 'kismi' ? 'yellow' : 'red'}
                     >
                       {f.odeme_durumu === 'kapali' ? (
                         <IconCheck size={18} />
@@ -395,11 +383,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                       </Group>
                     </Stack>
                     <ActionIcon variant="subtle" color="gray">
-                      {expandedFatura === f.id ? (
-                        <IconChevronUp size={16} />
-                      ) : (
-                        <IconChevronDown size={16} />
-                      )}
+                      {expandedFatura === f.id ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
                     </ActionIcon>
                   </Group>
                 </Group>
@@ -407,24 +391,14 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                 {/* Progress bar */}
                 <Progress
                   value={(f.odenen_tutar / f.fatura_tutari) * 100}
-                  color={
-                    f.odeme_durumu === 'kapali'
-                      ? 'green'
-                      : f.odeme_durumu === 'kismi'
-                        ? 'yellow'
-                        : 'gray'
-                  }
+                  color={f.odeme_durumu === 'kapali' ? 'green' : f.odeme_durumu === 'kismi' ? 'yellow' : 'gray'}
                   size="sm"
                   mt="xs"
                 />
 
                 {/* Ödeme detayları */}
                 {expandedFatura === f.id && f.odemeler && f.odemeler.length > 0 && (
-                  <Box
-                    mt="sm"
-                    p="sm"
-                    style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 8 }}
-                  >
+                  <Box mt="sm" p="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 8 }}>
                     <Text size="xs" fw={500} mb="xs">
                       Ödemeler:
                     </Text>
@@ -481,11 +455,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                 <Table.Td>
                   <Text fw={500}>Dönem Başı Bakiye</Text>
                 </Table.Td>
-                <Table.Td
-                  ta="right"
-                  fw={600}
-                  c={donemselData.acilis_bakiyesi >= 0 ? 'green' : 'red'}
-                >
+                <Table.Td ta="right" fw={600} c={donemselData.acilis_bakiyesi >= 0 ? 'green' : 'red'}>
                   {formatMoney(donemselData.acilis_bakiyesi)}
                 </Table.Td>
               </Table.Tr>
@@ -597,13 +567,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
       <Stack gap="md">
         {/* Dönem Seçimi */}
         <Group>
-          <Select
-            label="Ay"
-            data={aylar}
-            value={selectedAy}
-            onChange={(v) => setSelectedAy(v || '1')}
-            w={120}
-          />
+          <Select label="Ay" data={aylar} value={selectedAy} onChange={(v) => setSelectedAy(v || '1')} w={120} />
           <Select
             label="Yıl"
             data={yillar}
@@ -675,20 +639,14 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                 📋 Bakiye Durumu
               </Text>
               <Text size="xs" c="dimmed">
-                Bu cari ile {aylar.find((a) => a.value === selectedAy)?.label} {selectedYil} dönemi
-                bakiyesi
+                Bu cari ile {aylar.find((a) => a.value === selectedAy)?.label} {selectedYil} dönemi bakiyesi
               </Text>
             </Stack>
             <Paper withBorder p="md" radius="md" bg="white">
               <Text size="xs" c="dimmed" ta="center">
                 Kapanış Bakiyesi
               </Text>
-              <Text
-                fw={700}
-                size="xl"
-                c={ekstreData?.kapanis_bakiyesi >= 0 ? 'teal.7' : 'red.7'}
-                ta="center"
-              >
+              <Text fw={700} size="xl" c={ekstreData?.kapanis_bakiyesi >= 0 ? 'teal.7' : 'red.7'} ta="center">
                 {formatMoney(ekstreData?.kapanis_bakiyesi || 0)}
               </Text>
               <Text size="xs" c="dimmed" ta="center">

@@ -4,16 +4,7 @@
 
 'use client';
 
-import {
-  Button,
-  Group,
-  Modal,
-  NumberInput,
-  Select,
-  Stack,
-  Textarea,
-  TextInput,
-} from '@mantine/core';
+import { Button, Group, Modal, NumberInput, Select, Stack, Textarea, TextInput } from '@mantine/core';
 
 import type { Depo, StokItem, TransferForm } from '../../types';
 

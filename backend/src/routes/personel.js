@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import logger from '../utils/logger.js';
 import {
   atamaSchema,
   createGorevSchema,
@@ -57,6 +58,7 @@ router.get('/stats', async (_req, res) => {
     };
     res.json({ success: true, data });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -89,6 +91,7 @@ router.get('/projeler', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -140,6 +143,7 @@ router.get('/projeler/:id', async (req, res) => {
     const data = { ...projeResult.rows[0], personeller: personellerResult.rows };
     res.json({ success: true, data });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -172,6 +176,7 @@ router.post('/projeler', validate(createProjeSchema), async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     if (error.code === '23505') {
       return res.status(400).json({ success: false, error: 'Bu proje kodu zaten kullanılıyor' });
     }
@@ -212,6 +217,7 @@ router.put('/projeler/:id', validate(updateProjeSchema), async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -230,6 +236,7 @@ router.delete('/projeler/:id', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -295,6 +302,7 @@ router.get('/', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -340,6 +348,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -429,6 +438,7 @@ router.post(
 
       res.status(201).json({ success: true, data: result.rows[0] });
     } catch (error) {
+      logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
       if (error.code === '23505') {
         if (error.constraint?.includes('tc_kimlik')) {
           return res.status(400).json({ success: false, error: 'Bu TC kimlik numarası zaten kayıtlı' });
@@ -557,6 +567,7 @@ router.put(
 
       res.json({ success: true, data: result.rows[0] });
     } catch (error) {
+      logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
       res.status(500).json({ success: false, error: error.message });
     }
   }
@@ -576,6 +587,7 @@ router.delete('/:id', authenticate, requirePermission('personel', 'delete'), aud
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -619,6 +631,7 @@ router.post('/projeler/:projeId/personel', validate(atamaSchema), async (req, re
 
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -667,6 +680,7 @@ router.post('/projeler/:projeId/personel/bulk', validate(topluAtamaSchema), asyn
 
     res.status(201).json({ success: true, data: results, errors });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -700,6 +714,7 @@ router.put('/atama/:atamaId', validate(updateAtamaSchema), async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -727,6 +742,7 @@ router.delete('/atama/:atamaId', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -747,6 +763,7 @@ router.get('/stats/overview', async (_req, res) => {
 
     res.json({ success: true, data: stats.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -769,6 +786,7 @@ router.get('/stats/departman', async (_req, res) => {
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -785,6 +803,7 @@ router.get('/gorevler', async (_req, res) => {
     `);
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -807,6 +826,7 @@ router.post('/gorevler', validate(createGorevSchema), async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     if (error.code === '23505') {
       return res.status(400).json({ success: false, error: 'Bu görev adı zaten mevcut' });
     }
@@ -847,6 +867,7 @@ router.put('/gorevler/:id', validate(updateGorevSchema), async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -875,6 +896,7 @@ router.delete('/gorevler/:id', async (req, res) => {
     await query('DELETE FROM gorevler WHERE id = $1', [id]);
     res.json({ success: true, data: null });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -895,6 +917,7 @@ router.get('/tazminat/sebepler', async (_req, res) => {
   try {
     res.json({ success: true, data: CIKIS_SEBEPLERI });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -906,6 +929,7 @@ router.get('/tazminat/yasal-bilgiler', async (_req, res) => {
   try {
     res.json({ success: true, data: YASAL_BILGILER });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -920,6 +944,7 @@ router.post('/tazminat/hesapla', validate(tazminatHesaplaSchema), async (req, re
     const hesap = await hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kalanIzinGun);
     res.json({ success: true, data: hesap });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -944,6 +969,7 @@ router.post('/tazminat/kaydet', validate(tazminatKaydetSchema), async (req, res)
 
     res.json({ success: true, data: { tazminatId, hesap } });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -957,6 +983,7 @@ router.get('/tazminat/risk', async (req, res) => {
     const risk = await hesaplaTazminatRiski(projeId ? parseInt(projeId, 10) : null);
     res.json({ success: true, data: risk });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -997,6 +1024,7 @@ router.get('/tazminat/gecmis', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1025,6 +1053,7 @@ router.put('/:id/izin-gun', validate(izinGunSchema), async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logger.error('Personel endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });

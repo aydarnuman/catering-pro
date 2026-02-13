@@ -369,12 +369,7 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
         {riskStatus && (
           <>
             <Divider my={4} />
-            <Paper
-              p="xs"
-              withBorder
-              radius="md"
-              style={{ borderColor: `var(--mantine-color-${riskStatus.color}-5)` }}
-            >
+            <Paper p="xs" withBorder radius="md" style={{ borderColor: `var(--mantine-color-${riskStatus.color}-5)` }}>
               <Stack gap="xs">
                 <Group justify="space-between">
                   <Group gap="xs">
@@ -390,18 +385,11 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                   </Badge>
                 </Group>
 
-                <Progress
-                  value={Math.min(riskStatus.percent, 120)}
-                  color={riskStatus.color}
-                  size="sm"
-                  radius="xl"
-                />
+                <Progress value={Math.min(riskStatus.percent, 120)} color={riskStatus.color} size="sm" radius="xl" />
 
                 <Text size="xs" c="dimmed">
                   {riskStatus.percent < 85 && 'Aşırı düşük teklif açıklaması gerekebilir'}
-                  {riskStatus.percent >= 85 &&
-                    riskStatus.percent < 95 &&
-                    'Sınır değere yakın, dikkatli olun'}
+                  {riskStatus.percent >= 85 && riskStatus.percent < 95 && 'Sınır değere yakın, dikkatli olun'}
                   {riskStatus.percent >= 95 && riskStatus.percent <= 105 && 'Teklif uygun aralıkta'}
                   {riskStatus.percent > 105 && 'Teklif sınır değerin üstünde'}
                 </Text>

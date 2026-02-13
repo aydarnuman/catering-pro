@@ -9,7 +9,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
 import aiTools from './ai-tools/index.js';
+import { getSharedLearningsForAgent, propagateFactFromMainAgent } from './cross-agent-learning-service.js';
 import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
+import { getFeedbackInsightsForPrompt } from './feedback-learning-service.js';
+import { generateAndStoreEmbedding, searchMemorySemantic } from './vector-memory-service.js';
 
 /**
  * Fiyat Lookup Servisi
@@ -120,21 +123,44 @@ class AIAgentService {
 
   /**
    * Hafızadan context yükle
+   * Hibrit strateji: SQL bazlı (top memories) + semantic search (ilgili memories)
+   *
+   * @param {string} userId
+   * @param {string} queryText - Semantic search için kullanıcı sorusu (opsiyonel)
    */
-  async loadMemoryContext(userId = 'default') {
+  async loadMemoryContext(userId = 'default', queryText = null) {
     try {
-      const result = await query(
+      // 1. Her zaman: En önemli hafızaları SQL ile al (temel bilgiler)
+      const sqlResult = await query(
         `
         SELECT memory_type, category, key, value, importance
         FROM ai_memory 
         WHERE user_id = $1 
         ORDER BY importance DESC, usage_count DESC
-        LIMIT 30
+        LIMIT 20
       `,
         [userId]
       );
 
-      return result.rows;
+      const baseMemories = sqlResult.rows;
+
+      // 2. Semantic search (kullanıcı sorusu varsa, ilgili hafızaları da getir)
+      if (queryText && queryText.length > 5) {
+        try {
+          const semanticResults = await searchMemorySemantic(queryText, userId, 10, 0.65);
+          if (semanticResults.length > 0) {
+            // SQL sonuçlarıyla birleştir, duplikatları kaldır
+            const existingKeys = new Set(baseMemories.map((m) => m.key));
+            const newSemantic = semanticResults.filter((s) => !existingKeys.has(s.key));
+            // En ilgili 10'u ekle
+            return [...baseMemories, ...newSemantic.slice(0, 10)];
+          }
+        } catch (err) {
+          logger.debug('[AI Agent] Semantic search başarısız, SQL fallback', { error: err.message });
+        }
+      }
+
+      return baseMemories;
     } catch (error) {
       logger.error('Hafıza yükleme hatası', { error: error.message, stack: error.stack });
       return [];
@@ -211,12 +237,12 @@ class AIAgentService {
   }
 
   /**
-   * Yeni bilgi öğren
+   * Yeni bilgi öğren (+ embedding üret)
    */
   async learn(learnings, userId = 'default') {
     try {
       for (const learning of learnings) {
-        await query(
+        const result = await query(
           `
           INSERT INTO ai_memory (user_id, memory_type, category, key, value, importance)
           VALUES ($1, $2, $3, $4, $5, $6)
@@ -227,9 +253,19 @@ class AIAgentService {
             usage_count = ai_memory.usage_count + 1,
             last_used_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
+          RETURNING id
         `,
           [userId, learning.memory_type, learning.category, learning.key, learning.value, learning.importance || 5]
         );
+
+        // Arka planda embedding üret
+        const memoryId = result.rows[0]?.id;
+        if (memoryId) {
+          const text = `${learning.category || ''}: ${learning.key} — ${learning.value}`;
+          generateAndStoreEmbedding(memoryId, text).catch((err) =>
+            logger.debug('[AI Agent] Embedding üretim hatası (arka plan)', { error: err.message })
+          );
+        }
       }
       return true;
     } catch (error) {
@@ -372,9 +408,27 @@ Bu şablona göre yanıtlarını şekillendir. Yukarıdaki yönergeleri takip et
 `;
     }
 
+    // Feedback'lerden öğrenme (anti-pattern'ler)
+    let feedbackSection = '';
+    try {
+      feedbackSection = await getFeedbackInsightsForPrompt();
+    } catch (err) {
+      logger.warn('[AI Agent] Feedback insights yüklenemedi', { error: err.message });
+    }
+
+    // Cross-agent öğrenmeleri yükle
+    let crossAgentSection = '';
+    try {
+      crossAgentSection = await getSharedLearningsForAgent('main');
+    } catch (err) {
+      logger.warn('[AI Agent] Cross-agent learnings yüklenemedi', { error: err.message });
+    }
+
     return `Sen bir **Catering Pro AI Asistanı**sın. Türkçe konuşuyorsun.
 ${templateSection}
 ${memorySection}
+${feedbackSection}
+${crossAgentSection}
 
 ## KİMLİĞİN
 Bir catering şirketinin operasyon yöneticisisin. Akıllı, yardımcı ve dikkatlisin.
@@ -687,8 +741,8 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         }
       }
 
-      // 1. Hafızayı yükle
-      const memories = await this.loadMemoryContext(userId);
+      // 1. Hafızayı yükle (semantic search ile sorguya ilgili olanları da getir)
+      const memories = await this.loadMemoryContext(userId, userMessage);
       logger.debug(`[AI Agent] ${memories.length} hafıza yüklendi`, { memoryCount: memories.length });
 
       // 2. Şablonu yükle (varsa) - preferred_model dahil
@@ -989,7 +1043,7 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
         return { success: true, facts: [] };
       }
 
-      // Fact'leri veritabanına kaydet
+      // Fact'leri veritabanına kaydet ve diğer ajanlara yay
       for (const fact of facts) {
         if (fact.confidence >= 0.6) {
           await query(
@@ -1008,6 +1062,13 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
               fact.confidence,
             ]
           );
+
+          // Cross-agent propagation: Yüksek güvenli fact'leri diğer ajanlara yay
+          if (fact.confidence >= 0.8) {
+            propagateFactFromMainAgent(fact).catch((err) =>
+              logger.debug('[AI Agent] Cross-agent propagation hatası', { error: err.message })
+            );
+          }
         }
       }
 

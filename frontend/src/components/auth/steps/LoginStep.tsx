@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  Transition,
-} from '@mantine/core';
+import { Alert, Box, Button, Checkbox, Group, Stack, Text, TextInput, Transition } from '@mantine/core';
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -315,11 +305,7 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
                 input: 'auth-checkbox',
               }}
             />
-            <button
-              type="button"
-              className="auth-link"
-              onClick={() => onStepChange?.('forgot-password')}
-            >
+            <button type="button" className="auth-link" onClick={() => onStepChange?.('forgot-password')}>
               Şifremi unuttum
             </button>
           </Group>

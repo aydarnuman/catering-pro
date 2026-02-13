@@ -83,13 +83,13 @@ Hazir yemek sektoru icin kapsamli ERP-benzeri kurumsal is yonetim sistemi. Ihale
 CATERING/
 ├── backend/                     # Node.js + Express API (ES Modules)
 │   └── src/
-│       ├── routes/              # API endpoints (52 dosya)
-│       ├── services/            # Business logic (34 dosya)
+│       ├── routes/              # API endpoints (~56 dosya)
+│       ├── services/            # Business logic (43+ dosya)
 │       │   └── ai-tools/        # AI arac modulleri (10 dosya)
 │       ├── middleware/          # Auth, rate-limit, CSRF
 │       ├── scraper/             # ihalebul.com scraper
 │       │   └── uyumsoft/        # Uyumsoft API client
-│       ├── migrations/          # Legacy SQL migrations (102 dosya)
+│       ├── migrations/          # Legacy SQL migrations
 │       ├── database.js          # PostgreSQL connection (Supabase)
 │       ├── supabase.js          # Supabase client
 │       └── server.js            # Express entry point
@@ -120,7 +120,7 @@ CATERING/
 │           └── supabase/        # Supabase client (sadece Realtime)
 │
 ├── supabase/                    # Supabase migrations
-│   └── migrations/              # SQL migrations (102 dosya)
+│   └── migrations/              # SQL migrations (106+ dosya)
 │
 ├── services/                    # Harici servisler
 │   ├── whatsapp/                # WhatsApp entegrasyonu (Node.js)
@@ -138,7 +138,7 @@ CATERING/
 │
 ├── uploads/                     # Yuklenen dosyalar
 ├── scripts/                     # Deploy & utility scripts
-├── ecosystem.config.js          # PM2 production config
+├── ecosystem.config.cjs         # PM2 production config
 ├── docker-compose.yml           # Container orchestration
 ├── service.sh                   # Servis yonetim scripti
 └── start-all.sh                 # Toplu baslatma scripti
@@ -169,12 +169,12 @@ CATERING/
 
 | Teknoloji | Versiyon | Aciklama |
 |-----------|----------|----------|
-| Next.js | ^15.5.7 | React framework (App Router) |
+| Next.js | ^15.5.11 | React framework (App Router) |
 | React | ^18.3.1 | UI Library |
 | TypeScript | ^5 | Type safety |
 | Mantine UI | ^7.17.0 | Component library |
 | TanStack Query | ^5.17.0 | Server state management |
-| SWR | ^2.3.7 | Data fetching |
+| SWR | ^2.3.7 | Data fetching (legacy, yeni kod TanStack Query kullanir) |
 | Socket.io | ^4.8.3 | Real-time communication |
 | Recharts | ^2.15.4 | Grafikler |
 | Leaflet | ^1.9.4 | Harita entegrasyonu |
@@ -316,17 +316,17 @@ cd frontend && npm run dev   # :3000
 
 ## Servis Yonetimi
 
-Tum servis islemleri icin `service.sh` script'ini kullanin:
+Tum servis islemleri icin `scripts/service.sh` script'ini kullanin:
 
 ```bash
-./service.sh start      # Tum servisleri baslat
-./service.sh stop       # Tum servisleri durdur
-./service.sh restart    # Yeniden baslat
-./service.sh status     # Durum kontrolu
-./service.sh logs       # Canli log takibi
-./service.sh clean      # Cache ve eski loglari temizle
-./service.sh backend    # Sadece backend yeniden baslat
-./service.sh frontend   # Sadece frontend yeniden baslat
+./scripts/service.sh start      # Tum servisleri baslat
+./scripts/service.sh stop       # Tum servisleri durdur
+./scripts/service.sh restart    # Yeniden baslat
+./scripts/service.sh status     # Durum kontrolu
+./scripts/service.sh logs       # Canli log takibi
+./scripts/service.sh clean      # Cache ve eski loglari temizle
+./scripts/service.sh backend    # Sadece backend yeniden baslat
+./scripts/service.sh frontend   # Sadece frontend yeniden baslat
 ```
 
 ### Docker ile Calistirma (Opsiyonel)
@@ -504,7 +504,8 @@ npm run dev          # Development mode (--watch)
 npm run start        # Production mode
 npm run lint         # Biome lint check
 npm run lint:fix     # Biome auto-fix
-npm run test         # Jest tests
+npm run check        # Biome check (CI icin)
+npm run test         # Vitest tests
 npm run scraper      # Manuel scraper calistir
 ```
 
@@ -515,7 +516,8 @@ npm run dev          # Development server
 npm run build        # Production build
 npm run start        # Production server
 npm run lint         # Biome lint check
-npm run type-check   # TypeScript check
+npm run type-check   # TypeScript check (tsc --noEmit)
+npm run check        # Biome + TypeScript (CI icin)
 ```
 
 ### Database
@@ -586,9 +588,14 @@ server {
 - [API Endpoints](docs/02_API_ENDPOINTS.md) - API detaylari
 - [Frontend Modules](docs/03_FRONTEND_MODULES.md) - UI modulleri
 - [Component Registry](docs/04_COMPONENT_REGISTRY.md) - Component listesi
+- [Muhasebe Moduller](docs/05_MUHASEBE_FINANSAL_MODULLER.md) - Muhasebe & Finans
 - [Architecture](docs/ARCHITECTURE.md) - Sistem mimarisi
 - [Deployment](docs/DEPLOYMENT.md) - Production deploy
 - [DigitalOcean](docs/DIGITALOCEAN.md) - Server konfigurasyonu
+- [AI Chat & Agent](docs/AI_CHAT_AGENT.md) - AI asistan dokumantasyonu
+- [AI Pipeline](docs/AI_PIPELINE.md) - Dokuman analiz pipeline
+- [Azure Training](docs/AZURE_TRAINING.md) - Azure model egitimi
+- [Piyasa Fiyat](docs/piyasa-fiyat-sistemi.md) - Piyasa fiyat sistemi
 ---
 
 ## License

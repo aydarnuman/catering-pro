@@ -21,72 +21,11 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconArrowLeft,
-  IconBuilding,
-  IconCash,
-  IconPencil,
-  IconPlus,
-  IconTrash,
-  IconUsers,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconBuilding, IconCash, IconPencil, IconPlus, IconTrash, IconUsers } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { formatDate } from '@/lib/formatters';
-
-interface Proje {
-  id: number;
-  kod: string;
-  ad: string;
-  aciklama?: string;
-  firma_id?: number;
-  firma_unvani?: string;
-  // İşveren/Lokasyon
-  musteri?: string;
-  lokasyon?: string;
-  adres?: string;
-  il?: string;
-  ilce?: string;
-  // Sözleşme
-  sozlesme_no?: string;
-  sozlesme_tarihi?: string;
-  sozlesme_bitis_tarihi?: string;
-  sozlesme_bedeli?: number;
-  teminat_mektubu_tutari?: number;
-  teminat_iade_tarihi?: string;
-  // Kapasite
-  gunluk_kisi_sayisi?: number;
-  ogun_sayisi?: number;
-  // Fatura
-  fatura_unvani?: string;
-  fatura_vergi_no?: string;
-  fatura_vergi_dairesi?: string;
-  fatura_kesim_gunu?: number;
-  kdv_orani?: number;
-  // Hakediş
-  hakedis_tipi?: string;
-  aylik_hakedis?: number;
-  hakedis_gun?: number;
-  // Yetkili
-  yetkili?: string;
-  yetkili_unvan?: string;
-  telefon?: string;
-  email?: string;
-  // Diğer
-  proje_tipi?: string;
-  renk: string;
-  durum: string;
-  aktif: boolean;
-  butce?: number;
-  baslangic_tarihi?: string;
-  bitis_tarihi?: string;
-  notlar?: string;
-  // Hesaplanan
-  personel_sayisi?: number;
-  toplam_maas?: number;
-  siparis_sayisi?: number;
-  toplam_harcama?: number;
-}
+import type { Proje } from '@/types/domain';
 
 interface ProjeYonetimModalProps {
   opened: boolean;
@@ -306,8 +245,8 @@ export default function ProjeYonetimModal({
                             {proje.kod}
                           </Badge>
                         )}
-                        <Badge size="xs" color={durumRenkleri[proje.durum]}>
-                          {proje.durum}
+                        <Badge size="xs" color={durumRenkleri[proje.durum ?? 'aktif']}>
+                          {proje.durum ?? 'aktif'}
                         </Badge>
                       </Group>
                       <Group gap="md" mt={4}>
@@ -317,8 +256,7 @@ export default function ProjeYonetimModal({
                           </Text>
                         )}
                         <Text size="xs" c="dimmed">
-                          <IconUsers size={12} style={{ verticalAlign: 'middle' }} />{' '}
-                          {proje.personel_sayisi || 0}
+                          <IconUsers size={12} style={{ verticalAlign: 'middle' }} /> {proje.personel_sayisi || 0}
                         </Text>
                         <Text size="xs" c="dimmed">
                           <IconCash size={12} style={{ verticalAlign: 'middle' }} />{' '}
@@ -329,11 +267,7 @@ export default function ProjeYonetimModal({
                   </Group>
                   <Group gap="xs" onClick={(e) => e.stopPropagation()}>
                     <Tooltip label="Düzenle">
-                      <ActionIcon
-                        variant="light"
-                        color="orange"
-                        onClick={() => handleDuzenle(proje)}
-                      >
+                      <ActionIcon variant="light" color="orange" onClick={() => handleDuzenle(proje)}>
                         <IconPencil size={16} />
                       </ActionIcon>
                     </Tooltip>
@@ -450,18 +384,14 @@ export default function ProjeYonetimModal({
             type="number"
             placeholder="0"
             value={form.sozlesme_bedeli || ''}
-            onChange={(e) =>
-              setForm({ ...form, sozlesme_bedeli: parseFloat(e.target.value) || undefined })
-            }
+            onChange={(e) => setForm({ ...form, sozlesme_bedeli: parseFloat(e.target.value) || undefined })}
           />
           <TextInput
             label="Teminat Tutarı (TL)"
             type="number"
             placeholder="0"
             value={form.teminat_mektubu_tutari || ''}
-            onChange={(e) =>
-              setForm({ ...form, teminat_mektubu_tutari: parseFloat(e.target.value) || undefined })
-            }
+            onChange={(e) => setForm({ ...form, teminat_mektubu_tutari: parseFloat(e.target.value) || undefined })}
           />
         </SimpleGrid>
 
@@ -474,9 +404,7 @@ export default function ProjeYonetimModal({
             type="number"
             placeholder="100"
             value={form.gunluk_kisi_sayisi || ''}
-            onChange={(e) =>
-              setForm({ ...form, gunluk_kisi_sayisi: parseInt(e.target.value, 10) || undefined })
-            }
+            onChange={(e) => setForm({ ...form, gunluk_kisi_sayisi: parseInt(e.target.value, 10) || undefined })}
           />
           <Select
             label="Öğün Sayısı"
@@ -494,9 +422,7 @@ export default function ProjeYonetimModal({
             type="number"
             placeholder="0"
             value={form.aylik_hakedis || ''}
-            onChange={(e) =>
-              setForm({ ...form, aylik_hakedis: parseFloat(e.target.value) || undefined })
-            }
+            onChange={(e) => setForm({ ...form, aylik_hakedis: parseFloat(e.target.value) || undefined })}
           />
         </SimpleGrid>
 
@@ -530,9 +456,7 @@ export default function ProjeYonetimModal({
             type="number"
             placeholder="1-31"
             value={form.fatura_kesim_gunu || ''}
-            onChange={(e) =>
-              setForm({ ...form, fatura_kesim_gunu: parseInt(e.target.value, 10) || undefined })
-            }
+            onChange={(e) => setForm({ ...form, fatura_kesim_gunu: parseInt(e.target.value, 10) || undefined })}
           />
           <Select
             label="KDV Oranı"
@@ -608,11 +532,7 @@ export default function ProjeYonetimModal({
             value={form.proje_tipi || 'yemek'}
             onChange={(v) => setForm({ ...form, proje_tipi: v || 'yemek' })}
           />
-          <ColorInput
-            label="Renk"
-            value={form.renk || '#6366f1'}
-            onChange={(v) => setForm({ ...form, renk: v })}
-          />
+          <ColorInput label="Renk" value={form.renk || '#6366f1'} onChange={(v) => setForm({ ...form, renk: v })} />
         </SimpleGrid>
 
         <Textarea
@@ -671,7 +591,7 @@ export default function ProjeYonetimModal({
                 {selectedProje.kod}
               </Badge>
             )}
-            <Badge color={durumRenkleri[selectedProje.durum]}>{selectedProje.durum}</Badge>
+            <Badge color={durumRenkleri[selectedProje.durum ?? 'aktif']}>{selectedProje.durum ?? 'aktif'}</Badge>
           </Group>
           <Button
             variant="light"
@@ -777,9 +697,7 @@ export default function ProjeYonetimModal({
                   </Text>
                   <Text size="sm">
                     <b>Kesim Günü:</b>{' '}
-                    {selectedProje.fatura_kesim_gunu
-                      ? `Her ayın ${selectedProje.fatura_kesim_gunu}. günü`
-                      : '-'}
+                    {selectedProje.fatura_kesim_gunu ? `Her ayın ${selectedProje.fatura_kesim_gunu}. günü` : '-'}
                   </Text>
                 </Stack>
               </Paper>
@@ -829,12 +747,7 @@ export default function ProjeYonetimModal({
       onClose={onClose}
       title={
         <Group gap="sm">
-          <ThemeIcon
-            size="lg"
-            radius="md"
-            variant="gradient"
-            gradient={{ from: 'indigo', to: 'violet' }}
-          >
+          <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
             <IconBuilding size={20} />
           </ThemeIcon>
           <Text fw={600}>Proje Yönetimi</Text>

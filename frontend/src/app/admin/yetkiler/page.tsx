@@ -197,16 +197,13 @@ export default function YetkilerPage() {
     setSaving(true);
 
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ templateName }),
-        }
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ templateName }),
+      });
 
       const data = await res.json();
 
@@ -297,12 +294,7 @@ export default function YetkilerPage() {
               </Button>
             </Group>
             <Group gap="sm" mb={4}>
-              <ThemeIcon
-                size="lg"
-                radius="md"
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'blue' }}
-              >
+              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'violet', to: 'blue' }}>
                 <IconShieldLock size={20} />
               </ThemeIcon>
               <Title order={1} size="h2">
@@ -423,11 +415,7 @@ export default function YetkilerPage() {
                           </Tooltip>
                         ) : (
                           <Tooltip label="Yetkileri Düzenle">
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              onClick={() => handleEditUser(u.user_id)}
-                            >
+                            <ActionIcon variant="light" color="blue" onClick={() => handleEditUser(u.user_id)}>
                               <IconEdit size={16} />
                             </ActionIcon>
                           </Tooltip>
@@ -521,20 +509,10 @@ export default function YetkilerPage() {
 
             {/* Toplu İşlem */}
             <Group>
-              <Button
-                size="xs"
-                variant="light"
-                color="green"
-                onClick={() => setAllPermissions(true)}
-              >
+              <Button size="xs" variant="light" color="green" onClick={() => setAllPermissions(true)}>
                 Tümünü Aç
               </Button>
-              <Button
-                size="xs"
-                variant="light"
-                color="red"
-                onClick={() => setAllPermissions(false)}
-              >
+              <Button size="xs" variant="light" color="red" onClick={() => setAllPermissions(false)}>
                 Tümünü Kapat
               </Button>
             </Group>
@@ -563,41 +541,31 @@ export default function YetkilerPage() {
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_view || false}
-                          onChange={(e) =>
-                            updatePermission(index, 'can_view', e.currentTarget.checked)
-                          }
+                          onChange={(e) => updatePermission(index, 'can_view', e.currentTarget.checked)}
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_create || false}
-                          onChange={(e) =>
-                            updatePermission(index, 'can_create', e.currentTarget.checked)
-                          }
+                          onChange={(e) => updatePermission(index, 'can_create', e.currentTarget.checked)}
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_edit || false}
-                          onChange={(e) =>
-                            updatePermission(index, 'can_edit', e.currentTarget.checked)
-                          }
+                          onChange={(e) => updatePermission(index, 'can_edit', e.currentTarget.checked)}
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_delete || false}
-                          onChange={(e) =>
-                            updatePermission(index, 'can_delete', e.currentTarget.checked)
-                          }
+                          onChange={(e) => updatePermission(index, 'can_delete', e.currentTarget.checked)}
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_export || false}
-                          onChange={(e) =>
-                            updatePermission(index, 'can_export', e.currentTarget.checked)
-                          }
+                          onChange={(e) => updatePermission(index, 'can_export', e.currentTarget.checked)}
                         />
                       </Table.Td>
                     </Table.Tr>

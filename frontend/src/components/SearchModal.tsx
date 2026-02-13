@@ -332,80 +332,78 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
           {/* Results by Category */}
           {hasResults && (
             <Stack gap="md">
-              {(Object.keys(categoryConfig) as Array<keyof typeof categoryConfig>).map(
-                (category) => {
-                  const items = results[category];
-                  if (!items || items.length === 0) return null;
+              {(Object.keys(categoryConfig) as Array<keyof typeof categoryConfig>).map((category) => {
+                const items = results[category];
+                if (!items || items.length === 0) return null;
 
-                  const config = categoryConfig[category];
-                  const Icon = config.icon;
+                const config = categoryConfig[category];
+                const Icon = config.icon;
 
-                  return (
-                    <Box key={category}>
-                      <Group gap="xs" px="xs" mb="xs">
-                        <Icon size={14} style={{ opacity: 0.6 }} />
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          {config.label}
-                        </Text>
-                        <Badge size="xs" variant="light" color={config.color}>
-                          {items.length}
-                        </Badge>
-                      </Group>
+                return (
+                  <Box key={category}>
+                    <Group gap="xs" px="xs" mb="xs">
+                      <Icon size={14} style={{ opacity: 0.6 }} />
+                      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                        {config.label}
+                      </Text>
+                      <Badge size="xs" variant="light" color={config.color}>
+                        {items.length}
+                      </Badge>
+                    </Group>
 
-                      <Stack gap={4}>
-                        {items.map((item) => (
-                          <UnstyledButton
-                            key={item.id}
-                            onClick={() => handleResultClick(category, item)}
-                            px="sm"
-                            py="xs"
-                            style={{
-                              borderRadius: 8,
-                              transition: 'all 0.15s ease',
-                              backgroundColor: 'transparent',
-                            }}
-                            className="search-result-item"
-                          >
-                            <Group justify="space-between" wrap="nowrap">
-                              <Box style={{ flex: 1, minWidth: 0 }}>
-                                <Text size="sm" fw={500} truncate>
-                                  {item.title}
+                    <Stack gap={4}>
+                      {items.map((item) => (
+                        <UnstyledButton
+                          key={item.id}
+                          onClick={() => handleResultClick(category, item)}
+                          px="sm"
+                          py="xs"
+                          style={{
+                            borderRadius: 8,
+                            transition: 'all 0.15s ease',
+                            backgroundColor: 'transparent',
+                          }}
+                          className="search-result-item"
+                        >
+                          <Group justify="space-between" wrap="nowrap">
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="sm" fw={500} truncate>
+                                {item.title}
+                              </Text>
+                              {category === 'tenders' && item.city && (
+                                <Text size="xs" c="dimmed">
+                                  {item.city} • {item.organization}
                                 </Text>
-                                {category === 'tenders' && item.city && (
-                                  <Text size="xs" c="dimmed">
-                                    {item.city} • {item.organization}
-                                  </Text>
-                                )}
-                                {category === 'cariler' && item.tip && (
-                                  <Text size="xs" c="dimmed">
-                                    {item.tip} • {item.vergi_no}
-                                  </Text>
-                                )}
-                                {category === 'invoices' && item.customer_name && (
-                                  <Text size="xs" c="dimmed">
-                                    {item.customer_name}
-                                  </Text>
-                                )}
-                                {category === 'stok' && item.kategori && (
-                                  <Text size="xs" c="dimmed">
-                                    {item.kategori} • {item.kod}
-                                  </Text>
-                                )}
-                                {category === 'personel' && item.departman && (
-                                  <Text size="xs" c="dimmed">
-                                    {item.departman} • {item.pozisyon}
-                                  </Text>
-                                )}
-                              </Box>
-                              <IconArrowRight size={16} style={{ opacity: 0.3, flexShrink: 0 }} />
-                            </Group>
-                          </UnstyledButton>
-                        ))}
-                      </Stack>
-                    </Box>
-                  );
-                }
-              )}
+                              )}
+                              {category === 'cariler' && item.tip && (
+                                <Text size="xs" c="dimmed">
+                                  {item.tip} • {item.vergi_no}
+                                </Text>
+                              )}
+                              {category === 'invoices' && item.customer_name && (
+                                <Text size="xs" c="dimmed">
+                                  {item.customer_name}
+                                </Text>
+                              )}
+                              {category === 'stok' && item.kategori && (
+                                <Text size="xs" c="dimmed">
+                                  {item.kategori} • {item.kod}
+                                </Text>
+                              )}
+                              {category === 'personel' && item.departman && (
+                                <Text size="xs" c="dimmed">
+                                  {item.departman} • {item.pozisyon}
+                                </Text>
+                              )}
+                            </Box>
+                            <IconArrowRight size={16} style={{ opacity: 0.3, flexShrink: 0 }} />
+                          </Group>
+                        </UnstyledButton>
+                      ))}
+                    </Stack>
+                  </Box>
+                );
+              })}
             </Stack>
           )}
         </Box>

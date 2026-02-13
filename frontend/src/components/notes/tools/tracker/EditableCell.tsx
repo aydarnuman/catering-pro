@@ -6,15 +6,7 @@
  * Features: conditional coloring for numbers, mini bar chart
  */
 
-import {
-  Badge,
-  Box,
-  NumberInput,
-  Select,
-  Text,
-  TextInput,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Badge, Box, NumberInput, Select, Text, TextInput, useMantineColorScheme } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import { fmtNum } from './helpers';
 import type { TrackerColumn } from './types';
@@ -164,9 +156,7 @@ export function EditableCell({
             zIndex: 1,
           }}
         >
-          {column.type === 'number' && typeof value === 'number'
-            ? fmtNum(value)
-            : value || '\u00A0'}
+          {column.type === 'number' && typeof value === 'number' ? fmtNum(value) : value || '\u00A0'}
         </Text>
       </Box>
     );

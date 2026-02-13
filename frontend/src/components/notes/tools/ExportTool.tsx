@@ -7,26 +7,9 @@
  * - Yazdir (print-friendly)
  */
 
-import {
-  Box,
-  Button,
-  CopyButton,
-  Group,
-  Paper,
-  Select,
-  Stack,
-  Text,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Box, Button, CopyButton, Group, Paper, Select, Stack, Text, useMantineColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconCheck,
-  IconCopy,
-  IconDownload,
-  IconFileText,
-  IconPrinter,
-  IconSelectAll,
-} from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconDownload, IconFileText, IconPrinter, IconSelectAll } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { UnifiedNote } from '@/types/notes';
 

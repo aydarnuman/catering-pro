@@ -181,14 +181,7 @@ function GeneralCalculator() {
 
       {/* Buttons */}
       <SimpleGrid cols={4} spacing={5}>
-        <Button
-          className="ws-calc-btn"
-          variant="light"
-          color="gray"
-          onClick={clearAll}
-          style={btnBase}
-          radius="md"
-        >
+        <Button className="ws-calc-btn" variant="light" color="gray" onClick={clearAll} style={btnBase} radius="md">
           C
         </Button>
         <Button
@@ -300,13 +293,7 @@ function GeneralCalculator() {
         >
           0
         </Button>
-        <Button
-          className="ws-calc-btn"
-          variant="default"
-          onClick={inputDecimal}
-          style={btnBase}
-          radius="md"
-        >
+        <Button className="ws-calc-btn" variant="default" onClick={inputDecimal} style={btnBase} radius="md">
           .
         </Button>
         <Button
@@ -315,8 +302,7 @@ function GeneralCalculator() {
           onClick={() => performOperation('=')}
           style={{
             ...btnBase,
-            background:
-              'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-violet-8) 100%)',
+            background: 'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-violet-8) 100%)',
           }}
           radius="md"
         >
@@ -438,10 +424,7 @@ function KarMarjiCalculator() {
 
 // ─── Birim Cevirici ───
 type UnitCategory = 'weight' | 'volume';
-const UNIT_CONVERSIONS: Record<
-  UnitCategory,
-  Array<{ value: string; label: string; toBase: number }>
-> = {
+const UNIT_CONVERSIONS: Record<UnitCategory, Array<{ value: string; label: string; toBase: number }>> = {
   weight: [
     { value: 'kg', label: 'Kilogram', toBase: 1000 },
     { value: 'g', label: 'Gram', toBase: 1 },
@@ -708,13 +691,7 @@ export function CalculatorTool() {
               {CALC_MODES.find((m) => m.value === mode)?.label}
             </Text>
           </Group>
-          <Button
-            variant="subtle"
-            size="xs"
-            color="gray"
-            onClick={() => setMode('general')}
-            radius="md"
-          >
+          <Button variant="subtle" size="xs" color="gray" onClick={() => setMode('general')} radius="md">
             Hesap Makinasi
           </Button>
         </Group>

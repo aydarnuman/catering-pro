@@ -10,10 +10,7 @@ import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import type React from 'react';
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
-import type {
-  AnalysisProgressData,
-  FileProgress,
-} from '@/components/analysis/AnalysisProgressModal';
+import type { AnalysisProgressData, FileProgress } from '@/components/analysis/AnalysisProgressModal';
 import { API_BASE_URL } from '@/lib/config';
 
 // Analiz job tipi
@@ -34,11 +31,7 @@ export interface AnalysisJob {
 interface AnalysisContextType {
   jobs: AnalysisJob[];
   activeJobCount: number;
-  startBackgroundAnalysis: (
-    tenderId: string,
-    tenderTitle: string,
-    documentIds: number[]
-  ) => Promise<string>;
+  startBackgroundAnalysis: (tenderId: string, tenderTitle: string, documentIds: number[]) => Promise<string>;
   cancelJob: (jobId: string) => void;
   removeJob: (jobId: string) => void;
   getJobByTenderId: (tenderId: string) => AnalysisJob | undefined;

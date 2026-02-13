@@ -32,12 +32,7 @@ export default function NotFound() {
           >
             Ana Sayfa
           </Button>
-          <Button
-            leftSection={<IconArrowLeft size={18} />}
-            variant="light"
-            onClick={() => router.back()}
-            size="md"
-          >
+          <Button leftSection={<IconArrowLeft size={18} />} variant="light" onClick={() => router.back()} size="md">
             Geri Dön
           </Button>
           <Button
@@ -60,7 +55,7 @@ export default function NotFound() {
             <Button variant="subtle" size="xs" component={Link} href="/muhasebe/faturalar">
               Faturalar
             </Button>
-            <Button variant="subtle" size="xs" component={Link} href="/muhasebe/menu-planlama">
+            <Button variant="subtle" size="xs" component={Link} href="/menu-planlama">
               Menu Planlama
             </Button>
             <Button variant="subtle" size="xs" component={Link} href="/ihale-merkezi">

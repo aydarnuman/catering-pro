@@ -1,10 +1,10 @@
 # Frontend Dokümantasyonu
 
-## 🎯 Genel Bakış
+## Genel Bakis
 
-Catering Pro frontend uygulaması Next.js 14 (App Router) ile geliştirilmiştir. Mantine UI bileşen kütüphanesi ve Tailwind CSS kullanılır.
+Catering Pro frontend uygulamasi Next.js 15 (App Router) ile gelistirilmistir. Mantine UI v7 bilesen kutuphanesi kullanilir.
 
-**Son Güncelleme:** Ocak 2026
+**Son Guncelleme:** Subat 2026
 
 ## 🚀 Başlatma
 
@@ -138,9 +138,9 @@ src/
 │   └── AuthContext.tsx         # Authentication context & provider
 │
 ├── hooks/                      # Custom React Hooks
-│   ├── useApi.ts               # API çağrıları (SWR based)
-│   ├── useAuth.ts              # Auth işlemleri
+│   ├── useAuth.ts              # Auth islemleri
 │   ├── useDebounce.ts          # Debounce hook
+│   ├── usePermissions.ts       # Modul bazli yetki kontrolu
 │   └── usePagination.ts        # Pagination hook
 │
 ├── lib/                        # Utility Fonksiyonları
@@ -194,86 +194,51 @@ import {
 } from 'recharts';
 ```
 
-### SWR (Data Fetching)
+### TanStack React Query (Data Fetching - Yeni Kod)
 ```tsx
-import useSWR from 'swr';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { API_BASE_URL } from '@/lib/config';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-const { data, error, isLoading, mutate } = useSWR('/api/endpoint', fetcher);
+const { data, error, isLoading } = useQuery({
+  queryKey: ['cariler'],
+  queryFn: () => axios.get(`${API_BASE_URL}/api/cariler`).then(res => res.data),
+});
 ```
+
+> **Not:** SWR bazi eski kodlarda hala kullanilir. Yeni kod `@tanstack/react-query` kullanmalidir.
 
 ---
 
 ## 🔗 API Bağlantısı
 
-### ⚠️ ÖNEMLİ: API_BASE_URL Kullanımı
+### ONEMLI: API_BASE_URL Kullanimi
 
-**ASLA hardcoded URL kullanmayın:**
+**ASLA hardcoded URL kullanmayin. Axios kullanin (fetch degil):**
 
 ```tsx
-// ❌ YANLIŞ
-const API_URL = 'http://localhost:3001/api';
+// YANLIS
 fetch('http://localhost:3001/api/cariler');
 
-// ✅ DOĞRU - lib/config.ts'den import edin
+// DOGRU - Axios + config.ts
+import axios from 'axios';
 import { API_BASE_URL } from '@/lib/config';
-const response = await fetch(`${API_BASE_URL}/api/cariler`);
-```
-
-### lib/config.ts Yapısı
-```tsx
-// Otomatik URL belirleme (localhost veya production)
-const getApiBaseUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    const { hostname, protocol } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
-    }
-    return `${protocol}//${hostname}`;
-  }
-  return 'http://localhost:3001';
-};
-
-export const API_BASE_URL = getApiBaseUrl();
-
-export const API_ENDPOINTS = {
-  AUTH: `${API_BASE_URL}/api/auth`,
-  TENDERS: `${API_BASE_URL}/api/tenders`,
-  CARILER: `${API_BASE_URL}/api/cariler`,
-  // ... diğer endpointler
-};
-```
-
-### API Çağrı Örnekleri
-```tsx
-import { API_BASE_URL, API_ENDPOINTS } from '@/lib/config';
 
 // GET
-const response = await fetch(`${API_ENDPOINTS.CARILER}`);
-const { success, data, error } = await response.json();
+const res = await axios.get(`${API_BASE_URL}/api/cariler`);
 
 // POST
-const response = await fetch(`${API_ENDPOINTS.CARILER}`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(formData)
-});
+const res = await axios.post(`${API_BASE_URL}/api/cariler`, formData);
 
 // PUT
-const response = await fetch(`${API_ENDPOINTS.CARILER}/${id}`, {
-  method: 'PUT',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(updateData)
-});
+const res = await axios.put(`${API_BASE_URL}/api/cariler/${id}`, updateData);
 
 // DELETE
-const response = await fetch(`${API_ENDPOINTS.CARILER}/${id}`, {
-  method: 'DELETE'
-});
+const res = await axios.delete(`${API_BASE_URL}/api/cariler/${id}`);
 ```
+
+> **Not:** `config.ts` runtime'da hostname'e gore API URL'sini otomatik belirler.
+> `NEXT_PUBLIC_API_URL` env degiskenine ihtiyac yoktur.
 
 ---
 
@@ -576,17 +541,22 @@ npm run build
 
 ---
 
-## 📦 Bağımlılıklar
+## Bagimliliklar
 
-| Paket | Versiyon | Açıklama |
+| Paket | Versiyon | Aciklama |
 |-------|----------|----------|
-| next | 14.x | React framework |
-| react | 18.x | UI library |
-| @mantine/core | 7.x | UI components |
-| @mantine/hooks | 7.x | React hooks |
-| @mantine/notifications | 7.x | Toast notifications |
-| @mantine/dates | 7.x | Date pickers |
-| @tabler/icons-react | 3.x | Icon library |
-| recharts | 2.x | Charts |
-| swr | 2.x | Data fetching |
-| tailwindcss | 3.x | CSS framework |
+| next | ^15.5 | React framework (App Router) |
+| react | ^18.3 | UI library |
+| @mantine/core | ^7.17 | UI components |
+| @mantine/hooks | ^7.17 | React hooks |
+| @mantine/notifications | ^7.17 | Toast notifications |
+| @mantine/dates | ^7.17 | Date pickers |
+| @mantine/form | ^7.17 | Form yonetimi |
+| @tabler/icons-react | ^3.35 | Icon library |
+| @tanstack/react-query | ^5.17 | Server state management |
+| recharts | ^2.15 | Grafikler |
+| axios | ^1.13 | HTTP client |
+| socket.io-client | ^4.8 | Real-time (Realtime icin) |
+| @biomejs/biome | ^2.3 | Linter & Formatter |
+
+> **Not:** Tailwind CSS bu projede KULLANILMIYOR. Stil yonetimi Mantine props ile yapilir.

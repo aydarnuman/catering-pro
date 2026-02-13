@@ -19,14 +19,7 @@ const TenderMapModal = dynamic(() => import('@/components/TenderMapModal'), {
 });
 
 const TeklifMerkeziModal = dynamic(
-  () =>
-    import('./TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
-  { ssr: false, loading: () => null }
-);
-
-const SanalIhaleMasasiModal = dynamic(
-  () =>
-    import('./SanalIhaleMasasi').then((m) => ({ default: m.SanalIhaleMasasiModal })),
+  () => import('./TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
   { ssr: false, loading: () => null }
 );
 
@@ -240,14 +233,6 @@ function IhaleMerkeziLayoutInner() {
             onRefresh={refreshAll}
           />
         )}
-
-        {state.selectedTender && 'tender_id' in state.selectedTender && (
-          <SanalIhaleMasasiModal
-            opened={state.sanalMasaOpen}
-            onClose={() => updateState({ sanalMasaOpen: false })}
-            tender={state.selectedTender as import('./types').SavedTender}
-          />
-        )}
       </Box>
     );
   }
@@ -323,14 +308,6 @@ function IhaleMerkeziLayoutInner() {
             refreshAll();
             refreshAndUpdateSelected();
           }}
-        />
-      )}
-
-      {state.selectedTender && 'tender_id' in state.selectedTender && (
-        <SanalIhaleMasasiModal
-          opened={state.sanalMasaOpen}
-          onClose={() => updateState({ sanalMasaOpen: false })}
-          tender={state.selectedTender as import('./types').SavedTender}
         />
       )}
 

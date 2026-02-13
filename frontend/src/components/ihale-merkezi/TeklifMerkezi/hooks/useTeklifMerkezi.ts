@@ -113,9 +113,7 @@ export function useTeklifMerkezi(
 
   // ═══ Hesaplama State ═══
   const [hesaplamaState, setHesaplamaState] = useState<HesaplamaState>(() => {
-    const hv = (tender as unknown as Record<string, unknown>).hesaplama_verileri as
-      | Record<string, unknown>
-      | undefined;
+    const hv = (tender as unknown as Record<string, unknown>).hesaplama_verileri as Record<string, unknown> | undefined;
     return {
       yaklasikMaliyet: tender.yaklasik_maliyet || 0,
       bizimTeklif: tender.bizim_teklif || 0,
@@ -140,13 +138,9 @@ export function useTeklifMerkezi(
 
   // ═══ Derived: Analysis Summary ═══
   const analysisSummary = tender.analysis_summary;
-  const hv = (tender as unknown as Record<string, unknown>).hesaplama_verileri as
-    | Record<string, unknown>
-    | undefined;
+  const hv = (tender as unknown as Record<string, unknown>).hesaplama_verileri as Record<string, unknown> | undefined;
 
-  const isSuresi = String(
-    hv?.is_suresi || analysisSummary?.teslim_suresi || analysisSummary?.sure || ''
-  );
+  const isSuresi = String(hv?.is_suresi || analysisSummary?.teslim_suresi || analysisSummary?.sure || '');
   const toplamOgun =
     (hv?.toplam_ogun_sayisi as number) ||
     analysisSummary?.ogun_bilgileri?.reduce(
@@ -154,10 +148,8 @@ export function useTeklifMerkezi(
       0
     ) ||
     0;
-  const teknikSartSayisi =
-    (hv?.teknik_sart_sayisi as number) || analysisSummary?.teknik_sartlar?.length || 0;
-  const birimFiyatSayisi =
-    (hv?.birim_fiyat_sayisi as number) || analysisSummary?.birim_fiyatlar?.length || 0;
+  const teknikSartSayisi = (hv?.teknik_sart_sayisi as number) || analysisSummary?.teknik_sartlar?.length || 0;
+  const birimFiyatSayisi = (hv?.birim_fiyat_sayisi as number) || analysisSummary?.birim_fiyatlar?.length || 0;
   const isSuresiAy = parseIsSuresiAy(isSuresi);
 
   // ═══ Derived: Hesaplama ═══
@@ -167,10 +159,8 @@ export function useTeklifMerkezi(
   const teminatlar = hesaplaTeminatlar(hesaplamaState.bizimTeklif);
   const ogunBasiMaliyet =
     hesaplamaState.yaklasikMaliyet && toplamOgun ? hesaplamaState.yaklasikMaliyet / toplamOgun : 0;
-  const ogunBasiTeklif =
-    hesaplamaState.bizimTeklif && toplamOgun ? hesaplamaState.bizimTeklif / toplamOgun : 0;
-  const aylikMaliyet =
-    hesaplamaState.yaklasikMaliyet && isSuresiAy ? hesaplamaState.yaklasikMaliyet / isSuresiAy : 0;
+  const ogunBasiTeklif = hesaplamaState.bizimTeklif && toplamOgun ? hesaplamaState.bizimTeklif / toplamOgun : 0;
+  const aylikMaliyet = hesaplamaState.yaklasikMaliyet && isSuresiAy ? hesaplamaState.yaklasikMaliyet / isSuresiAy : 0;
   const gunlukOgun = toplamOgun && isSuresiAy ? Math.round(toplamOgun / (isSuresiAy * 30)) : 0;
 
   // ═══ Derived: Teklif Hesaplama ═══
@@ -211,16 +201,14 @@ export function useTeklifMerkezi(
       if (analysisSummary?.birim_fiyatlar?.length) {
         setTeklifData((prev) => {
           if (prev.birim_fiyat_cetveli.length > 0) return prev;
-          const cetvel: CetvelKalemi[] = (analysisSummary.birim_fiyatlar ?? []).map(
-            (item, idx) => ({
-              sira: idx + 1,
-              isKalemi: item.kalem || item.aciklama || item.text || '',
-              birim: item.birim || 'Öğün',
-              miktar: typeof item.miktar === 'number' ? item.miktar : Number(item.miktar) || 0,
-              birimFiyat: 0,
-              tutar: 0,
-            })
-          );
+          const cetvel: CetvelKalemi[] = (analysisSummary.birim_fiyatlar ?? []).map((item, idx) => ({
+            sira: idx + 1,
+            isKalemi: item.kalem || item.aciklama || item.text || '',
+            birim: item.birim || 'Öğün',
+            miktar: typeof item.miktar === 'number' ? item.miktar : Number(item.miktar) || 0,
+            birimFiyat: 0,
+            tutar: 0,
+          }));
           return { ...prev, birim_fiyat_cetveli: cetvel };
         });
       }
@@ -490,15 +478,7 @@ export function useTeklifMerkezi(
     } finally {
       setSaving(false);
     }
-  }, [
-    hesaplanmisTeklifData,
-    hesaplamaState,
-    tender,
-    existingTeklifId,
-    aktifSinirDeger,
-    hv,
-    onRefresh,
-  ]);
+  }, [hesaplanmisTeklifData, hesaplamaState, tender, existingTeklifId, aktifSinirDeger, hv, onRefresh]);
 
   // ═══ Completion Map ═══
   const completionMap = useMemo<CompletionMap>(() => {
@@ -609,9 +589,7 @@ export function useTeklifMerkezi(
 
 // ─── Helpers ──────────────────────────────────────────────────
 
-function buildTeklifListesi(
-  hv: Record<string, unknown> | undefined
-): Array<{ firma: string; tutar: number }> {
+function buildTeklifListesi(hv: Record<string, unknown> | undefined): Array<{ firma: string; tutar: number }> {
   if (!hv) return defaultTeklifListesi();
 
   // Yeni format

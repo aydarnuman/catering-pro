@@ -1,1 +1,1 @@
-export { SanalIhaleMasasiModal } from './SanalIhaleMasasiModal';
+export { SanalIhaleMasasiContent, SanalIhaleMasasiModal } from './SanalIhaleMasasiModal';

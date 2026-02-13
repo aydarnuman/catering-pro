@@ -3,6 +3,7 @@ import {
   IconArrowLeft,
   IconCircleCheck,
   IconCircleX,
+  IconFileInvoice,
   IconHelpCircle,
   IconShieldCheck,
   IconShieldExclamation,
@@ -66,15 +67,12 @@ function RiskScoreRing({ score, color, glowColor }: RiskScoreRingProps) {
       <svg width="110" height="110" viewBox="0 0 110 110" style={{ position: 'relative', zIndex: 1 }}>
         <title>Risk Skoru</title>
         {/* Background circle */}
-        <circle
-          cx="55" cy="55" r={radius}
-          fill="none"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="5"
-        />
+        <circle cx="55" cy="55" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
         {/* Outer decorative ring */}
         <circle
-          cx="55" cy="55" r={radius + 4}
+          cx="55"
+          cy="55"
+          r={radius + 4}
           fill="none"
           stroke="rgba(255,255,255,0.04)"
           strokeWidth="1"
@@ -82,7 +80,9 @@ function RiskScoreRing({ score, color, glowColor }: RiskScoreRingProps) {
         />
         {/* Score arc */}
         <motion.circle
-          cx="55" cy="55" r={radius}
+          cx="55"
+          cy="55"
+          r={radius}
           fill="none"
           stroke={`var(--mantine-color-${color}-5)`}
           strokeWidth="6"
@@ -110,9 +110,10 @@ interface VerdictReportProps {
   data: VerdictData;
   crossReferences?: CrossReference[];
   onReset: () => void;
+  onOpenTeklif?: () => void;
 }
 
-export function VerdictReport({ data, crossReferences = [], onReset }: VerdictReportProps) {
+export function VerdictReport({ data, crossReferences = [], onReset, onOpenTeklif }: VerdictReportProps) {
   const config = RECOMMENDATION_CONFIG[data.recommendation];
   const RecommendIcon = config.icon;
 
@@ -155,18 +156,9 @@ export function VerdictReport({ data, crossReferences = [], onReset }: VerdictRe
 
           {/* Score + Recommendation */}
           <Group justify="center" gap="xl" align="center">
-            <RiskScoreRing
-              score={data.overallScore}
-              color={config.color}
-              glowColor={config.glowColor}
-            />
+            <RiskScoreRing score={data.overallScore} color={config.color} glowColor={config.glowColor} />
             <Stack gap={4}>
-              <Badge
-                size="lg"
-                variant="gradient"
-                gradient={config.gradient}
-                style={{ fontSize: 13 }}
-              >
+              <Badge size="lg" variant="gradient" gradient={config.gradient} style={{ fontSize: 13 }}>
                 {data.recommendationLabel}
               </Badge>
               <Text size="xs" c="dimmed" ta="center">
@@ -192,13 +184,7 @@ export function VerdictReport({ data, crossReferences = [], onReset }: VerdictRe
                   transition={{ delay: 1.2 + idx * 0.15, duration: 0.4 }}
                 >
                   <Group gap="sm" wrap="nowrap">
-                    <Badge
-                      size="sm"
-                      variant="filled"
-                      color={agent.color}
-                      w={36}
-                      style={{ flexShrink: 0 }}
-                    >
+                    <Badge size="sm" variant="filled" color={agent.color} w={36} style={{ flexShrink: 0 }}>
                       {agentAnalysis.riskScore}
                     </Badge>
                     <div style={{ minWidth: 0, flex: 1 }}>
@@ -241,16 +227,27 @@ export function VerdictReport({ data, crossReferences = [], onReset }: VerdictRe
           <Divider color="dark.5" />
 
           {/* Actions */}
-          <Group justify="center">
-            <Button
-              variant="subtle"
-              color="gray"
-              size="sm"
-              leftSection={<IconArrowLeft size={14} />}
-              onClick={onReset}
-            >
+          <Group justify="center" gap="sm">
+            <Button variant="subtle" color="gray" size="sm" leftSection={<IconArrowLeft size={14} />} onClick={onReset}>
               Yeniden Degerlendir
             </Button>
+            {onOpenTeklif && (
+              <Button
+                variant="gradient"
+                gradient={
+                  data.recommendation === 'girme'
+                    ? { from: 'gray', to: 'dark' }
+                    : data.recommendation === 'gir'
+                      ? { from: 'violet', to: 'indigo', deg: 135 }
+                      : { from: 'yellow', to: 'orange', deg: 135 }
+                }
+                size="sm"
+                leftSection={<IconFileInvoice size={14} />}
+                onClick={onOpenTeklif}
+              >
+                Teklif Hazirla
+              </Button>
+            )}
           </Group>
         </Stack>
       </Box>
@@ -294,7 +291,9 @@ function CrossReferenceSection({ crossReferences }: { crossReferences: CrossRefe
               <Badge size="xs" color={fromAgent?.color}>
                 {fromAgent?.name?.split(' ')[0]}
               </Badge>
-              <Text size="xs" c="dimmed">→</Text>
+              <Text size="xs" c="dimmed">
+                →
+              </Text>
               <Badge size="xs" color={toAgent?.color}>
                 {toAgent?.name?.split(' ')[0]}
               </Badge>
@@ -343,13 +342,7 @@ function ChecklistSection({ checklist }: { checklist: ChecklistItem[] }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 2 + idx * 0.06, duration: 0.3 }}
             >
-              <Tooltip
-                label={item.detail || ''}
-                disabled={!item.detail}
-                withArrow
-                multiline
-                w={240}
-              >
+              <Tooltip label={item.detail || ''} disabled={!item.detail} withArrow multiline w={240}>
                 <Group gap={6} wrap="nowrap" style={{ cursor: item.detail ? 'help' : 'default' }}>
                   <StatusIcon
                     size={14}

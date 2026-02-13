@@ -111,10 +111,7 @@ export const demirbasAPI = {
   /**
    * Lokasyon guncelle
    */
-  async updateLokasyon(
-    id: number,
-    data: Partial<DemirbasLokasyon>
-  ): Promise<ApiResponse<DemirbasLokasyon>> {
+  async updateLokasyon(id: number, data: Partial<DemirbasLokasyon>): Promise<ApiResponse<DemirbasLokasyon>> {
     const response = await api.put(`/api/demirbas/lokasyonlar/${id}`, data);
     return response.data;
   },

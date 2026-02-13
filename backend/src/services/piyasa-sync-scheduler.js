@@ -267,7 +267,7 @@ class PiyasaSyncScheduler {
          WHERE urun_kart_id = $1 
            AND arastirma_tarihi < NOW() - INTERVAL '${CONFIG.historyRetentionDays} days'`,
         [urunKartId]
-      ).catch(() => {});
+      ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
 
       // ── Merkezi yazım servisi ile kaydet ──
       const dominantBirim = targetUnit || result.birim || null;
@@ -296,7 +296,7 @@ class PiyasaSyncScheduler {
           WHERE stok_kart_id = $2
         `,
           [result.ortalama, stok_kart_id]
-        ).catch(() => {});
+        ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
 
         // stok_kartlari'ndaki son_piyasa_fiyat'ı da güncelle
         await query(
@@ -306,7 +306,7 @@ class PiyasaSyncScheduler {
           WHERE id = $2
         `,
           [result.ortalama, stok_kart_id]
-        ).catch(() => {});
+        ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
       }
 
       return {
@@ -472,7 +472,7 @@ class PiyasaSyncScheduler {
       await this.logSync(result.success ? 'success' : 'error', {
         type: 'hal_sync',
         ...result,
-      }).catch(() => {});
+      }).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
 
       return result;
     } catch (error) {

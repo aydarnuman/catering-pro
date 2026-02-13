@@ -142,17 +142,11 @@ export function validateNumberRange(
 }
 
 /** Para (negatif olmamalı, isteğe bağlı) */
-export function validatePara(
-  value: number | string | null | undefined,
-  required = false
-): ValidationResult {
+export function validatePara(value: number | string | null | undefined, required = false): ValidationResult {
   if (value === null || value === undefined || value === '') {
     return required ? { valid: false, message: 'Tutar giriniz' } : { valid: true };
   }
-  const n =
-    typeof value === 'string'
-      ? parseFloat(String(value).replace(/\./g, '').replace(',', '.'))
-      : Number(value);
+  const n = typeof value === 'string' ? parseFloat(String(value).replace(/\./g, '').replace(',', '.')) : Number(value);
   if (Number.isNaN(n)) {
     return { valid: false, message: 'Geçerli bir tutar giriniz' };
   }
@@ -163,11 +157,7 @@ export function validatePara(
 }
 
 /** Minimum uzunluk */
-export function validateMinLength(
-  value: string | null | undefined,
-  min: number,
-  label = 'Alan'
-): ValidationResult {
+export function validateMinLength(value: string | null | undefined, min: number, label = 'Alan'): ValidationResult {
   if (!value || typeof value !== 'string') {
     return { valid: false, message: `${label} en az ${min} karakter olmalıdır` };
   }
@@ -178,10 +168,7 @@ export function validateMinLength(
 }
 
 /** Birden çok kuralı sırayla uygula, ilk hatada dur */
-export function validateAll(
-  value: unknown,
-  ...rules: Array<(v: unknown) => ValidationResult>
-): ValidationResult {
+export function validateAll(value: unknown, ...rules: Array<(v: unknown) => ValidationResult>): ValidationResult {
   for (const rule of rules) {
     const r = rule(value);
     if (!r.valid) return r;

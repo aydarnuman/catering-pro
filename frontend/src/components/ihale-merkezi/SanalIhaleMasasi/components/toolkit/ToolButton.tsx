@@ -46,11 +46,7 @@ export function ToolButton({ tool, execution, disabled, onExecute }: ToolButtonP
 
   return (
     <Tooltip label={tool.description} position="top" withArrow>
-      <Box
-        component={motion.div}
-        whileHover={{ scale: disabled ? 1 : 1.02 }}
-        whileTap={{ scale: disabled ? 1 : 0.98 }}
-      >
+      <Box component={motion.div} whileHover={{ scale: disabled ? 1 : 1.02 }} whileTap={{ scale: disabled ? 1 : 0.98 }}>
         <Group
           gap={8}
           wrap="nowrap"

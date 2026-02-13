@@ -4,6 +4,7 @@
  */
 
 import { pool } from '../database.js';
+import logger from '../utils/logger.js';
 
 const PermissionService = {
   /**
@@ -22,7 +23,14 @@ const PermissionService = {
         action,
       ]);
       return result.rows[0]?.has_permission || false;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('Permission check failed - defaulting to DENY', {
+        userId,
+        moduleName,
+        action,
+        error: error.message,
+        stack: error.stack,
+      });
       return false;
     }
   },
@@ -50,7 +58,12 @@ const PermissionService = {
         [userId]
       );
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getUserPermissions failed', {
+        userId,
+        error: error.message,
+        stack: error.stack,
+      });
       return [];
     }
   },
@@ -62,7 +75,11 @@ const PermissionService = {
     try {
       const result = await pool.query('SELECT user_type FROM users WHERE id = $1 AND is_active = true', [userId]);
       return result.rows[0]?.user_type || 'user';
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getUserType failed - defaulting to "user"', {
+        userId,
+        error: error.message,
+      });
       return 'user';
     }
   },
@@ -148,7 +165,8 @@ const PermissionService = {
     try {
       const result = await pool.query('SELECT * FROM modules WHERE is_active = true ORDER BY sort_order');
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getModules failed', { error: error.message });
       return [];
     }
   },
@@ -160,7 +178,8 @@ const PermissionService = {
     try {
       const result = await pool.query('SELECT * FROM permission_templates ORDER BY is_system DESC, name');
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getTemplates failed', { error: error.message });
       return [];
     }
   },
@@ -172,7 +191,8 @@ const PermissionService = {
     try {
       const result = await pool.query('SELECT * FROM permission_templates WHERE id = $1', [id]);
       return result.rows[0] || null;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getTemplate failed', { templateId: id, error: error.message });
       return null;
     }
   },
@@ -244,7 +264,8 @@ const PermissionService = {
     try {
       const result = await pool.query('SELECT * FROM user_permissions_summary ORDER BY user_name');
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getAllUsersPermissions failed', { error: error.message });
       return [];
     }
   },
@@ -272,7 +293,12 @@ const PermissionService = {
         [userId]
       );
       return result.rows;
-    } catch (_error) {
+    } catch (error) {
+      logger.error('getAccessibleModules failed', {
+        userId,
+        error: error.message,
+        stack: error.stack,
+      });
       return [];
     }
   },

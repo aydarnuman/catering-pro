@@ -180,9 +180,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
 
   // Değer düzenleme
   const handleEditSave = (key: string) => {
-    setDetectedValues((prev) =>
-      prev.map((v) => (v.key === key ? { ...v, value: editValue as number } : v))
-    );
+    setDetectedValues((prev) => prev.map((v) => (v.key === key ? { ...v, value: editValue as number } : v)));
     setEditMode(null);
   };
 
@@ -248,13 +246,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
         <Text size="xs" c="dimmed" mt={4}>
           Dökümanları analiz ettikten sonra öneriler burada görünecek
         </Text>
-        <Button
-          variant="subtle"
-          size="xs"
-          mt="md"
-          leftSection={<IconRefresh size={14} />}
-          onClick={fetchSuggestions}
-        >
+        <Button variant="subtle" size="xs" mt="md" leftSection={<IconRefresh size={14} />} onClick={fetchSuggestions}>
           Yenile
         </Button>
       </Box>
@@ -322,12 +314,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
                         hideControls
                         style={{ flex: 1 }}
                       />
-                      <ActionIcon
-                        size="xs"
-                        color="green"
-                        variant="light"
-                        onClick={() => handleEditSave(item.key)}
-                      >
+                      <ActionIcon size="xs" color="green" variant="light" onClick={() => handleEditSave(item.key)}>
                         <IconCheck size={12} />
                       </ActionIcon>
                     </Group>

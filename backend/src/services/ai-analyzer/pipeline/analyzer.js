@@ -14,6 +14,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { aiConfig } from '../../../config/ai.config.js';
 import logger from '../../../utils/logger.js';
+import { getCorrectionHintsForPrompt } from '../../pipeline-learning-service.js';
 import { createTextHash, ensureValidJson } from '../controls/p0-checks.js';
 import { getPrompt } from '../prompts/index.js';
 import { createFinding } from '../schemas/chunk-output.js';
@@ -63,13 +64,21 @@ async function analyzeChunk(chunk, extractionType = 'full') {
     // Prompt seç
     const prompt = extractionType === 'full' ? STAGE1_PROMPT : getPrompt(extractionType);
 
+    // Düzeltme geri bildirimlerini prompt'a ekle (geçmiş hatalardan öğrenme)
+    let correctionHints = '';
+    try {
+      correctionHints = await getCorrectionHintsForPrompt(extractionType);
+    } catch (_err) {
+      // Hata durumunda hint'siz devam et
+    }
+
     const response = await anthropic.messages.create({
       model: aiConfig.claude.fastModel, // v9.1: Opus 4.6 (eski: Haiku)
       max_tokens: aiConfig.claude.maxTokens || 8192,
       messages: [
         {
           role: 'user',
-          content: prompt + chunk.content,
+          content: prompt + correctionHints + chunk.content,
         },
       ],
     });

@@ -131,17 +131,11 @@ export function LeftPanel({
       list = list.filter((tender) => {
         // SavedTender uses 'tarih', Tender uses 'tender_date' or 'deadline'
         const dateStr =
-          'tarih' in tender
-            ? tender.tarih
-            : 'tender_date' in tender
-              ? tender.tender_date
-              : tender.deadline;
+          'tarih' in tender ? tender.tarih : 'tender_date' in tender ? tender.tender_date : tender.deadline;
         if (!dateStr) return state.filters.status === 'dolmus';
 
         const tenderDate = new Date(dateStr);
-        const daysDiff = Math.ceil(
-          (tenderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const daysDiff = Math.ceil((tenderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
         if (state.filters.status === 'guncel') return daysDiff > 3;
         if (state.filters.status === 'yaklasan') return daysDiff >= 0 && daysDiff <= 3;
@@ -212,13 +206,7 @@ export function LeftPanel({
       >
         {/* Toggle expand button */}
         <Tooltip label="Paneli Aç" position="right" withArrow>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="lg"
-            onClick={onToggleCollapse}
-            style={{ borderRadius: 8 }}
-          >
+          <ActionIcon variant="subtle" color="gray" size="lg" onClick={onToggleCollapse} style={{ borderRadius: 8 }}>
             <IconChevronRight size={18} />
           </ActionIcon>
         </Tooltip>
@@ -259,13 +247,7 @@ export function LeftPanel({
 
         {/* Refresh icon */}
         <Tooltip label="Yenile" position="right" withArrow>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="lg"
-            onClick={onRefresh}
-            style={{ borderRadius: 8 }}
-          >
+          <ActionIcon variant="subtle" color="gray" size="lg" onClick={onRefresh} style={{ borderRadius: 8 }}>
             <IconRefresh size={16} />
           </ActionIcon>
         </Tooltip>
@@ -309,13 +291,7 @@ export function LeftPanel({
       {stats && (
         <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <SimpleGrid cols={3} spacing={4}>
-            <Paper
-              p={6}
-              radius="md"
-              className="glassy-card-nested"
-              ta="center"
-              style={{ cursor: 'default' }}
-            >
+            <Paper p={6} radius="md" className="glassy-card-nested" ta="center" style={{ cursor: 'default' }}>
               <Text size="lg" fw={700} c="blue.5">
                 {stats.totalCount}
               </Text>
@@ -330,8 +306,7 @@ export function LeftPanel({
               ta="center"
               style={{ cursor: stats.today.newCount > 0 ? 'pointer' : 'default' }}
               onClick={() =>
-                stats.today.newCount > 0 &&
-                onStateChange({ showStats: state.showStats === 'new' ? false : 'new' })
+                stats.today.newCount > 0 && onStateChange({ showStats: state.showStats === 'new' ? false : 'new' })
               }
             >
               <Text size="lg" fw={700} c="green.5">
@@ -363,12 +338,7 @@ export function LeftPanel({
 
           {/* Expanded stats list */}
           <Collapse in={state.showStats === 'new' && stats.today.newTenders.length > 0}>
-            <Paper
-              p="xs"
-              mt="xs"
-              radius="md"
-              style={{ background: 'rgba(34, 197, 94, 0.1)', maxHeight: 150 }}
-            >
+            <Paper p="xs" mt="xs" radius="md" style={{ background: 'rgba(34, 197, 94, 0.1)', maxHeight: 150 }}>
               <Text size="xs" fw={600} c="green.7" mb={4}>
                 Bugün Eklenen
               </Text>
@@ -399,12 +369,7 @@ export function LeftPanel({
           </Collapse>
 
           <Collapse in={state.showStats === 'updated' && stats.today.updatedTenders.length > 0}>
-            <Paper
-              p="xs"
-              mt="xs"
-              radius="md"
-              style={{ background: 'rgba(249, 115, 22, 0.1)', maxHeight: 150 }}
-            >
+            <Paper p="xs" mt="xs" radius="md" style={{ background: 'rgba(249, 115, 22, 0.1)', maxHeight: 150 }}>
               <Text size="xs" fw={600} c="orange.7" mb={4}>
                 Bugün Güncellenen
               </Text>
@@ -499,10 +464,7 @@ export function LeftPanel({
                 Ekle
               </Badge>
             </Tooltip>
-            <Tooltip
-              label={expandAll ? 'Kartları daralt' : 'Kart detaylarını göster'}
-              position="bottom"
-            >
+            <Tooltip label={expandAll ? 'Kartları daralt' : 'Kart detaylarını göster'} position="bottom">
               <Badge
                 variant={expandAll ? 'filled' : 'light'}
                 color="gray"
@@ -527,10 +489,7 @@ export function LeftPanel({
               color="blue"
               size="sm"
               leftSection={
-                <IconRefresh
-                  size={12}
-                  style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
-                />
+                <IconRefresh size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
               }
               style={{ cursor: 'pointer', opacity: loading ? 0.7 : 1 }}
               onClick={onRefresh}

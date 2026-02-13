@@ -4,32 +4,17 @@
  */
 
 import { api } from '@/lib/api';
+import type { Personel } from '@/types/domain';
 import type { ApiResponse } from '../types';
 
-// Personel
-export interface Personel {
-  id: number;
-  ad_soyad: string;
-  tc_no?: string;
-  telefon?: string;
-  email?: string;
-  iban?: string;
-  proje_id?: number;
-  giris_tarihi?: string;
-  cikis_tarihi?: string;
-  aktif?: boolean;
-  [key: string]: any;
-}
+export type { Personel };
 
 // Personel API
 export const personelAPI = {
   /**
    * Personelleri listele
    */
-  async getPersoneller(params?: {
-    proje_id?: number;
-    aktif?: boolean;
-  }): Promise<ApiResponse<Personel[]>> {
+  async getPersoneller(params?: { proje_id?: number; aktif?: boolean }): Promise<ApiResponse<Personel[]>> {
     const response = await api.get('/api/personel', { params });
     const data = response.data;
 
@@ -145,12 +130,7 @@ export const personelAPI = {
   /**
    * Aylık ödeme güncelle
    */
-  async updateAylikOdeme(
-    projeId: number,
-    yil: number,
-    ay: number,
-    data: any
-  ): Promise<ApiResponse<any>> {
+  async updateAylikOdeme(projeId: number, yil: number, ay: number, data: any): Promise<ApiResponse<any>> {
     const response = await api.put(`/api/maas-odeme/aylik-odeme/${projeId}/${yil}/${ay}`, data);
     return response.data;
   },

@@ -61,23 +61,19 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
 
   const [activeTool, setActiveTool] = useState<ActiveTool>('temel');
 
-  const { yaklasikMaliyet, bizimTeklif, ihaleTuru, teklifListesi, kikSinirDeger, maliyetler } =
-    hesaplamaState;
+  const { yaklasikMaliyet, bizimTeklif, ihaleTuru, teklifListesi, kikSinirDeger, maliyetler } = hesaplamaState;
   const { isAsiriDusuk, fark, farkYuzde } = riskAnalizi;
   const { geciciTeminat, kesinTeminat } = teminatlar;
 
   const toplamMaliyet = Object.values(maliyetler).reduce((a, b) => a + b, 0);
-  const karMarji =
-    bizimTeklif > 0 && toplamMaliyet > 0 ? ((bizimTeklif - toplamMaliyet) / bizimTeklif) * 100 : 0;
+  const karMarji = bizimTeklif > 0 && toplamMaliyet > 0 ? ((bizimTeklif - toplamMaliyet) / bizimTeklif) * 100 : 0;
 
-  const setYaklasikMaliyet = (v: number) =>
-    setHesaplamaState((p) => ({ ...p, yaklasikMaliyet: v }));
+  const setYaklasikMaliyet = (v: number) => setHesaplamaState((p) => ({ ...p, yaklasikMaliyet: v }));
   const setBizimTeklif = (v: number) => setHesaplamaState((p) => ({ ...p, bizimTeklif: v }));
   const setIhaleTuru = (v: IhaleTuru) => setHesaplamaState((p) => ({ ...p, ihaleTuru: v }));
   const setTeklifListesi = (fn: (prev: typeof teklifListesi) => typeof teklifListesi) =>
     setHesaplamaState((p) => ({ ...p, teklifListesi: fn(p.teklifListesi) }));
-  const setKikSinirDeger = (v: number | null) =>
-    setHesaplamaState((p) => ({ ...p, kikSinirDeger: v }));
+  const setKikSinirDeger = (v: number | null) => setHesaplamaState((p) => ({ ...p, kikSinirDeger: v }));
   const setMaliyetler = (fn: (prev: typeof maliyetler) => typeof maliyetler) =>
     setHesaplamaState((p) => ({ ...p, maliyetler: fn(p.maliyetler) }));
 
@@ -87,10 +83,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
       const gecerli = teklifListesi.filter((t) => t.tutar > 0);
       notifications.show({
         title: gecerli.length < 3 ? 'Yetersiz Veri' : 'Yaklaşık Maliyet Gerekli',
-        message:
-          gecerli.length < 3
-            ? 'En az 3 geçerli teklif girmelisiniz'
-            : 'Önce yaklaşık maliyeti girin',
+        message: gecerli.length < 3 ? 'En az 3 geçerli teklif girmelisiniz' : 'Önce yaklaşık maliyeti girin',
         color: 'yellow',
       });
       return;
@@ -213,9 +206,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
                   size={80}
                   radius="xl"
                   variant="gradient"
-                  gradient={
-                    isAsiriDusuk ? { from: 'red', to: 'orange' } : { from: 'teal', to: 'green' }
-                  }
+                  gradient={isAsiriDusuk ? { from: 'red', to: 'orange' } : { from: 'teal', to: 'green' }}
                 >
                   {isAsiriDusuk ? <IconAlertTriangle size={40} /> : <IconCheck size={40} />}
                 </ThemeIcon>
@@ -223,9 +214,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
                   {isAsiriDusuk ? 'AŞIRI DÜŞÜK RİSKİ' : 'UYGUN TEKLİF'}
                 </Text>
                 <Text size="sm" c="dimmed" ta="center">
-                  {isAsiriDusuk
-                    ? 'Açıklama hazırlamanız gerekebilir'
-                    : 'Aşırı düşük sorgusu riski düşük'}
+                  {isAsiriDusuk ? 'Açıklama hazırlamanız gerekebilir' : 'Aşırı düşük sorgusu riski düşük'}
                 </Text>
                 <Paper p="sm" bg="dark.8" radius="md" w="100%">
                   <Group justify="space-between">
@@ -287,12 +276,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
               size="compact-xs"
               variant="light"
               leftSection={<IconPlus size={12} />}
-              onClick={() =>
-                setTeklifListesi((prev) => [
-                  ...prev,
-                  { firma: `Firma ${prev.length + 1}`, tutar: 0 },
-                ])
-              }
+              onClick={() => setTeklifListesi((prev) => [...prev, { firma: `Firma ${prev.length + 1}`, tutar: 0 }])}
             >
               Ekle
             </Button>
@@ -360,11 +344,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
               {kikSinirDeger ? `${kikSinirDeger.toLocaleString('tr-TR')} ₺` : '—'}
             </Text>
             {kikSinirDeger && bizimTeklif > 0 && (
-              <Badge
-                size="lg"
-                color={bizimTeklif < kikSinirDeger ? 'red' : 'green'}
-                variant="light"
-              >
+              <Badge size="lg" color={bizimTeklif < kikSinirDeger ? 'red' : 'green'} variant="light">
                 {bizimTeklif < kikSinirDeger ? 'Sınırın Altında' : 'Sınırın Üstünde'}
               </Badge>
             )}
@@ -407,8 +387,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
           </Text>
         </Group>
         <Text size="xs" c="dimmed">
-          Teklifiniz sınır değerin altındaysa, maliyet bileşenlerinizi detaylı şekilde açıklamanız
-          gerekir.
+          Teklifiniz sınır değerin altındaysa, maliyet bileşenlerinizi detaylı şekilde açıklamanız gerekir.
         </Text>
       </Paper>
       <SimpleGrid cols={2} spacing="md">
@@ -471,13 +450,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
             </div>
             <Progress
               value={Math.min(100, (toplamMaliyet / bizimTeklif) * 100) || 0}
-              color={
-                toplamMaliyet > bizimTeklif
-                  ? 'red'
-                  : toplamMaliyet > bizimTeklif * 0.95
-                    ? 'yellow'
-                    : 'green'
-              }
+              color={toplamMaliyet > bizimTeklif ? 'red' : toplamMaliyet > bizimTeklif * 0.95 ? 'yellow' : 'green'}
               size="lg"
               radius="xl"
             />
@@ -523,9 +496,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
               Geçici Teminat (%3)
             </Text>
             <Text size="xl" fw={700} c="blue">
-              {geciciTeminat > 0
-                ? `${geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`
-                : '—'}
+              {geciciTeminat > 0 ? `${geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺` : '—'}
             </Text>
           </Stack>
         </Card>
@@ -538,9 +509,7 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
               Kesin Teminat (%6)
             </Text>
             <Text size="xl" fw={700} c="green">
-              {kesinTeminat > 0
-                ? `${kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`
-                : '—'}
+              {kesinTeminat > 0 ? `${kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺` : '—'}
             </Text>
           </Stack>
         </Card>
@@ -603,12 +572,10 @@ export function HesaplamalarSection({ ctx }: HesaplamalarSectionProps) {
                 <Table.Td fw={700}>TOPLAM MALİYET</Table.Td>
                 <Table.Td ta="right">—</Table.Td>
                 <Table.Td ta="right" fw={700} c="orange">
-                  {(
-                    geciciTeminat +
-                    kesinTeminat +
-                    bizimTeklif * 0.00948 +
-                    bizimTeklif * 0.0005
-                  ).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}{' '}
+                  {(geciciTeminat + kesinTeminat + bizimTeklif * 0.00948 + bizimTeklif * 0.0005).toLocaleString(
+                    'tr-TR',
+                    { maximumFractionDigits: 0 }
+                  )}{' '}
                   ₺
                 </Table.Td>
               </Table.Tr>

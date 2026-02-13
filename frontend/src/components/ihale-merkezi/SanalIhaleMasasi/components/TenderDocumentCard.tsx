@@ -26,14 +26,7 @@ export function TenderDocumentCard({ title, kurum, bedel }: TenderDocumentCardPr
         <Stack align="center" gap={8}>
           <IconFileText size={28} color="rgba(200,200,220,0.7)" />
 
-          <Text
-            size="xs"
-            fw={700}
-            ta="center"
-            c="white"
-            lineClamp={3}
-            style={{ lineHeight: 1.4 }}
-          >
+          <Text size="xs" fw={700} ta="center" c="white" lineClamp={3} style={{ lineHeight: 1.4 }}>
             {title}
           </Text>
 

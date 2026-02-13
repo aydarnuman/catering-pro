@@ -65,14 +65,13 @@ import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'reac
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
-
-import type { ApiChat, ApiMessage, Chat, Message } from './types';
-import { commonEmojis, fileToBase64, formatRecordingTime } from './utils';
 import { CaptionModal } from './components/CaptionModal';
 import { DocumentPreviewModal } from './components/DocumentPreviewModal';
 import { MediaViewerModal } from './components/MediaViewerModal';
 import { MessageContent } from './components/MessageContent';
 import { useVoiceRecorder } from './hooks/useVoiceRecorder';
+import type { ApiChat, ApiMessage, Chat, Message } from './types';
+import { commonEmojis, fileToBase64, formatRecordingTime } from './utils';
 
 export default function WhatsAppPage() {
   const { colorScheme } = useMantineColorScheme();
@@ -110,15 +109,8 @@ export default function WhatsAppPage() {
   const [captionText, setCaptionText] = useState('');
 
   // Voice recording hook
-  const {
-    isRecording,
-    recordingTime,
-    audioBlob,
-    startRecording,
-    stopRecording,
-    cancelRecording,
-    clearAudio,
-  } = useVoiceRecorder();
+  const { isRecording, recordingTime, audioBlob, startRecording, stopRecording, cancelRecording, clearAudio } =
+    useVoiceRecorder();
 
   // Emoji picker state
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -270,12 +262,9 @@ export default function WhatsAppPage() {
 
   const markAsRead = useCallback(async (chatId: string) => {
     try {
-      await authFetch(
-        `${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/seen`,
-        {
-          method: 'POST',
-        }
-      );
+      await authFetch(`${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/seen`, {
+        method: 'POST',
+      });
       // Chat listesini güncelle
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
@@ -483,9 +472,7 @@ export default function WhatsAppPage() {
         setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'sent' } : m)));
       } else {
         // Hata - status güncelle
-        setMessages((prev) =>
-          prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'failed' } : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'failed' } : m)));
         notifications.show({
           title: 'Hata',
           message: data.error || 'Mesaj gönderilemedi',
@@ -506,10 +493,7 @@ export default function WhatsAppPage() {
   };
 
   // Handle photo/video/document selection - Opens caption modal for images/videos
-  const handleFileSelect = async (
-    e: ChangeEvent<HTMLInputElement>,
-    type: 'image' | 'video' | 'document'
-  ) => {
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'document') => {
     const file = e.target.files?.[0];
     if (!file || !selectedChat) return;
 
@@ -574,11 +558,7 @@ export default function WhatsAppPage() {
   };
 
   // Send media file with caption
-  const sendMediaFile = async (
-    file: File,
-    type: 'image' | 'video' | 'document',
-    caption: string
-  ) => {
+  const sendMediaFile = async (file: File, type: 'image' | 'video' | 'document', caption: string) => {
     if (!selectedChat) return;
 
     const chatId = selectedChat.id;
@@ -741,9 +721,7 @@ export default function WhatsAppPage() {
       const data = await res.json();
 
       if (data.success) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, status: 'sent', mediaUrl: base64Data } : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'sent', mediaUrl: base64Data } : m)));
         notifications.show({
           title: '✅ Gönderildi',
           message: 'Sesli mesaj gönderildi',
@@ -800,9 +778,7 @@ export default function WhatsAppPage() {
     setDownloadingMedia((prev) => new Set(prev).add(messageId));
 
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`);
       const data = await res.json();
 
       if (data.success && data.data) {
@@ -854,12 +830,9 @@ export default function WhatsAppPage() {
     setSavingMedia((prev) => new Set(prev).add(messageId));
 
     try {
-      const res = await authFetch(
-        `${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}/save`,
-        {
-          method: 'POST',
-        }
-      );
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}/save`, {
+        method: 'POST',
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -902,9 +875,7 @@ export default function WhatsAppPage() {
     }
   };
 
-  const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter((chat) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // Grupları ve bireysel sohbetleri ayır
   const individualChats = filteredChats.filter((chat) => !chat.isGroup);
@@ -930,12 +901,7 @@ export default function WhatsAppPage() {
               thickness={4}
               sections={[{ value: 100, color: '#25D366' }]}
               label={
-                <ThemeIcon
-                  size={80}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: '#25D366', to: '#128C7E' }}
-                >
+                <ThemeIcon size={80} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
                   <IconBrandWhatsapp size={45} />
                 </ThemeIcon>
               }
@@ -966,12 +932,7 @@ export default function WhatsAppPage() {
             <Grid.Col span={{ base: 12, md: 5 }}>
               <Stack gap="xl" pt="xl">
                 <Group>
-                  <ThemeIcon
-                    size={64}
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: '#25D366', to: '#128C7E' }}
-                  >
+                  <ThemeIcon size={64} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
                     <IconBrandWhatsapp size={36} />
                   </ThemeIcon>
                   <Box>
@@ -1085,11 +1046,7 @@ export default function WhatsAppPage() {
                         boxShadow: '0 20px 60px rgba(37, 211, 102, 0.3)',
                       }}
                     >
-                      <Image
-                        src={qrCode}
-                        alt="QR"
-                        style={{ width: 260, height: 260, borderRadius: 12 }}
-                      />
+                      <Image src={qrCode} alt="QR" style={{ width: 260, height: 260, borderRadius: 12 }} />
                     </Box>
                   ) : (
                     <Box
@@ -1097,8 +1054,7 @@ export default function WhatsAppPage() {
                       style={{
                         width: 300,
                         height: 300,
-                        background:
-                          'linear-gradient(145deg, rgba(37,211,102,0.1) 0%, rgba(18,140,126,0.1) 100%)',
+                        background: 'linear-gradient(145deg, rgba(37,211,102,0.1) 0%, rgba(18,140,126,0.1) 100%)',
                         borderRadius: 20,
                         border: '2px dashed rgba(37,211,102,0.3)',
                         display: 'flex',
@@ -1115,11 +1071,7 @@ export default function WhatsAppPage() {
 
                   {qrCode ? (
                     <Stack gap="md" w="100%">
-                      <Paper
-                        p="md"
-                        radius="lg"
-                        style={{ background: 'var(--surface-elevated-more)' }}
-                      >
+                      <Paper p="md" radius="lg" style={{ background: 'var(--surface-elevated-more)' }}>
                         <Stack gap="xs">
                           <Group gap="xs">
                             <Text c="green" fw={600}>
@@ -1257,8 +1209,7 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background:
-                'linear-gradient(145deg, rgba(37,211,102,0.15) 0%, rgba(37,211,102,0.05) 100%)',
+              background: 'linear-gradient(145deg, rgba(37,211,102,0.15) 0%, rgba(37,211,102,0.05) 100%)',
               border: '1px solid rgba(37,211,102,0.2)',
             }}
           >
@@ -1281,8 +1232,7 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background:
-                'linear-gradient(145deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.05) 100%)',
+              background: 'linear-gradient(145deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.05) 100%)',
               border: '1px solid rgba(239,68,68,0.2)',
             }}
           >
@@ -1305,8 +1255,7 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background:
-                'linear-gradient(145deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
+              background: 'linear-gradient(145deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
               border: '1px solid rgba(59,130,246,0.2)',
             }}
           >
@@ -1329,8 +1278,7 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background:
-                'linear-gradient(145deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.05) 100%)',
+              background: 'linear-gradient(145deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.05) 100%)',
               border: '1px solid rgba(168,85,247,0.2)',
             }}
           >
@@ -1343,13 +1291,7 @@ export default function WhatsAppPage() {
                   Durum
                 </Text>
               </Box>
-              <ActionIcon
-                size={44}
-                radius="md"
-                color="red"
-                variant="light"
-                onClick={handleDisconnect}
-              >
+              <ActionIcon size={44} radius="md" color="red" variant="light" onClick={handleDisconnect}>
                 <IconPlugOff size={22} />
               </ActionIcon>
             </Group>
@@ -1459,10 +1401,7 @@ export default function WhatsAppPage() {
                             ? 'linear-gradient(90deg, rgba(107,114,128,0.15) 0%, transparent 100%)'
                             : 'var(--surface-elevated-more)',
                         borderBottom: '1px solid var(--surface-border-subtle)',
-                        borderLeft:
-                          selectedChat?.id === chat.id
-                            ? '3px solid #6B7280'
-                            : '3px solid transparent',
+                        borderLeft: selectedChat?.id === chat.id ? '3px solid #6B7280' : '3px solid transparent',
                       }}
                     >
                       <Group justify="space-between" wrap="nowrap">
@@ -1516,28 +1455,19 @@ export default function WhatsAppPage() {
                                   ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
                                   : 'transparent',
                               borderBottom: '1px solid var(--surface-border-subtle)',
-                              borderLeft:
-                                selectedChat?.id === chat.id
-                                  ? '3px solid #25D366'
-                                  : '3px solid transparent',
+                              borderLeft: selectedChat?.id === chat.id ? '3px solid #25D366' : '3px solid transparent',
                               transition: 'all 0.2s ease',
                             }}
                           >
                             <Group justify="space-between" wrap="nowrap" gap="xs">
                               <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }} gap="sm">
-                                <Indicator
-                                  color="green"
-                                  size={8}
-                                  offset={3}
-                                  disabled={chat.unreadCount === 0}
-                                >
+                                <Indicator color="green" size={8} offset={3} disabled={chat.unreadCount === 0}>
                                   <Avatar
                                     color="green"
                                     radius="xl"
                                     size={40}
                                     style={{
-                                      background:
-                                        'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                      background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                                     }}
                                   >
                                     {chat.name[0]?.toUpperCase()}
@@ -1599,28 +1529,19 @@ export default function WhatsAppPage() {
                                   ? 'linear-gradient(90deg, rgba(59,130,246,0.15) 0%, transparent 100%)'
                                   : 'transparent',
                               borderBottom: '1px solid var(--surface-border-subtle)',
-                              borderLeft:
-                                selectedChat?.id === chat.id
-                                  ? '3px solid #3B82F6'
-                                  : '3px solid transparent',
+                              borderLeft: selectedChat?.id === chat.id ? '3px solid #3B82F6' : '3px solid transparent',
                               transition: 'all 0.2s ease',
                             }}
                           >
                             <Group justify="space-between" wrap="nowrap" gap="xs">
                               <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }} gap="sm">
-                                <Indicator
-                                  color="blue"
-                                  size={8}
-                                  offset={3}
-                                  disabled={chat.unreadCount === 0}
-                                >
+                                <Indicator color="blue" size={8} offset={3} disabled={chat.unreadCount === 0}>
                                   <Avatar
                                     color="blue"
                                     radius="xl"
                                     size={40}
                                     style={{
-                                      background:
-                                        'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+                                      background: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
                                     }}
                                   >
                                     <IconUsers size={18} />
@@ -1779,11 +1700,7 @@ export default function WhatsAppPage() {
                     </Group>
                   </Dropzone.FullScreen>
 
-                  <ScrollArea
-                    style={{ flex: 1, minHeight: 0 }}
-                    viewportRef={messagesViewportRef}
-                    p="md"
-                  >
+                  <ScrollArea style={{ flex: 1, minHeight: 0 }} viewportRef={messagesViewportRef} p="md">
                     {loadingMessages ? (
                       <Stack align="center" justify="center" h="100%">
                         <Loader color="green" />
@@ -1857,9 +1774,7 @@ export default function WhatsAppPage() {
                                     opacity: 0.6,
                                   }}
                                 >
-                                  <span
-                                    style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}
-                                  >
+                                  <span style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}>
                                     {msg.timestamp}
                                   </span>
                                   {msg.fromMe &&
@@ -1905,13 +1820,7 @@ export default function WhatsAppPage() {
                     {isRecording || audioBlob ? (
                       <Group gap="sm" justify="space-between">
                         <Group gap="sm">
-                          <ActionIcon
-                            size={44}
-                            radius="xl"
-                            variant="light"
-                            color="red"
-                            onClick={cancelRecording}
-                          >
+                          <ActionIcon size={44} radius="xl" variant="light" color="red" onClick={cancelRecording}>
                             <IconTrash size={22} />
                           </ActionIcon>
 
@@ -2115,13 +2024,7 @@ export default function WhatsAppPage() {
                           </ActionIcon>
                         ) : (
                           <Tooltip label="Sesli Mesaj Kaydet" position="top">
-                            <ActionIcon
-                              size={44}
-                              radius="xl"
-                              variant="light"
-                              color="green"
-                              onClick={startRecording}
-                            >
+                            <ActionIcon size={44} radius="xl" variant="light" color="green" onClick={startRecording}>
                               <IconMicrophone size={22} />
                             </ActionIcon>
                           </Tooltip>
@@ -2146,8 +2049,7 @@ export default function WhatsAppPage() {
                         width: 120,
                         height: 120,
                         borderRadius: '50%',
-                        background:
-                          'linear-gradient(135deg, rgba(37,211,102,0.2) 0%, rgba(18,140,126,0.2) 100%)',
+                        background: 'linear-gradient(135deg, rgba(37,211,102,0.2) 0%, rgba(18,140,126,0.2) 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

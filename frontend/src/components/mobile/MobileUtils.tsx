@@ -50,13 +50,7 @@ export function MobileWrapper({
   }, []);
 
   // SSR sırasında desktop varsayalım
-  const padding = !mounted
-    ? desktopPadding
-    : isMobile
-      ? mobilePadding
-      : isTablet
-        ? tabletPadding
-        : desktopPadding;
+  const padding = !mounted ? desktopPadding : isMobile ? mobilePadding : isTablet ? tabletPadding : desktopPadding;
 
   return (
     <Box p={padding} {...props}>
@@ -148,8 +142,7 @@ export function MobileHide({
     return <>{children}</>;
   }
 
-  const shouldHide =
-    (isMobile && hideOnMobile) || (isTablet && hideOnTablet) || (isDesktop && hideOnDesktop);
+  const shouldHide = (isMobile && hideOnMobile) || (isTablet && hideOnTablet) || (isDesktop && hideOnDesktop);
 
   if (shouldHide) {
     return null;
@@ -189,8 +182,7 @@ export function MobileShow({
     return null;
   }
 
-  const shouldShow =
-    (isMobile && showOnMobile) || (isTablet && showOnTablet) || (isDesktop && showOnDesktop);
+  const shouldShow = (isMobile && showOnMobile) || (isTablet && showOnTablet) || (isDesktop && showOnDesktop);
 
   if (!shouldShow) {
     return null;
@@ -333,9 +325,7 @@ export function MobileActionSheet({ opened, onClose, title, actions }: MobileAct
             {action.icon && (
               <Box
                 style={{
-                  color: action.destructive
-                    ? '#ef4444'
-                    : action.color || (isDark ? '#9ca3af' : '#6b7280'),
+                  color: action.destructive ? '#ef4444' : action.color || (isDark ? '#9ca3af' : '#6b7280'),
                 }}
               >
                 {action.icon}
@@ -490,13 +480,7 @@ interface MobileCardProps extends BoxProps {
   onClick?: () => void;
 }
 
-export function MobileCard({
-  children,
-  accentColor,
-  clickable = false,
-  onClick,
-  ...props
-}: MobileCardProps) {
+export function MobileCard({ children, accentColor, clickable = false, onClick, ...props }: MobileCardProps) {
   const { colorScheme } = useMantineColorScheme();
   const _isDark = colorScheme === 'dark';
 

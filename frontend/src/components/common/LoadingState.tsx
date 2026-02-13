@@ -136,15 +136,7 @@ export function LoadingSpinner({
   fullHeight?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }) {
-  return (
-    <LoadingState
-      loading={loading}
-      variant="spinner"
-      message={message}
-      fullHeight={fullHeight}
-      size={size}
-    />
-  );
+  return <LoadingState loading={loading} variant="spinner" message={message} fullHeight={fullHeight} size={size} />;
 }
 
 /** Skeleton loading - placeholder */
@@ -157,14 +149,7 @@ export function LoadingSkeleton({
   lines?: number;
   height?: number | string;
 }) {
-  return (
-    <LoadingState
-      loading={loading}
-      variant="skeleton"
-      skeletonLines={lines}
-      skeletonHeight={height}
-    />
-  );
+  return <LoadingState loading={loading} variant="skeleton" skeletonLines={lines} skeletonHeight={height} />;
 }
 
 /** Overlay loading - içerik üzerinde */

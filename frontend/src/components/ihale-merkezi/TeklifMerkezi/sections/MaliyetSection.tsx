@@ -71,11 +71,7 @@ export function MaliyetSection({ ctx }: MaliyetSectionProps) {
   return (
     <Box style={{ display: 'flex', gap: 16, height: '100%', minHeight: 0 }}>
       {/* Sol: Kategori Listesi */}
-      <Paper
-        withBorder
-        radius="md"
-        style={{ width: 240, minWidth: 240, display: 'flex', flexDirection: 'column' }}
-      >
+      <Paper withBorder radius="md" style={{ width: 240, minWidth: 240, display: 'flex', flexDirection: 'column' }}>
         <Box p="sm" pb={4}>
           <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
             Maliyet Kalemleri
@@ -88,8 +84,7 @@ export function MaliyetSection({ ctx }: MaliyetSectionProps) {
                 {group.label}
               </Text>
               {MALIYET_KALEMLERI.filter((k) => group.keys.includes(k.key)).map((kalem) => {
-                const tutar =
-                  hesaplanmisTeklifData.maliyet_detay[kalem.key as MaliyetKalemKey].tutar;
+                const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key as MaliyetKalemKey].tutar;
                 return (
                   <NavLink
                     key={kalem.key}
@@ -215,9 +210,7 @@ function MalzemeForm({ ctx }: { ctx: UseTeklifMerkeziReturn }) {
         <Table.Tbody>
           {detay.ogunler.map((ogun, idx) => {
             const toplamOgun = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi : 0;
-            const ogunToplam = ogun.aktif
-              ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
-              : 0;
+            const ogunToplam = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet : 0;
             return (
               <Table.Tr key={ogun.ad} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
                 <Table.Td>
@@ -677,9 +670,7 @@ function SarfMalzemeForm({ ctx }: { ctx: UseTeklifMerkeziReturn }) {
                 />
               </Table.Td>
               <Table.Td>
-                <Text fw={500}>
-                  {formatParaKisa(detay.gunlukKisi * detay.gunSayisi * kalem.miktar)}
-                </Text>
+                <Text fw={500}>{formatParaKisa(detay.gunlukKisi * detay.gunSayisi * kalem.miktar)}</Text>
               </Table.Td>
               <Table.Td>
                 <ActionIcon
@@ -994,10 +985,7 @@ function YasalGiderlerForm({ ctx }: { ctx: UseTeklifMerkeziReturn }) {
   const tutar = hesaplanmisTeklifData.maliyet_detay.yasal_giderler.tutar;
   const ozet = hesaplaYasalGiderOzet(detay);
 
-  const renderKategori = (
-    key: 'sigortalar' | 'belgeler' | 'isg' | 'ihaleGiderleri',
-    baslik: string
-  ) => (
+  const renderKategori = (key: 'sigortalar' | 'belgeler' | 'isg' | 'ihaleGiderleri', baslik: string) => (
     <Paper withBorder p="sm" key={key}>
       <Text fw={500} mb="xs">
         {baslik}

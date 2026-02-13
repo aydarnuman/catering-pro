@@ -63,6 +63,7 @@ import { demirbasAPI } from '@/lib/api/services/demirbas';
 import { personelAPI } from '@/lib/api/services/personel';
 import { formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
+import type { Personel, Proje } from '@/types/domain';
 
 // Tip tanımları
 interface Kategori {
@@ -110,18 +111,6 @@ interface Demirbas {
   zimmetli_departman: string;
   durum: string;
   tedarikci: string;
-}
-
-interface Proje {
-  id: number;
-  ad: string;
-}
-
-interface Personel {
-  id: number;
-  ad: string;
-  soyad: string;
-  departman: string;
 }
 
 interface Istatistik {
@@ -199,17 +188,13 @@ export default function DemirbasPage() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
   // Modal states
-  const [demirbasModalOpened, { open: openDemirbasModal, close: closeDemirbasModal }] =
-    useDisclosure(false);
+  const [demirbasModalOpened, { open: openDemirbasModal, close: closeDemirbasModal }] = useDisclosure(false);
   const [aracModalOpened, { open: openAracModal, close: closeAracModal }] = useDisclosure(false);
-  const [zimmetModalOpened, { open: openZimmetModal, close: closeZimmetModal }] =
-    useDisclosure(false);
+  const [zimmetModalOpened, { open: openZimmetModal, close: closeZimmetModal }] = useDisclosure(false);
   const [bakimModalOpened, { open: openBakimModal, close: closeBakimModal }] = useDisclosure(false);
-  const [transferModalOpened, { open: openTransferModal, close: closeTransferModal }] =
-    useDisclosure(false);
+  const [transferModalOpened, { open: openTransferModal, close: closeTransferModal }] = useDisclosure(false);
   const [detayModalOpened, { open: openDetayModal, close: closeDetayModal }] = useDisclosure(false);
-  const [lokasyonModalOpened, { open: openLokasyonModal, close: closeLokasyonModal }] =
-    useDisclosure(false);
+  const [lokasyonModalOpened, { open: openLokasyonModal, close: closeLokasyonModal }] = useDisclosure(false);
 
   // Lokasyon yönetimi
   const [editingLokasyon, setEditingLokasyon] = useState<Lokasyon | null>(null);
@@ -305,15 +290,16 @@ export default function DemirbasPage() {
     setLoading(true);
     setError(null);
     try {
-      const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] =
-        await Promise.allSettled([
+      const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] = await Promise.allSettled(
+        [
           demirbasAPI.getDemirbaslar(),
           demirbasAPI.getKategoriler(),
           demirbasAPI.getLokasyonlar(),
           personelAPI.getProjeler({ durum: 'aktif' }),
           personelAPI.getPersoneller(),
           demirbasAPI.getIstatistikOzet(),
-        ]);
+        ]
+      );
 
       // Her bir sonucu kontrol et
       if (demirbasRes.status === 'fulfilled' && demirbasRes.value.success) {
@@ -373,11 +359,7 @@ export default function DemirbasPage() {
         // Sessiz hata - kullanıcıya bildirim gösterme (diğer veriler yüklenebilir)
       }
 
-      if (
-        istatistikRes.status === 'fulfilled' &&
-        istatistikRes.value.success &&
-        istatistikRes.value.data
-      ) {
+      if (istatistikRes.status === 'fulfilled' && istatistikRes.value.success && istatistikRes.value.data) {
         setIstatistik(istatistikRes.value.data.ozet);
         setKategoriDagilimi(istatistikRes.value.data.kategoriDagilimi || []);
         setGarantiYaklasan((istatistikRes.value.data.garantiYaklasan || []) as GarantiItem[]);
@@ -857,10 +839,7 @@ export default function DemirbasPage() {
     setLoading(true);
     try {
       const result = editingLokasyon
-        ? await demirbasAPI.updateLokasyon(
-            editingLokasyon.id,
-            lokasyonForm as Record<string, unknown>
-          )
+        ? await demirbasAPI.updateLokasyon(editingLokasyon.id, lokasyonForm as Record<string, unknown>)
         : await demirbasAPI.createLokasyon(lokasyonForm as Record<string, unknown>);
 
       if (result.success) {
@@ -987,12 +966,7 @@ export default function DemirbasPage() {
       {/* Header */}
       <Group justify="space-between" mb="md">
         <Group gap="md">
-          <ThemeIcon
-            size={42}
-            radius="xl"
-            variant="gradient"
-            gradient={{ from: 'indigo', to: 'violet' }}
-          >
+          <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
             <IconBuilding size={24} />
           </ThemeIcon>
           <Box>
@@ -1004,13 +978,7 @@ export default function DemirbasPage() {
         </Group>
         <Group gap="xs">
           <Tooltip label="Raporlar">
-            <ActionIcon
-              variant="light"
-              color="indigo"
-              size="lg"
-              radius="xl"
-              onClick={() => setRaporMerkeziOpen(true)}
-            >
+            <ActionIcon variant="light" color="indigo" size="lg" radius="xl" onClick={() => setRaporMerkeziOpen(true)}>
               <IconClipboardList size={18} />
             </ActionIcon>
           </Tooltip>
@@ -1027,8 +995,7 @@ export default function DemirbasPage() {
           radius="lg"
           mb="lg"
           style={{
-            background:
-              'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
             border: '1px solid var(--mantine-color-gray-2)',
           }}
         >
@@ -1041,11 +1008,7 @@ export default function DemirbasPage() {
                 Toplam Varlık
               </Text>
             </Box>
-            <Box
-              ta="center"
-              py="xs"
-              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
-            >
+            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
               <Text size="2rem" fw={800} c="teal">
                 {formatMoney(Number(istatistik.toplam_net_deger))}
               </Text>
@@ -1053,11 +1016,7 @@ export default function DemirbasPage() {
                 Net Değer
               </Text>
             </Box>
-            <Box
-              ta="center"
-              py="xs"
-              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
-            >
+            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
               <Text size="2rem" fw={800} c="blue">
                 {istatistik.zimmetli}
               </Text>
@@ -1065,11 +1024,7 @@ export default function DemirbasPage() {
                 Zimmetli
               </Text>
             </Box>
-            <Box
-              ta="center"
-              py="xs"
-              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
-            >
+            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
               <Text size="2rem" fw={800} c="yellow">
                 {istatistik.bakimda}
               </Text>
@@ -1077,11 +1032,7 @@ export default function DemirbasPage() {
                 Bakımda
               </Text>
             </Box>
-            <Box
-              ta="center"
-              py="xs"
-              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
-            >
+            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
               <Text size="2rem" fw={800} c="orange">
                 {formatMoney(Number(istatistik.toplam_amortisman))}
               </Text>
@@ -1141,12 +1092,7 @@ export default function DemirbasPage() {
       {/* Lokasyon & Proje Yönetimi - Yan Yana */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="md">
         {/* Lokasyonlar */}
-        <Paper
-          p="md"
-          radius="md"
-          withBorder
-          style={{ background: 'linear-gradient(135deg, #fff8f0 0%, #fff 100%)' }}
-        >
+        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #fff8f0 0%, #fff 100%)' }}>
           <Text size="sm" fw={600} c="orange.7" mb="sm">
             📍 Lokasyonlar
           </Text>
@@ -1166,10 +1112,7 @@ export default function DemirbasPage() {
                     background: selectedLokasyonFilter === lok.id ? '#fed7aa' : '#fafafa',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border:
-                      selectedLokasyonFilter === lok.id
-                        ? '2px solid #f97316'
-                        : '2px solid transparent',
+                    border: selectedLokasyonFilter === lok.id ? '2px solid #f97316' : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedLokasyonFilter === lok.id) {
@@ -1182,13 +1125,7 @@ export default function DemirbasPage() {
                 >
                   <Group gap="xs">
                     <Text size="md">
-                      {lok.tip === 'sube'
-                        ? '🏢'
-                        : lok.tip === 'depo'
-                          ? '📦'
-                          : lok.tip === 'ofis'
-                            ? '🏠'
-                            : '📍'}
+                      {lok.tip === 'sube' ? '🏢' : lok.tip === 'depo' ? '📦' : lok.tip === 'ofis' ? '🏠' : '📍'}
                     </Text>
                     <Text size="sm" fw={500}>
                       {lok.ad}
@@ -1204,10 +1141,7 @@ export default function DemirbasPage() {
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Item
-                        leftSection={<IconEdit size={14} />}
-                        onClick={() => handleEditLokasyon(lok)}
-                      >
+                      <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => handleEditLokasyon(lok)}>
                         Düzenle
                       </Menu.Item>
                       <Menu.Item
@@ -1245,12 +1179,7 @@ export default function DemirbasPage() {
         </Paper>
 
         {/* Projeler */}
-        <Paper
-          p="md"
-          radius="md"
-          withBorder
-          style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)' }}
-        >
+        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)' }}>
           <Text size="sm" fw={600} c="blue.7" mb="sm">
             📁 Projeler
           </Text>
@@ -1270,10 +1199,7 @@ export default function DemirbasPage() {
                     background: selectedProjeFilter === proje.id ? '#bfdbfe' : '#f8faff',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border:
-                      selectedProjeFilter === proje.id
-                        ? '2px solid #3b82f6'
-                        : '2px solid transparent',
+                    border: selectedProjeFilter === proje.id ? '2px solid #3b82f6' : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedProjeFilter === proje.id) {
@@ -1434,20 +1360,10 @@ export default function DemirbasPage() {
                     {selectedItems.length} envanter seçildi
                   </Text>
                   <Group gap="xs">
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="gray"
-                      onClick={() => setSelectedItems([])}
-                    >
+                    <Button size="xs" variant="light" color="gray" onClick={() => setSelectedItems([])}>
                       Seçimi Kaldır
                     </Button>
-                    <Button
-                      size="xs"
-                      color="red"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={handleBulkDelete}
-                    >
+                    <Button size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={handleBulkDelete}>
                       Toplu Sil
                     </Button>
                   </Group>
@@ -1461,14 +1377,8 @@ export default function DemirbasPage() {
                   <Table.Tr>
                     <Table.Th w={40}>
                       <Checkbox
-                        checked={
-                          selectedItems.length === filteredDemirbaslar.length &&
-                          filteredDemirbaslar.length > 0
-                        }
-                        indeterminate={
-                          selectedItems.length > 0 &&
-                          selectedItems.length < filteredDemirbaslar.length
-                        }
+                        checked={selectedItems.length === filteredDemirbaslar.length && filteredDemirbaslar.length > 0}
+                        indeterminate={selectedItems.length > 0 && selectedItems.length < filteredDemirbaslar.length}
                         onChange={handleSelectAll}
                       />
                     </Table.Th>
@@ -1488,9 +1398,7 @@ export default function DemirbasPage() {
                     <Table.Tr>
                       <Table.Td colSpan={10}>
                         <Text ta="center" c="dimmed" py="xl">
-                          {searchTerm
-                            ? 'Aramanıza uygun envanter bulunamadı'
-                            : 'Henüz envanter kaydı yok'}
+                          {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
                         </Text>
                       </Table.Td>
                     </Table.Tr>
@@ -1637,12 +1545,7 @@ export default function DemirbasPage() {
                               </Tooltip>
                             )}
                             <Tooltip label="Sil">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                size="sm"
-                                onClick={() => handleDelete(item.id)}
-                              >
+                              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDelete(item.id)}>
                                 <IconTrash size={16} />
                               </ActionIcon>
                             </Tooltip>
@@ -1843,9 +1746,7 @@ export default function DemirbasPage() {
                 label="Alış Fiyatı (₺)"
                 placeholder="0"
                 value={demirbasForm.alis_fiyati}
-                onChange={(val) =>
-                  setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })
-                }
+                onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })}
                 min={0}
                 thousandSeparator=","
               />
@@ -1853,9 +1754,7 @@ export default function DemirbasPage() {
                 label="Garanti Süresi (Ay)"
                 placeholder="24"
                 value={demirbasForm.garanti_suresi}
-                onChange={(val) =>
-                  setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })
-                }
+                onChange={(val) => setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })}
                 min={0}
               />
               <Select
@@ -1879,9 +1778,7 @@ export default function DemirbasPage() {
                 label="Lokasyon Detay"
                 placeholder="Oda no, kat vb."
                 value={demirbasForm.lokasyon_detay}
-                onChange={(e) =>
-                  setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })
-                }
+                onChange={(e) => setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })}
               />
               <Textarea
                 label="Açıklama"
@@ -1961,9 +1858,7 @@ export default function DemirbasPage() {
               <NumberInput
                 label="Model Yılı"
                 value={aracForm.yil}
-                onChange={(val) =>
-                  setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })
-                }
+                onChange={(val) => setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })}
                 min={1990}
                 max={new Date().getFullYear() + 1}
               />
@@ -2099,12 +1994,7 @@ export default function DemirbasPage() {
           >
             İptal
           </Button>
-          <Button
-            color="pink"
-            onClick={handleSaveArac}
-            loading={loading}
-            leftSection={<IconCar size={16} />}
-          >
+          <Button color="pink" onClick={handleSaveArac} loading={loading} leftSection={<IconCar size={16} />}>
             Araç Kaydet
           </Button>
         </Group>
@@ -2222,9 +2112,7 @@ export default function DemirbasPage() {
           <Checkbox
             label="Garanti kapsamında"
             checked={bakimForm.garanti_kapsaminda}
-            onChange={(e) =>
-              setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })
-            }
+            onChange={(e) => setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })}
           />
         </Stack>
         <Group justify="flex-end" mt="lg">
@@ -2313,9 +2201,7 @@ export default function DemirbasPage() {
                     {detayData.kod}
                   </Badge>
                   <Title order={4}>{detayData.ad}</Title>
-                  <Text c="dimmed">
-                    {[detayData.marka, detayData.model].filter(Boolean).join(' ')}
-                  </Text>
+                  <Text c="dimmed">{[detayData.marka, detayData.model].filter(Boolean).join(' ')}</Text>
                   {detayData.seri_no && <Text size="sm">Seri No: {detayData.seri_no}</Text>}
                 </div>
                 <Badge color={getDurumColor(detayData.durum || '')} size="lg">
@@ -2352,9 +2238,7 @@ export default function DemirbasPage() {
                     </Text>
                   </Group>
                   <Progress
-                    value={
-                      (Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100
-                    }
+                    value={(Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100}
                     color="orange"
                     size="sm"
                     mt="xs"
@@ -2465,9 +2349,7 @@ export default function DemirbasPage() {
             label="Kod"
             placeholder="örn: DEPO-01"
             value={lokasyonForm.kod}
-            onChange={(e) =>
-              setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })
-            }
+            onChange={(e) => setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })}
           />
           <Select
             label="Lokasyon Tipi"
@@ -2512,11 +2394,7 @@ export default function DemirbasPage() {
       </Modal>
 
       {/* Rapor Merkezi Modal */}
-      <RaporMerkeziModal
-        opened={raporMerkeziOpen}
-        onClose={() => setRaporMerkeziOpen(false)}
-        module="operasyon"
-      />
+      <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="operasyon" />
     </Container>
   );
 }

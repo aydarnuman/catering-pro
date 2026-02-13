@@ -433,12 +433,7 @@ export default function ScraperDashboardPage() {
             >
               {autoRefresh ? 'Otomatik Yenileme Açık' : 'Otomatik Yenileme'}
             </Button>
-            <Button
-              variant="light"
-              size="sm"
-              onClick={fetchAll}
-              leftSection={<IconRefresh size={16} />}
-            >
+            <Button variant="light" size="sm" onClick={fetchAll} leftSection={<IconRefresh size={16} />}>
               Yenile
             </Button>
           </Group>
@@ -450,11 +445,7 @@ export default function ScraperDashboardPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="md">
               <Text fw={500}>Circuit Breaker</Text>
-              <ThemeIcon
-                variant="light"
-                color={getStatusColor(health?.status || 'unknown')}
-                size="lg"
-              >
+              <ThemeIcon variant="light" color={getStatusColor(health?.status || 'unknown')} size="lg">
                 {getStatusIcon(health?.status || 'unknown')}
               </ThemeIcon>
             </Group>
@@ -878,8 +869,7 @@ export default function ScraperDashboardPage() {
 
           <Text size="xs" c="dimmed">
             {triggerMode === 'list' && 'Sadece ihale listesini tarar, dökümanlar ayrıca çekilir.'}
-            {triggerMode === 'full' &&
-              "Liste tarar ve bulunan ihaleler için döküman job'ları oluşturup işler."}
+            {triggerMode === 'full' && "Liste tarar ve bulunan ihaleler için döküman job'ları oluşturup işler."}
             {triggerMode === 'docs' && "Bekleyen döküman job'larını işler (login gerektirir)."}
             {triggerMode === 'retry' && "Başarısız olmuş job'ları yeniden kuyruğa alır ve işler."}
           </Text>

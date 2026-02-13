@@ -9,11 +9,11 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
-import { pool, query } from './database.js';
-import { csrfProtection } from './middleware/csrf.js';
+import { pool } from './database.js';
+import { authenticate } from './middleware/auth.js';
 import { globalErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { ipAccessControl } from './middleware/ip-access-control.js';
-import { apiLimiter, authLimiter } from './middleware/rate-limiter.js';
+import { adminLimiter, apiLimiter, authLimiter } from './middleware/rate-limiter.js';
 import swaggerSpec from './swagger.js';
 import logger, { httpLogger, logError } from './utils/logger.js';
 
@@ -21,7 +21,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || process.env.API_PORT || 3001;
+
+const SERVER_CONFIG = {
+  DEFAULT_PORT: 3001,
+  COMPRESSION_LEVEL: 6,
+  COMPRESSION_THRESHOLD: 1024,
+  BODY_LIMIT: '50mb',
+};
+
+const PORT = process.env.PORT || process.env.API_PORT || SERVER_CONFIG.DEFAULT_PORT;
 
 // Trust proxy - Rate limiter için gerekli (X-Forwarded-For header'ı için)
 // Sadece bir proxy'ye güven (nginx) - permissive trust proxy hatasını önler
@@ -102,19 +110,16 @@ app.use(
       // Varsayılan filter'ı kullan (text, json, etc.)
       return compression.filter(req, res);
     },
-    level: 6, // Compression seviyesi (1-9, 6 optimal denge)
-    threshold: 1024, // 1KB altındaki yanıtları sıkıştırma
+    level: SERVER_CONFIG.COMPRESSION_LEVEL,
+    threshold: SERVER_CONFIG.COMPRESSION_THRESHOLD,
   })
 );
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: SERVER_CONFIG.BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: SERVER_CONFIG.BODY_LIMIT }));
 
 // HTTP Request Logger (Winston)
 app.use(httpLogger);
-
-// CSRF Protection - Cookie parser'dan sonra, route'lardan önce
-app.use(csrfProtection);
 
 // IP Access Control - Rate limiting'den önce (güvenlik için)
 // NOT: Health check ve auth endpoint'leri hariç
@@ -273,14 +278,13 @@ import importRouter from './routes/import.js';
 import invoicesRouter from './routes/invoices.js';
 import izinRouter from './routes/izin.js';
 import kasaBankaRouter from './routes/kasa-banka.js';
+import kurumMenuleriRouter from './routes/kurum-menuleri.js';
 import maasOdemeRouter from './routes/maas-odeme.js';
 import mailRouter from './routes/mail.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
 import menuPlanlamaRouter from './routes/menu-planlama.js';
 import mevzuatRouter from './routes/mevzuat.js';
 import mutabakatRouter from './routes/mutabakat.js';
-// DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
-// import notlarRouter from './routes/notlar.js';
 import unifiedNotesRouter from './routes/notes/index.js';
 import notificationsRouter from './routes/notifications.js';
 import permissionsRouter from './routes/permissions.js';
@@ -301,20 +305,13 @@ import syncRouter from './routes/sync.js';
 import systemRouter from './routes/system.js';
 import tekliflerRouter from './routes/teklifler.js';
 import tenderContentDocumentsRouter from './routes/tender-content-documents.js';
-// DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
-// import tenderNotesRouter from './routes/tender-notes.js';
 import tenderDilekceRouter from './routes/tender-dilekce.js';
 import tenderDocumentsRouter from './routes/tender-documents.js';
 import tenderTrackingRouter from './routes/tender-tracking.js';
-// Routes
 import tendersRouter from './routes/tenders.js';
 import urunlerRouter from './routes/urunler.js';
 import uyumsoftRouter from './routes/uyumsoft.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
-// Migration'lar artık Supabase CLI ile yönetiliyor
-// import { runMigrations } from './utils/migration-runner.js';
-// Yeni migration oluşturma: supabase migration new <isim>
-// Migration uygulama: supabase db push
 import piyasaSyncScheduler from './services/piyasa-sync-scheduler.js';
 import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
 import scheduler from './services/sync-scheduler.js';
@@ -355,8 +352,9 @@ app.use('/api/bordro-import', bordroImportRouter);
 app.use('/api/maas-odeme', maasOdemeRouter);
 app.use('/api/proje-hareketler', projeHareketlerRouter);
 app.use('/api/projeler', projelerRouter);
-app.use('/api/planlama', planlamaRouter);
-app.use('/api/menu-planlama', menuPlanlamaRouter);
+app.use('/api/planlama', authenticate, planlamaRouter);
+app.use('/api/menu-planlama', authenticate, menuPlanlamaRouter);
+app.use('/api/kurum-menuleri', authenticate, kurumMenuleriRouter);
 app.use('/api/mevzuat', mevzuatRouter);
 app.use('/api/sektor-gundem', sektorGundemRouter);
 app.use('/api/teklifler', tekliflerRouter);
@@ -370,118 +368,44 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/tender-docs', tenderDocumentsRouter);
 app.use('/api/tender-content', tenderContentDocumentsRouter);
 app.use('/api/tender-tracking', tenderTrackingRouter);
-app.use('/api/permissions', permissionsRouter);
-app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/permissions', adminLimiter, permissionsRouter);
+app.use('/api/audit-logs', adminLimiter, auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
-app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
+app.use('/api/maliyet-analizi', authenticate, maliyetAnaliziRouter);
 // DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
 // app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/contractors', contractorsRouter);
-app.use('/api/system', systemRouter);
+app.use('/api/system', adminLimiter, systemRouter);
 app.use('/api/prompt-builder', promptBuilderRouter);
 app.use('/api/preferences', preferencesRouter);
 app.use('/api/analysis-corrections', analysisCorrectionsRouter);
 
 // --- Rapor Merkezi Generator'ları Kaydet ---
-import('./services/report-generators/ihale-reports.js').catch(() => {});
-import('./services/report-generators/finans-reports.js').catch(() => {});
-import('./services/report-generators/operasyon-reports.js').catch(() => {});
-import('./services/report-generators/admin-reports.js').catch(() => {});
+import('./services/report-generators/ihale-reports.js').catch((err) =>
+  logger.error('Report generator yuklenemedi', { module: 'ihale-reports', error: err.message })
+);
+import('./services/report-generators/finans-reports.js').catch((err) =>
+  logger.error('Report generator yuklenemedi', { module: 'finans-reports', error: err.message })
+);
+import('./services/report-generators/operasyon-reports.js').catch((err) =>
+  logger.error('Report generator yuklenemedi', { module: 'operasyon-reports', error: err.message })
+);
+import('./services/report-generators/admin-reports.js').catch((err) =>
+  logger.error('Report generator yuklenemedi', { module: 'admin-reports', error: err.message })
+);
 
-/**
- * @swagger
- * /api/stats:
- *   get:
- *     summary: Genel istatistikler
- *     description: Sistem genelindeki ihale ve döküman istatistiklerini döner
- *     tags: [System]
- *     responses:
- *       200:
- *         description: İstatistikler başarıyla alındı
- */
-app.get('/api/stats', async (_req, res) => {
-  try {
-    const tenderResult = await query('SELECT COUNT(*) as total FROM tenders');
-    const activeTenderResult = await query('SELECT COUNT(*) as active FROM tenders WHERE tender_date > NOW()');
-
-    let documentsCount = 0;
-    try {
-      const documentResult = await query('SELECT COUNT(*) as total FROM documents');
-      documentsCount = parseInt(documentResult.rows[0].total, 10);
-    } catch (_e) {
-      // Documents table doesn't exist yet
-    }
-
-    let aiAnalysisCount = 0;
-    try {
-      const aiResult = await query('SELECT COUNT(*) as analyzed FROM tenders WHERE raw_data IS NOT NULL');
-      aiAnalysisCount = parseInt(aiResult.rows[0].analyzed, 10);
-    } catch (_e) {
-      // Column doesn't exist yet
-    }
-
-    const stats = {
-      totalTenders: parseInt(tenderResult.rows[0].total, 10),
-      activeTenders: parseInt(activeTenderResult.rows[0].active, 10),
-      expiredTenders: parseInt(tenderResult.rows[0].total, 10) - parseInt(activeTenderResult.rows[0].active, 10),
-      totalDocuments: documentsCount,
-      aiAnalysisCount: aiAnalysisCount,
-    };
-
-    res.json(stats);
-  } catch (error) {
-    logError('Stats', error);
-    res.status(500).json({
-      error: 'İstatistikler alınamadı',
-      details: error.message,
-    });
-  }
+// Backward-compatible aliases: eski path'ler çalışmaya devam etsin
+// /api/stats → /api/system/stats, /api/logs/recent → /api/system/logs/recent
+app.get('/api/stats', (req, res, next) => {
+  req.url = '/stats';
+  systemRouter(req, res, next);
 });
-
-/**
- * @swagger
- * /api/logs/recent:
- *   get:
- *     summary: Son hata logları
- *     description: Son 50 hata kaydını döner (Admin only)
- *     tags: [System]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Log listesi
- */
-app.get('/api/logs/recent', async (_req, res) => {
-  try {
-    const fs = await import('node:fs').then((m) => m.promises);
-    const logPath = path.join(__dirname, '../logs');
-
-    // Bugünün error log dosyasını oku
-    const today = new Date().toISOString().split('T')[0];
-    const errorLogFile = path.join(logPath, `error-${today}.log`);
-
-    try {
-      const content = await fs.readFile(errorLogFile, 'utf-8');
-      const lines = content.trim().split('\n').slice(-50); // Son 50 satır
-      res.json({
-        success: true,
-        data: lines,
-        file: `error-${today}.log`,
-      });
-    } catch (_e) {
-      res.json({
-        success: true,
-        data: [],
-        message: 'Bugün için hata kaydı yok',
-      });
-    }
-  } catch (error) {
-    logError('Logs API', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.get('/api/logs/recent', (req, res, next) => {
+  req.url = '/logs/recent';
+  systemRouter(req, res, next);
 });
 
 // 404 handler

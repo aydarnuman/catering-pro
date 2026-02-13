@@ -38,22 +38,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
 import { urunlerAPI } from '@/lib/api/services/urunler';
+// Birimler - merkezi constants'dan
+import { URUN_BIRIMLERI } from '@/lib/constants';
 import { formatMoney } from '@/lib/formatters';
 
-// Birimler
-const BIRIMLER = [
-  { value: 'gr', label: 'Gram (gr)' },
-  { value: 'kg', label: 'Kilogram (kg)' },
-  { value: 'lt', label: 'Litre (lt)' },
-  { value: 'ml', label: 'Mililitre (ml)' },
-  { value: 'adet', label: 'Adet' },
-];
-
-const _FIYAT_BIRIMLERI = [
-  { value: 'kg', label: 'kg başına' },
-  { value: 'lt', label: 'lt başına' },
-  { value: 'adet', label: 'adet başına' },
-];
+const BIRIMLER = [...URUN_BIRIMLERI];
 
 interface Kategori {
   id: number;
@@ -434,8 +423,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         <Box
           style={{
             width: isMobile && isMounted ? '100%' : 350,
-            borderRight:
-              isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
+            borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
             display: isMobile && isMounted && mobileShowDetail ? 'none' : 'flex',
             flexDirection: 'column',
             flex: isMobile && isMounted ? 1 : undefined,
@@ -506,9 +494,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         style={{
                           borderBottom: '1px solid var(--mantine-color-default-border)',
                           cursor: 'pointer',
-                          background: isAnaSelected
-                            ? 'var(--mantine-color-violet-light)'
-                            : undefined,
+                          background: isAnaSelected ? 'var(--mantine-color-violet-light)' : undefined,
                           transition: 'background 0.15s',
                         }}
                         onClick={() => {
@@ -539,13 +525,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                 <Badge
                                   size="xs"
                                   variant="light"
-                                  color={
-                                    ana.durum === 'normal'
-                                      ? 'green'
-                                      : ana.durum === 'tukendi'
-                                        ? 'red'
-                                        : 'orange'
-                                  }
+                                  color={ana.durum === 'normal' ? 'green' : ana.durum === 'tukendi' ? 'red' : 'orange'}
                                 >
                                   {ana.durum === 'tukendi'
                                     ? 'Stok Yok'
@@ -565,12 +545,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                           </Group>
                           <Menu shadow="md" width={130} position="bottom-end">
                             <Menu.Target>
-                              <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <ActionIcon variant="subtle" color="gray" size="sm" onClick={(e) => e.stopPropagation()}>
                                 <IconDotsVertical size={14} />
                               </ActionIcon>
                             </Menu.Target>
@@ -603,10 +578,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
                       {/* Varyantlar - Girintili */}
                       {anaVaryantlar.length > 0 && (
-                        <Box
-                          pl="md"
-                          style={{ borderLeft: '2px solid var(--mantine-color-violet-2)' }}
-                        >
+                        <Box pl="md" style={{ borderLeft: '2px solid var(--mantine-color-violet-2)' }}>
                           {anaVaryantlar.map((varyant) => {
                             const isVaryantSelected = selectedUrun?.id === varyant.id;
                             return (
@@ -712,10 +684,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         <Box
           style={{
             flex: 1,
-            display:
-              isMobile && isMounted && !mobileShowDetail && !showYeniUrun && !editMode
-                ? 'none'
-                : 'flex',
+            display: isMobile && isMounted && !mobileShowDetail && !showYeniUrun && !editMode ? 'none' : 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             position: isMobile && isMounted ? 'absolute' : 'relative',
@@ -809,9 +778,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     min={0.001}
                     step={0.1}
                     value={formData.birim_carpani}
-                    onChange={(e) =>
-                      setFormData({ ...formData, birim_carpani: parseFloat(e.target.value) || 1 })
-                    }
+                    onChange={(e) => setFormData({ ...formData, birim_carpani: parseFloat(e.target.value) || 1 })}
                     rightSection={
                       <Text size="xs" c="dimmed">
                         KG
@@ -879,11 +846,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                       </Group>
                     </Box>
                   </Group>
-                  <Button
-                    variant="light"
-                    leftSection={<IconEdit size={16} />}
-                    onClick={() => startEdit(selectedUrun)}
-                  >
+                  <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => startEdit(selectedUrun)}>
                     Düzenle
                   </Button>
                 </Group>
@@ -929,8 +892,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                       Min / Kritik
                     </Text>
                     <Text fw={600}>
-                      {formatMiktar(selectedUrun.min_stok)} /{' '}
-                      {formatMiktar(selectedUrun.kritik_stok)}
+                      {formatMiktar(selectedUrun.min_stok)} / {formatMiktar(selectedUrun.kritik_stok)}
                     </Text>
                   </Paper>
                 </SimpleGrid>
@@ -1005,9 +967,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                 <Table.Tr key={fg.id || `fg-${idx}`}>
                                   <Table.Td>
                                     <Text size="xs">
-                                      {fg.tarih
-                                        ? new Date(fg.tarih).toLocaleDateString('tr-TR')
-                                        : '-'}
+                                      {fg.tarih ? new Date(fg.tarih).toLocaleDateString('tr-TR') : '-'}
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
@@ -1047,8 +1007,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                           </Badge>
                         </Group>
 
-                        {urunDetay.tedarikci_eslestirmeleri &&
-                        urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
+                        {urunDetay.tedarikci_eslestirmeleri && urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
                           <Table striped highlightOnHover withTableBorder>
                             <Table.Thead>
                               <Table.Tr>

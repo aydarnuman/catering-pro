@@ -177,12 +177,7 @@ export default function CariDetailDrawer({
         <Paper p="sm" radius="md" className="standard-card">
           <Group justify="space-between" wrap="wrap" gap="xs">
             {onEdit && (
-              <Button
-                variant="light"
-                size="xs"
-                leftSection={<IconEdit size={14} />}
-                onClick={() => onEdit(cari)}
-              >
+              <Button variant="light" size="xs" leftSection={<IconEdit size={14} />} onClick={() => onEdit(cari)}>
                 Düzenle
               </Button>
             )}
@@ -271,11 +266,7 @@ export default function CariDetailDrawer({
         </SimpleGrid>
 
         {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onChange={setActiveTab}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-        >
+        <Tabs value={activeTab} onChange={setActiveTab} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Tabs.List>
             <Tabs.Tab value="ozet" leftSection={<IconUser size={14} />}>
               Bilgiler
@@ -324,9 +315,7 @@ export default function CariDetailDrawer({
                         <ThemeIcon size="sm" variant="light" color="gray">
                           <IconMapPin size={12} />
                         </ThemeIcon>
-                        <Text size="sm">
-                          {[cari.adres, cari.ilce, cari.il].filter(Boolean).join(', ')}
-                        </Text>
+                        <Text size="sm">{[cari.adres, cari.ilce, cari.il].filter(Boolean).join(', ')}</Text>
                       </Group>
                     )}
                     {!cari.yetkili && !cari.telefon && !cari.email && !cari.adres && (
@@ -444,16 +433,10 @@ export default function CariDetailDrawer({
                           <Text size="sm" fw={500}>
                             {getHareketTipText(hareket.hareket_tipi)}
                           </Text>
-                          <Text
-                            size="sm"
-                            fw={600}
-                            c={Number(hareket.alacak || 0) > 0 ? 'teal' : 'red'}
-                          >
+                          <Text size="sm" fw={600} c={Number(hareket.alacak || 0) > 0 ? 'teal' : 'red'}>
                             {Number(hareket.alacak || 0) > 0 ? '+' : '-'}
                             {formatMoney(
-                              Number(hareket.alacak || 0) > 0
-                                ? Number(hareket.alacak)
-                                : Number(hareket.borc)
+                              Number(hareket.alacak || 0) > 0 ? Number(hareket.alacak) : Number(hareket.borc)
                             )}
                           </Text>
                         </Group>

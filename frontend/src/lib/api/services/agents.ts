@@ -170,10 +170,7 @@ export const agentAPI = {
   /**
    * Agent güncelle (Admin)
    */
-  async update(
-    slug: string,
-    data: AgentUpdateInput
-  ): Promise<ApiResponse<{ agent: Agent }>> {
+  async update(slug: string, data: AgentUpdateInput): Promise<ApiResponse<{ agent: Agent }>> {
     const response = await api.put(`/api/agents/${slug}`, data);
     return response.data;
   },
@@ -191,10 +188,7 @@ export const agentAPI = {
   /**
    * Tool ekle (Admin)
    */
-  async addTool(
-    slug: string,
-    tool: AgentToolInput
-  ): Promise<ApiResponse<{ tool: AgentTool }>> {
+  async addTool(slug: string, tool: AgentToolInput): Promise<ApiResponse<{ tool: AgentTool }>> {
     const response = await api.post(`/api/agents/${slug}/tools`, tool);
     return response.data;
   },
@@ -266,10 +260,7 @@ export const agentAPI = {
   /**
    * Kütüphane kaynağını sil
    */
-  async deleteKnowledge(
-    slug: string,
-    id: number
-  ): Promise<ApiResponse<{ message: string }>> {
+  async deleteKnowledge(slug: string, id: number): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/agents/${slug}/knowledge/${id}`);
     return response.data;
   },

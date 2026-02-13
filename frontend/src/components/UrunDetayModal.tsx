@@ -77,12 +77,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
       title={
         urunDetay ? (
           <Group gap="sm">
-            <ThemeIcon
-              size={40}
-              radius="xl"
-              variant="gradient"
-              gradient={{ from: 'blue', to: 'cyan' }}
-            >
+            <ThemeIcon size={40} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
               <IconPackage size={20} />
             </ThemeIcon>
             <Box>
@@ -173,9 +168,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                 <Table.Tbody>
                   {urunDetay.fiyat_gecmisi.map((fg: any) => (
                     <Table.Tr key={fg.id}>
-                      <Table.Td>
-                        {fg.tarih ? new Date(fg.tarih).toLocaleDateString('tr-TR') : '-'}
-                      </Table.Td>
+                      <Table.Td>{fg.tarih ? new Date(fg.tarih).toLocaleDateString('tr-TR') : '-'}</Table.Td>
                       <Table.Td>
                         <Text size="sm" lineClamp={1}>
                           {fg.tedarikci || '-'}
@@ -190,11 +183,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Badge
-                          size="xs"
-                          variant="light"
-                          color={fg.kaynak === 'fatura' ? 'violet' : 'gray'}
-                        >
+                        <Badge size="xs" variant="light" color={fg.kaynak === 'fatura' ? 'violet' : 'gray'}>
                           {fg.kaynak === 'fatura' ? '📄 Fatura' : '✏️ Manuel'}
                         </Badge>
                       </Table.Td>
@@ -252,13 +241,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                         <Badge
                           size="sm"
                           variant="light"
-                          color={
-                            (te.guven_skoru || 0) >= 90
-                              ? 'green'
-                              : (te.guven_skoru || 0) >= 70
-                                ? 'yellow'
-                                : 'red'
-                          }
+                          color={(te.guven_skoru || 0) >= 90 ? 'green' : (te.guven_skoru || 0) >= 70 ? 'yellow' : 'red'}
                         >
                           %{te.guven_skoru || '-'}
                         </Badge>

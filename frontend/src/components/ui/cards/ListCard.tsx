@@ -20,13 +20,7 @@ export interface ListCardProps {
  * Dribbble Dark UI tarzı liste kartı (Members List benzeri).
  * Başlık + aksiyonlar + opsiyonel ana buton + scroll liste.
  */
-export function ListCard({
-  title,
-  rightActions,
-  primaryAction,
-  children,
-  maxHeight = 320,
-}: ListCardProps) {
+export function ListCard({ title, rightActions, primaryAction, children, maxHeight = 320 }: ListCardProps) {
   return (
     <Paper
       p="lg"

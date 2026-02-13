@@ -61,9 +61,7 @@ export function hesaplaKikSinirDegerFormul(
   const n = gecerliTeklifler.length;
 
   // Geçerli teklifler: YM'nin %60'ından düşük ve YM'den yüksek olanlar hariç
-  const gecerliTekliflerFiltreli = gecerliTeklifler.filter(
-    (t) => t >= yaklasikMaliyet * 0.6 && t <= yaklasikMaliyet
-  );
+  const gecerliTekliflerFiltreli = gecerliTeklifler.filter((t) => t >= yaklasikMaliyet * 0.6 && t <= yaklasikMaliyet);
 
   const nFiltreli = gecerliTekliflerFiltreli.length;
   const toplamFiltreli = gecerliTekliflerFiltreli.reduce((a, b) => a + b, 0);
@@ -101,8 +99,7 @@ export function hesaplaTeminatlar(bizimTeklif: number) {
 export function hesaplaRiskAnalizi(bizimTeklif: number, sinirDeger: number) {
   const isAsiriDusuk = bizimTeklif > 0 && sinirDeger > 0 && bizimTeklif < sinirDeger;
   const fark = bizimTeklif > 0 && sinirDeger > 0 ? bizimTeklif - sinirDeger : 0;
-  const farkYuzde =
-    sinirDeger > 0 && bizimTeklif > 0 ? ((bizimTeklif - sinirDeger) / sinirDeger) * 100 : 0;
+  const farkYuzde = sinirDeger > 0 && bizimTeklif > 0 ? ((bizimTeklif - sinirDeger) / sinirDeger) * 100 : 0;
 
   return { isAsiriDusuk, fark, farkYuzde };
 }

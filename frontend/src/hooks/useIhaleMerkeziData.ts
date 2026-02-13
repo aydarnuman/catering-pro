@@ -6,13 +6,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  AnalysisData,
-  SavedTender,
-  TenderStatus,
-  UpdateStats,
-  UserNote,
-} from '@/components/ihale-merkezi/types';
+import type { AnalysisData, SavedTender, TenderStatus, UpdateStats, UserNote } from '@/components/ihale-merkezi/types';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import type { TendersResponse } from '@/types/api';
@@ -74,8 +68,7 @@ function formatTrackedTender(t: RawTrackingData): SavedTender {
 export const tenderKeys = {
   all: ['tenders'] as const,
   lists: () => [...tenderKeys.all, 'list'] as const,
-  list: (params: Record<string, string | number | undefined>) =>
-    [...tenderKeys.lists(), params] as const,
+  list: (params: Record<string, string | number | undefined>) => [...tenderKeys.lists(), params] as const,
   tracked: () => [...tenderKeys.all, 'tracked'] as const,
   stats: () => [...tenderKeys.all, 'stats'] as const,
   firmalar: () => ['firmalar'] as const,
@@ -125,6 +118,24 @@ export function useTrackedTenders() {
       }
       return [];
     },
+    staleTime: 30_000,
+  });
+}
+
+// ─── Tracked Tender Detail (İhale Masası Sayfası İçin) ──────────
+
+export function useTrackedTenderDetail(tenderId: number | null) {
+  return useQuery({
+    queryKey: [...tenderKeys.tracked(), 'detail', tenderId],
+    queryFn: async (): Promise<SavedTender | null> => {
+      if (!tenderId) return null;
+      const result = await tendersAPI.getTrackedTenderDetail(tenderId);
+      if (result.success && result.data) {
+        return formatTrackedTender(result.data as RawTrackingData);
+      }
+      return null;
+    },
+    enabled: !!tenderId,
     staleTime: 30_000,
   });
 }
@@ -206,9 +217,7 @@ export function useUpdateTenderStatus() {
       // Optimistic: update tracked tenders cache directly
       queryClient.setQueryData<SavedTender[]>(tenderKeys.tracked(), (old) => {
         if (!old) return old;
-        return old.map((t) =>
-          t.id === tenderId ? { ...t, status: newStatus as TenderStatus } : t
-        );
+        return old.map((t) => (t.id === tenderId ? { ...t, status: newStatus as TenderStatus } : t));
       });
     },
   });

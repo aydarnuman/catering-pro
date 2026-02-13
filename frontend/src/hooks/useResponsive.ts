@@ -59,11 +59,7 @@ export function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop:
 /**
  * Grid column sayısı için responsive hook
  */
-export function useResponsiveColumns(config?: {
-  mobile?: number;
-  tablet?: number;
-  desktop?: number;
-}): number {
+export function useResponsiveColumns(config?: { mobile?: number; tablet?: number; desktop?: number }): number {
   const defaults = { mobile: 1, tablet: 2, desktop: 4 };
   const merged = { ...defaults, ...config };
 

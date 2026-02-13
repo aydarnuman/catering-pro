@@ -18,11 +18,7 @@ export function KatilimcilarDetay({ veri }: Props) {
   const katilimcilar = (veri.katilimcilar as Array<Record<string, unknown>>) || [];
 
   if (katilimcilar.length === 0) {
-    return (
-      <Text c="dimmed">
-        Katılımcı verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.
-      </Text>
-    );
+    return <Text c="dimmed">Katılımcı verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
   }
 
   return (

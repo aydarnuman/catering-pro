@@ -111,10 +111,7 @@ export function formatDate(
  * @param decimals - Ondalık basamak sayısı
  * @returns Formatlanmış sayı string'i (örn: "1.234,56")
  */
-export function formatNumber(
-  value: number | string | null | undefined,
-  decimals: number = 2
-): string {
+export function formatNumber(value: number | string | null | undefined, decimals: number = 2): string {
   if (value === null || value === undefined || value === '') {
     return '0';
   }
@@ -137,10 +134,7 @@ export function formatNumber(
  * @param asDecimal - Değer 0-1 arası mı? (default: false, yani 0-100)
  * @returns Formatlanmış yüzde string'i (örn: "%45,50")
  */
-export function formatPercentage(
-  value: number | string | null | undefined,
-  asDecimal: boolean = false
-): string {
+export function formatPercentage(value: number | string | null | undefined, asDecimal: boolean = false): string {
   if (value === null || value === undefined || value === '') {
     return '%0,00';
   }

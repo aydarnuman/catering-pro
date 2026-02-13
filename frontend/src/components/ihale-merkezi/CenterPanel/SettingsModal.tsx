@@ -188,13 +188,10 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-content/${tender.tender_id}/clear-analysis`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/${tender.tender_id}/clear-analysis`, {
+        method: 'POST',
+        credentials: 'include',
+      });
       const data = await response.json();
       if (data.success) {
         notifications.show({
@@ -219,12 +216,7 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
   };
 
   const handleDeleteAllDocuments = async () => {
-    if (
-      !confirm(
-        'Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!'
-      )
-    )
-      return;
+    if (!confirm('Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!')) return;
 
     setLoading(true);
     try {
@@ -278,12 +270,10 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
     if (lower.includes('teknik') || lower.includes('tech')) return 'Teknik Şartname';
     if (lower.includes('idari') || lower.includes('admin')) return 'İdari Şartname';
     if (lower.includes('sözleşme') || lower.includes('contract')) return 'Sözleşme Tasarısı';
-    if (lower.includes('birim') || lower.includes('fiyat') || lower.includes('price'))
-      return 'Birim Fiyat Cetveli';
+    if (lower.includes('birim') || lower.includes('fiyat') || lower.includes('price')) return 'Birim Fiyat Cetveli';
     if (lower.includes('ilan')) return 'İhale İlanı';
     if (lower.includes('zeyil')) return 'Zeyilname';
-    if (lower.includes('mal') || lower.includes('hizmet') || lower.includes('liste'))
-      return 'Mal/Hizmet Listesi';
+    if (lower.includes('mal') || lower.includes('hizmet') || lower.includes('liste')) return 'Mal/Hizmet Listesi';
     return docType || filename?.split('.')[0] || 'Döküman';
   };
 
@@ -350,22 +340,13 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
               {docStats.total > 0 && (
                 <Progress.Root size="lg" mt="xs">
                   <Tooltip label={`${docStats.completed} analiz edildi`}>
-                    <Progress.Section
-                      value={(docStats.completed / docStats.total) * 100}
-                      color="green"
-                    />
+                    <Progress.Section value={(docStats.completed / docStats.total) * 100} color="green" />
                   </Tooltip>
                   <Tooltip label={`${docStats.pending} bekliyor`}>
-                    <Progress.Section
-                      value={(docStats.pending / docStats.total) * 100}
-                      color="yellow"
-                    />
+                    <Progress.Section value={(docStats.pending / docStats.total) * 100} color="yellow" />
                   </Tooltip>
                   <Tooltip label={`${docStats.failed} başarısız`}>
-                    <Progress.Section
-                      value={(docStats.failed / docStats.total) * 100}
-                      color="red"
-                    />
+                    <Progress.Section value={(docStats.failed / docStats.total) * 100} color="red" />
                   </Tooltip>
                 </Progress.Root>
               )}
@@ -378,11 +359,7 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
                   </Text>
                   <Stack gap={4}>
                     {docStats.documents.map((doc) => (
-                      <Group
-                        key={`doc-${doc.original_filename}-${doc.doc_type}`}
-                        gap="xs"
-                        justify="space-between"
-                      >
+                      <Group key={`doc-${doc.original_filename}-${doc.doc_type}`} gap="xs" justify="space-between">
                         <Group gap="xs">
                           <ThemeIcon
                             size="xs"
@@ -504,9 +481,7 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
           loading={loading}
           disabled={
             !docStats ||
-            (docStats.completed === 0 &&
-              tender.teknik_sart_sayisi === 0 &&
-              tender.birim_fiyat_sayisi === 0)
+            (docStats.completed === 0 && tender.teknik_sart_sayisi === 0 && tender.birim_fiyat_sayisi === 0)
           }
           fullWidth
         >

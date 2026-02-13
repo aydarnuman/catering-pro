@@ -7,19 +7,7 @@
  * Şehir bazlı ortalamalar, trend yönü ve istatistikler gösterilir.
  */
 
-import {
-  Alert,
-  Badge,
-  Card,
-  Center,
-  Group,
-  Loader,
-  Progress,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
+import { Alert, Badge, Card, Center, Group, Loader, Progress, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core';
 import {
   IconArrowDown,
   IconArrowRight,
@@ -113,11 +101,7 @@ export function FiyatTahminPaneli({ yukleniciId }: Props) {
         <StatKart baslik="Toplam İhale" deger={String(veri.toplam_ihale)} />
         <StatKart baslik="Ort. İndirim" deger={`%${veri.ortalama_indirim}`} renk="teal" />
         <StatKart baslik="Medyan İndirim" deger={`%${veri.medyan_indirim}`} renk="blue" />
-        <StatKart
-          baslik="Min / Max"
-          deger={`%${veri.min_indirim} — %${veri.max_indirim}`}
-          renk="grape"
-        />
+        <StatKart baslik="Min / Max" deger={`%${veri.min_indirim} — %${veri.max_indirim}`} renk="grape" />
       </SimpleGrid>
 
       {/* Trend Kartı */}
@@ -128,12 +112,7 @@ export function FiyatTahminPaneli({ yukleniciId }: Props) {
           </ThemeIcon>
           <div>
             <Text size="sm" fw={600}>
-              Trend:{' '}
-              {veri.trend === 'artiyor'
-                ? 'Artıyor'
-                : veri.trend === 'azaliyor'
-                  ? 'Azalıyor'
-                  : 'Sabit'}
+              Trend: {veri.trend === 'artiyor' ? 'Artıyor' : veri.trend === 'azaliyor' ? 'Azalıyor' : 'Sabit'}
             </Text>
             <Text size="xs" c="dimmed">
               {trendMesaj}
@@ -193,12 +172,7 @@ export function FiyatTahminPaneli({ yukleniciId }: Props) {
                   </Badge>
                 </Group>
                 <Group gap="xs" style={{ flex: 1, maxWidth: 200 }}>
-                  <Progress
-                    value={Math.min(s.ort_indirim * 2, 100)}
-                    size="sm"
-                    color="teal"
-                    style={{ flex: 1 }}
-                  />
+                  <Progress value={Math.min(s.ort_indirim * 2, 100)} size="sm" color="teal" style={{ flex: 1 }} />
                   <Text size="xs" fw={600} w={50} ta="right">
                     %{s.ort_indirim}
                   </Text>
@@ -211,8 +185,8 @@ export function FiyatTahminPaneli({ yukleniciId }: Props) {
 
       {/* İpucu */}
       <Alert icon={<IconChartLine size={16} />} color="blue" variant="light" title="İpucu">
-        Bu veriler, firmanın gelecek ihalelerdeki muhtemel indirim oranını tahmin etmenize yardımcı
-        olur. Yüksek indirim oranı agresif rekabeti, düşük indirim oranı tutucu stratejiyi gösterir.
+        Bu veriler, firmanın gelecek ihalelerdeki muhtemel indirim oranını tahmin etmenize yardımcı olur. Yüksek indirim
+        oranı agresif rekabeti, düşük indirim oranı tutucu stratejiyi gösterir.
       </Alert>
     </Stack>
   );

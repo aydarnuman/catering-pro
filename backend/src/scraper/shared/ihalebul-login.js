@@ -5,6 +5,7 @@
  * NOT: ihalebul.com login formu modal olarak açılıyor, ayrı sayfa yok
  */
 
+import logger from '../../utils/logger.js';
 import sessionManager from './ihalebul-cookie.js';
 
 const HOME_URL = 'https://www.ihalebul.com/';
@@ -15,6 +16,7 @@ class LoginService {
    * Login yap (session restore veya fresh login)
    */
   async performLogin(page) {
+    logger.info('[ihalebulLogin] Login baslatiliyor');
     // 1. Mevcut session'ı dene
     const session = await sessionManager.loadSession();
     if (session?.cookies) {
@@ -26,6 +28,7 @@ class LoginService {
 
       // Login kontrolü
       if (await this.isLoggedIn(page)) {
+        logger.info('[ihalebulLogin] Session restore basarili');
         return true;
       }
     }
@@ -62,7 +65,9 @@ class LoginService {
     // Kullanıcı adı input'u - doğrudan selector ile bekle
     try {
       await page.waitForSelector('input[placeholder="Kullanıcı adı"]', { timeout: 5000, visible: true });
-    } catch (_e) {}
+    } catch (err) {
+      logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+    }
 
     // Kullanıcı adı input'u
     const usernameInput = await this.findInputByPlaceholder(
@@ -151,7 +156,9 @@ class LoginService {
     // Navigation'ı bekle
     try {
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
-    } catch (_e) {}
+    } catch (err) {
+      logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+    }
 
     await this.delay(3000);
 
@@ -160,6 +167,7 @@ class LoginService {
       // Cookie'leri kaydet
       const cookies = await page.cookies();
       await sessionManager.saveSession(cookies, username);
+      logger.info('[ihalebulLogin] Login basarili');
       return true;
     }
 
@@ -179,7 +187,9 @@ class LoginService {
           if (input) {
             return input;
           }
-        } catch (_e) {}
+        } catch (err) {
+          logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+        }
       }
     }
 
@@ -199,9 +209,13 @@ class LoginService {
             if (input) {
               return input;
             }
-          } catch (_e) {}
+          } catch (err) {
+            logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+          }
         }
-      } catch (_e) {}
+      } catch (err) {
+        logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+      }
     }
 
     // XPath ile ara (daha esnek)
@@ -211,7 +225,9 @@ class LoginService {
         if (input) {
           return input;
         }
-      } catch (_e) {}
+      } catch (err) {
+        logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+      }
     }
 
     // Fallback: Form içindeki tüm text input'ları bul
@@ -252,7 +268,9 @@ class LoginService {
       try {
         const element = await page.$(selector);
         if (element) return element;
-      } catch (_e) {}
+      } catch (err) {
+        logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
+      }
     }
 
     // Fallback: "Giriş" yazısı içeren butonu bul
@@ -298,7 +316,8 @@ class LoginService {
       });
 
       return hasLogoutBtn;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[ihalebulLogin] Login durumu kontrol hatasi', { error: err.message });
       return false;
     }
   }

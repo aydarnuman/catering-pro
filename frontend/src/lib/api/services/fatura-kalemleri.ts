@@ -225,9 +225,7 @@ export interface PriceHistoryData {
 
 // ==================== API FONKSİYONLARI ====================
 
-async function unwrap<T>(res: {
-  data: { success?: boolean; data?: T; error?: string; kaynak?: string };
-}): Promise<T> {
+async function unwrap<T>(res: { data: { success?: boolean; data?: T; error?: string; kaynak?: string } }): Promise<T> {
   const data = res.data;
   if (!data.success) throw new Error((data as { error?: string }).error || 'İstek başarısız');
   return (data as { data: T }).data as T;
@@ -367,12 +365,7 @@ export const faturaKalemleriAPI = {
   },
 
   /** Hızlı ürün oluştur */
-  async hizliUrunOlustur(urun: {
-    ad: string;
-    kod?: string;
-    kategori_id?: number;
-    birim?: string;
-  }): Promise<unknown> {
+  async hizliUrunOlustur(urun: { ad: string; kod?: string; kategori_id?: number; birim?: string }): Promise<unknown> {
     const res = await api.post<{ success: boolean; data: unknown; error?: string }>(
       `${BASE_URL}/urunler/hizli-olustur`,
       urun
@@ -399,9 +392,7 @@ export const faturaKalemleriAPI = {
   // ==================== FİYAT SORGULAMA ====================
 
   /** Güncel fiyatlar */
-  async getGuncelFiyatlar(
-    options: { kategori_id?: number; sadece_fiyatli?: boolean } = {}
-  ): Promise<GuncelFiyat[]> {
+  async getGuncelFiyatlar(options: { kategori_id?: number; sadece_fiyatli?: boolean } = {}): Promise<GuncelFiyat[]> {
     const params = new URLSearchParams();
     if (options.kategori_id != null) params.append('kategori_id', String(options.kategori_id));
     if (options.sadece_fiyatli) params.append('sadece_fiyatli', 'true');
@@ -412,9 +403,7 @@ export const faturaKalemleriAPI = {
   },
 
   /** v_urun_guncel_fiyat – menü maliyet alias */
-  getGuncelFiyat(params?: {
-    kategori_id?: string;
-  }): Promise<{ success: boolean; data: GuncelFiyat[] }> {
+  getGuncelFiyat(params?: { kategori_id?: string }): Promise<{ success: boolean; data: GuncelFiyat[] }> {
     return this.getGuncelFiyatlar({
       kategori_id: params?.kategori_id != null ? Number(params.kategori_id) : undefined,
     }).then((data) => ({ success: true, data }));
@@ -447,9 +436,7 @@ export const faturaKalemleriAPI = {
   },
 
   /** Kategori harcama */
-  async getKategoriHarcama(
-    options: { baslangic?: string; bitis?: string } = {}
-  ): Promise<KategoriHarcama[]> {
+  async getKategoriHarcama(options: { baslangic?: string; bitis?: string } = {}): Promise<KategoriHarcama[]> {
     const params = new URLSearchParams();
     if (options.baslangic) params.append('baslangic', options.baslangic);
     if (options.bitis) params.append('bitis', options.bitis);
@@ -460,9 +447,7 @@ export const faturaKalemleriAPI = {
   },
 
   /** Tedarikçi özeti */
-  async getTedarikciOzet(
-    options: { baslangic?: string; bitis?: string } = {}
-  ): Promise<TedarikciOzet[]> {
+  async getTedarikciOzet(options: { baslangic?: string; bitis?: string } = {}): Promise<TedarikciOzet[]> {
     const params = new URLSearchParams();
     if (options.baslangic) params.append('baslangic', options.baslangic);
     if (options.bitis) params.append('bitis', options.bitis);
@@ -515,9 +500,7 @@ export const faturaKalemleriAPI = {
   },
 
   /** Raf fiyatı (piyasa) araştırma sonuçları + IQR temizli özet */
-  async getRafFiyat(
-    urunId: number | string
-  ): Promise<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }> {
+  async getRafFiyat(urunId: number | string): Promise<{ data: RafFiyatSonuc[]; ozet: FiyatOzet | null }> {
     const res = await api.get<{
       success: boolean;
       data: RafFiyatSonuc[];

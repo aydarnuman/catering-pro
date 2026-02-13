@@ -251,10 +251,7 @@ const generateAIImage = async (prompt: string, negativePrompt?: string) => {
   return res.json();
 };
 
-const generateMenuCard = async (
-  menu: { name: string; emoji?: string }[],
-  template: string = 'modern'
-) => {
+const generateMenuCard = async (menu: { name: string; emoji?: string }[], template: string = 'modern') => {
   const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/menu-card`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -540,15 +537,8 @@ export default function InstagramPage() {
 
   // ===== MUTATIONS =====
   const loginMutation = useMutation({
-    mutationFn: ({
-      username,
-      password,
-      code,
-    }: {
-      username: string;
-      password: string;
-      code?: string;
-    }) => loginInstagram(username, password, code),
+    mutationFn: ({ username, password, code }: { username: string; password: string; code?: string }) =>
+      loginInstagram(username, password, code),
     onSuccess: (data) => {
       if (data.success) {
         notifications.show({
@@ -591,9 +581,7 @@ export default function InstagramPage() {
         message: 'Hesap bağlantısı kesildi',
         color: 'gray',
       });
-      setAccounts((prev) =>
-        prev.map((a) => (a.id === selectedAccountId ? { ...a, isConnected: false } : a))
-      );
+      setAccounts((prev) => prev.map((a) => (a.id === selectedAccountId ? { ...a, isConnected: false } : a)));
       queryClient.invalidateQueries({ queryKey: ['instagram-status'] });
     },
   });
@@ -785,9 +773,7 @@ export default function InstagramPage() {
   };
 
   const toggleAutomation = (taskId: string) => {
-    setAutomationTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, enabled: !task.enabled } : task))
-    );
+    setAutomationTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, enabled: !task.enabled } : task)));
     const task = automationTasks.find((t) => t.id === taskId);
     notifications.show({
       title: task?.enabled ? 'Durduruldu' : 'Başlatıldı',
@@ -831,11 +817,7 @@ export default function InstagramPage() {
                   Instagram servisi şu anda çalışmıyor
                 </Text>
               </Box>
-              <Button
-                variant="light"
-                leftSection={<IconRefresh size={16} />}
-                onClick={() => refetchStatus()}
-              >
+              <Button variant="light" leftSection={<IconRefresh size={16} />} onClick={() => refetchStatus()}>
                 Tekrar Dene
               </Button>
             </Stack>
@@ -934,12 +916,7 @@ export default function InstagramPage() {
                 </Group>
               </ScrollArea>
             </Group>
-            <Button
-              variant="subtle"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={openAddAccount}
-            >
+            <Button variant="subtle" size="xs" leftSection={<IconPlus size={14} />} onClick={openAddAccount}>
               Hesap Ekle
             </Button>
           </Group>
@@ -1021,12 +998,7 @@ export default function InstagramPage() {
                     <IconRefresh size={18} />
                   </ActionIcon>
                 </Tooltip>
-                <Button
-                  variant="light"
-                  size="sm"
-                  leftSection={<IconPlus size={16} />}
-                  onClick={openNewPost}
-                >
+                <Button variant="light" size="sm" leftSection={<IconPlus size={16} />} onClick={openNewPost}>
                   Yeni Gönderi
                 </Button>
                 <Menu shadow="sm" width={180}>
@@ -1413,11 +1385,7 @@ export default function InstagramPage() {
                             </Text>
                           </Box>
                         </Group>
-                        <Switch
-                          size="xs"
-                          checked={task.enabled}
-                          onChange={() => toggleAutomation(task.id)}
-                        />
+                        <Switch size="xs" checked={task.enabled} onChange={() => toggleAutomation(task.id)} />
                       </Group>
                     ))}
                 </Stack>
@@ -1445,9 +1413,7 @@ export default function InstagramPage() {
                           <IconLoader size={10} />
                         )
                       }
-                      color={
-                        log.status === 'success' ? 'green' : log.status === 'error' ? 'red' : 'blue'
-                      }
+                      color={log.status === 'success' ? 'green' : log.status === 'error' ? 'red' : 'blue'}
                     >
                       <Text size="xs" fw={500}>
                         {log.taskName}
@@ -1491,9 +1457,7 @@ export default function InstagramPage() {
           />
           <Button
             fullWidth
-            leftSection={
-              loginMutation.isPending ? <Loader size={14} color="white" /> : <IconPlug size={16} />
-            }
+            leftSection={loginMutation.isPending ? <Loader size={14} color="white" /> : <IconPlug size={16} />}
             onClick={() => loginMutation.mutate({ username, password })}
             disabled={loginMutation.isPending || !username || !password}
           >
@@ -1535,13 +1499,7 @@ export default function InstagramPage() {
       </Modal>
 
       {/* Yeni Gönderi Modal */}
-      <Modal
-        opened={newPostModal}
-        onClose={closeNewPost}
-        title={<Text fw={600}>Yeni Gönderi</Text>}
-        size="lg"
-        centered
-      >
+      <Modal opened={newPostModal} onClose={closeNewPost} title={<Text fw={600}>Yeni Gönderi</Text>} size="lg" centered>
         <Stack gap="md">
           <FileInput
             label="Görsel"
@@ -1618,13 +1576,7 @@ export default function InstagramPage() {
               İptal
             </Button>
             <Button
-              leftSection={
-                uploadMutation.isPending ? (
-                  <Loader size={14} color="white" />
-                ) : (
-                  <IconSend size={14} />
-                )
-              }
+              leftSection={uploadMutation.isPending ? <Loader size={14} color="white" /> : <IconSend size={14} />}
               onClick={() => selectedFile && uploadMutation.mutate({ file: selectedFile, caption })}
               loading={uploadMutation.isPending}
               disabled={!selectedFile}
@@ -1870,8 +1822,8 @@ export default function InstagramPage() {
                       Görsel → Caption
                     </Text>
                     <Text size="xs" style={subtleText}>
-                      Görseli yükleyin, AI içeriğe uygun Türkçe açıklama oluştursun. Yemek
-                      fotoğraflarında harika çalışır!
+                      Görseli yükleyin, AI içeriğe uygun Türkçe açıklama oluştursun. Yemek fotoğraflarında harika
+                      çalışır!
                     </Text>
                   </Box>
                 </Group>
@@ -1923,9 +1875,7 @@ export default function InstagramPage() {
               <Button
                 variant="gradient"
                 gradient={{ from: 'pink', to: 'grape', deg: 135 }}
-                leftSection={
-                  isGeneratingCaption ? <Loader size={14} color="white" /> : <IconWand size={16} />
-                }
+                leftSection={isGeneratingCaption ? <Loader size={14} color="white" /> : <IconWand size={16} />}
                 onClick={handleGenerateCaption}
                 loading={isGeneratingCaption}
                 disabled={!selectedFile}
@@ -1992,8 +1942,8 @@ export default function InstagramPage() {
                       Akıllı Hashtag Önerici
                     </Text>
                     <Text size="xs" style={subtleText}>
-                      İçeriğinize uygun, trend ve lokasyon bazlı hashtagler önerir. Tıklayarak
-                      caption'a ekleyebilirsiniz.
+                      İçeriğinize uygun, trend ve lokasyon bazlı hashtagler önerir. Tıklayarak caption'a
+                      ekleyebilirsiniz.
                     </Text>
                   </Box>
                 </Group>
@@ -2055,9 +2005,7 @@ export default function InstagramPage() {
               <Button
                 variant="gradient"
                 gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
-                leftSection={
-                  isGeneratingHashtags ? <Loader size={14} color="white" /> : <IconHash size={16} />
-                }
+                leftSection={isGeneratingHashtags ? <Loader size={14} color="white" /> : <IconHash size={16} />}
                 onClick={handleGenerateHashtags}
                 loading={isGeneratingHashtags}
                 disabled={!caption}
@@ -2088,9 +2036,7 @@ export default function InstagramPage() {
                         variant="subtle"
                         size="sm"
                         onClick={() => {
-                          navigator.clipboard.writeText(
-                            suggestedHashtags.map((t) => `#${t}`).join(' ')
-                          );
+                          navigator.clipboard.writeText(suggestedHashtags.map((t) => `#${t}`).join(' '));
                           notifications.show({ message: 'Hashtagler kopyalandı', color: 'green' });
                         }}
                       >
@@ -2155,8 +2101,8 @@ export default function InstagramPage() {
                       AI Görsel Üretici
                     </Text>
                     <Text size="xs" style={subtleText}>
-                      Türkçe yaz, AI İngilizce prompt'a çevirip profesyonel görsel üretsin. Flux
-                      Schnell ile ~3 saniyede hazır!
+                      Türkçe yaz, AI İngilizce prompt'a çevirip profesyonel görsel üretsin. Flux Schnell ile ~3 saniyede
+                      hazır!
                     </Text>
                   </Box>
                 </Group>
@@ -2289,13 +2235,7 @@ export default function InstagramPage() {
                 <Button
                   variant="gradient"
                   gradient={{ from: 'cyan', to: 'teal', deg: 135 }}
-                  leftSection={
-                    isGeneratingImage ? (
-                      <Loader size={14} color="white" />
-                    ) : (
-                      <IconSparkles size={14} />
-                    )
-                  }
+                  leftSection={isGeneratingImage ? <Loader size={14} color="white" /> : <IconSparkles size={14} />}
                   onClick={handleGenerateImage}
                   loading={isGeneratingImage}
                   disabled={!generatedPrompt}
@@ -2333,8 +2273,7 @@ export default function InstagramPage() {
                       Menü Kartı Oluşturucu
                     </Text>
                     <Text size="xs" style={subtleText}>
-                      Hazır şablonlarla profesyonel menü görselleri oluşturun. Instagram post veya
-                      story için ideal!
+                      Hazır şablonlarla profesyonel menü görselleri oluşturun. Instagram post veya story için ideal!
                     </Text>
                   </Box>
                 </Group>
@@ -2395,13 +2334,7 @@ export default function InstagramPage() {
               <Button
                 variant="gradient"
                 gradient={{ from: 'orange', to: 'red', deg: 135 }}
-                leftSection={
-                  isGeneratingMenuCard ? (
-                    <Loader size={14} color="white" />
-                  ) : (
-                    <IconPalette size={16} />
-                  )
-                }
+                leftSection={isGeneratingMenuCard ? <Loader size={14} color="white" /> : <IconPalette size={16} />}
                 onClick={handleGenerateMenuCard}
                 loading={isGeneratingMenuCard}
                 fullWidth

@@ -74,12 +74,7 @@ function LoginPageContent() {
       </Box>
 
       {/* Version info */}
-      <Text
-        size="xs"
-        ta="center"
-        mt="lg"
-        style={{ color: 'rgba(255,255,255,0.4)', position: 'relative', zIndex: 1 }}
-      >
+      <Text size="xs" ta="center" mt="lg" style={{ color: 'rgba(255,255,255,0.4)', position: 'relative', zIndex: 1 }}>
         Catering Pro v2.0
       </Text>
     </Box>

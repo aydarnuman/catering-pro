@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Paper,
-  ScrollArea,
-  Stack,
-  Table,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
+import { Badge, Button, Group, Modal, Paper, ScrollArea, Stack, Table, Text, ThemeIcon } from '@mantine/core';
 import {
   IconChevronDown,
   IconChevronUp,
@@ -86,11 +75,7 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                             {(tablo.headers ?? []).map((header, hIdx) => (
                               <Table.Th
                                 key={`modal-ogun-h-${tabloIdx}-${hIdx}`}
-                                style={
-                                  hIdx > 0
-                                    ? { textAlign: 'right', whiteSpace: 'nowrap' }
-                                    : undefined
-                                }
+                                style={hIdx > 0 ? { textAlign: 'right', whiteSpace: 'nowrap' } : undefined}
                               >
                                 {header}
                               </Table.Th>
@@ -167,12 +152,11 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
               )}
               {(analysisData.gunluk_ogun_sayisi || analysisData.kisi_sayisi) && (
                 <Group gap="md" mt="md">
-                  {analysisData.gunluk_ogun_sayisi &&
-                    analysisData.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
-                      <Badge variant="outline" color="orange" size="md">
-                        Günlük: {analysisData.gunluk_ogun_sayisi} öğün
-                      </Badge>
-                    )}
+                  {analysisData.gunluk_ogun_sayisi && analysisData.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
+                    <Badge variant="outline" color="orange" size="md">
+                      Günlük: {analysisData.gunluk_ogun_sayisi} öğün
+                    </Badge>
+                  )}
                   {analysisData.kisi_sayisi && analysisData.kisi_sayisi !== 'Belirtilmemiş' && (
                     <Badge variant="outline" color="blue" size="md">
                       Kişi: {analysisData.kisi_sayisi}
@@ -184,56 +168,51 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
           )}
 
           {/* Servis Saatleri */}
-          {analysisData?.servis_saatleri &&
-            Object.keys(analysisData.servis_saatleri).length > 0 && (
-              <Paper p="md" withBorder radius="md">
-                <Group gap="xs" mb="md">
-                  <ThemeIcon size="sm" variant="light" color="teal">
-                    <IconClock size={14} />
-                  </ThemeIcon>
-                  <Text size="sm" fw={600}>
-                    Servis Saatleri
-                  </Text>
-                </Group>
-                <Table striped highlightOnHover withTableBorder>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Öğün</Table.Th>
-                      <Table.Th>Saat Aralığı</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {Object.entries(analysisData.servis_saatleri)
-                      .filter(([, val]) => val && val !== 'Belirtilmemiş')
-                      .map(([key, val]) => (
-                        <Table.Tr key={`modal-servis-${key}`}>
-                          <Table.Td>
-                            <Text fw={500} tt="capitalize">
-                              {key.replace(/_/g, ' ')}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge variant="light" color="teal" size="lg">
-                              {val}
-                            </Badge>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                  </Table.Tbody>
-                </Table>
-              </Paper>
-            )}
+          {analysisData?.servis_saatleri && Object.keys(analysisData.servis_saatleri).length > 0 && (
+            <Paper p="md" withBorder radius="md">
+              <Group gap="xs" mb="md">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconClock size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600}>
+                  Servis Saatleri
+                </Text>
+              </Group>
+              <Table striped highlightOnHover withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Öğün</Table.Th>
+                    <Table.Th>Saat Aralığı</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {Object.entries(analysisData.servis_saatleri)
+                    .filter(([, val]) => val && val !== 'Belirtilmemiş')
+                    .map(([key, val]) => (
+                      <Table.Tr key={`modal-servis-${key}`}>
+                        <Table.Td>
+                          <Text fw={500} tt="capitalize">
+                            {key.replace(/_/g, ' ')}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="teal" size="lg">
+                            {val}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          )}
 
           {/* Personel Gereksinimleri */}
           {analysisData?.personel_detaylari &&
             analysisData.personel_detaylari.length > 0 &&
             (() => {
-              const realPersonel = analysisData.personel_detaylari.filter((p) =>
-                isRealPersonelPosition(p.pozisyon)
-              );
-              const locations = analysisData.personel_detaylari.filter(
-                (p) => !isRealPersonelPosition(p.pozisyon)
-              );
+              const realPersonel = analysisData.personel_detaylari.filter((p) => isRealPersonelPosition(p.pozisyon));
+              const locations = analysisData.personel_detaylari.filter((p) => !isRealPersonelPosition(p.pozisyon));
               if (realPersonel.length === 0) return null;
               return (
                 <Paper p="md" withBorder radius="md">
@@ -337,12 +316,7 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                             (sart as { madde?: string; aciklama?: string }).aciklama ||
                             '';
                       return (
-                        <Paper
-                          key={`modal-sart-${idx}-${sartText.substring(0, 30)}`}
-                          p="xs"
-                          withBorder
-                          radius="sm"
-                        >
+                        <Paper key={`modal-sart-${idx}-${sartText.substring(0, 30)}`} p="xs" withBorder radius="sm">
                           <Text size="sm">{sartText}</Text>
                         </Paper>
                       );
@@ -354,13 +328,7 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
                         size="xs"
                         fullWidth
                         onClick={() => setTeknikExpanded(!teknikExpanded)}
-                        rightSection={
-                          teknikExpanded ? (
-                            <IconChevronUp size={14} />
-                          ) : (
-                            <IconChevronDown size={14} />
-                          )
-                        }
+                        rightSection={teknikExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
                       >
                         {teknikExpanded ? 'Daralt' : `+${remaining} daha fazla teknik şart göster`}
                       </Button>

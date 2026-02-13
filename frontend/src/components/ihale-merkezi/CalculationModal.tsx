@@ -147,19 +147,13 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
   const hesaplamaVerileri = (tender as any).hesaplama_verileri || {};
   const analysisSummary = tender.analysis_summary;
 
-  const isSuresi =
-    hesaplamaVerileri.is_suresi || analysisSummary?.teslim_suresi || analysisSummary?.sure;
+  const isSuresi = hesaplamaVerileri.is_suresi || analysisSummary?.teslim_suresi || analysisSummary?.sure;
   const toplamOgun =
     hesaplamaVerileri.toplam_ogun_sayisi ||
-    analysisSummary?.ogun_bilgileri?.reduce(
-      (sum: number, o: any) => sum + (Number(o.miktar) || 0),
-      0
-    ) ||
+    analysisSummary?.ogun_bilgileri?.reduce((sum: number, o: any) => sum + (Number(o.miktar) || 0), 0) ||
     0;
-  const teknikSartSayisi =
-    hesaplamaVerileri.teknik_sart_sayisi || analysisSummary?.teknik_sartlar?.length || 0;
-  const birimFiyatSayisi =
-    hesaplamaVerileri.birim_fiyat_sayisi || analysisSummary?.birim_fiyatlar?.length || 0;
+  const teknikSartSayisi = hesaplamaVerileri.teknik_sart_sayisi || analysisSummary?.teknik_sartlar?.length || 0;
+  const birimFiyatSayisi = hesaplamaVerileri.birim_fiyat_sayisi || analysisSummary?.birim_fiyatlar?.length || 0;
 
   const isSuresiAy = parseIsSuresiAy(isSuresi);
 
@@ -179,8 +173,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
 
   // Toplam maliyet (aşırı düşük için)
   const toplamMaliyet = Object.values(maliyetler).reduce((a, b) => a + b, 0);
-  const karMarji =
-    bizimTeklif > 0 && toplamMaliyet > 0 ? ((bizimTeklif - toplamMaliyet) / bizimTeklif) * 100 : 0;
+  const karMarji = bizimTeklif > 0 && toplamMaliyet > 0 ? ((bizimTeklif - toplamMaliyet) / bizimTeklif) * 100 : 0;
 
   // KİK Formülü ile sınır değer hesapla
   const hesaplaKikSinirDeger = () => {
@@ -206,8 +199,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
 
     setKikSinirDeger(sonuc.sinirDeger);
 
-    const filtreUyarisi =
-      sonuc.elenenSayisi > 0 ? ` (${sonuc.elenenSayisi} teklif YM kriterleri dışında kaldı)` : '';
+    const filtreUyarisi = sonuc.elenenSayisi > 0 ? ` (${sonuc.elenenSayisi} teklif YM kriterleri dışında kaldı)` : '';
 
     notifications.show({
       title: 'Sınır Değer Hesaplandı',
@@ -383,9 +375,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
                   size={80}
                   radius="xl"
                   variant="gradient"
-                  gradient={
-                    isAsiriDusuk ? { from: 'red', to: 'orange' } : { from: 'teal', to: 'green' }
-                  }
+                  gradient={isAsiriDusuk ? { from: 'red', to: 'orange' } : { from: 'teal', to: 'green' }}
                 >
                   {isAsiriDusuk ? <IconAlertTriangle size={40} /> : <IconCheck size={40} />}
                 </ThemeIcon>
@@ -395,9 +385,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
                 </Text>
 
                 <Text size="sm" c="dimmed" ta="center">
-                  {isAsiriDusuk
-                    ? 'Açıklama hazırlamanız gerekebilir'
-                    : 'Aşırı düşük sorgusu riski düşük'}
+                  {isAsiriDusuk ? 'Açıklama hazırlamanız gerekebilir' : 'Aşırı düşük sorgusu riski düşük'}
                 </Text>
 
                 <Paper p="sm" bg="dark.8" radius="md" w="100%">
@@ -448,8 +436,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
           </Text>
         </Text>
         <Text size="xs" c="dimmed" mt={4}>
-          YM = Yaklaşık Maliyet, Tn = Geçerli teklifler (YM'nin %60-100'ü arasında), n = Teklif
-          sayısı
+          YM = Yaklaşık Maliyet, Tn = Geçerli teklifler (YM'nin %60-100'ü arasında), n = Teklif sayısı
         </Text>
       </Paper>
 
@@ -477,12 +464,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
               size="compact-xs"
               variant="light"
               leftSection={<IconPlus size={12} />}
-              onClick={() =>
-                setTeklifListesi((prev) => [
-                  ...prev,
-                  { firma: `Firma ${prev.length + 1}`, tutar: 0 },
-                ])
-              }
+              onClick={() => setTeklifListesi((prev) => [...prev, { firma: `Firma ${prev.length + 1}`, tutar: 0 }])}
             >
               Ekle
             </Button>
@@ -554,11 +536,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
             </Text>
 
             {kikSinirDeger && bizimTeklif > 0 && (
-              <Badge
-                size="lg"
-                color={bizimTeklif < kikSinirDeger ? 'red' : 'green'}
-                variant="light"
-              >
+              <Badge size="lg" color={bizimTeklif < kikSinirDeger ? 'red' : 'green'} variant="light">
                 {bizimTeklif < kikSinirDeger ? 'Sınırın Altında' : 'Sınırın Üstünde'}
               </Badge>
             )}
@@ -602,8 +580,8 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
           </Text>
         </Group>
         <Text size="xs" c="dimmed">
-          Teklifiniz sınır değerin altındaysa, maliyet bileşenlerinizi detaylı şekilde açıklamanız
-          gerekir. Toplam maliyetiniz teklifinizi karşılamalıdır.
+          Teklifiniz sınır değerin altındaysa, maliyet bileşenlerinizi detaylı şekilde açıklamanız gerekir. Toplam
+          maliyetiniz teklifinizi karşılamalıdır.
         </Text>
       </Paper>
 
@@ -662,11 +640,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
                 Kar Marjı
               </Text>
               <Group gap="xs">
-                <Text
-                  size="lg"
-                  fw={700}
-                  c={karMarji < 0 ? 'red' : karMarji < 5 ? 'yellow' : 'green'}
-                >
+                <Text size="lg" fw={700} c={karMarji < 0 ? 'red' : karMarji < 5 ? 'yellow' : 'green'}>
                   %{karMarji.toFixed(1)}
                 </Text>
                 {karMarji < 0 && (
@@ -679,13 +653,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
 
             <Progress
               value={Math.min(100, (toplamMaliyet / bizimTeklif) * 100) || 0}
-              color={
-                toplamMaliyet > bizimTeklif
-                  ? 'red'
-                  : toplamMaliyet > bizimTeklif * 0.95
-                    ? 'yellow'
-                    : 'green'
-              }
+              color={toplamMaliyet > bizimTeklif ? 'red' : toplamMaliyet > bizimTeklif * 0.95 ? 'yellow' : 'green'}
               size="lg"
               radius="xl"
             />
@@ -732,9 +700,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
               Geçici Teminat (%3)
             </Text>
             <Text size="xl" fw={700} c="blue">
-              {geciciTeminat > 0
-                ? `${geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`
-                : '—'}
+              {geciciTeminat > 0 ? `${geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺` : '—'}
             </Text>
             <Text size="xs" c="dimmed">
               Teklif ile birlikte
@@ -751,9 +717,7 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
               Kesin Teminat (%6)
             </Text>
             <Text size="xl" fw={700} c="green">
-              {kesinTeminat > 0
-                ? `${kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`
-                : '—'}
+              {kesinTeminat > 0 ? `${kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺` : '—'}
             </Text>
             <Text size="xs" c="dimmed">
               Sözleşme imzasında
@@ -824,12 +788,10 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
                 <Table.Td fw={700}>TOPLAM MALİYET</Table.Td>
                 <Table.Td ta="right">—</Table.Td>
                 <Table.Td ta="right" fw={700} c="orange">
-                  {(
-                    geciciTeminat +
-                    kesinTeminat +
-                    bizimTeklif * 0.00948 +
-                    bizimTeklif * 0.0005
-                  ).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}{' '}
+                  {(geciciTeminat + kesinTeminat + bizimTeklif * 0.00948 + bizimTeklif * 0.0005).toLocaleString(
+                    'tr-TR',
+                    { maximumFractionDigits: 0 }
+                  )}{' '}
                   ₺
                 </Table.Td>
               </Table.Tr>

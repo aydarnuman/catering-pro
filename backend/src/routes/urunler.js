@@ -1,8 +1,8 @@
 import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate } from '../middleware/auth.js';
-import logger from '../utils/logger.js';
 import { hesaplaReceteMaliyet } from '../services/maliyet-hesaplama-service.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -463,6 +463,30 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Standart birimler (ürün kartı seviyesinde izin verilen)
+const STANDART_BIRIMLER = ['kg', 'lt', 'adet', 'demet', 'paket', 'porsiyon'];
+
+// Birim normalizasyonu (gr→kg, ml→lt vb.)
+function normalizeBirim(birim) {
+  if (!birim) return 'kg';
+  const lower = birim.toLowerCase().trim();
+  const MAP = {
+    gr: 'kg',
+    g: 'kg',
+    gram: 'kg',
+    ml: 'lt',
+    l: 'lt',
+    litre: 'lt',
+    kg: 'kg',
+    lt: 'lt',
+    adet: 'adet',
+    demet: 'demet',
+    paket: 'paket',
+    porsiyon: 'porsiyon',
+  };
+  return MAP[lower] || lower;
+}
+
 // Yeni ürün ekle
 router.post('/', async (req, res) => {
   try {
@@ -471,6 +495,7 @@ router.post('/', async (req, res) => {
       ad,
       kategori_id,
       ana_birim_id,
+      birim,
       barkod,
       min_stok,
       max_stok,
@@ -482,6 +507,31 @@ router.post('/', async (req, res) => {
 
     if (!ad) {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
+    }
+
+    // Birim validasyonu: normalize et ve standart mı kontrol et
+    const normalizedBirim = normalizeBirim(birim);
+    if (!STANDART_BIRIMLER.includes(normalizedBirim)) {
+      return res.status(400).json({
+        success: false,
+        error: `Geçersiz birim: "${birim}". İzin verilen birimler: ${STANDART_BIRIMLER.join(', ')}`,
+      });
+    }
+
+    // Duplike isim kontrolü
+    const duplikeKontrol = await query(
+      `SELECT id, ad, birim, aktif_fiyat FROM urun_kartlari 
+       WHERE aktif = true AND normalize_urun_adi_v2(ad) = normalize_urun_adi_v2($1)
+       LIMIT 1`,
+      [ad]
+    );
+    if (duplikeKontrol.rows.length > 0) {
+      const mevcut = duplikeKontrol.rows[0];
+      return res.status(409).json({
+        success: false,
+        error: `Bu isimde aktif ürün kartı zaten var: "${mevcut.ad}" (ID: ${mevcut.id})`,
+        mevcut_urun: mevcut,
+      });
     }
 
     // Otomatik kod oluştur (eğer verilmediyse)
@@ -511,10 +561,10 @@ router.post('/', async (req, res) => {
     const result = await query(
       `
       INSERT INTO urun_kartlari (
-        kod, ad, kategori_id, ana_birim_id, barkod,
+        kod, ad, kategori_id, ana_birim_id, birim, fiyat_birimi, barkod,
         min_stok, max_stok, kritik_stok, kdv_orani,
         raf_omru_gun, aciklama, aktif, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11, $12, true, NOW())
       RETURNING *
     `,
       [
@@ -522,6 +572,7 @@ router.post('/', async (req, res) => {
         ad,
         finalKategoriId,
         ana_birim_id,
+        normalizedBirim,
         barkod,
         min_stok || 0,
         max_stok,
@@ -554,6 +605,7 @@ router.put('/:id', async (req, res) => {
       ad,
       kategori_id,
       ana_birim_id,
+      birim,
       barkod,
       min_stok,
       max_stok,
@@ -578,6 +630,18 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Ürün bulunamadı' });
     }
 
+    // Birim validasyonu (eğer gönderildiyse)
+    let normalizedBirim;
+    if (birim !== undefined) {
+      normalizedBirim = normalizeBirim(birim);
+      if (!STANDART_BIRIMLER.includes(normalizedBirim)) {
+        return res.status(400).json({
+          success: false,
+          error: `Geçersiz birim: "${birim}". İzin verilen birimler: ${STANDART_BIRIMLER.join(', ')}`,
+        });
+      }
+    }
+
     const result = await query(
       `
       UPDATE urun_kartlari SET
@@ -585,6 +649,7 @@ router.put('/:id', async (req, res) => {
         ad = COALESCE($3, ad),
         kategori_id = COALESCE($4, kategori_id),
         ana_birim_id = COALESCE($5, ana_birim_id),
+        birim = COALESCE($20, birim),
         barkod = COALESCE($6, barkod),
         min_stok = COALESCE($7, min_stok),
         max_stok = COALESCE($8, max_stok),
@@ -623,6 +688,7 @@ router.put('/:id', async (req, res) => {
         tedarikci_urun_adi,
         birim_carpani,
         fatura_birimi,
+        normalizedBirim,
       ]
     );
 

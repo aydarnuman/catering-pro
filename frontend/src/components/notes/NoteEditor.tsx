@@ -301,12 +301,7 @@ export function NoteEditor({
       {showActions && (
         <Group justify="flex-end" mt="xs">
           {onCancel && (
-            <Button
-              variant="subtle"
-              size={compact ? 'xs' : 'sm'}
-              onClick={onCancel}
-              leftSection={<IconX size={14} />}
-            >
+            <Button variant="subtle" size={compact ? 'xs' : 'sm'} onClick={onCancel} leftSection={<IconX size={14} />}>
               Iptal
             </Button>
           )}

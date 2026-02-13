@@ -4,18 +4,7 @@
 
 'use client';
 
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  NumberInput,
-  Select,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, NumberInput, Select, Stack, Table, Text } from '@mantine/core';
 import { IconCheck, IconClipboardList } from '@tabler/icons-react';
 
 import type { Depo, StokItem } from '../../types';
@@ -41,9 +30,7 @@ interface SayimModalProps {
   sayimDepoId: number | null;
   sayimVerileri: { [key: number]: number };
   setSayimVerileri: (
-    veriler:
-      | { [key: number]: number }
-      | ((prev: { [key: number]: number }) => { [key: number]: number })
+    veriler: { [key: number]: number } | ((prev: { [key: number]: number }) => { [key: number]: number })
   ) => void;
   onDepoSelect: (depoId: number) => Promise<void>;
   onSave: () => Promise<void>;
@@ -127,19 +114,14 @@ export default function SayimModal({
                         <NumberInput
                           size="xs"
                           value={sayimStok}
-                          onChange={(val) =>
-                            setSayimVerileri({ ...sayimVerileri, [item.id]: Number(val) || 0 })
-                          }
+                          onChange={(val) => setSayimVerileri({ ...sayimVerileri, [item.id]: Number(val) || 0 })}
                           min={0}
                           decimalScale={3}
                           style={{ width: 100 }}
                         />
                       </Table.Td>
                       <Table.Td>
-                        <Badge
-                          color={fark === 0 ? 'gray' : fark > 0 ? 'green' : 'red'}
-                          variant="light"
-                        >
+                        <Badge color={fark === 0 ? 'gray' : fark > 0 ? 'green' : 'red'} variant="light">
                           {fark > 0 ? '+' : ''}
                           {formatMiktar(fark)} {item.birim}
                         </Badge>
@@ -154,12 +136,7 @@ export default function SayimModal({
               <Button variant="light" onClick={handleClose}>
                 İptal
               </Button>
-              <Button
-                color="orange"
-                onClick={onSave}
-                loading={loading}
-                leftSection={<IconCheck size={16} />}
-              >
+              <Button color="orange" onClick={onSave} loading={loading} leftSection={<IconCheck size={16} />}>
                 Sayımı Kaydet
               </Button>
             </Group>

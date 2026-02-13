@@ -45,11 +45,7 @@ export const reportsAPI = {
   /**
    * Tek rapor üret ve indir
    */
-  async generate(
-    reportId: string,
-    format: 'excel' | 'pdf' = 'pdf',
-    context: any = {}
-  ): Promise<Blob> {
+  async generate(reportId: string, format: 'excel' | 'pdf' = 'pdf', context: any = {}): Promise<Blob> {
     const { data } = await api.post(
       '/api/reports/generate',
       { reportId, format, context },
@@ -141,7 +137,5 @@ export function getFormatExtension(format: 'excel' | 'pdf'): string {
  * Rapor format MIME tipini al
  */
 export function getFormatMimeType(format: 'excel' | 'pdf'): string {
-  return format === 'excel'
-    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    : 'application/pdf';
+  return format === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
 }

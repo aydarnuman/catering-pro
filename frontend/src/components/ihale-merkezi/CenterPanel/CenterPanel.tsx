@@ -171,9 +171,7 @@ export function CenterPanel({
   const correction = isSaved ? savedTender?.correction_notice_content : null;
 
   // Tipli analysis_summary (SavedTender için)
-  const analysisSummary: AnalysisData | undefined = isSaved
-    ? savedTender?.analysis_summary
-    : undefined;
+  const analysisSummary: AnalysisData | undefined = isSaved ? savedTender?.analysis_summary : undefined;
 
   return (
     <Box
@@ -220,22 +218,12 @@ export function CenterPanel({
               {isSaved && (
                 <>
                   <Tooltip label="Döküman Ayarları">
-                    <ActionIcon
-                      variant="light"
-                      color="grape"
-                      size="md"
-                      onClick={() => setSettingsModalOpen(true)}
-                    >
+                    <ActionIcon variant="light" color="grape" size="md" onClick={() => setSettingsModalOpen(true)}>
                       <IconSettings size={16} />
                     </ActionIcon>
                   </Tooltip>
                   <Tooltip label="Raporlar & Dışa Aktarım">
-                    <ActionIcon
-                      variant="light"
-                      color="blue"
-                      size="md"
-                      onClick={() => setRaporMerkeziOpen(true)}
-                    >
+                    <ActionIcon variant="light" color="blue" size="md" onClick={() => setRaporMerkeziOpen(true)}>
                       <IconReport size={16} />
                     </ActionIcon>
                   </Tooltip>
@@ -278,14 +266,10 @@ export function CenterPanel({
                   w={180}
                   placeholder="Firma seçin"
                   value={selectedFirmaId?.toString() || null}
-                  onChange={(value) =>
-                    onStateChange({ selectedFirmaId: value ? parseInt(value, 10) : null })
-                  }
+                  onChange={(value) => onStateChange({ selectedFirmaId: value ? parseInt(value, 10) : null })}
                   data={firmalar.map((f) => ({
                     value: f.id.toString(),
-                    label:
-                      f.kisa_ad ||
-                      (f.unvan.length > 25 ? `${f.unvan.substring(0, 25)}...` : f.unvan),
+                    label: f.kisa_ad || (f.unvan.length > 25 ? `${f.unvan.substring(0, 25)}...` : f.unvan),
                   }))}
                   leftSection={<IconBuilding size={14} />}
                   clearable
@@ -309,12 +293,7 @@ export function CenterPanel({
               withArrow
               disabled={!organization || organization.length < 30}
             >
-              <Paper
-                p="xs"
-                withBorder
-                radius="md"
-                style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}
-              >
+              <Paper p="xs" withBorder radius="md" style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
                 <Group gap={6} wrap="nowrap">
                   <ThemeIcon size="sm" variant="light" color="orange" style={{ flexShrink: 0 }}>
                     <IconBuilding size={12} />
@@ -366,12 +345,7 @@ export function CenterPanel({
           {(zeyilname || correction) && (
             <SimpleGrid cols={zeyilname && correction ? 2 : 1} spacing="xs" mb="md">
               {zeyilname && (
-                <Card
-                  p="sm"
-                  radius="md"
-                  withBorder
-                  style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}
-                >
+                <Card p="sm" radius="md" withBorder style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
                   <Group gap="xs" mb="xs">
                     <ThemeIcon color="orange" size="sm" radius="xl">
                       <IconNote size={12} />
@@ -392,12 +366,7 @@ export function CenterPanel({
                 </Card>
               )}
               {correction && (
-                <Card
-                  p="sm"
-                  radius="md"
-                  withBorder
-                  style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}
-                >
+                <Card p="sm" radius="md" withBorder style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}>
                   <Group gap="xs" mb="xs">
                     <ThemeIcon color="red" size="sm" radius="xl">
                       <IconSparkles size={12} />
@@ -423,9 +392,7 @@ export function CenterPanel({
           {/* Tabs: Özet / Analiz / Dökümanlar / Araçlar / Dilekçe / Teklif */}
           <Tabs
             value={activeDetailTab}
-            onChange={(value) =>
-              onStateChange({ activeDetailTab: value as IhaleMerkeziState['activeDetailTab'] })
-            }
+            onChange={(value) => onStateChange({ activeDetailTab: value as IhaleMerkeziState['activeDetailTab'] })}
           >
             <Tabs.List grow>
               <Tabs.Tab value="ozet" leftSection={<IconFileText size={14} />}>
@@ -474,16 +441,13 @@ export function CenterPanel({
                     <IconNote size={24} />
                   </ThemeIcon>
                   <Text size="sm" c="dimmed" ta="center">
-                    Bu ihaleye ait notlari goruntulemek ve duzenlemek icin asagidaki butona
-                    tiklayin.
+                    Bu ihaleye ait notlari goruntulemek ve duzenlemek icin asagidaki butona tiklayin.
                   </Text>
                   <Button
                     variant="light"
                     color="violet"
                     leftSection={<IconNote size={16} />}
-                    onClick={() =>
-                      openContextNotes('tender', savedTender?.tender_id ?? 0, title || 'Ihale')
-                    }
+                    onClick={() => openContextNotes('tender', savedTender?.tender_id ?? 0, title || 'Ihale')}
                   >
                     Ihale Notlarini Ac
                   </Button>

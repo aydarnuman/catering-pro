@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
+import { useCallback, useRef, useState } from 'react';
 
 export function useVoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);

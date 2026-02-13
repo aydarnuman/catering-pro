@@ -7,6 +7,7 @@ import express from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
 import AuditService from '../services/audit-service.js';
 import PermissionService from '../services/permission-service.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -18,7 +19,8 @@ router.get('/modules', authenticate, async (_req, res) => {
   try {
     const modules = await PermissionService.getModules();
     res.json({ success: true, data: modules });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Modüller alınamadı' });
   }
 });
@@ -31,7 +33,8 @@ router.get('/templates', authenticate, requireAdmin, async (_req, res) => {
   try {
     const templates = await PermissionService.getTemplates();
     res.json({ success: true, data: templates });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Şablonlar alınamadı' });
   }
 });
@@ -50,7 +53,8 @@ router.get('/templates/:id', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true, data: template });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Şablon alınamadı' });
   }
 });
@@ -141,7 +145,8 @@ router.put('/templates/:id', authenticate, requireSuperAdmin, async (req, res) =
     });
 
     res.json({ success: true, data: template, message: 'Şablon güncellendi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Şablon güncellenemedi' });
   }
 });
@@ -181,7 +186,8 @@ router.delete('/templates/:id', authenticate, requireSuperAdmin, async (req, res
     });
 
     res.json({ success: true, message: 'Şablon silindi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Şablon silinemedi' });
   }
 });
@@ -203,7 +209,8 @@ router.get('/my', authenticate, async (req, res) => {
         permissions,
       },
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Yetkiler alınamadı' });
   }
 });
@@ -216,7 +223,8 @@ router.get('/accessible-modules', authenticate, async (req, res) => {
   try {
     const modules = await PermissionService.getAccessibleModules(req.user.id);
     res.json({ success: true, data: modules });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Modüller alınamadı' });
   }
 });
@@ -229,7 +237,8 @@ router.get('/users', authenticate, requireSuperAdmin, async (_req, res) => {
   try {
     const users = await PermissionService.getAllUsersPermissions();
     res.json({ success: true, data: users });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Kullanıcı yetkileri alınamadı' });
   }
 });
@@ -258,7 +267,8 @@ router.get('/user/:userId', authenticate, requireAdmin, async (req, res) => {
         permissions,
       },
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Kullanıcı yetkileri alınamadı' });
   }
 });
@@ -310,7 +320,8 @@ router.put('/user/:userId', authenticate, requireSuperAdmin, async (req, res) =>
     });
 
     res.json({ success: true, message: 'Yetkiler güncellendi' });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Yetkiler güncellenemedi' });
   }
 });
@@ -354,7 +365,8 @@ router.post('/user/:userId/apply-template', authenticate, requireSuperAdmin, asy
       message: `${templateName} şablonu uygulandı`,
       appliedModules: count,
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Şablon uygulanamadı' });
   }
 });
@@ -378,7 +390,8 @@ router.get('/check', authenticate, async (req, res) => {
 
     const hasPermission = await PermissionService.check(req.user.id, moduleName, action);
     res.json({ success: true, hasPermission });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Permissions endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Yetki kontrolü yapılamadı' });
   }
 });

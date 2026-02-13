@@ -34,7 +34,13 @@ const SEVERITY_COLORS: Record<CrossReference['severity'], string> = {
   info: '#6366f1',
 };
 
-export function NetworkLines({ viewMode, focusedAgentId, agentAnalyses, stageRef, crossReferences = [] }: NetworkLinesProps) {
+export function NetworkLines({
+  viewMode,
+  focusedAgentId,
+  agentAnalyses,
+  stageRef,
+  crossReferences = [],
+}: NetworkLinesProps) {
   const [positions, setPositions] = useState<Record<string, NodePos>>({});
   const [centerPos, setCenterPos] = useState<NodePos>({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
@@ -98,7 +104,8 @@ export function NetworkLines({ viewMode, focusedAgentId, agentAnalyses, stageRef
         {AGENTS.map((agent) => {
           const agentPos = positions[agent.id];
           const analysis = agentAnalyses.find((a) => a.agentId === agent.id);
-          const isComplete = analysis?.status === 'complete' || analysis?.status === 'warning' || analysis?.status === 'critical';
+          const isComplete =
+            analysis?.status === 'complete' || analysis?.status === 'warning' || analysis?.status === 'critical';
           const isAnalyzing = analysis?.status === 'analyzing';
 
           const startColor = isComplete ? agent.accentHex : isAnalyzing ? '#3b82f6' : 'rgba(255,255,255,0.2)';
@@ -136,7 +143,8 @@ export function NetworkLines({ viewMode, focusedAgentId, agentAnalyses, stageRef
         if (!agentPos || !centerPos.x) return null;
 
         const analysis = agentAnalyses.find((a) => a.agentId === agent.id);
-        const isComplete = analysis?.status === 'complete' || analysis?.status === 'warning' || analysis?.status === 'critical';
+        const isComplete =
+          analysis?.status === 'complete' || analysis?.status === 'warning' || analysis?.status === 'critical';
         const isFocused = viewMode === 'FOCUS' && focusedAgentId === agent.id;
         const isDimmed = viewMode === 'FOCUS' && focusedAgentId !== agent.id;
         const opacity = isDimmed ? 0.04 : isFocused ? 0.85 : 0.4;
@@ -205,7 +213,7 @@ export function NetworkLines({ viewMode, focusedAgentId, agentAnalyses, stageRef
               strokeDasharray="6 4"
               opacity={0.5}
               style={{
-                animation: `network-flow 1.2s linear infinite`,
+                animation: 'network-flow 1.2s linear infinite',
                 ['--flow-offset' as string]: '10px',
               }}
             />

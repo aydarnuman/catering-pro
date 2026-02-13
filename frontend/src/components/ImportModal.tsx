@@ -76,12 +76,7 @@ const formatIcons: Record<string, JSX.Element> = {
   Image: <IconFile size={20} color="purple" />,
 };
 
-export function ImportModal({
-  opened,
-  onClose,
-  defaultType = 'personel',
-  onSuccess,
-}: ImportModalProps) {
+export function ImportModal({ opened, onClose, defaultType = 'personel', onSuccess }: ImportModalProps) {
   const [step, setStep] = useState(0);
   const [targetType, setTargetType] = useState<string>(defaultType);
   const [file, setFile] = useState<File | null>(null);
@@ -279,11 +274,7 @@ export function ImportModal({
             </Alert>
 
             <Group>
-              <Button
-                variant="light"
-                leftSection={<IconDownload size={16} />}
-                onClick={handleDownloadTemplate}
-              >
+              <Button variant="light" leftSection={<IconDownload size={16} />} onClick={handleDownloadTemplate}>
                 Örnek Şablon İndir
               </Button>
             </Group>
@@ -351,12 +342,7 @@ export function ImportModal({
               <Button variant="default" onClick={() => setStep(0)}>
                 Geri
               </Button>
-              <Button
-                onClick={handleAnalyze}
-                loading={loading}
-                disabled={!file}
-                leftSection={<IconRobot size={16} />}
-              >
+              <Button onClick={handleAnalyze} loading={loading} disabled={!file} leftSection={<IconRobot size={16} />}>
                 AI ile Analiz Et
               </Button>
             </Group>
@@ -410,8 +396,7 @@ export function ImportModal({
                         <Checkbox
                           checked={selectedRecords.length === analysisResult.allRecords.length}
                           indeterminate={
-                            selectedRecords.length > 0 &&
-                            selectedRecords.length < analysisResult.allRecords.length
+                            selectedRecords.length > 0 && selectedRecords.length < analysisResult.allRecords.length
                           }
                           onChange={toggleAll}
                         />
@@ -428,10 +413,7 @@ export function ImportModal({
                     {analysisResult.allRecords.map((record, i) => (
                       <Table.Tr key={i} bg={selectedRecords.includes(i) ? undefined : 'gray.1'}>
                         <Table.Td>
-                          <Checkbox
-                            checked={selectedRecords.includes(i)}
-                            onChange={() => toggleRecord(i)}
-                          />
+                          <Checkbox checked={selectedRecords.includes(i)} onChange={() => toggleRecord(i)} />
                         </Table.Td>
                         <Table.Td>{i + 1}</Table.Td>
                         {Object.values(record)

@@ -139,6 +139,14 @@ export const tendersAPI = {
   },
 
   /**
+   * Tekil takip kaydını getir (ihale masası sayfası için)
+   */
+  async getTrackedTenderDetail(tenderId: number): Promise<ApiResponse<any>> {
+    const response = await api.get(`/api/tender-tracking/detail/${tenderId}`);
+    return response.data;
+  },
+
+  /**
    * Takip kaydını güncelle
    */
   async updateTracking(trackingId: number, data: any): Promise<ApiResponse<any>> {
@@ -312,11 +320,7 @@ export const tendersAPI = {
   /**
    * AI notunu gizle
    */
-  async hideTrackingNote(
-    tenderId: number,
-    noteId: string,
-    noteText: string
-  ): Promise<ApiResponse<any>> {
+  async hideTrackingNote(tenderId: number, noteId: string, noteText: string): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/tender-tracking/${tenderId}/hide-note`, {
       noteId,
       noteText,
@@ -347,10 +351,7 @@ export const tendersAPI = {
    * İhale için potansiyel rakip analizi
    * Hibrit: iç veritabanı + Tavily web araması
    */
-  async getRakipAnalizi(
-    tenderId: number,
-    force = false
-  ): Promise<ApiResponse<RakipAnaliziResponse>> {
+  async getRakipAnalizi(tenderId: number, force = false): Promise<ApiResponse<RakipAnaliziResponse>> {
     const response = await api.get(`/api/tender-tracking/${tenderId}/rakip-analizi`, {
       params: force ? { force: 'true' } : undefined,
     });
@@ -390,10 +391,7 @@ export const tendersAPI = {
   /**
    * Teklif güncelle
    */
-  async updateTeklif(
-    teklifId: number,
-    data: Partial<TeklifResponse>
-  ): Promise<ApiResponse<TeklifResponse>> {
+  async updateTeklif(teklifId: number, data: Partial<TeklifResponse>): Promise<ApiResponse<TeklifResponse>> {
     const response = await api.put(`/api/teklifler/${teklifId}`, data);
     return response.data;
   },

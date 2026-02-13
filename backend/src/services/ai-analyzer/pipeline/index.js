@@ -20,6 +20,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import aiConfig from '../../../config/ai.config.js';
 import logger from '../../../utils/logger.js';
+import { applyResolutions, resolveConflicts } from '../controls/conflict-resolver.js';
 import { findRelevantChunks, logValidationResult, validateCriticalFields } from '../controls/field-validator.js';
 import { createTextHash, runAllP0Checks } from '../controls/p0-checks.js';
 import { createErrorOutput, createSuccessOutput } from '../schemas/final-output.js';
@@ -33,6 +34,52 @@ import { detectStructure, resolveReferences } from './structure.js';
 import { validateOutput } from './validator.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─── Helpers: Compute catering counts from assembled meals ──────
+
+/**
+ * Assembled meals dizisinden gunluk ogun sayisini hesapla.
+ * Her benzersiz tur (kahvalti, ogle, aksam, vb.) bir ogun sayilir.
+ */
+function computeDailyMealCount(meals) {
+  if (!meals || !Array.isArray(meals) || meals.length === 0) return null;
+  const uniqueTypes = new Set();
+  for (const m of meals) {
+    const t = (m.type || m.tur || '').toLowerCase().trim();
+    if (t) uniqueTypes.add(t);
+  }
+  return uniqueTypes.size > 0 ? uniqueTypes.size : null;
+}
+
+/**
+ * Assembled meals dizisinden toplam kisi sayisini hesapla.
+ * Her ogunun daily_count/miktar/person_count degerinden en buyugunu alir.
+ */
+function computePersonCount(meals) {
+  if (!meals || !Array.isArray(meals) || meals.length === 0) return null;
+  let maxCount = 0;
+  for (const m of meals) {
+    const count = parseNumeric(m.daily_count) || parseNumeric(m.miktar) || parseNumeric(m.person_count) || 0;
+    if (count > maxCount) maxCount = count;
+  }
+  return maxCount > 0 ? maxCount : null;
+}
+
+/**
+ * Metin veya sayidan sayi cikar. "500 kisi" -> 500, "1.250" -> 1250, null -> null
+ */
+function parseNumeric(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val !== 'string') return null;
+  // Sadece rakamlari cikar (Turkce binlik ayiracini kaldir)
+  const cleaned = val
+    .replace(/\./g, '')
+    .replace(/,/g, '.')
+    .replace(/[^\d.]/g, '');
+  const num = Number.parseFloat(cleaned);
+  return Number.isNaN(num) ? null : Math.round(num);
+}
 
 /**
  * Eksik kritik alanları doldurmak için focused extraction
@@ -775,10 +822,23 @@ export async function runZeroLossPipeline(filePath, options = {}) {
     const conflicts = enableConflictDetection ? detectConflicts(stage1Results) : [];
     const conflictReport = generateConflictReport(conflicts);
 
+    // ===== LAYER 5.5: CONFLICT RESOLUTION (NEW) =====
+    let resolvedConflicts = { resolved: [], unresolved: [], stats: { total: 0, auto_resolved: 0, manual_review: 0 } };
+    if (conflicts.length > 0) {
+      resolvedConflicts = resolveConflicts(conflicts);
+      logger.info('✓ Layer 5.5: Çatışma çözümü tamamlandı', {
+        module: 'zero-loss',
+        total: resolvedConflicts.stats.total,
+        autoResolved: resolvedConflicts.stats.auto_resolved,
+        manualReview: resolvedConflicts.stats.manual_review,
+      });
+    }
+
     logger.info('✓ Layer 5 tamamlandı', {
       module: 'zero-loss',
       conflictsFound: conflicts.length,
       criticalConflicts: conflictReport.critical_conflicts,
+      autoResolved: resolvedConflicts.stats.auto_resolved,
     });
 
     // ===== LAYER 6: ASSEMBLY =====
@@ -788,7 +848,16 @@ export async function runZeroLossPipeline(filePath, options = {}) {
 
     logger.info('▶ Layer 6: ASSEMBLY başlıyor...', { module: 'zero-loss' });
 
-    const assembled = assembleResults(stage1Results, conflicts);
+    let assembled = assembleResults(stage1Results, conflicts);
+
+    // Otomatik çözülen çatışmaları assembly sonucuna uygula
+    if (resolvedConflicts.resolved.length > 0) {
+      assembled = applyResolutions(assembled, resolvedConflicts);
+      logger.info("✓ Çatışma çözümleri assembly'e uygulandı", {
+        module: 'zero-loss',
+        appliedCount: resolvedConflicts.resolved.length,
+      });
+    }
 
     // P0-08: Yeni bilgi ekleme kontrolü
     const noNewInfoCheck = validateNoNewInformation(stage1Results, assembled);
@@ -942,8 +1011,8 @@ export async function runZeroLossPipeline(filePath, options = {}) {
         gramaj: finalAssembled.fields.menus.gramaj,
         service_times: finalAssembled.servis_saatleri || finalAssembled.fields.menus.service_times,
         quality_requirements: finalAssembled.fields.menus.quality_requirements,
-        daily_meal_count: null,
-        person_count: null,
+        daily_meal_count: computeDailyMealCount(finalAssembled.fields.menus.meals),
+        person_count: computePersonCount(finalAssembled.fields.menus.meals),
       },
       personnel: finalAssembled.fields.personnel,
       technical_requirements: finalAssembled.fields.requirements,

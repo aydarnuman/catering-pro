@@ -5,7 +5,7 @@
  * EKAP yasaklı firma sorgu sonucu.
  */
 
-import { Alert, Badge, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Alert, Badge, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconShieldCheck, IconShieldOff } from '@tabler/icons-react';
 
 interface Props {
@@ -13,8 +13,7 @@ interface Props {
 }
 
 export function KikYasaklilarDetay({ veri }: Props) {
-  if (!veri)
-    return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak sorgu yapabilirsiniz.</Text>;
+  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak sorgu yapabilirsiniz.</Text>;
 
   const yasakliMi = veri.yasakli_mi as boolean;
   const sonuclar = (veri.sonuclar as Array<Record<string, string>>) || [];

@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Group,
-  Menu,
-  Modal,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Menu, Modal, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
@@ -112,8 +102,7 @@ export function DataActions({
         color: 'green',
         loading: false,
         autoClose: 3000,
-        icon:
-          format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
+        icon: format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Dosya indirilemedi';
@@ -200,10 +189,7 @@ export function DataActions({
         <Menu.Dropdown>
           <Menu.Label>📥 İçe Aktar</Menu.Label>
 
-          <Menu.Item
-            leftSection={<IconUpload size={16} color="teal" />}
-            onClick={() => setImportModalOpen(true)}
-          >
+          <Menu.Item leftSection={<IconUpload size={16} color="teal" />} onClick={() => setImportModalOpen(true)}>
             Toplu Veri Yükle (AI)
           </Menu.Item>
 
@@ -211,42 +197,27 @@ export function DataActions({
 
           <Menu.Label>📤 Hızlı Dışa Aktar</Menu.Label>
 
-          <Menu.Item
-            leftSection={<IconFileSpreadsheet size={16} color="green" />}
-            onClick={handleQuickExcelDownload}
-          >
+          <Menu.Item leftSection={<IconFileSpreadsheet size={16} color="green" />} onClick={handleQuickExcelDownload}>
             Tüm Liste (Excel)
           </Menu.Item>
 
-          <Menu.Item
-            leftSection={<IconFileTypePdf size={16} color="red" />}
-            onClick={handleQuickPdfDownload}
-          >
+          <Menu.Item leftSection={<IconFileTypePdf size={16} color="red" />} onClick={handleQuickPdfDownload}>
             Tüm Liste (PDF)
           </Menu.Item>
 
           <Menu.Divider />
 
-          <Menu.Item
-            leftSection={<IconSettings size={16} color="violet" />}
-            onClick={() => setExportModalOpen(true)}
-          >
+          <Menu.Item leftSection={<IconSettings size={16} color="violet" />} onClick={() => setExportModalOpen(true)}>
             Detaylı Rapor Seçenekleri
           </Menu.Item>
 
-          <Menu.Item
-            leftSection={<IconReport size={16} color="indigo" />}
-            onClick={() => setRaporMerkeziOpen(true)}
-          >
+          <Menu.Item leftSection={<IconReport size={16} color="indigo" />} onClick={() => setRaporMerkeziOpen(true)}>
             Rapor Merkezi
           </Menu.Item>
 
           <Menu.Divider />
 
-          <Menu.Item
-            leftSection={<IconMail size={16} color="blue" />}
-            onClick={() => setMailModalOpen(true)}
-          >
+          <Menu.Item leftSection={<IconMail size={16} color="blue" />} onClick={() => setMailModalOpen(true)}>
             E-posta ile Gönder
           </Menu.Item>
         </Menu.Dropdown>
@@ -279,21 +250,10 @@ export function DataActions({
           />
 
           <Group justify="flex-end" mt="md">
-            <Text
-              size="sm"
-              c="dimmed"
-              style={{ cursor: 'pointer' }}
-              onClick={() => setMailModalOpen(false)}
-            >
+            <Text size="sm" c="dimmed" style={{ cursor: 'pointer' }} onClick={() => setMailModalOpen(false)}>
               İptal
             </Text>
-            <ActionIcon
-              variant="filled"
-              color="blue"
-              size="lg"
-              onClick={handleMailSend}
-              loading={loading}
-            >
+            <ActionIcon variant="filled" color="blue" size="lg" onClick={handleMailSend} loading={loading}>
               <IconMail size={18} />
             </ActionIcon>
           </Group>

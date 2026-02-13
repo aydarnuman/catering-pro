@@ -16,12 +16,7 @@ const SIZES = {
   lg: 24,
 };
 
-export function NoteColorPicker({
-  value,
-  onChange,
-  size = 'md',
-  disabled = false,
-}: NoteColorPickerProps) {
+export function NoteColorPicker({ value, onChange, size = 'md', disabled = false }: NoteColorPickerProps) {
   const dotSize = SIZES[size];
   const colors = Object.keys(NOTE_COLORS) as NoteColor[];
 

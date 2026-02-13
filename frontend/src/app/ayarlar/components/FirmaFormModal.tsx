@@ -46,13 +46,7 @@ interface FirmaFormModalProps {
   onSaved: () => void;
 }
 
-export default function FirmaFormModal({
-  opened,
-  onClose,
-  firma,
-  firmaCount,
-  onSaved,
-}: FirmaFormModalProps) {
+export default function FirmaFormModal({ opened, onClose, firma, firmaCount, onSaved }: FirmaFormModalProps) {
   const [formData, setFormData] = useState<Partial<FirmaBilgileri>>(emptyFirma);
   const [saving, setSaving] = useState(false);
   const [analyzingBelge, setAnalyzingBelge] = useState(false);
@@ -83,9 +77,7 @@ export default function FirmaFormModal({
 
     setSaving(true);
     try {
-      const url = firma
-        ? `${API_BASE_URL}/api/firmalar/${firma.id}`
-        : `${API_BASE_URL}/api/firmalar`;
+      const url = firma ? `${API_BASE_URL}/api/firmalar/${firma.id}` : `${API_BASE_URL}/api/firmalar`;
 
       const res = await authFetch(url, {
         method: firma ? 'PUT' : 'POST',
@@ -231,8 +223,7 @@ export default function FirmaFormModal({
                 radius="md"
                 withBorder
                 style={{
-                  background:
-                    'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)',
+                  background: 'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)',
                 }}
               >
                 <Stack gap="sm">
@@ -245,18 +236,11 @@ export default function FirmaFormModal({
                     </Text>
                   </Group>
                   <Text size="xs" c="dimmed">
-                    Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri
-                    otomatik çıkarsın.
+                    Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri otomatik çıkarsın.
                   </Text>
                   <SimpleGrid cols={{ base: 2, sm: 3 }}>
                     {belgeTipleri.slice(0, 3).map((belge) => (
-                      <Paper
-                        key={belge.value}
-                        p="xs"
-                        radius="md"
-                        withBorder
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <Paper key={belge.value} p="xs" radius="md" withBorder style={{ cursor: 'pointer' }}>
                         <Stack gap={4} align="center">
                           <Text size="xs" fw={500} ta="center">
                             {belge.label}
@@ -272,12 +256,7 @@ export default function FirmaFormModal({
                               }}
                               disabled={analyzingBelge}
                             />
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              color="blue"
-                              style={{ cursor: 'pointer' }}
-                            >
+                            <Badge size="xs" variant="light" color="blue" style={{ cursor: 'pointer' }}>
                               {analyzingBelge ? 'Analiz...' : '📄 Yükle'}
                             </Badge>
                           </label>
@@ -356,9 +335,7 @@ export default function FirmaFormModal({
               label="Ticaret Sicil No"
               placeholder="123456"
               value={formData.ticaret_sicil_no || ''}
-              onChange={(e) =>
-                setFormData({ ...formData, ticaret_sicil_no: e.currentTarget.value })
-              }
+              onChange={(e) => setFormData({ ...formData, ticaret_sicil_no: e.currentTarget.value })}
             />
 
             <Divider label="İletişim" labelPosition="center" />
@@ -423,9 +400,7 @@ export default function FirmaFormModal({
                 label="Yetkili Unvanı"
                 placeholder="Şirket Müdürü"
                 value={formData.yetkili_unvani || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, yetkili_unvani: e.currentTarget.value })
-                }
+                onChange={(e) => setFormData({ ...formData, yetkili_unvani: e.currentTarget.value })}
                 leftSection={<IconId size={16} />}
               />
             </SimpleGrid>
@@ -441,9 +416,7 @@ export default function FirmaFormModal({
                 label="Yetkili Telefon"
                 placeholder="0532 XXX XX XX"
                 value={formData.yetkili_telefon || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, yetkili_telefon: e.currentTarget.value })
-                }
+                onChange={(e) => setFormData({ ...formData, yetkili_telefon: e.currentTarget.value })}
               />
             </SimpleGrid>
 
@@ -492,9 +465,7 @@ export default function FirmaFormModal({
                 label="2. Yetkili Unvanı"
                 placeholder="Genel Müdür Yrd."
                 value={formData.yetkili2_unvani || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, yetkili2_unvani: e.currentTarget.value })
-                }
+                onChange={(e) => setFormData({ ...formData, yetkili2_unvani: e.currentTarget.value })}
               />
             </SimpleGrid>
 
@@ -509,9 +480,7 @@ export default function FirmaFormModal({
                 label="2. Yetkili Telefon"
                 placeholder="0532 XXX XX XX"
                 value={formData.yetkili2_telefon || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, yetkili2_telefon: e.currentTarget.value })
-                }
+                onChange={(e) => setFormData({ ...formData, yetkili2_telefon: e.currentTarget.value })}
               />
             </SimpleGrid>
 
@@ -654,12 +623,7 @@ export default function FirmaFormModal({
               <Button variant="light" onClick={onClose}>
                 İptal
               </Button>
-              <Button
-                color="teal"
-                onClick={handleSave}
-                loading={saving}
-                leftSection={<IconCheck size={16} />}
-              >
+              <Button color="teal" onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}>
                 {firma ? 'Güncelle' : 'Ekle'}
               </Button>
             </Group>
@@ -668,24 +632,12 @@ export default function FirmaFormModal({
       </Modal>
 
       {/* Belge Yükleme Modalı */}
-      <Modal
-        opened={belgeModalOpened}
-        onClose={closeBelgeModal}
-        title="Belge Yükle"
-        size="sm"
-        centered
-      >
+      <Modal opened={belgeModalOpened} onClose={closeBelgeModal} title="Belge Yükle" size="sm" centered>
         <Stack gap="md">
           <Text size="sm">
-            <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong>{' '}
-            yükleyin
+            <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong> yükleyin
           </Text>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={handleBelgeUpload}
-            disabled={uploadingBelge}
-          />
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleBelgeUpload} disabled={uploadingBelge} />
           {uploadingBelge && (
             <Text size="xs" c="dimmed">
               Yükleniyor...

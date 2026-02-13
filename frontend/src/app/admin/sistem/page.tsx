@@ -203,23 +203,14 @@ export default function AdminSistemPage() {
                       <CopyButton value={item.value}>
                         {({ copied, copy }) => (
                           <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={copy}
-                              color={copied ? 'green' : 'gray'}
-                            >
+                            <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'green' : 'gray'}>
                               {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                             </ActionIcon>
                           </Tooltip>
                         )}
                       </CopyButton>
                       {item.label.includes('API') && (
-                        <ActionIcon
-                          variant="subtle"
-                          size="sm"
-                          onClick={() => window.open(item.value, '_blank')}
-                        >
+                        <ActionIcon variant="subtle" size="sm" onClick={() => window.open(item.value, '_blank')}>
                           <IconExternalLink size={14} />
                         </ActionIcon>
                       )}
@@ -257,9 +248,7 @@ export default function AdminSistemPage() {
           ) : (
             <ScrollArea h={300}>
               <Code block style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
-                {logs.length > 0
-                  ? logs.join('\n')
-                  : 'Logları görmek için "Yenile" butonuna tıklayın.'}
+                {logs.length > 0 ? logs.join('\n') : 'Logları görmek için "Yenile" butonuna tıklayın.'}
               </Code>
             </ScrollArea>
           )}

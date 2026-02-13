@@ -1,12 +1,7 @@
-import { Badge, Box, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
-import {
-  IconAlertTriangle,
-  IconCalculator,
-  IconHelmet,
-  IconRadar2,
-  IconScale,
-} from '@tabler/icons-react';
+import { Badge, Box, Group, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
+import { IconAlertTriangle, IconCalculator, IconHelmet, IconRadar2, IconScale } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import type { AgentAnalysis, AgentPersona, ViewMode } from '../types';
 
 const ICON_MAP = {
@@ -50,6 +45,18 @@ export function AgentCard({
 
   const isCurrentlyAnalyzing = analysis.status === 'analyzing';
   const isError = analysis.status === 'no-data';
+  const hasFindings = !isCurrentlyAnalyzing && !isError && analysis.findings.length > 0;
+
+  // Bulgu severity sayaci
+  const severityCounts = useMemo(() => {
+    if (!hasFindings) return null;
+    const critical = analysis.findings.filter((f) => f.severity === 'critical').length;
+    const warning = analysis.findings.filter((f) => f.severity === 'warning').length;
+    const info = analysis.findings.filter((f) => f.severity === 'info').length;
+    return { critical, warning, info };
+  }, [analysis.findings, hasFindings]);
+
+  // ─── Mobile Layout ────────────────────────────────────────
 
   if (isMobile) {
     return (
@@ -62,18 +69,17 @@ export function AgentCard({
       >
         <Box
           className={`agent-card ${agent.color}`}
-          style={isDropTarget ? {
-            boxShadow: `0 0 40px ${agent.accentHex}60`,
-            borderColor: agent.accentHex,
-          } : undefined}
+          style={
+            isDropTarget
+              ? {
+                  boxShadow: `0 0 40px ${agent.accentHex}60`,
+                  borderColor: agent.accentHex,
+                }
+              : undefined
+          }
         >
           <Stack align="center" gap={6}>
-            <ThemeIcon
-              size={36}
-              variant="light"
-              color={isError ? 'gray' : agent.color}
-              radius="xl"
-            >
+            <ThemeIcon size={36} variant="light" color={isError ? 'gray' : agent.color} radius="xl">
               {isCurrentlyAnalyzing ? (
                 <Loader size={16} color={agent.color} type="dots" />
               ) : isError ? (
@@ -85,11 +91,28 @@ export function AgentCard({
             <Text size="9px" fw={600} ta="center" c="dimmed" lineClamp={2}>
               {agent.name}
             </Text>
+            {/* Mobile: kompakt bulgu sayaci */}
+            {severityCounts && (severityCounts.critical > 0 || severityCounts.warning > 0) && (
+              <Group gap={4} justify="center">
+                {severityCounts.critical > 0 && (
+                  <Text size="8px" fw={700} c="red.4">
+                    {severityCounts.critical} kritik
+                  </Text>
+                )}
+                {severityCounts.warning > 0 && (
+                  <Text size="8px" fw={600} c="yellow.5">
+                    {severityCounts.warning} uyari
+                  </Text>
+                )}
+              </Group>
+            )}
           </Stack>
         </Box>
       </motion.div>
     );
   }
+
+  // ─── Desktop Layout ───────────────────────────────────────
 
   return (
     <motion.div
@@ -103,30 +126,40 @@ export function AgentCard({
     >
       <Box
         className={`agent-card ${agent.color}`}
-        style={isDropTarget ? {
-          boxShadow: `0 0 48px ${agent.accentHex}50, 0 0 80px ${agent.accentHex}20`,
-          borderColor: `${agent.accentHex}80`,
-        } : undefined}
+        style={
+          isDropTarget
+            ? {
+                boxShadow: `0 0 48px ${agent.accentHex}50, 0 0 80px ${agent.accentHex}20`,
+                borderColor: `${agent.accentHex}80`,
+              }
+            : undefined
+        }
       >
         <Stack align="center" gap={10}>
           <Box style={{ position: 'relative' }}>
             <motion.div
-              animate={isCurrentlyAnalyzing ? {
-                boxShadow: [
-                  `0 0 8px ${agent.accentHex}30`,
-                  `0 0 24px ${agent.accentHex}60`,
-                  `0 0 8px ${agent.accentHex}30`,
-                ],
-              } : {}}
+              animate={
+                isCurrentlyAnalyzing
+                  ? {
+                      boxShadow: [
+                        `0 0 8px ${agent.accentHex}30`,
+                        `0 0 24px ${agent.accentHex}60`,
+                        `0 0 8px ${agent.accentHex}30`,
+                      ],
+                    }
+                  : {}
+              }
               transition={isCurrentlyAnalyzing ? { duration: 1.5, repeat: Number.POSITIVE_INFINITY } : {}}
               style={{ borderRadius: '50%' }}
             >
               <ThemeIcon
                 size={48}
                 variant="gradient"
-                gradient={isError
-                  ? { from: 'gray.7', to: 'gray.6', deg: 135 }
-                  : { from: agent.color, to: agent.color, deg: 135 }}
+                gradient={
+                  isError
+                    ? { from: 'gray.7', to: 'gray.6', deg: 135 }
+                    : { from: agent.color, to: agent.color, deg: 135 }
+                }
                 radius="xl"
                 style={{ boxShadow: isCurrentlyAnalyzing ? undefined : `0 0 16px ${agent.accentHex}40` }}
               >
@@ -170,11 +203,28 @@ export function AgentCard({
             </Text>
           </div>
 
-          <Badge
-            size="sm"
-            variant="dot"
-            color={statusInfo.color}
-          >
+          {/* Bulgu sayaci -- analiz tamamlandiginda goster */}
+          {severityCounts && (
+            <Group gap={6} justify="center">
+              {severityCounts.critical > 0 && (
+                <Text size="10px" fw={700} c="red.4">
+                  {severityCounts.critical} kritik
+                </Text>
+              )}
+              {severityCounts.warning > 0 && (
+                <Text size="10px" fw={600} c="yellow.5">
+                  {severityCounts.warning} uyari
+                </Text>
+              )}
+              {severityCounts.critical === 0 && severityCounts.warning === 0 && severityCounts.info > 0 && (
+                <Text size="10px" fw={500} c="dimmed">
+                  {severityCounts.info} bilgi
+                </Text>
+              )}
+            </Group>
+          )}
+
+          <Badge size="sm" variant="dot" color={statusInfo.color}>
             {statusInfo.label}
           </Badge>
 
@@ -184,10 +234,23 @@ export function AgentCard({
             </Text>
           )}
 
+          {/* Analiz ozeti -- en kritik bulgunun tek satirlik aciklamasi */}
+          {hasFindings && analysis.summary && viewMode !== 'ASSEMBLE' && (
+            <Text
+              size="9px"
+              c="dimmed"
+              ta="center"
+              lineClamp={2}
+              style={{ maxWidth: 140, lineHeight: 1.4, opacity: 0.7 }}
+            >
+              {analysis.summary}
+            </Text>
+          )}
+
           {/* Drop target hint */}
           {isDropTarget && (
             <Text size="10px" fw={600} c={agent.color} ta="center">
-              Bırak &rarr; Analiz Et
+              Birak &rarr; Analiz Et
             </Text>
           )}
         </Stack>

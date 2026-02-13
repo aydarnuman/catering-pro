@@ -8,6 +8,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import AdmZip from 'adm-zip';
+import { TURKISH_CHAR_MAP } from '../../lib/constants.js';
 import logger from '../../utils/logger.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -260,25 +261,9 @@ export function sanitizeFileName(fileName) {
  * @returns {string} URL-safe dosya adı
  */
 export function makeUrlSafe(fileName) {
-  // Türkçe karakterleri normalize et
-  const turkishMap = {
-    ç: 'c',
-    Ç: 'C',
-    ğ: 'g',
-    Ğ: 'G',
-    ı: 'i',
-    İ: 'I',
-    ö: 'o',
-    Ö: 'O',
-    ş: 's',
-    Ş: 'S',
-    ü: 'u',
-    Ü: 'U',
-  };
-
   let safe = fileName;
   // Türkçe karakterleri değiştir
-  for (const [turkish, latin] of Object.entries(turkishMap)) {
+  for (const [turkish, latin] of Object.entries(TURKISH_CHAR_MAP)) {
     safe = safe.replace(new RegExp(turkish, 'g'), latin);
   }
 

@@ -10,11 +10,7 @@ import { useCallback, useState } from 'react';
 import { downloadBlob, getFormatExtension, reportsAPI } from '@/lib/api/services/reports';
 
 interface UseReportExportReturn {
-  downloadReport: (
-    reportId: string,
-    format: 'excel' | 'pdf',
-    context?: Record<string, unknown>
-  ) => Promise<void>;
+  downloadReport: (reportId: string, format: 'excel' | 'pdf', context?: Record<string, unknown>) => Promise<void>;
   isDownloading: boolean;
   downloadingId: string | null;
 }

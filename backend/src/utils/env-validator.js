@@ -44,7 +44,7 @@ const OPTIONAL_ENV_VARS = {
     description: 'Server port (default: 3001)',
     default: '3001',
   },
-  CLAUDE_API_KEY: {
+  ANTHROPIC_API_KEY: {
     description: 'Anthropic Claude API key (AI asistan için)',
   },
   IHALEBUL_USERNAME: {

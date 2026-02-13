@@ -24,15 +24,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  IconAlertCircle,
-  IconCheck,
-  IconEdit,
-  IconLock,
-  IconPlus,
-  IconRefresh,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck, IconEdit, IconLock, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/api';
@@ -461,20 +453,12 @@ export default function YetkiSablonlariPage() {
                     {isSuperAdmin && !template.is_system && (
                       <>
                         <Tooltip label="Düzenle">
-                          <ActionIcon
-                            variant="subtle"
-                            color="blue"
-                            onClick={() => handleEditTemplate(template)}
-                          >
+                          <ActionIcon variant="subtle" color="blue" onClick={() => handleEditTemplate(template)}>
                             <IconEdit size={16} />
                           </ActionIcon>
                         </Tooltip>
                         <Tooltip label="Sil">
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={() => handleDelete(template.id)}
-                          >
+                          <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(template.id)}>
                             <IconTrash size={16} />
                           </ActionIcon>
                         </Tooltip>
@@ -571,37 +555,27 @@ export default function YetkiSablonlariPage() {
                         <Checkbox
                           label="Görüntüle"
                           checked={perms.view}
-                          onChange={(e) =>
-                            togglePermission(module.name, 'view', e.currentTarget.checked)
-                          }
+                          onChange={(e) => togglePermission(module.name, 'view', e.currentTarget.checked)}
                         />
                         <Checkbox
                           label="Oluştur"
                           checked={perms.create}
-                          onChange={(e) =>
-                            togglePermission(module.name, 'create', e.currentTarget.checked)
-                          }
+                          onChange={(e) => togglePermission(module.name, 'create', e.currentTarget.checked)}
                         />
                         <Checkbox
                           label="Düzenle"
                           checked={perms.edit}
-                          onChange={(e) =>
-                            togglePermission(module.name, 'edit', e.currentTarget.checked)
-                          }
+                          onChange={(e) => togglePermission(module.name, 'edit', e.currentTarget.checked)}
                         />
                         <Checkbox
                           label="Sil"
                           checked={perms.delete}
-                          onChange={(e) =>
-                            togglePermission(module.name, 'delete', e.currentTarget.checked)
-                          }
+                          onChange={(e) => togglePermission(module.name, 'delete', e.currentTarget.checked)}
                         />
                         <Checkbox
                           label="Export"
                           checked={perms.export}
-                          onChange={(e) =>
-                            togglePermission(module.name, 'export', e.currentTarget.checked)
-                          }
+                          onChange={(e) => togglePermission(module.name, 'export', e.currentTarget.checked)}
                         />
                       </SimpleGrid>
                     </div>

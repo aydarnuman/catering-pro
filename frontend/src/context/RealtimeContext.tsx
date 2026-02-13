@@ -52,6 +52,7 @@ const TABLE_NAMES_TR: Record<string, string> = {
   urunler: 'Ürünler',
   menu_items: 'Menü',
   satin_alma: 'Satın Alma',
+  unified_notes: 'Notlar',
 };
 
 // Event isimleri
@@ -78,6 +79,7 @@ const REALTIME_TABLES = [
   'urunler',
   'menu_items',
   'satin_alma',
+  'unified_notes',
 ];
 
 // Realtime özelliğini aktif/pasif yapmak için environment variable
@@ -154,7 +156,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   // Supabase Realtime bağlantısı + kopunca otomatik yeniden deneme
   useEffect(() => {
     if (!REALTIME_ENABLED) {
-      console.log('[Realtime] Realtime devre dışı (NEXT_PUBLIC_ENABLE_REALTIME != true)');
+      console.debug('[Realtime] Realtime devre dışı (NEXT_PUBLIC_ENABLE_REALTIME != true)');
       return;
     }
 
@@ -172,7 +174,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
       reconnectAttemptRef.current += 1;
       const delay = RECONNECT_DELAY_MS;
-      console.log(
+      console.debug(
         `[Realtime] ${delay / 1000} sn sonra yeniden bağlanıyor (deneme ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`
       );
       reconnectTimeoutRef.current = setTimeout(() => {
@@ -185,13 +187,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     let channel = supabase.channel(channelName);
 
     REALTIME_TABLES.forEach((table) => {
-      channel = channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table },
-        (payload) => {
-          handleChange(table, payload.eventType, payload);
-        }
-      );
+      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+        handleChange(table, payload.eventType, payload);
+      });
     });
 
     channel.subscribe((status) => {
@@ -200,7 +198,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         setConnectionError(null);
         reconnectAttemptRef.current = 0;
         hasShownConnectionErrorRef.current = false;
-        console.log('[Realtime] ✅ Bağlantı kuruldu');
+        console.debug('[Realtime] Bağlantı kuruldu');
       } else if (status === 'CHANNEL_ERROR') {
         setIsConnected(false);
         setConnectionError('Realtime bağlantı hatası');
@@ -235,7 +233,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         reconnectTimeoutRef.current = null;
       }
       if (channelRef.current) {
-        console.log('[Realtime] Bağlantı kapatılıyor...');
+        console.debug('[Realtime] Bağlantı kapatılıyor...');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }

@@ -1,7 +1,8 @@
 'use client';
 
-import { Box, Button, ScrollArea, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { Box, Button, ScrollArea, Tabs, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { IconChecklist, IconGavel, IconSparkles, IconTable, IconUsers, IconWand } from '@tabler/icons-react';
+import Link from 'next/link';
 import { AraclarSection } from '../shared/AraclarSection';
 import { DilekceSection } from '../shared/DilekceSection';
 import { KontrolSection } from '../shared/KontrolSection';
@@ -17,13 +18,7 @@ interface RightPanelProps {
   mobileActiveTab?: 'tools' | 'notes';
 }
 
-export function RightPanel({
-  state,
-  onToggleSection,
-  onStateChange,
-  onRefreshData,
-  mobileActiveTab,
-}: RightPanelProps) {
+export function RightPanel({ state, onToggleSection, onStateChange, onRefreshData, mobileActiveTab }: RightPanelProps) {
   const { selectedTender, expandedSections, activeRightTab, dilekceType } = state;
 
   // Check if tender is SavedTender
@@ -50,34 +45,20 @@ export function RightPanel({
         <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <Tabs
             value={activeRightTab}
-            onChange={(value) =>
-              onStateChange({ activeRightTab: value as IhaleMerkeziState['activeRightTab'] })
-            }
+            onChange={(value) => onStateChange({ activeRightTab: value as IhaleMerkeziState['activeRightTab'] })}
             variant="pills"
             styles={{
               tab: { fontSize: 'var(--mantine-font-size-xs)', padding: '6px 10px' },
             }}
           >
             <Tabs.List grow>
-              <Tabs.Tab
-                value="kontrol"
-                leftSection={<IconChecklist size={13} />}
-                disabled={!isSavedTender}
-              >
+              <Tabs.Tab value="kontrol" leftSection={<IconChecklist size={13} />} disabled={!isSavedTender}>
                 Kontrol
               </Tabs.Tab>
-              <Tabs.Tab
-                value="araclar"
-                leftSection={<IconWand size={13} />}
-                disabled={!isSavedTender}
-              >
+              <Tabs.Tab value="araclar" leftSection={<IconWand size={13} />} disabled={!isSavedTender}>
                 Araçlar
               </Tabs.Tab>
-              <Tabs.Tab
-                value="dilekce"
-                leftSection={<IconGavel size={13} />}
-                disabled={!isSavedTender}
-              >
+              <Tabs.Tab value="dilekce" leftSection={<IconGavel size={13} />} disabled={!isSavedTender}>
                 Dilekçe
               </Tabs.Tab>
               <Tabs.Tab
@@ -127,15 +108,16 @@ export function RightPanel({
           <Box p="sm">
             {activeRightTab === 'araclar' && (
               <>
-                {/* Sanal İhale Masası trigger */}
-                {(selectedTender as SavedTender).analysis_summary && (
+                {/* Sanal İhale Masası — bağımsız sayfa linki */}
+                {(selectedTender as SavedTender).analysis_summary ? (
                   <Button
+                    component={Link}
+                    href={`/ihale-merkezi/masa/${(selectedTender as SavedTender).tender_id}`}
                     variant="gradient"
                     gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
                     leftSection={<IconTable size={16} />}
                     fullWidth
                     mb="sm"
-                    onClick={() => onStateChange({ sanalMasaOpen: true })}
                     style={{
                       boxShadow: '0 2px 12px rgba(139, 92, 246, 0.2)',
                       transition: 'all 0.2s ease',
@@ -151,7 +133,21 @@ export function RightPanel({
                   >
                     Sanal İhale Masası
                   </Button>
-                )}
+                ) : isSavedTender ? (
+                  <Tooltip label="Once dokuman analizi yapilmali" position="bottom" withArrow>
+                    <Button
+                      variant="gradient"
+                      gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
+                      leftSection={<IconTable size={16} />}
+                      fullWidth
+                      mb="sm"
+                      disabled
+                      style={{ opacity: 0.5 }}
+                    >
+                      Sanal İhale Masası
+                    </Button>
+                  </Tooltip>
+                ) : null}
                 <AraclarSection tender={selectedTender as SavedTender} onRefresh={onRefreshData} />
               </>
             )}
@@ -192,8 +188,7 @@ export function RightPanel({
                       position: 'absolute',
                       inset: 0,
                       borderRadius: '50%',
-                      background:
-                        'radial-gradient(circle, rgba(20, 184, 166, 0.25) 0%, transparent 70%)',
+                      background: 'radial-gradient(circle, rgba(20, 184, 166, 0.25) 0%, transparent 70%)',
                       animation: 'teklif-pulse 2.5s ease-in-out infinite',
                     }}
                   />
@@ -215,8 +210,7 @@ export function RightPanel({
                     Teklif Merkezi
                   </Text>
                   <Text size="xs" c="dimmed" maw={260} style={{ lineHeight: 1.5 }}>
-                    AI tespit edilen verileri görüntüleyin, maliyet hesaplayın ve teklif cetveli
-                    oluşturun
+                    AI tespit edilen verileri görüntüleyin, maliyet hesaplayın ve teklif cetveli oluşturun
                   </Text>
                 </div>
 
@@ -273,19 +267,17 @@ export function RightPanel({
         )}
 
         {/* Rakip Teklifler - Araçlar tab'ında */}
-        {(!isMobile || mobileActiveTab === 'tools') &&
-          activeRightTab === 'araclar' &&
-          isSavedTender && (
-            <CollapsibleSection
-              title="Rakip Teklifler"
-              icon={<IconUsers size={16} />}
-              color="orange"
-              isExpanded={expandedSections.has('firms')}
-              onToggle={() => onToggleSection('firms')}
-            >
-              <FirmsPanel tender={selectedTender as SavedTender} />
-            </CollapsibleSection>
-          )}
+        {(!isMobile || mobileActiveTab === 'tools') && activeRightTab === 'araclar' && isSavedTender && (
+          <CollapsibleSection
+            title="Rakip Teklifler"
+            icon={<IconUsers size={16} />}
+            color="orange"
+            isExpanded={expandedSections.has('firms')}
+            onToggle={() => onToggleSection('firms')}
+          >
+            <FirmsPanel tender={selectedTender as SavedTender} />
+          </CollapsibleSection>
+        )}
       </ScrollArea>
     </Box>
   );

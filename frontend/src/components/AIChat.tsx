@@ -171,8 +171,7 @@ export function AIChat({
     const fetchTemplates = async () => {
       try {
         const res = await aiAPI.getTemplates();
-        const rawTemplates =
-          res.data?.templates ?? (res as { templates?: PromptTemplate[] }).templates;
+        const rawTemplates = res.data?.templates ?? (res as { templates?: PromptTemplate[] }).templates;
         if (rawTemplates?.length) {
           // API'den gelen template'leri PromptTemplate formatına dönüştür
           const templates: PromptTemplate[] = rawTemplates.map((t) => {
@@ -205,16 +204,10 @@ export function AIChat({
   }, []);
 
   // Seçili şablonun bilgilerini al
-  const currentTemplate =
-    promptTemplates.find((t) => t.slug === selectedTemplate) || promptTemplates[0];
+  const currentTemplate = promptTemplates.find((t) => t.slug === selectedTemplate) || promptTemplates[0];
 
   // Feedback gönder
-  const sendFeedback = async (
-    messageId: string,
-    messageContent: string,
-    aiResponse: string,
-    isPositive: boolean
-  ) => {
+  const sendFeedback = async (messageId: string, messageContent: string, aiResponse: string, isPositive: boolean) => {
     if (feedbackGiven.has(messageId)) return;
 
     try {
@@ -230,9 +223,7 @@ export function AIChat({
 
       notifications.show({
         title: isPositive ? '👍 Teşekkürler!' : '👎 Geri bildirim alındı',
-        message: isPositive
-          ? 'Olumlu geri bildiriminiz kaydedildi'
-          : 'İyileştirme için çalışacağız',
+        message: isPositive ? 'Olumlu geri bildiriminiz kaydedildi' : 'İyileştirme için çalışacağız',
         color: isPositive ? 'green' : 'orange',
         icon: <IconCheck size={16} />,
       });
@@ -318,9 +309,7 @@ export function AIChat({
         });
 
         const errorMessage = data.error || data.message || 'API hatası';
-        throw new Error(
-          errorMessage.includes('Endpoint') ? errorMessage : `API hatası: ${errorMessage}`
-        );
+        throw new Error(errorMessage.includes('Endpoint') ? errorMessage : `API hatası: ${errorMessage}`);
       }
 
       const aiMessage: ChatMessage = {
@@ -461,9 +450,7 @@ Kurallar:
         <Box
           p="xs"
           style={{
-            borderBottom: isDark
-              ? '1px solid rgba(255,255,255,0.08)'
-              : '1px solid var(--mantine-color-gray-3)',
+            borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
             flexShrink: 0,
             background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
           }}
@@ -494,9 +481,7 @@ Kurallar:
                     padding: '4px 8px',
                     borderRadius: 6,
                     background: isDark ? 'rgba(255,255,255,0.08)' : 'var(--mantine-color-gray-0)',
-                    border: isDark
-                      ? '1px solid rgba(255,255,255,0.12)'
-                      : '1px solid var(--mantine-color-gray-3)',
+                    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--mantine-color-gray-3)',
                     fontSize: 12,
                   }}
                 >
@@ -543,10 +528,7 @@ Kurallar:
                               gap: 8,
                               padding: '6px 8px',
                               borderRadius: 6,
-                              background:
-                                selectedTemplate === t.slug
-                                  ? 'var(--mantine-color-violet-0)'
-                                  : 'transparent',
+                              background: selectedTemplate === t.slug ? 'var(--mantine-color-violet-0)' : 'transparent',
                               border:
                                 selectedTemplate === t.slug
                                   ? '1px solid var(--mantine-color-violet-3)'
@@ -556,10 +538,7 @@ Kurallar:
                             <Text size="lg">{t.icon}</Text>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="xs" fw={500}>
-                                {t.name.replace(
-                                  /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
-                                  ''
-                                )}
+                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
                               </Text>
                             </div>
                             {selectedTemplate === t.slug && (
@@ -606,11 +585,7 @@ Kurallar:
               ) : (
                 messages.map((message) => (
                   <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
-                    <Avatar
-                      size="sm"
-                      color={message.type === 'user' ? 'blue' : 'violet'}
-                      radius="xl"
-                    >
+                    <Avatar size="sm" color={message.type === 'user' ? 'blue' : 'violet'} radius="xl">
                       {message.type === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
                     </Avatar>
                     <Paper
@@ -621,10 +596,7 @@ Kurallar:
                         flex: 1,
                         maxWidth: 'calc(100% - 40px)',
                         ...(isDark && {
-                          background:
-                            message.type === 'user'
-                              ? 'rgba(59, 130, 246, 0.2)'
-                              : 'rgba(255,255,255,0.06)',
+                          background: message.type === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.06)',
                           border: '1px solid rgba(255,255,255,0.08)',
                         }),
                       }}
@@ -678,9 +650,7 @@ Kurallar:
         <Box
           p="sm"
           style={{
-            borderTop: isDark
-              ? '1px solid rgba(255,255,255,0.08)'
-              : '1px solid var(--mantine-color-gray-3)',
+            borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
             paddingBottom: 'env(safe-area-inset-bottom, 8px)',
             flexShrink: 0,
             background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
@@ -791,9 +761,7 @@ Kurallar:
               size="lg"
               color={godModeEnabled ? 'red' : 'violet'}
               variant="gradient"
-              gradient={
-                godModeEnabled ? { from: 'red', to: 'orange' } : { from: 'violet', to: 'purple' }
-              }
+              gradient={godModeEnabled ? { from: 'red', to: 'orange' } : { from: 'violet', to: 'purple' }}
               style={{
                 boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.5)' : undefined,
                 transition: 'all 0.3s ease',
@@ -809,14 +777,8 @@ Kurallar:
               >
                 {godModeEnabled ? '🔥 GOD MODE AI' : '🤖 AI Agent'}
               </Text>
-              <Text
-                size="xs"
-                c={godModeEnabled ? 'orange' : 'dimmed'}
-                style={{ transition: 'color 0.3s' }}
-              >
-                {godModeEnabled
-                  ? 'Sınırsız yetki aktif - Dikkatli kullan!'
-                  : 'Tüm sisteme erişebilen akıllı asistan'}
+              <Text size="xs" c={godModeEnabled ? 'orange' : 'dimmed'} style={{ transition: 'color 0.3s' }}>
+                {godModeEnabled ? 'Sınırsız yetki aktif - Dikkatli kullan!' : 'Tüm sisteme erişebilen akıllı asistan'}
               </Text>
             </div>
           </Group>
@@ -825,11 +787,7 @@ Kurallar:
             {/* God Mode + Şablon: aynı yükseklik ve stil */}
             {isSuperAdmin && (
               <Tooltip
-                label={
-                  godModeEnabled
-                    ? 'God Mode Aktif - Sınırsız yetki!'
-                    : 'God Mode - Tüm sisteme tam erişim'
-                }
+                label={godModeEnabled ? 'God Mode Aktif - Sınırsız yetki!' : 'God Mode - Tüm sisteme tam erişim'}
                 position="bottom"
               >
                 <UnstyledButton
@@ -844,9 +802,7 @@ Kurallar:
                     background: godModeEnabled
                       ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)'
                       : 'var(--mantine-color-gray-0)',
-                    border: godModeEnabled
-                      ? '2px solid #ff4757'
-                      : '1px solid var(--mantine-color-gray-3)',
+                    border: godModeEnabled ? '2px solid #ff4757' : '1px solid var(--mantine-color-gray-3)',
                     transition: 'all 0.3s',
                     boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.4)' : 'none',
                   }}
@@ -954,21 +910,14 @@ Kurallar:
                             <Text size="xl">{t.icon}</Text>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="sm" fw={500}>
-                                {t.name.replace(
-                                  /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
-                                  ''
-                                )}
+                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
                               </Text>
                               <Text size="xs" c="dimmed" lineClamp={1}>
                                 {t.description}
                               </Text>
                             </div>
                             {selectedTemplate === t.slug && (
-                              <ThemeIcon
-                                size="sm"
-                                radius="xl"
-                                color={categoryColors[category] || 'violet'}
-                              >
+                              <ThemeIcon size="sm" radius="xl" color={categoryColors[category] || 'violet'}>
                                 <IconCheck size={12} />
                               </ThemeIcon>
                             )}
@@ -1006,10 +955,7 @@ Kurallar:
               <Text size="lg">{currentTemplate.icon}</Text>
               <div>
                 <Text size="sm" fw={500}>
-                  {currentTemplate.name.replace(
-                    /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
-                    ''
-                  )}
+                  {currentTemplate.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
                 </Text>
                 <Text size="xs" c="dimmed">
                   {currentTemplate.description}
@@ -1092,13 +1038,7 @@ Kurallar:
                           </Text>
                           <Group gap={4}>
                             {message.toolsUsed.map((tool) => (
-                              <Badge
-                                key={tool}
-                                size="sm"
-                                variant="dot"
-                                color="violet"
-                                leftSection={getToolIcon(tool)}
-                              >
+                              <Badge key={tool} size="sm" variant="dot" color="violet" leftSection={getToolIcon(tool)}>
                                 {getToolDisplayName(tool)}
                               </Badge>
                             ))}
@@ -1135,15 +1075,9 @@ Kurallar:
                               color="green"
                               onClick={() => {
                                 const userMsg = messages.find(
-                                  (m, idx) =>
-                                    m.type === 'user' && messages[idx + 1]?.id === message.id
+                                  (m, idx) => m.type === 'user' && messages[idx + 1]?.id === message.id
                                 );
-                                sendFeedback(
-                                  message.id,
-                                  userMsg?.content || '',
-                                  message.content,
-                                  true
-                                );
+                                sendFeedback(message.id, userMsg?.content || '', message.content, true);
                               }}
                             >
                               <IconThumbUp size={12} />
@@ -1156,15 +1090,9 @@ Kurallar:
                               color="red"
                               onClick={() => {
                                 const userMsg = messages.find(
-                                  (m, idx) =>
-                                    m.type === 'user' && messages[idx + 1]?.id === message.id
+                                  (m, idx) => m.type === 'user' && messages[idx + 1]?.id === message.id
                                 );
-                                sendFeedback(
-                                  message.id,
-                                  userMsg?.content || '',
-                                  message.content,
-                                  false
-                                );
+                                sendFeedback(message.id, userMsg?.content || '', message.content, false);
                               }}
                             >
                               <IconThumbDown size={12} />
@@ -1175,12 +1103,7 @@ Kurallar:
 
                       {/* Feedback verildi göstergesi */}
                       {message.type === 'ai' && feedbackGiven.has(message.id) && (
-                        <Badge
-                          size="xs"
-                          variant="light"
-                          color="gray"
-                          leftSection={<IconCheck size={10} />}
-                        >
+                        <Badge size="xs" variant="light" color="gray" leftSection={<IconCheck size={10} />}>
                           Geri bildirim verildi
                         </Badge>
                       )}
@@ -1231,11 +1154,7 @@ Kurallar:
             size="md"
             rightSection={
               inputValue.trim() && !isLoading ? (
-                <Tooltip
-                  label={isEnhancing ? 'Zenginlestiriliyor...' : "Prompt'u iyilestir"}
-                  withArrow
-                  position="top"
-                >
+                <Tooltip label={isEnhancing ? 'Zenginlestiriliyor...' : "Prompt'u iyilestir"} withArrow position="top">
                   <ActionIcon
                     size={28}
                     radius="xl"

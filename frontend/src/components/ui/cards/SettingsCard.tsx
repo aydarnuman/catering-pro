@@ -22,14 +22,7 @@ export interface SettingsCardProps {
  * Dribbble Dark UI tarzı ayarlar kartı.
  * Başlık + opsiyonel sağ aksiyon + bölüm içeriği.
  */
-export function SettingsCard({
-  title,
-  description,
-  rightAction,
-  icon,
-  children,
-  hover = false,
-}: SettingsCardProps) {
+export function SettingsCard({ title, description, rightAction, icon, children, hover = false }: SettingsCardProps) {
   return (
     <Paper
       p="lg"

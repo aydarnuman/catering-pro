@@ -7,17 +7,7 @@
  * Durum badge'i, son guncelleme, border renklendirme ve calistir butonu icerir.
  */
 
-import {
-  Badge,
-  Button,
-  Card,
-  Group,
-  Loader,
-  Progress,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Button, Card, Group, Loader, Progress, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import {
   IconBrain,
   IconBuilding,
@@ -63,14 +53,7 @@ interface ModulKartiProps {
   animationDelay?: number;
 }
 
-export function ModulKarti({
-  meta,
-  durum,
-  onCalistir,
-  onDetayAc,
-  secili,
-  animationDelay = 0,
-}: ModulKartiProps) {
+export function ModulKarti({ meta, durum, onCalistir, onDetayAc, secili, animationDelay = 0 }: ModulKartiProps) {
   const calisiyor = durum.durum === 'calisiyor';
   const tamamlandi = durum.durum === 'tamamlandi';
 
@@ -161,21 +144,11 @@ export function ModulKarti({
           )}
         </Text>
 
-        <Tooltip
-          label={
-            calisiyor
-              ? 'Calisiyor, bekleyin...'
-              : durum.son_guncelleme
-                ? 'Yeniden calistir'
-                : 'Baslat'
-          }
-        >
+        <Tooltip label={calisiyor ? 'Calisiyor, bekleyin...' : durum.son_guncelleme ? 'Yeniden calistir' : 'Baslat'}>
           <Button
             size="compact-xs"
             loading={calisiyor}
-            leftSection={
-              durum.son_guncelleme ? <IconRefresh size={12} /> : <IconPlayerPlay size={12} />
-            }
+            leftSection={durum.son_guncelleme ? <IconRefresh size={12} /> : <IconPlayerPlay size={12} />}
             onClick={(e) => {
               e.stopPropagation();
               if (!calisiyor) onCalistir();

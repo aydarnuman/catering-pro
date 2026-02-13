@@ -1,6 +1,7 @@
 /**
  * Attachments Routes
- * Handles file attachments for notes
+ * Handles file attachments for notes using Supabase Storage.
+ * Falls back to local disk if Supabase Storage is unavailable.
  */
 
 import fs from 'node:fs';
@@ -9,25 +10,25 @@ import express from 'express';
 import multer from 'multer';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
+import supabase from '../../supabase.js';
+import logger from '../../utils/logger.js';
 
 const router = express.Router();
-
-// Apply auth middleware
 router.use(authenticate);
 
-// Configure upload directory
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'notes');
+// ── Storage config ──
+const BUCKET = 'note-attachments';
+const LOCAL_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'notes');
 
-// Ensure upload directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Ensure local upload directory exists (fallback)
+if (!fs.existsSync(LOCAL_UPLOAD_DIR)) {
+  fs.mkdirSync(LOCAL_UPLOAD_DIR, { recursive: true });
 }
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
+// Use memory storage for Supabase, disk for fallback
+const memoryStorage = multer.memoryStorage();
+const diskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, LOCAL_UPLOAD_DIR),
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
@@ -35,7 +36,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter
 const fileFilter = (_req, file, cb) => {
   const allowedMimes = [
     'image/jpeg',
@@ -50,21 +50,29 @@ const fileFilter = (_req, file, cb) => {
     'text/plain',
     'text/csv',
   ];
-
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Desteklenmeyen dosya tipi'), false);
-  }
+  cb(null, allowedMimes.includes(file.mimetype));
 };
 
-// Configure multer
+/**
+ * Check if Supabase Storage is available
+ */
+function getStorageClient() {
+  try {
+    if (supabase?.storage) return supabase.storage;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+// Determine storage mode
+const storageClient = getStorageClient();
+const useSupabase = !!storageClient;
+
 const upload = multer({
-  storage,
+  storage: useSupabase ? memoryStorage : diskStorage,
   fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
 /**
@@ -77,16 +85,41 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
     const { noteId } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Dosya yüklenmedi' });
+      return res.status(400).json({ success: false, message: 'Dosya yuklenmedi' });
     }
 
     // Verify note ownership
-    const noteCheck = await pool.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [noteId, userId]);
+    const noteCheck = await pool.query('SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2', [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
-      // Delete uploaded file
-      fs.unlinkSync(req.file.path);
-      return res.status(404).json({ success: false, message: 'Not bulunamadı' });
+      return res.status(404).json({ success: false, message: 'Not bulunamadi' });
+    }
+
+    let storedFilename;
+    let filePath;
+
+    if (useSupabase && req.file.buffer) {
+      // Upload to Supabase Storage
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const ext = path.extname(req.file.originalname);
+      storedFilename = `${userId}/${noteId}/note-${uniqueSuffix}${ext}`;
+
+      const storage = getStorageClient();
+      const { error: uploadError } = await storage.from(BUCKET).upload(storedFilename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false,
+      });
+
+      if (uploadError) {
+        logger.error('Supabase storage upload error', { error: uploadError.message });
+        return res.status(500).json({ success: false, message: 'Dosya yuklenirken hata olustu' });
+      }
+
+      filePath = `supabase://${BUCKET}/${storedFilename}`;
+    } else {
+      // Local disk fallback
+      storedFilename = req.file.filename;
+      filePath = req.file.path;
     }
 
     // Save attachment record
@@ -96,7 +129,7 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
-      [noteId, userId, req.file.filename, req.file.originalname, req.file.path, req.file.size, req.file.mimetype]
+      [noteId, userId, storedFilename, req.file.originalname, filePath, req.file.size, req.file.mimetype]
     );
 
     res.status(201).json({
@@ -108,27 +141,27 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
         file_type: result.rows[0].file_type,
         file_size: result.rows[0].file_size,
       },
-      message: 'Dosya yüklendi',
+      message: 'Dosya yuklendi',
     });
-  } catch (_error) {
-    // Clean up uploaded file on error
-    if (req.file && fs.existsSync(req.file.path)) {
+  } catch (error) {
+    logger.error('Attachment upload error', { error: error.message, stack: error.stack });
+    // Clean up local file on error
+    if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ success: false, message: 'Dosya yüklenirken hata oluştu' });
+    res.status(500).json({ success: false, message: 'Dosya yuklenirken hata olustu' });
   }
 });
 
 /**
  * GET /api/notes/attachments/:id/download
- * Download an attachment
+ * Download an attachment (supports both Supabase and local storage)
  */
 router.get('/:id/download', async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
 
-    // Get attachment with ownership check
     const result = await pool.query(
       `SELECT a.*, n.user_id as note_owner_id
        FROM unified_note_attachments a
@@ -138,30 +171,49 @@ router.get('/:id/download', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Dosya bulunamadı' });
+      return res.status(404).json({ success: false, message: 'Dosya bulunamadi' });
     }
 
     const attachment = result.rows[0];
 
-    // Check ownership
     if (attachment.note_owner_id !== userId) {
-      return res.status(403).json({ success: false, message: 'Bu dosyaya erişim izniniz yok' });
+      return res.status(403).json({ success: false, message: 'Bu dosyaya erisim izniniz yok' });
     }
 
-    // Check if file exists
+    // Supabase Storage path
+    if (attachment.file_path?.startsWith('supabase://')) {
+      const storagePath = attachment.file_path.replace(`supabase://${BUCKET}/`, '');
+      const storage = getStorageClient();
+
+      if (!storage) {
+        return res.status(500).json({ success: false, message: 'Storage servisi kulanilamiyor' });
+      }
+
+      const { data, error } = await storage.from(BUCKET).download(storagePath);
+      if (error || !data) {
+        return res.status(404).json({ success: false, message: 'Dosya bulunamadi' });
+      }
+
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_filename}"`);
+      res.setHeader('Content-Type', attachment.file_type || 'application/octet-stream');
+
+      const buffer = Buffer.from(await data.arrayBuffer());
+      res.send(buffer);
+      return;
+    }
+
+    // Local disk fallback
     if (!fs.existsSync(attachment.file_path)) {
-      return res.status(404).json({ success: false, message: 'Dosya bulunamadı' });
+      return res.status(404).json({ success: false, message: 'Dosya bulunamadi' });
     }
 
-    // Set headers for download
     res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_filename}"`);
     res.setHeader('Content-Type', attachment.file_type || 'application/octet-stream');
-
-    // Stream file
     const fileStream = fs.createReadStream(attachment.file_path);
     fileStream.pipe(res);
-  } catch (_error) {
-    res.status(500).json({ success: false, message: 'Dosya indirilirken hata oluştu' });
+  } catch (error) {
+    logger.error('Attachment download error', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, message: 'Dosya indirilirken hata olustu' });
   }
 });
 
@@ -174,7 +226,6 @@ router.delete('/:id', async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    // Get attachment with ownership check
     const result = await pool.query(
       `SELECT a.*, n.user_id as note_owner_id
        FROM unified_note_attachments a
@@ -184,27 +235,33 @@ router.delete('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Dosya bulunamadı' });
+      return res.status(404).json({ success: false, message: 'Dosya bulunamadi' });
     }
 
     const attachment = result.rows[0];
 
-    // Check ownership
     if (attachment.note_owner_id !== userId) {
-      return res.status(403).json({ success: false, message: 'Bu dosyayı silme izniniz yok' });
+      return res.status(403).json({ success: false, message: 'Bu dosyayi silme izniniz yok' });
     }
 
-    // Delete file from disk
-    if (fs.existsSync(attachment.file_path)) {
+    // Delete from storage
+    if (attachment.file_path?.startsWith('supabase://')) {
+      const storagePath = attachment.file_path.replace(`supabase://${BUCKET}/`, '');
+      const storage = getStorageClient();
+      if (storage) {
+        await storage.from(BUCKET).remove([storagePath]);
+      }
+    } else if (fs.existsSync(attachment.file_path)) {
       fs.unlinkSync(attachment.file_path);
     }
 
     // Delete from database
-    await pool.query(`DELETE FROM unified_note_attachments WHERE id = $1`, [id]);
+    await pool.query('DELETE FROM unified_note_attachments WHERE id = $1', [id]);
 
     res.json({ success: true, message: 'Dosya silindi' });
-  } catch (_error) {
-    res.status(500).json({ success: false, message: 'Dosya silinirken hata oluştu' });
+  } catch (error) {
+    logger.error('Attachment delete error', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, message: 'Dosya silinirken hata olustu' });
   }
 });
 
@@ -217,11 +274,10 @@ router.get('/note/:noteId', async (req, res) => {
     const userId = req.user.id;
     const { noteId } = req.params;
 
-    // Verify note ownership
-    const noteCheck = await pool.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [noteId, userId]);
+    const noteCheck = await pool.query('SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2', [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Not bulunamadı' });
+      return res.status(404).json({ success: false, message: 'Not bulunamadi' });
     }
 
     const result = await pool.query(
@@ -232,12 +288,10 @@ router.get('/note/:noteId', async (req, res) => {
       [noteId]
     );
 
-    res.json({
-      success: true,
-      attachments: result.rows,
-    });
-  } catch (_error) {
-    res.status(500).json({ success: false, message: 'Dosyalar yüklenirken hata oluştu' });
+    res.json({ success: true, attachments: result.rows });
+  } catch (error) {
+    logger.error('Attachment list error', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, message: 'Dosyalar yuklenirken hata olustu' });
   }
 });
 
@@ -245,7 +299,7 @@ router.get('/note/:noteId', async (req, res) => {
 router.use((error, _req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, message: "Dosya boyutu 10MB'ı geçemez" });
+      return res.status(400).json({ success: false, message: "Dosya boyutu 10MB'i gecemez" });
     }
     return res.status(400).json({ success: false, message: error.message });
   }

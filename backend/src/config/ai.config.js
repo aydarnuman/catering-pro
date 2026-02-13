@@ -145,7 +145,10 @@ function validateConfig() {
   // (dotenv yüklenmeden önce false positive verebilir)
 
   if (errors.length > 0) {
-    errors.forEach((_err) => {});
+    for (const err of errors) {
+      // biome-ignore lint/suspicious/noConsole: Config validation runs at startup before logger is available
+      console.error(`[AI Config] ${err}`);
+    }
 
     if (process.env.NODE_ENV === 'production') {
       throw new Error(`AI Config Validation Failed: ${errors.length} eksik alan`);
@@ -153,7 +156,10 @@ function validateConfig() {
   }
 
   // Log warnings but don't fail
-  warnings.forEach((_warn) => {});
+  for (const warn of warnings) {
+    // biome-ignore lint/suspicious/noConsole: Config validation runs at startup before logger is available
+    console.warn(`[AI Config] ${warn}`);
+  }
 }
 
 /**

@@ -198,12 +198,7 @@ export default function MuhasebeDashboard() {
                 Mali durumunuzun genel görünümü
               </Text>
             </Box>
-            <Badge
-              size="lg"
-              variant="light"
-              color="teal"
-              leftSection={<IconCalendarStats size={14} />}
-            >
+            <Badge size="lg" variant="light" color="teal" leftSection={<IconCalendarStats size={14} />}>
               Ocak 2026
             </Badge>
           </Group>
@@ -234,10 +229,7 @@ export default function MuhasebeDashboard() {
                       <IconArrowDownRight size={14} />
                     </ThemeIcon>
                   )}
-                  <Text
-                    size="sm"
-                    c={stat.trend === 'up' ? 'green' : stat.trend === 'down' ? 'red' : 'dimmed'}
-                  >
+                  <Text size="sm" c={stat.trend === 'up' ? 'green' : stat.trend === 'down' ? 'red' : 'dimmed'}>
                     {stat.change}
                   </Text>
                   <Text size="xs" c="dimmed">
@@ -366,9 +358,7 @@ export default function MuhasebeDashboard() {
                       height={isMobile ? 60 : 36}
                       wrapperStyle={{ fontSize: isMobile ? 11 : 14 }}
                       formatter={(value, entry: any) => (
-                        <span
-                          style={{ color: isDark ? '#ccc' : '#333', fontSize: isMobile ? 11 : 14 }}
-                        >
+                        <span style={{ color: isDark ? '#ccc' : '#333', fontSize: isMobile ? 11 : 14 }}>
                           {value} ({entry.payload.value}%)
                         </span>
                       )}

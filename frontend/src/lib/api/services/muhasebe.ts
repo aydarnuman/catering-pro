@@ -74,9 +74,7 @@ export const muhasebeAPI = {
    * Carileri listele (sayfalama destekli)
    * @param params - Filtreleme ve sayfalama parametreleri
    */
-  async getCariler(
-    params?: CariListParams
-  ): Promise<ApiResponse<Cari[]> | PaginatedResponse<Cari>> {
+  async getCariler(params?: CariListParams): Promise<ApiResponse<Cari[]> | PaginatedResponse<Cari>> {
     const response = await api.get('/api/cariler', { params });
     return response.data;
   },
@@ -116,10 +114,7 @@ export const muhasebeAPI = {
   /**
    * Cari hareketlerini getir
    */
-  async getCariHareketler(
-    cariId: number,
-    params?: CariHareketParams
-  ): Promise<ApiResponse<CariHareket[]>> {
+  async getCariHareketler(cariId: number, params?: CariHareketParams): Promise<ApiResponse<CariHareket[]>> {
     const response = await api.get(`/api/cariler/${cariId}/hareketler`, { params });
     return response.data;
   },
@@ -143,9 +138,7 @@ export const muhasebeAPI = {
   /**
    * Kasa-Banka hareketlerini listele
    */
-  async getKasaBankaHareketler(params?: {
-    limit?: number;
-  }): Promise<ApiResponse<KasaBankaHareket[]>> {
+  async getKasaBankaHareketler(params?: { limit?: number }): Promise<ApiResponse<KasaBankaHareket[]>> {
     const response = await api.get('/api/kasa-banka/hareketler', { params });
     return response.data;
   },
@@ -169,9 +162,7 @@ export const muhasebeAPI = {
   /**
    * Kasa-Banka hareket oluştur
    */
-  async createKasaBankaHareket(
-    hareket: Partial<KasaBankaHareket>
-  ): Promise<ApiResponse<KasaBankaHareket>> {
+  async createKasaBankaHareket(hareket: Partial<KasaBankaHareket>): Promise<ApiResponse<KasaBankaHareket>> {
     const response = await api.post('/api/kasa-banka/hareketler', hareket);
     return response.data;
   },
@@ -179,10 +170,7 @@ export const muhasebeAPI = {
   /**
    * Kasa-Banka hesap güncelle
    */
-  async updateKasaBankaHesap(
-    id: number,
-    hesap: Partial<KasaBankaHesap>
-  ): Promise<ApiResponse<KasaBankaHesap>> {
+  async updateKasaBankaHesap(id: number, hesap: Partial<KasaBankaHesap>): Promise<ApiResponse<KasaBankaHesap>> {
     const response = await api.put(`/api/kasa-banka/hesaplar/${id}`, hesap);
     return response.data;
   },
@@ -228,9 +216,7 @@ export const muhasebeAPI = {
   /**
    * Çek/Senet oluştur
    */
-  async createCekSenet(
-    data: Omit<CekSenet, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<ApiResponse<CekSenet>> {
+  async createCekSenet(data: Omit<CekSenet, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<CekSenet>> {
     const response = await api.post('/api/kasa-banka/cek-senet', data);
     return response.data;
   },
@@ -246,10 +232,7 @@ export const muhasebeAPI = {
   /**
    * Çek/Senet tahsil et
    */
-  async tahsilCekSenet(
-    id: number,
-    data: { hesap_id: number; tarih?: string }
-  ): Promise<ApiResponse<any>> {
+  async tahsilCekSenet(id: number, data: { hesap_id: number; tarih?: string }): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/kasa-banka/cek-senet/${id}/tahsil`, data);
     return response.data;
   },
@@ -257,10 +240,7 @@ export const muhasebeAPI = {
   /**
    * Çek/Senet ciro et
    */
-  async ciroCekSenet(
-    id: number,
-    data: { ciro_cari_id: number; ciro_tarihi?: string }
-  ): Promise<ApiResponse<any>> {
+  async ciroCekSenet(id: number, data: { ciro_cari_id: number; ciro_tarihi?: string }): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/kasa-banka/cek-senet/${id}/ciro`, data);
     return response.data;
   },
@@ -298,9 +278,7 @@ export const muhasebeAPI = {
   /**
    * Proje hareketi oluştur
    */
-  async createProjeHareket(
-    data: Omit<ProjeHareket, 'id' | 'created_at'>
-  ): Promise<ApiResponse<ProjeHareket>> {
+  async createProjeHareket(data: Omit<ProjeHareket, 'id' | 'created_at'>): Promise<ApiResponse<ProjeHareket>> {
     const response = await api.post('/api/proje-hareketler', data);
     return response.data;
   },
@@ -328,11 +306,7 @@ export const muhasebeAPI = {
   /**
    * Mutabakat ekstre
    */
-  async getMutabakatEkstre(
-    cariId: number,
-    baslangic: string,
-    bitis: string
-  ): Promise<ApiResponse<any>> {
+  async getMutabakatEkstre(cariId: number, baslangic: string, bitis: string): Promise<ApiResponse<any>> {
     const response = await api.get(`/api/mutabakat/ekstre/${cariId}`, {
       params: { baslangic, bitis },
     });

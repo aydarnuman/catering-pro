@@ -227,8 +227,7 @@ export function YukleniciModal({
     ...new Set(
       rawVeriKaynaklari.map((vk: unknown) => {
         if (typeof vk === 'string') return vk;
-        if (typeof vk === 'object' && vk !== null && 'kaynak' in vk)
-          return String((vk as { kaynak: string }).kaynak);
+        if (typeof vk === 'object' && vk !== null && 'kaynak' in vk) return String((vk as { kaynak: string }).kaynak);
         return String(vk);
       })
     ),
@@ -271,12 +270,7 @@ export function YukleniciModal({
             </Avatar>
             <div>
               <Group gap="xs">
-                <Text
-                  fw={700}
-                  size="xl"
-                  id="yuklenici-modal-title"
-                  style={{ color: 'var(--yk-text-primary)' }}
-                >
+                <Text fw={700} size="xl" id="yuklenici-modal-title" style={{ color: 'var(--yk-text-primary)' }}>
                   {firmaAdi}
                 </Text>
                 {yk.istihbarat_takibi && (
@@ -360,11 +354,7 @@ export function YukleniciModal({
         {/* ─── Stats Row — Premium gold stat cards ─── */}
         <Group grow mt="sm">
           <Card p="xs" radius="md" className="yk-stat-card">
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Katildigi
             </Text>
             <Text fw={700} size="lg" style={{ color: 'var(--yk-text-primary)' }}>
@@ -372,11 +362,7 @@ export function YukleniciModal({
             </Text>
           </Card>
           <Card p="xs" radius="md" className="yk-stat-card">
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Kazanma
             </Text>
             <Text fw={700} size="lg" c="green">
@@ -384,11 +370,7 @@ export function YukleniciModal({
             </Text>
           </Card>
           <Card p="xs" radius="md" className="yk-stat-card">
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Toplam Sozlesme
             </Text>
             <Text fw={700} size="lg" style={{ color: 'var(--yk-gold)' }}>
@@ -396,11 +378,7 @@ export function YukleniciModal({
             </Text>
           </Card>
           <Card p="xs" radius="md" className="yk-stat-card">
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Ort. Indirim
             </Text>
             <Text fw={700} size="lg" c="teal">
@@ -408,11 +386,7 @@ export function YukleniciModal({
             </Text>
           </Card>
           <Card p="xs" radius="md" className="yk-stat-card">
-            <Text
-              size="xs"
-              c="dimmed"
-              style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}
-            >
+            <Text size="xs" c="dimmed" style={{ letterSpacing: '0.03em', textTransform: 'uppercase', fontSize: 10 }}>
               Devam Eden
             </Text>
             <Text
@@ -484,8 +458,7 @@ export function YukleniciModal({
                   radius="md"
                   p="sm"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(201, 168, 76, 0.06) 0%, rgba(201, 168, 76, 0.02) 100%)',
+                    background: 'linear-gradient(135deg, rgba(201, 168, 76, 0.06) 0%, rgba(201, 168, 76, 0.02) 100%)',
                     border: '1px solid var(--yk-border)',
                   }}
                 >
@@ -517,10 +490,7 @@ export function YukleniciModal({
                       Yenile
                     </Button>
                   </Group>
-                  <Text
-                    size="sm"
-                    style={{ whiteSpace: 'pre-line', color: 'var(--yk-text-primary)' }}
-                  >
+                  <Text size="sm" style={{ whiteSpace: 'pre-line', color: 'var(--yk-text-primary)' }}>
                     {aiOzet}
                   </Text>
                 </Card>
@@ -567,11 +537,7 @@ export function YukleniciModal({
                     >
                       <IconTrophy size={12} />
                     </ThemeIcon>
-                    <Text
-                      size="sm"
-                      fw={600}
-                      style={{ color: 'var(--yk-gold)', letterSpacing: '0.02em' }}
-                    >
+                    <Text size="sm" fw={600} style={{ color: 'var(--yk-gold)', letterSpacing: '0.02em' }}>
                       Son Kazanilan Ihaleler
                     </Text>
                     <Badge size="xs" className="yk-badge-gold">
@@ -634,9 +600,7 @@ export function YukleniciModal({
                             )}
                             {(ihale.sozlesme_tarihi || ihale.tender_date) && (
                               <Text size="xs" c="dimmed">
-                                {new Date(
-                                  ihale.sozlesme_tarihi || ihale.tender_date
-                                ).toLocaleDateString('tr-TR')}
+                                {new Date(ihale.sozlesme_tarihi || ihale.tender_date).toLocaleDateString('tr-TR')}
                               </Text>
                             )}
                           </div>

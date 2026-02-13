@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../database.js';
+import { donusumCarpaniAl } from '../utils/birim-donusum.js';
 import { fiyatFarkiHesapla, hesaplaMalzemeMaliyet } from '../utils/fiyat-hesaplama.js';
 
 const router = express.Router();
@@ -898,23 +899,19 @@ router.get('/receteler', async (req, res) => {
         r.kalori,
         r.protein,
         r.porsiyon_miktar,
-        -- Piyasa maliyet hesaplama
+        -- Piyasa maliyet hesaplama (birim_donusumleri tablosu ile)
         (SELECT COALESCE(SUM(
-          CASE
-            WHEN rm.birim IN ('g', 'gr', 'ml') THEN (rm.miktar / 1000.0) * COALESCE(
-              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              uk.son_alis_fiyati,
-              rm.birim_fiyat
-            )
-            ELSE rm.miktar * COALESCE(
-              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              uk.son_alis_fiyati,
-              rm.birim_fiyat
-            )
-          END
+          rm.miktar * COALESCE(bd.carpan, CASE WHEN rm.birim IN ('g', 'gr', 'ml') THEN 0.001 ELSE 1 END) * COALESCE(
+            (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
+            uk.son_alis_fiyati,
+            rm.birim_fiyat
+          )
         ), 0)
         FROM recete_malzemeler rm
         LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+        LEFT JOIN birim_eslestirme be ON be.varyasyon = rm.birim
+        LEFT JOIN birim_donusumleri bd ON bd.kaynak_birim = COALESCE(be.standart, LOWER(rm.birim)) 
+          AND bd.hedef_birim = COALESCE(LOWER(uk.birim), 'kg')
         WHERE rm.recete_id = r.id) as piyasa_maliyet,
         -- Fatura güncellik kontrolü (30 gün)
         (SELECT MIN(fiyat_guncel_mi(COALESCE(rm.fatura_fiyat_tarihi, uk.son_alis_tarihi), 30))::boolean
@@ -1027,6 +1024,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         rm.birim_fiyat as sistem_birim_fiyat,
         rm.toplam_fiyat as sistem_toplam,
         rm.fiyat_kaynagi,
+        uk.birim as urun_birim,
         uk.son_alis_fiyati,
         (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
          WHERE urun_kart_id = rm.urun_kart_id 
@@ -1054,14 +1052,16 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
     let toplamSistem = 0;
     let toplamPiyasa = 0;
 
-    const malzemeler = malzemelerResult.rows.map((m) => {
+    const malzemeler = [];
+    for (const m of malzemelerResult.rows) {
       const miktar = parseFloat(m.miktar) || 0;
       const birim = (m.birim || '').toLowerCase();
+      const urunBirim = (m.urun_birim || 'kg').toLowerCase();
       const sistemFiyat = parseFloat(m.sistem_birim_fiyat) || parseFloat(m.son_alis_fiyati) || 0;
       const piyasaFiyat = parseFloat(m.piyasa_fiyat) || sistemFiyat;
 
-      // Birim dönüşümü (g, gr, gram, ml -> kg, L)
-      const carpan = ['g', 'gr', 'gram', 'ml'].includes(birim) ? 0.001 : 1;
+      // Birim dönüşümü: birim_donusumleri tablosundan (malzeme birimi → ürün fiyat birimi)
+      const carpan = await donusumCarpaniAl(birim, urunBirim);
 
       // DB'deki toplam_fiyat varsa onu kullan (trigger/hesaplaReceteMaliyet tarafından hesaplandı)
       const sistemToplam = parseFloat(m.sistem_toplam) || miktar * carpan * sistemFiyat;
@@ -1070,7 +1070,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
       toplamSistem += sistemToplam;
       toplamPiyasa += piyasaToplam;
 
-      return {
+      malzemeler.push({
         id: m.id,
         malzeme_adi: m.malzeme_adi,
         miktar: m.miktar,
@@ -1083,8 +1083,8 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         fiyat_kaynagi: m.fiyat_kaynagi || null,
         varyant_kaynak_adi: m.varyant_kaynak_adi || null,
         varyant_sayisi: Number(m.varyant_sayisi) || 0,
-      };
-    });
+      });
+    }
 
     res.json({
       success: true,

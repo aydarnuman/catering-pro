@@ -3,6 +3,120 @@
  * Uygulamaya özgü domain model tipleri
  */
 
+// ============================================
+// PROJE
+// ============================================
+
+/** Proje - Tüm modüllerde ortak kullanılan proje tipi */
+export interface Proje {
+  id: number;
+  kod?: string;
+  ad: string;
+  aciklama?: string;
+  firma_id?: number;
+  firma_unvani?: string;
+  // İşveren / Lokasyon
+  musteri?: string;
+  kurum?: string;
+  lokasyon?: string;
+  adres?: string;
+  il?: string;
+  ilce?: string;
+  // Sözleşme
+  sozlesme_no?: string;
+  sozlesme_tarihi?: string;
+  sozlesme_bitis_tarihi?: string;
+  sozlesme_bedeli?: number;
+  teminat_tutari?: number;
+  teminat_mektubu_tutari?: number;
+  teminat_iade_tarihi?: string;
+  // Kapasite
+  gunluk_kisi_sayisi?: number;
+  ogun_sayisi?: number;
+  toplam_ogun?: number;
+  gunluk_maliyet_hedef?: number;
+  // Fatura
+  fatura_unvani?: string;
+  fatura_vergi_no?: string;
+  fatura_vergi_dairesi?: string;
+  fatura_adresi?: string;
+  fatura_kesim_gunu?: number;
+  kdv_orani?: number;
+  // Hakediş
+  hakedis_tipi?: string;
+  aylik_hakedis?: number;
+  hakedis_gun?: number;
+  hakedis_kesinti_orani?: number;
+  // Yetkili
+  yetkili?: string;
+  yetkili_unvan?: string;
+  telefon?: string;
+  email?: string;
+  // Meta
+  proje_tipi?: string;
+  kategori?: string;
+  renk?: string;
+  durum?: string;
+  aktif?: boolean;
+  butce?: number;
+  baslangic_tarihi?: string;
+  bitis_tarihi?: string;
+  notlar?: string;
+  // Hesaplanan alanlar
+  personel_sayisi?: number;
+  toplam_maas?: number;
+  siparis_sayisi?: number;
+  toplam_harcama?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ============================================
+// PERSONEL
+// ============================================
+
+/** Personel - Tüm modüllerde ortak kullanılan personel tipi */
+export interface Personel {
+  id: number;
+  ad: string;
+  soyad: string;
+  sicil_no?: string | null;
+  tc_no?: string;
+  tc_kimlik?: string;
+  telefon?: string | null;
+  email?: string | null;
+  proje_id?: number;
+  proje_adi?: string;
+  gorev?: string;
+  departman?: string | null;
+  pozisyon?: string | null;
+  maas?: number;
+  bordro_maas?: number;
+  ise_giris_tarihi?: string;
+  giris_tarihi?: string;
+  cikis_tarihi?: string;
+  durum?: string;
+  aktif?: boolean;
+  sgk_no?: string;
+  iban?: string;
+  adres?: string;
+  dogum_tarihi?: string;
+  cinsiyet?: string;
+  kan_grubu?: string;
+  medeni_durum?: string;
+  cocuk_sayisi?: number;
+  acil_kisi?: string;
+  acil_telefon?: string;
+  created_at?: string;
+  updated_at?: string;
+  // biome-ignore lint/suspicious/noExplicitAny: Backend API'den gelen dinamik alanlar için gerekli
+  [key: string]: any;
+}
+
+// ============================================
+// DOMAIN TYPES
+// ============================================
+
 // CekSenet - Çek ve Senet yönetimi
 export interface CekSenet {
   id?: number;

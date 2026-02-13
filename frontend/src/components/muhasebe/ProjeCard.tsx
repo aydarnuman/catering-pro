@@ -1,24 +1,7 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Group,
-  Loader,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconBuilding,
-  IconChartBar,
-  IconSettings,
-  IconShoppingCart,
-  IconUsers,
-} from '@tabler/icons-react';
+import { Badge, Button, Group, Loader, Paper, SimpleGrid, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconBuilding, IconChartBar, IconSettings, IconShoppingCart, IconUsers } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
@@ -146,19 +129,13 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
       radius="md"
       className="standard-card"
       style={{
-        background:
-          'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, var(--surface-elevated, var(--card)) 100%)',
+        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, var(--surface-elevated, var(--card)) 100%)',
       }}
     >
       {/* Header */}
       <Group justify="space-between" mb="md">
         <Group gap="sm">
-          <ThemeIcon
-            size="lg"
-            radius="md"
-            variant="gradient"
-            gradient={{ from: 'indigo', to: 'violet' }}
-          >
+          <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
             <IconBuilding size={20} />
           </ThemeIcon>
           <div>
@@ -270,8 +247,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
             {formatCurrency(ozet.finans.bu_ay_net)}
           </Text>
           <Text size="xs" c="dimmed">
-            Gelir: {formatCurrency(ozet.finans.bu_ay_gelir)} | Gider:{' '}
-            {formatCurrency(ozet.finans.bu_ay_gider)}
+            Gelir: {formatCurrency(ozet.finans.bu_ay_gelir)} | Gider: {formatCurrency(ozet.finans.bu_ay_gider)}
           </Text>
         </Paper>
       </SimpleGrid>

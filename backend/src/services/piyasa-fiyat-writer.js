@@ -196,7 +196,7 @@ export async function savePiyasaFiyatlar({
       `DELETE FROM piyasa_fiyat_gecmisi 
        WHERE urun_kart_id = $1 AND arastirma_tarihi::date = CURRENT_DATE`,
       [urunKartId]
-    ).catch(() => {});
+    ).catch((err) => logger.warn('[PiyasaFiyatWriter] DB yazma hatasi', { error: err.message }));
   }
 
   let savedCount = 0;
@@ -263,7 +263,9 @@ export async function refreshOzet(urunKartId) {
     ]).catch(() => ({ rows: [] }));
 
     if (parentCheck.rows[0]?.ana_urun_id) {
-      await query('SELECT refresh_parent_fiyat_ozet($1)', [parentCheck.rows[0].ana_urun_id]).catch(() => {});
+      await query('SELECT refresh_parent_fiyat_ozet($1)', [parentCheck.rows[0].ana_urun_id]).catch((err) =>
+        logger.warn('[PiyasaFiyatWriter] DB yazma hatasi', { error: err.message })
+      );
     }
   } catch (err) {
     logger.debug('[PiyasaWriter] Özet güncelleme hatası', { urunKartId, error: err.message });

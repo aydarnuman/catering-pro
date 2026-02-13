@@ -1,4 +1,5 @@
 import { query } from '../database.js';
+import { donusumCarpaniAl } from '../utils/birim-donusum.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -18,6 +19,7 @@ async function hesaplaReceteMaliyet(receteId) {
         urk.son_alis_fiyati as urun_son_alis,
         urk.varsayilan_birim as urun_birim,
         urk.fiyat_birimi as urun_fiyat_birimi,
+        urk.birim as urun_standart_birim,
         urk.ana_urun_id as urun_ana_urun_id,
         -- Piyasa fiyatı: önce özet tablodan (IQR temizli), yoksa eski yöntem
         COALESCE(
@@ -55,9 +57,10 @@ async function hesaplaReceteMaliyet(receteId) {
         Number(m.varyant_fiyat) ||
         0;
 
-      // Birim dönüşümü: küçük birim (g/gr/ml) ise 0.001, değilse 1
+      // Birim dönüşümü: birim_donusumleri tablosundan (malzeme birimi → ürün fiyat birimi)
       const malzemeBirimi = (m.birim || '').toLowerCase();
-      const carpan = ['g', 'gr', 'gram', 'ml'].includes(malzemeBirimi) ? 0.001 : 1;
+      const fiyatBirimi = (m.urun_standart_birim || m.urun_fiyat_birimi || 'kg').toLowerCase();
+      const carpan = await donusumCarpaniAl(malzemeBirimi, fiyatBirimi);
       const maliyet = m.miktar * carpan * birimFiyat;
 
       // Fiyat kaynağı belirleme (aktif_fiyat_tipi varsa onu kullan)

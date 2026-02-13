@@ -51,11 +51,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  type MessageStatus,
-  useWhatsAppSocket,
-  type WhatsAppMessage,
-} from '@/hooks/useWhatsAppSocket';
+import { type MessageStatus, useWhatsAppSocket, type WhatsAppMessage } from '@/hooks/useWhatsAppSocket';
 import { API_BASE_URL } from '@/lib/config';
 
 interface Chat {
@@ -222,9 +218,7 @@ export function WhatsAppWidget() {
     onMessageStatus: (status: MessageStatus) => {
       if (selectedChat?.id === status.chatId) {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === status.messageId ? { ...m, status: status.status as Message['status'] } : m
-          )
+          prev.map((m) => (m.id === status.messageId ? { ...m, status: status.status as Message['status'] } : m))
         );
       }
     },
@@ -297,13 +291,7 @@ export function WhatsAppWidget() {
         const data = await res.json();
         if (data.success && data.messages) {
           const formattedMessages: Message[] = data.messages.map(
-            (msg: {
-              id: string;
-              body?: string;
-              timestamp?: number;
-              fromMe?: boolean;
-              sender?: string | null;
-            }) => ({
+            (msg: { id: string; body?: string; timestamp?: number; fromMe?: boolean; sender?: string | null }) => ({
               id: msg.id,
               content: msg.body || '',
               timestamp: msg.timestamp
@@ -539,9 +527,7 @@ export function WhatsAppWidget() {
       if (data.success) {
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === tempId
-              ? { ...m, status: 'sent', content: type === 'image' ? '' : `📎 ${file.name}` }
-              : m
+            m.id === tempId ? { ...m, status: 'sent', content: type === 'image' ? '' : `📎 ${file.name}` } : m
           )
         );
         notifications.show({
@@ -581,9 +567,7 @@ export function WhatsAppWidget() {
     }
   };
 
-  const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter((chat) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredMessages = messageSearch
     ? messages.filter((m) => m.content.toLowerCase().includes(messageSearch.toLowerCase()))
     : messages;
@@ -593,14 +577,8 @@ export function WhatsAppWidget() {
   return (
     <>
       {/* Floating Button */}
-      <Tooltip
-        label={connected ? `WhatsApp (${totalUnread} okunmamış)` : 'WhatsApp'}
-        position="right"
-      >
-        <Box
-          onClick={toggle}
-          style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 1000, cursor: 'pointer' }}
-        >
+      <Tooltip label={connected ? `WhatsApp (${totalUnread} okunmamış)` : 'WhatsApp'} position="right">
+        <Box onClick={toggle} style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 1000, cursor: 'pointer' }}>
           <Indicator
             inline
             label={totalUnread > 0 ? totalUnread : undefined}
@@ -654,19 +632,13 @@ export function WhatsAppWidget() {
           <Box
             p="md"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(18,140,126,0.1) 100%)',
+              background: 'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(18,140,126,0.1) 100%)',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}
           >
             <Group justify="space-between">
               <Group gap="sm">
-                <ThemeIcon
-                  size={40}
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: '#25D366', to: '#128C7E' }}
-                >
+                <ThemeIcon size={40} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
                   <IconBrandWhatsapp size={22} />
                 </ThemeIcon>
                 <Box>
@@ -697,23 +669,12 @@ export function WhatsAppWidget() {
                   </Tooltip>
                 )}
                 <Tooltip label={expanded ? 'Küçült' : 'Genişlet'}>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="md"
-                    onClick={() => setExpanded(!expanded)}
-                  >
+                  <ActionIcon variant="subtle" color="gray" size="md" onClick={() => setExpanded(!expanded)}>
                     {expanded ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
                   </ActionIcon>
                 </Tooltip>
                 <Tooltip label="Tam Sayfa">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="md"
-                    component={Link}
-                    href="/sosyal-medya/whatsapp"
-                  >
+                  <ActionIcon variant="subtle" color="gray" size="md" component={Link} href="/sosyal-medya/whatsapp">
                     <IconMaximize size={16} />
                   </ActionIcon>
                 </Tooltip>
@@ -736,11 +697,7 @@ export function WhatsAppWidget() {
                 <>
                   <Box p="md" style={{ background: 'white', borderRadius: 16 }}>
                     {/* biome-ignore lint/performance/noImgElement: QR code data URL */}
-                    <img
-                      src={qrCode}
-                      alt="QR kod"
-                      style={{ width: 200, height: 200, borderRadius: 8 }}
-                    />
+                    <img src={qrCode} alt="QR kod" style={{ width: 200, height: 200, borderRadius: 8 }} />
                   </Box>
                   <Stack gap="xs" ta="center">
                     <Text c="gray.4" size="sm">
@@ -799,20 +756,10 @@ export function WhatsAppWidget() {
                       size={36}
                       style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}
                     >
-                      {selectedChat.isGroup ? (
-                        <IconUsers size={16} />
-                      ) : (
-                        selectedChat.name[0]?.toUpperCase()
-                      )}
+                      {selectedChat.isGroup ? <IconUsers size={16} /> : selectedChat.name[0]?.toUpperCase()}
                     </Avatar>
                     <Box>
-                      <Text
-                        fw={500}
-                        c="white"
-                        size="sm"
-                        truncate
-                        style={{ maxWidth: expanded ? 300 : 180 }}
-                      >
+                      <Text fw={500} c="white" size="sm" truncate style={{ maxWidth: expanded ? 300 : 180 }}>
                         {selectedChat.name}
                       </Text>
                       <Text size="xs" c={typingUser ? 'green' : 'gray.5'}>
@@ -891,12 +838,7 @@ export function WhatsAppWidget() {
                       >
                         <Box>
                           {selectedChat.isGroup && !msg.fromMe && msg.sender && (
-                            <Text
-                              size="xs"
-                              fw={500}
-                              mb={2}
-                              style={{ color: getUserColor(msg.sender.id) }}
-                            >
+                            <Text size="xs" fw={500} mb={2} style={{ color: getUserColor(msg.sender.id) }}>
                               {msg.sender.name}
                             </Text>
                           )}
@@ -928,11 +870,7 @@ export function WhatsAppWidget() {
                                 {msg.content}
                               </Highlight>
                             ) : (
-                              <Text
-                                size="xs"
-                                c={msg.fromMe ? 'white' : 'gray.2'}
-                                style={{ wordBreak: 'break-word' }}
-                              >
+                              <Text size="xs" c={msg.fromMe ? 'white' : 'gray.2'} style={{ wordBreak: 'break-word' }}>
                                 {msg.content}
                               </Text>
                             )}
@@ -1095,12 +1033,7 @@ export function WhatsAppWidget() {
 
                 {showArchived &&
                   archivedChats.map((chat) => (
-                    <ChatItem
-                      key={chat.id}
-                      chat={chat}
-                      onClick={() => handleSelectChat(chat)}
-                      selected={false}
-                    />
+                    <ChatItem key={chat.id} chat={chat} onClick={() => handleSelectChat(chat)} selected={false} />
                   ))}
 
                 {filteredChats.length === 0 ? (
@@ -1112,12 +1045,7 @@ export function WhatsAppWidget() {
                   </Stack>
                 ) : (
                   filteredChats.map((chat) => (
-                    <ChatItem
-                      key={chat.id}
-                      chat={chat}
-                      onClick={() => handleSelectChat(chat)}
-                      selected={false}
-                    />
+                    <ChatItem key={chat.id} chat={chat} onClick={() => handleSelectChat(chat)} selected={false} />
                   ))
                 )}
               </ScrollArea>
@@ -1164,15 +1092,7 @@ export function WhatsAppWidget() {
   );
 }
 
-function ChatItem({
-  chat,
-  onClick,
-  selected,
-}: {
-  chat: Chat;
-  onClick: () => void;
-  selected: boolean;
-}) {
+function ChatItem({ chat, onClick, selected }: { chat: Chat; onClick: () => void; selected: boolean }) {
   return (
     <Box
       px="sm"
@@ -1180,9 +1100,7 @@ function ChatItem({
       onClick={onClick}
       style={{
         cursor: 'pointer',
-        background: selected
-          ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
-          : 'transparent',
+        background: selected ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)' : 'transparent',
         borderLeft: selected ? '3px solid #25D366' : '3px solid transparent',
         borderBottom: '1px solid var(--surface-border-subtle)',
       }}

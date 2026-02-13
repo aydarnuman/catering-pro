@@ -30,9 +30,11 @@ import {
   IconScale,
   IconSettings,
   IconSparkles,
+  IconTable,
   IconToolsKitchen2,
   IconUsers,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
@@ -73,11 +75,7 @@ interface OzetTabPanelProps {
   correctionCount: number;
   isConfirmed: boolean;
   correctionSaving: boolean;
-  saveCorrection: (data: {
-    field_path: string;
-    old_value: unknown;
-    new_value: unknown;
-  }) => Promise<boolean>;
+  saveCorrection: (data: { field_path: string; old_value: unknown; new_value: unknown }) => Promise<boolean>;
   confirmAnalysis: () => Promise<boolean>;
   getCorrectionForField: (field: string) => unknown;
   // Actions
@@ -119,15 +117,7 @@ function filterEksikBilgiler(eksikBilgiler: string[], summary: AnalysisData): st
       },
     },
     {
-      keywords: [
-        'personel',
-        'aşçı',
-        'asci',
-        'diyetisyen',
-        'gıda mühendis',
-        'gida muhendis',
-        'personel detay',
-      ],
+      keywords: ['personel', 'aşçı', 'asci', 'diyetisyen', 'gıda mühendis', 'gida muhendis', 'personel detay'],
       check: () => {
         const p = summary.personel_detaylari;
         return !!(p && Array.isArray(p) && p.length > 0);
@@ -244,8 +234,7 @@ export function OzetTabPanel({
 
     // Operasyonel
     if (analysisSummary.takvim?.length) operasyonel++;
-    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0)
-      operasyonel++;
+    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) operasyonel++;
     if (analysisSummary.personel_detaylari?.length) operasyonel++;
     if (analysisSummary.ogun_bilgileri?.length) operasyonel++;
     if (analysisSummary.is_yerleri?.length) operasyonel++;
@@ -263,17 +252,9 @@ export function OzetTabPanel({
 
     // Mali & Hukuki
     if (analysisSummary.birim_fiyatlar?.length) mali++;
-    if (
-      analysisSummary.teminat_oranlari &&
-      Object.keys(analysisSummary.teminat_oranlari).length > 0
-    )
-      mali++;
-    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0)
-      mali++;
-    if (
-      analysisSummary.fiyat_farki &&
-      (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar)
-    )
+    if (analysisSummary.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0) mali++;
+    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0) mali++;
+    if (analysisSummary.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar))
       mali++;
     if (analysisSummary.ceza_kosullari?.length) mali++;
     if (analysisSummary.odeme_kosullari) mali++;
@@ -300,15 +281,14 @@ export function OzetTabPanel({
   const showCategory = (cat: CategoryTab) => activeCategory === 'tumu' || activeCategory === cat;
 
   // ─── Shared card render helpers ────────────────────────────────
-  const makeSaveHandler =
-    (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
-      await saveCorrection({
-        field_path: fieldPath,
-        old_value: oldValue,
-        new_value: newValue,
-      });
-      onRefreshData?.();
-    };
+  const makeSaveHandler = (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
+    await saveCorrection({
+      field_path: fieldPath,
+      old_value: oldValue,
+      new_value: newValue,
+    });
+    onRefreshData?.();
+  };
 
   return (
     <Stack gap="md" style={{ maxWidth: 820, margin: '0 auto', width: '100%' }}>
@@ -323,8 +303,7 @@ export function OzetTabPanel({
           withBorder
           radius="lg"
           style={{
-            background:
-              'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))',
             borderColor: 'var(--mantine-color-blue-5)',
           }}
         >
@@ -383,8 +362,7 @@ export function OzetTabPanel({
             withBorder
             radius="md"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
               borderColor: 'var(--mantine-color-blue-6)',
               cursor: (selectedTender.teknik_sart_sayisi || 0) > 0 ? 'pointer' : 'default',
             }}
@@ -411,8 +389,7 @@ export function OzetTabPanel({
             withBorder
             radius="md"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
+              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
               borderColor: 'var(--mantine-color-green-6)',
               cursor: (selectedTender.birim_fiyat_sayisi || 0) > 0 ? 'pointer' : 'default',
             }}
@@ -439,8 +416,7 @@ export function OzetTabPanel({
             withBorder
             radius="md"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
               borderColor: 'var(--mantine-color-violet-6)',
               cursor: analysisSummary?.tam_metin ? 'pointer' : 'default',
             }}
@@ -468,8 +444,7 @@ export function OzetTabPanel({
               withBorder
               radius="md"
               style={{
-                background:
-                  'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
+                background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
                 borderColor: '#C9A227',
                 cursor: 'pointer',
               }}
@@ -515,26 +490,15 @@ export function OzetTabPanel({
           {(analysisSummary.teslim_suresi || analysisSummary.tahmini_bedel) && (
             <Group gap="md" mt="xs">
               {analysisSummary.teslim_suresi && (
-                <Badge
-                  variant="outline"
-                  color="blue"
-                  size="sm"
-                  leftSection={<IconClock size={10} />}
-                >
+                <Badge variant="outline" color="blue" size="sm" leftSection={<IconClock size={10} />}>
                   {analysisSummary.teslim_suresi}
                 </Badge>
               )}
-              {analysisSummary.tahmini_bedel &&
-                analysisSummary.tahmini_bedel !== 'Belirtilmemiş' && (
-                  <Badge
-                    variant="outline"
-                    color="green"
-                    size="sm"
-                    leftSection={<IconCurrencyLira size={10} />}
-                  >
-                    {analysisSummary.tahmini_bedel}
-                  </Badge>
-                )}
+              {analysisSummary.tahmini_bedel && analysisSummary.tahmini_bedel !== 'Belirtilmemiş' && (
+                <Badge variant="outline" color="green" size="sm" leftSection={<IconCurrencyLira size={10} />}>
+                  {analysisSummary.tahmini_bedel}
+                </Badge>
+              )}
             </Group>
           )}
         </Paper>
@@ -564,24 +528,13 @@ export function OzetTabPanel({
                 {Number(analysisSummary.toplam_personel).toLocaleString('tr-TR')} personel
               </Badge>
             )}
-            {analysisSummary.gunluk_ogun_sayisi &&
-              analysisSummary.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
-                <Badge
-                  variant="light"
-                  color="orange"
-                  size="sm"
-                  leftSection={<IconToolsKitchen2 size={10} />}
-                >
-                  Günlük {Number(analysisSummary.gunluk_ogun_sayisi).toLocaleString('tr-TR')} öğün
-                </Badge>
-              )}
+            {analysisSummary.gunluk_ogun_sayisi && analysisSummary.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
+              <Badge variant="light" color="orange" size="sm" leftSection={<IconToolsKitchen2 size={10} />}>
+                Günlük {Number(analysisSummary.gunluk_ogun_sayisi).toLocaleString('tr-TR')} öğün
+              </Badge>
+            )}
             {analysisSummary.toplam_ogun_sayisi && (
-              <Badge
-                variant="light"
-                color="orange"
-                size="sm"
-                leftSection={<IconToolsKitchen2 size={10} />}
-              >
+              <Badge variant="light" color="orange" size="sm" leftSection={<IconToolsKitchen2 size={10} />}>
                 Toplam {Number(analysisSummary.toplam_ogun_sayisi).toLocaleString('tr-TR')} öğün
               </Badge>
             )}
@@ -641,23 +594,13 @@ export function OzetTabPanel({
           <Group justify="space-between">
             <Group gap="xs">
               {isConfirmed ? (
-                <Badge
-                  variant="filled"
-                  color="green"
-                  size="sm"
-                  leftSection={<IconCheck size={10} />}
-                >
+                <Badge variant="filled" color="green" size="sm" leftSection={<IconCheck size={10} />}>
                   Analiz Onaylandı
                 </Badge>
               ) : (
                 <>
                   {correctionCount > 0 && (
-                    <Badge
-                      variant="light"
-                      color="blue"
-                      size="sm"
-                      leftSection={<IconEdit size={10} />}
-                    >
+                    <Badge variant="light" color="blue" size="sm" leftSection={<IconEdit size={10} />}>
                       {correctionCount} düzeltme
                     </Badge>
                   )}
@@ -687,9 +630,7 @@ export function OzetTabPanel({
       )}
 
       {/* Hesaplama özeti */}
-      {(selectedTender.yaklasik_maliyet ||
-        selectedTender.sinir_deger ||
-        selectedTender.bizim_teklif) && (
+      {(selectedTender.yaklasik_maliyet || selectedTender.sinir_deger || selectedTender.bizim_teklif) && (
         <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
           <Text size="sm" fw={600} mb="xs">
             Hesaplama Özeti
@@ -721,6 +662,25 @@ export function OzetTabPanel({
             </Box>
           </SimpleGrid>
         </Paper>
+      )}
+
+      {/* Sanal Ihale Masasi — Bagimsiz Sayfa Linki */}
+      {isSaved && savedTender && hasAnalysis && (
+        <Button
+          component={Link}
+          href={`/ihale-merkezi/masa/${savedTender.tender_id}`}
+          variant="gradient"
+          gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
+          leftSection={<IconTable size={16} />}
+          fullWidth
+          size="md"
+          style={{
+            boxShadow: '0 2px 12px rgba(139, 92, 246, 0.2)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Sanal Ihale Masasi
+        </Button>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════ */}
@@ -796,16 +756,15 @@ export function OzetTabPanel({
           )}
 
           {/* Servis Saatleri */}
-          {analysisSummary?.servis_saatleri &&
-            Object.keys(analysisSummary.servis_saatleri).length > 0 && (
-              <ServisSaatleriCard
-                saatler={analysisSummary.servis_saatleri}
-                isEditing={editingCards.has('servis_saatleri')}
-                onToggleEdit={() => toggleCardEdit('servis_saatleri')}
-                onSave={makeSaveHandler('servis_saatleri')}
-                isCorrected={!!getCorrectionForField('servis_saatleri')}
-              />
-            )}
+          {analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0 && (
+            <ServisSaatleriCard
+              saatler={analysisSummary.servis_saatleri}
+              isEditing={editingCards.has('servis_saatleri')}
+              onToggleEdit={() => toggleCardEdit('servis_saatleri')}
+              onSave={makeSaveHandler('servis_saatleri')}
+              isCorrected={!!getCorrectionForField('servis_saatleri')}
+            />
+          )}
 
           {/* Personel Detayları */}
           {analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0 && (
@@ -863,28 +822,26 @@ export function OzetTabPanel({
           )}
 
           {/* Teminat Oranları */}
-          {analysisSummary?.teminat_oranlari &&
-            Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
-              <TeminatOranlariCard
-                teminat={analysisSummary.teminat_oranlari}
-                isEditing={editingCards.has('teminat_oranlari')}
-                onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
-                onSave={makeSaveHandler('teminat_oranlari')}
-                isCorrected={!!getCorrectionForField('teminat_oranlari')}
-              />
-            )}
+          {analysisSummary?.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
+            <TeminatOranlariCard
+              teminat={analysisSummary.teminat_oranlari}
+              isEditing={editingCards.has('teminat_oranlari')}
+              onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
+              onSave={makeSaveHandler('teminat_oranlari')}
+              isCorrected={!!getCorrectionForField('teminat_oranlari')}
+            />
+          )}
 
           {/* Mali Kriterler */}
-          {analysisSummary?.mali_kriterler &&
-            Object.keys(analysisSummary.mali_kriterler).length > 0 && (
-              <MaliKriterlerCard
-                kriterler={analysisSummary.mali_kriterler}
-                isEditing={editingCards.has('mali_kriterler')}
-                onToggleEdit={() => toggleCardEdit('mali_kriterler')}
-                onSave={makeSaveHandler('mali_kriterler')}
-                isCorrected={!!getCorrectionForField('mali_kriterler')}
-              />
-            )}
+          {analysisSummary?.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0 && (
+            <MaliKriterlerCard
+              kriterler={analysisSummary.mali_kriterler}
+              isEditing={editingCards.has('mali_kriterler')}
+              onToggleEdit={() => toggleCardEdit('mali_kriterler')}
+              onSave={makeSaveHandler('mali_kriterler')}
+              isCorrected={!!getCorrectionForField('mali_kriterler')}
+            />
+          )}
 
           {/* Fiyat Farkı */}
           {analysisSummary?.fiyat_farki &&
@@ -993,17 +950,13 @@ export function OzetTabPanel({
           )}
 
           {/* Benzer İş Tanımı */}
-          {analysisSummary?.benzer_is_tanimi && (
-            <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />
-          )}
+          {analysisSummary?.benzer_is_tanimi && <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />}
 
           {/* Önemli Notlar */}
           {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
             <OnemliNotlarCard
               notlar={
-                analysisSummary.onemli_notlar as Array<
-                  { not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string
-                >
+                analysisSummary.onemli_notlar as Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>
               }
             />
           )}

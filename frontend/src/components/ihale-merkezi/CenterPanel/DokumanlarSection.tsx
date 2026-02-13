@@ -55,11 +55,7 @@ export function DokumanlarSection({
 
             <Group gap="xs">
               {dokumansayisi > 0 && (
-                <Badge
-                  size="lg"
-                  variant="light"
-                  color={analizEdilen === dokumansayisi ? 'green' : 'yellow'}
-                >
+                <Badge size="lg" variant="light" color={analizEdilen === dokumansayisi ? 'green' : 'yellow'}>
                   %{Math.round((analizEdilen / dokumansayisi) * 100)}
                 </Badge>
               )}

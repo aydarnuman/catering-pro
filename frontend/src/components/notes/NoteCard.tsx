@@ -5,19 +5,7 @@
  * Baslik + icerik onizleme + checklist progress + etiketler/tarih/ek
  */
 
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Checkbox,
-  Group,
-  Menu,
-  Paper,
-  Progress,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Checkbox, Group, Menu, Paper, Progress, Stack, Text, Tooltip } from '@mantine/core';
 import {
   IconBell,
   IconCalendar,
@@ -242,9 +230,7 @@ export function NoteCard({
               <Badge
                 size="xs"
                 variant="light"
-                color={
-                  note.priority === 'urgent' ? 'red' : note.priority === 'high' ? 'orange' : 'gray'
-                }
+                color={note.priority === 'urgent' ? 'red' : note.priority === 'high' ? 'orange' : 'gray'}
                 leftSection={<IconFlag size={10} />}
               >
                 {PRIORITY_LABELS[note.priority]}
@@ -266,12 +252,7 @@ export function NoteCard({
             {/* Reminder indicator */}
             {hasReminder && (
               <Tooltip label="Hatirlatici var">
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color="violet"
-                  leftSection={<IconBell size={10} />}
-                >
+                <Badge size="xs" variant="light" color="violet" leftSection={<IconBell size={10} />}>
                   {note.reminders.length}
                 </Badge>
               </Tooltip>
@@ -280,12 +261,7 @@ export function NoteCard({
             {/* Attachment indicator */}
             {hasAttachments && (
               <Tooltip label={`${note.attachments.length} dosya`}>
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color="cyan"
-                  leftSection={<IconPaperclip size={10} />}
-                >
+                <Badge size="xs" variant="light" color="cyan" leftSection={<IconPaperclip size={10} />}>
                   {note.attachments.length}
                 </Badge>
               </Tooltip>
@@ -345,11 +321,7 @@ export function NoteCard({
                     </Group>
                   </Menu.Label>
                   <Box px="xs" pb="xs">
-                    <NoteColorPicker
-                      value={note.color}
-                      onChange={(color) => onColorChange(note.id, color)}
-                      size="sm"
-                    />
+                    <NoteColorPicker value={note.color} onChange={(color) => onColorChange(note.id, color)} size="sm" />
                   </Box>
                 </>
               )}
@@ -359,11 +331,7 @@ export function NoteCard({
               {onDelete && (
                 <>
                   <Menu.Divider />
-                  <Menu.Item
-                    color="red"
-                    leftSection={<IconTrash size={14} />}
-                    onClick={() => onDelete(note.id)}
-                  >
+                  <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => onDelete(note.id)}>
                     Sil
                   </Menu.Item>
                 </>

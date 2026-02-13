@@ -42,13 +42,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
-import type {
-  AIModel,
-  EditableSettings,
-  FeedbackStats,
-  MemoryItem,
-  VersionHistoryItem,
-} from './types';
+import type { AIModel, EditableSettings, FeedbackStats, MemoryItem, VersionHistoryItem } from './types';
 
 export default function ModelSettingsTab() {
   // Model state
@@ -81,20 +75,14 @@ export default function ModelSettingsTab() {
 
   const fetchAISettings = useCallback(async () => {
     try {
-      const [settingsData, modelsData] = await Promise.all([
-        aiAPI.getSettings(),
-        aiAPI.getModels(),
-      ]);
+      const [settingsData, modelsData] = await Promise.all([aiAPI.getSettings(), aiAPI.getModels()]);
 
       if (settingsData.success) {
         const settings = (settingsData.data?.settings as Record<string, unknown>) || {};
 
         const parseValue = (value: unknown, defaultValue: unknown) => {
           if (value === null || value === undefined) return defaultValue;
-          if (
-            typeof value === 'string' &&
-            (value.startsWith('"') || value.startsWith('[') || value.startsWith('{'))
-          ) {
+          if (typeof value === 'string' && (value.startsWith('"') || value.startsWith('[') || value.startsWith('{'))) {
             try {
               return JSON.parse(value);
             } catch {
@@ -160,17 +148,15 @@ export default function ModelSettingsTab() {
     try {
       const data = await aiAPI.getSettingsHistory(selectedSettingKey || undefined, 100);
       if (data.success && data.data) {
-        const mapped: VersionHistoryItem[] = (data.data.history || []).map(
-          (h: Record<string, unknown>) => ({
-            id: h.id as number,
-            setting_key: h.settingKey as string,
-            setting_value: h.value,
-            version: h.version as number,
-            user_name: h.changedBy as string | undefined,
-            change_note: h.changeNote as string | undefined,
-            created_at: h.createdAt as string,
-          })
-        );
+        const mapped: VersionHistoryItem[] = (data.data.history || []).map((h: Record<string, unknown>) => ({
+          id: h.id as number,
+          setting_key: h.settingKey as string,
+          setting_value: h.value,
+          version: h.version as number,
+          user_name: h.changedBy as string | undefined,
+          change_note: h.changeNote as string | undefined,
+          created_at: h.createdAt as string,
+        }));
         setVersionHistory(mapped);
       }
     } catch (error) {
@@ -355,8 +341,7 @@ export default function ModelSettingsTab() {
                 bg={selectedModel === model.id ? 'var(--mantine-color-violet-0)' : undefined}
                 style={{
                   cursor: 'pointer',
-                  borderColor:
-                    selectedModel === model.id ? 'var(--mantine-color-violet-5)' : undefined,
+                  borderColor: selectedModel === model.id ? 'var(--mantine-color-violet-5)' : undefined,
                   borderWidth: selectedModel === model.id ? 2 : 1,
                 }}
                 onClick={() => handleModelChange(model.id)}
@@ -532,12 +517,7 @@ export default function ModelSettingsTab() {
                     Öğrenilen bilgiler ve tercihler
                   </Text>
                 </div>
-                <ActionIcon
-                  variant="subtle"
-                  onClick={fetchMemories}
-                  loading={memoriesLoading}
-                  size="sm"
-                >
+                <ActionIcon variant="subtle" onClick={fetchMemories} loading={memoriesLoading} size="sm">
                   <IconRefresh size={14} />
                 </ActionIcon>
               </Group>
@@ -593,13 +573,7 @@ export default function ModelSettingsTab() {
                               value={memory.importance * 10}
                               size="xs"
                               w={40}
-                              color={
-                                memory.importance >= 8
-                                  ? 'green'
-                                  : memory.importance >= 5
-                                    ? 'yellow'
-                                    : 'gray'
-                              }
+                              color={memory.importance >= 8 ? 'green' : memory.importance >= 5 ? 'yellow' : 'gray'}
                             />
                           </Table.Td>
                           <Table.Td>
@@ -738,12 +712,7 @@ export default function ModelSettingsTab() {
                   size="xs"
                   style={{ width: 200 }}
                 />
-                <ActionIcon
-                  variant="light"
-                  size="md"
-                  onClick={fetchVersionHistory}
-                  loading={versionHistoryLoading}
-                >
+                <ActionIcon variant="light" size="md" onClick={fetchVersionHistory} loading={versionHistoryLoading}>
                   <IconRefresh size={14} />
                 </ActionIcon>
               </Group>
@@ -783,8 +752,7 @@ export default function ModelSettingsTab() {
                           } else if (typeof parsed === 'number') {
                             displayValue = parsed.toString();
                           } else if (typeof parsed === 'string') {
-                            displayValue =
-                              parsed.length > 30 ? `${parsed.substring(0, 30)}...` : parsed;
+                            displayValue = parsed.length > 30 ? `${parsed.substring(0, 30)}...` : parsed;
                           } else {
                             displayValue = `${JSON.stringify(parsed).substring(0, 30)}...`;
                           }
@@ -823,9 +791,7 @@ export default function ModelSettingsTab() {
                                   variant="subtle"
                                   color="green"
                                   size="xs"
-                                  onClick={() =>
-                                    handleRestoreVersion(item.setting_key, item.version)
-                                  }
+                                  onClick={() => handleRestoreVersion(item.setting_key, item.version)}
                                 >
                                   <IconClock size={14} />
                                 </ActionIcon>

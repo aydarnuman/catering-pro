@@ -114,10 +114,7 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
     fetchDerinAnaliz();
   }, [fetchDerinAnaliz]);
 
-  if (!veri)
-    return (
-      <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak AI raporu oluşturabilirsiniz.</Text>
-    );
+  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak AI raporu oluşturabilirsiniz.</Text>;
 
   const rapor = veri.rapor as Record<string, unknown> | undefined;
   const hamMetin = veri.ham_metin as string | undefined;
@@ -146,8 +143,7 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
   }
 
   // Yeni format (istihbarat briefing)
-  const tehlikeSeviyesi =
-    (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
+  const tehlikeSeviyesi = (rapor.tehlike_seviyesi as string) || (rapor.risk_seviyesi as string) || 'orta';
   const tehlikeRenk =
     tehlikeSeviyesi === 'çok yüksek'
       ? 'red'
@@ -208,12 +204,7 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
           {!tamMetin && (
             <>
               {!!ozetProfil && (
-                <Alert
-                  variant="light"
-                  color={tehlikeRenk}
-                  title="Özet Profil"
-                  icon={<IconSpyOff size={18} />}
-                >
+                <Alert variant="light" color={tehlikeRenk} title="Özet Profil" icon={<IconSpyOff size={18} />}>
                   <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
                     {ozetProfil}
                   </Text>
@@ -253,21 +244,11 @@ export function AiRaporDetay({ veri, yukleniciId }: Props) {
               )}
 
               {!!rakipAgi && (
-                <BriefingKart
-                  baslik="Rakip Ağı"
-                  icerik={rakipAgi}
-                  ikon={<IconUsers size={14} />}
-                  renk="grape"
-                />
+                <BriefingKart baslik="Rakip Ağı" icerik={rakipAgi} ikon={<IconUsers size={14} />} renk="grape" />
               )}
 
               {stratejikTavsiyeler.length > 0 && (
-                <Card
-                  withBorder
-                  p="sm"
-                  radius="sm"
-                  style={{ borderColor: 'var(--mantine-color-blue-3)' }}
-                >
+                <Card withBorder p="sm" radius="sm" style={{ borderColor: 'var(--mantine-color-blue-3)' }}>
                   <Group gap="xs" mb="xs">
                     <ThemeIcon size="sm" variant="light" color="blue">
                       <IconBulb size={14} />
@@ -353,16 +334,8 @@ function EskiFormatGoster({ rapor }: { rapor: Record<string, unknown> }) {
         </Card>
       )}
       <Group grow align="flex-start">
-        <SWOTKart
-          baslik="Güçlü Yönler"
-          maddeler={(rapor.guclu_yonler as string[]) || []}
-          renk="green"
-        />
-        <SWOTKart
-          baslik="Zayıf Yönler"
-          maddeler={(rapor.zayif_yonler as string[]) || []}
-          renk="red"
-        />
+        <SWOTKart baslik="Güçlü Yönler" maddeler={(rapor.guclu_yonler as string[]) || []} renk="green" />
+        <SWOTKart baslik="Zayıf Yönler" maddeler={(rapor.zayif_yonler as string[]) || []} renk="red" />
       </Group>
       <Group grow align="flex-start">
         <SWOTKart baslik="Fırsatlar" maddeler={(rapor.firsatlar as string[]) || []} renk="blue" />
@@ -394,15 +367,7 @@ function EskiFormatGoster({ rapor }: { rapor: Record<string, unknown> }) {
   );
 }
 
-function SWOTKart({
-  baslik,
-  maddeler,
-  renk,
-}: {
-  baslik: string;
-  maddeler: string[];
-  renk: string;
-}) {
+function SWOTKart({ baslik, maddeler, renk }: { baslik: string; maddeler: string[]; renk: string }) {
   if (maddeler.length === 0) return null;
   return (
     <Card withBorder p="sm" radius="sm">
@@ -431,13 +396,7 @@ function DerinAnalizPanel({
   onCalistir: () => void;
 }) {
   return (
-    <Card
-      withBorder
-      radius="md"
-      p="md"
-      mt="md"
-      style={{ borderColor: 'var(--mantine-color-teal-3)' }}
-    >
+    <Card withBorder radius="md" p="md" mt="md" style={{ borderColor: 'var(--mantine-color-teal-3)' }}>
       <Group justify="space-between" mb="sm">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="teal">
@@ -483,8 +442,8 @@ function DerinAnalizPanel({
 
       {!data && !yukleniyor && !calistiriliyor && (
         <Text size="xs" c="dimmed">
-          Birden fazla arama stratejisi ile kapsamlı web araştırması yapar. Her çalıştırmada ~5-8
-          Tavily kredisi harcanır.
+          Birden fazla arama stratejisi ile kapsamlı web araştırması yapar. Her çalıştırmada ~5-8 Tavily kredisi
+          harcanır.
         </Text>
       )}
 
@@ -553,10 +512,7 @@ function DerinAnalizPanel({
             )}
             {(data.olusturma_tarihi || data.son_guncelleme) && (
               <Text size="xs" c="dimmed">
-                Son:{' '}
-                {new Date(data.son_guncelleme || data.olusturma_tarihi || '').toLocaleString(
-                  'tr-TR'
-                )}
+                Son: {new Date(data.son_guncelleme || data.olusturma_tarihi || '').toLocaleString('tr-TR')}
               </Text>
             )}
           </Group>

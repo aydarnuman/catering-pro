@@ -15,14 +15,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import {
-  IconChevronRight,
-  IconCurrencyLira,
-  IconList,
-  IconMap,
-  IconMapPin,
-  IconX,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconCurrencyLira, IconList, IconMap, IconMapPin, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import { formatDate } from '@/lib/formatters';
@@ -249,11 +242,7 @@ function LeafletMap({
   return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
 }
 
-export default function TenderMapModal({
-  opened,
-  onClose,
-  tenders: initialTenders,
-}: TenderMapModalProps) {
+export default function TenderMapModal({ opened, onClose, tenders: initialTenders }: TenderMapModalProps) {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [mapKey, setMapKey] = useState(0);
   const [allTenders, setAllTenders] = useState<Tender[]>([]);
@@ -496,12 +485,7 @@ export default function TenderMapModal({
                         </Text>
                       </div>
                     </Group>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      onClick={() => setSelectedCity(null)}
-                    >
+                    <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setSelectedCity(null)}>
                       <IconX size={14} color="white" />
                     </ActionIcon>
                   </Group>
@@ -517,21 +501,14 @@ export default function TenderMapModal({
                         withBorder
                         style={{
                           background: 'var(--surface-elevated)',
-                          borderColor:
-                            tender.status === 'active'
-                              ? 'rgba(34, 197, 94, 0.4)'
-                              : 'var(--surface-border)',
+                          borderColor: tender.status === 'active' ? 'rgba(34, 197, 94, 0.4)' : 'var(--surface-border)',
                           cursor: 'pointer',
                         }}
                         onClick={() => window.open(`/tenders/${tender.id}`, '_blank')}
                       >
                         <Stack gap={4}>
                           <Group justify="space-between" wrap="nowrap">
-                            <Badge
-                              size="xs"
-                              variant="filled"
-                              color={tender.status === 'active' ? 'green' : 'gray'}
-                            >
+                            <Badge size="xs" variant="filled" color={tender.status === 'active' ? 'green' : 'gray'}>
                               {tender.status === 'active' ? 'Aktif' : 'Bitti'}
                             </Badge>
                             <Text size="xs" c="gray.5">

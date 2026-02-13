@@ -98,6 +98,21 @@ export interface AIFeedbackStats {
   average_rating?: number;
 }
 
+// ─── Malzeme Eşleştirme Types (Menu-bazlı) ──────────────
+
+export interface ApprovedIngredientMatch {
+  sartname_item: string;
+  urun_id: number;
+  urun_ad: string;
+  gramaj: number | null;
+  gramaj_birim: string;
+  fiyat: number | null;
+  porsiyon_maliyet: number | null;
+  match_confidence: number;
+  user_modified: boolean;
+  yemek_adi?: string;
+}
+
 // AI API
 export const aiAPI = {
   /**
@@ -119,10 +134,7 @@ export const aiAPI = {
   /**
    * AI şablonu güncelle
    */
-  async updateTemplate(
-    id: number,
-    template: Partial<AITemplate>
-  ): Promise<ApiResponse<AITemplate>> {
+  async updateTemplate(id: number, template: Partial<AITemplate>): Promise<ApiResponse<AITemplate>> {
     const response = await api.put(`/api/ai/templates/${id}`, template);
     return response.data;
   },
@@ -146,9 +158,7 @@ export const aiAPI = {
   /**
    * AI ayarlarını güncelle
    */
-  async updateSettings(
-    settings: Record<string, unknown>
-  ): Promise<ApiResponse<{ updatedKeys: string[] }>> {
+  async updateSettings(settings: Record<string, unknown>): Promise<ApiResponse<{ updatedKeys: string[] }>> {
     const response = await api.put('/api/ai/settings', { settings });
     return response.data;
   },
@@ -478,12 +488,7 @@ export const aiAPI = {
   /**
    * Dilekçe AI chat gönder
    */
-  async sendDilekceChat(data: {
-    message: string;
-    sessionId: string;
-    dilekceType: string;
-    context: unknown;
-  }): Promise<
+  async sendDilekceChat(data: { message: string; sessionId: string; dilekceType: string; context: unknown }): Promise<
     ApiResponse<{
       response: string;
       sessionId: string;
@@ -496,11 +501,7 @@ export const aiAPI = {
   /**
    * Dilekçe kaydet
    */
-  async saveDilekce(data: {
-    tender_tracking_id: string | number;
-    dilekce_type: string;
-    content: string;
-  }): Promise<
+  async saveDilekce(data: { tender_tracking_id: string | number; dilekce_type: string; content: string }): Promise<
     ApiResponse<{
       id: number;
       message: string;
@@ -538,11 +539,7 @@ export const aiAPI = {
   /**
    * AI hafızaya konuşma kaydet
    */
-  async saveConversationToMemory(data: {
-    sessionId: string;
-    summary?: string;
-    context?: unknown;
-  }): Promise<
+  async saveConversationToMemory(data: { sessionId: string; summary?: string; context?: unknown }): Promise<
     ApiResponse<{
       id: number;
       message: string;
@@ -567,6 +564,44 @@ export const aiAPI = {
       responseType: 'blob',
     });
     return response.data;
+  },
+
+  // ═══════════════════════════════════════════
+  // İHALE MASASI — Malzeme Eşleştirme
+  // ═══════════════════════════════════════════
+
+  /**
+   * Şartname örnek menü tariflerini çıkar, ürün kartlarıyla eşleştir, yemek bazlı maliyet hesapla
+   */
+  async matchIngredients(tenderId: number): Promise<Record<string, unknown>> {
+    const response = await api.post('/api/ai/ihale-masasi/match-ingredients', { tenderId });
+    return response.data;
+  },
+
+  /**
+   * Onaylanan malzeme eşleştirmelerini kaydet
+   */
+  async saveIngredientMatches(data: {
+    tenderId: number;
+    matches: ApprovedIngredientMatch[];
+  }): Promise<ApiResponse<{ message: string; saved: number }>> {
+    const response = await api.post('/api/ai/ihale-masasi/save-ingredient-matches', data);
+    return response.data;
+  },
+
+  /**
+   * Kaydedilmiş malzeme eşleştirmelerini getir
+   */
+  async getSavedIngredientMatches(
+    tenderId: number
+  ): Promise<ApiResponse<{ matches: ApprovedIngredientMatch[] | null }>> {
+    const response = await api.get(`/api/ai/ihale-masasi/ingredient-matches/${tenderId}`);
+    const raw = response.data;
+    return {
+      success: raw.success,
+      data: { matches: raw.matches ?? null },
+      error: raw.error,
+    };
   },
 
   // ═══════════════════════════════════════════
@@ -621,13 +656,15 @@ export const aiAPI = {
    */
   async getCachedAgentAnalyses(
     tenderId: number
-  ): Promise<
-    ApiResponse<{ analyses: Record<string, AgentAnalysisResult> | null; cached: boolean }>
-  > {
+  ): Promise<ApiResponse<{ analyses: Record<string, AgentAnalysisResult> | null; cached: boolean }>> {
     const response = await api.get(`/api/ai/ihale-masasi/analysis/${tenderId}`);
     // Backend { success, analyses, cached } döner — data wrapper'a sar
     const raw = response.data;
-    return { success: raw.success, data: { analyses: raw.analyses ?? null, cached: raw.cached ?? false }, error: raw.error };
+    return {
+      success: raw.success,
+      data: { analyses: raw.analyses ?? null, cached: raw.cached ?? false },
+      error: raw.error,
+    };
   },
 
   /**

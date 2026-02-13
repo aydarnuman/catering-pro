@@ -86,8 +86,7 @@ export function AddTenderModal({ opened, onClose, onSuccess }: AddTenderModalPro
             <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
           </Text>
           <Text size="xs" c="dimmed" mt="xs">
-            Bu işlem ihale bilgilerini, döküman linklerini, ihale ilanı ve mal/hizmet listesini
-            otomatik olarak çeker.
+            Bu işlem ihale bilgilerini, döküman linklerini, ihale ilanı ve mal/hizmet listesini otomatik olarak çeker.
           </Text>
         </Paper>
 

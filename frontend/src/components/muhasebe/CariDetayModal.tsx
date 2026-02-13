@@ -53,14 +53,7 @@ interface CariDetayModalProps {
   onDelete?: (cariId: number) => void;
 }
 
-export default function CariDetayModal({
-  opened,
-  onClose,
-  cari,
-  onEdit,
-  onMutabakat,
-  onDelete,
-}: CariDetayModalProps) {
+export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutabakat, onDelete }: CariDetayModalProps) {
   const { isMobile, isMounted } = useResponsive();
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
   const [hareketler, setHareketler] = useState<CariHareketListRow[]>([]);
@@ -287,9 +280,7 @@ export default function CariDetayModal({
 
   if (!cari) return null;
 
-  const vadesiGecmis = hareketler.filter(
-    (h) => h.vade_tarihi && new Date(h.vade_tarihi) < new Date() && h.borc > 0
-  );
+  const vadesiGecmis = hareketler.filter((h) => h.vade_tarihi && new Date(h.vade_tarihi) < new Date() && h.borc > 0);
   const vadesiYaklasan = hareketler.filter(
     (h) =>
       h.vade_tarihi &&
@@ -310,9 +301,7 @@ export default function CariDetayModal({
             <ThemeIcon
               size={isMobile ? 'md' : 'lg'}
               variant="light"
-              color={
-                cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue'
-              }
+              color={cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue'}
             >
               <IconUser size={isMobile ? 16 : 20} />
             </ThemeIcon>
@@ -322,11 +311,7 @@ export default function CariDetayModal({
               </Text>
               <Group gap="xs" wrap="nowrap">
                 <Text size="xs" c="dimmed">
-                  {cari.tip === 'musteri'
-                    ? 'Müşteri'
-                    : cari.tip === 'tedarikci'
-                      ? 'Tedarikçi'
-                      : 'Her İkisi'}
+                  {cari.tip === 'musteri' ? 'Müşteri' : cari.tip === 'tedarikci' ? 'Tedarikçi' : 'Her İkisi'}
                 </Text>
                 {cari.etiket && (
                   <Badge size="xs" variant="light" color="violet">
@@ -465,8 +450,7 @@ export default function CariDetayModal({
                 <Group justify="space-between" mb="md">
                   <Title order={5}>Son 6 Ay Özeti</Title>
                   <Badge variant="light" size="lg">
-                    Toplam:{' '}
-                    {formatMoney(aylikOzet.reduce((sum, o) => sum + (o.borc - o.alacak), 0))}
+                    Toplam: {formatMoney(aylikOzet.reduce((sum, o) => sum + (o.borc - o.alacak), 0))}
                   </Badge>
                 </Group>
                 <Table striped highlightOnHover>
@@ -654,18 +638,10 @@ export default function CariDetayModal({
                     value={filterType}
                     onChange={setFilterType}
                   />
-                  <Button
-                    variant="light"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={() => exportToExcel()}
-                  >
+                  <Button variant="light" leftSection={<IconDownload size={16} />} onClick={() => exportToExcel()}>
                     Excel
                   </Button>
-                  <Button
-                    variant="light"
-                    leftSection={<IconPrinter size={16} />}
-                    onClick={() => handlePrint()}
-                  >
+                  <Button variant="light" leftSection={<IconPrinter size={16} />} onClick={() => handlePrint()}>
                     Yazdır
                   </Button>
                 </Group>
@@ -758,9 +734,7 @@ export default function CariDetayModal({
                     Toplam Gelir (Son 6 Ay)
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {formatMoney(
-                      aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0), 0)
-                    )}
+                    {formatMoney(aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0), 0))}
                   </Text>
                 </Paper>
                 <Paper withBorder p="md">
@@ -768,9 +742,7 @@ export default function CariDetayModal({
                     Toplam Gider (Son 6 Ay)
                   </Text>
                   <Text size="xl" fw={700} c="red">
-                    {formatMoney(
-                      aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.borc || 0), 0)
-                    )}
+                    {formatMoney(aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.borc || 0), 0))}
                   </Text>
                 </Paper>
                 <Paper withBorder p="md">
@@ -781,18 +753,14 @@ export default function CariDetayModal({
                     size="xl"
                     fw={700}
                     c={
-                      aylikOzet
-                        .slice(0, 6)
-                        .reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0) >=
+                      aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0) >=
                       0
                         ? 'green'
                         : 'red'
                     }
                   >
                     {formatMoney(
-                      aylikOzet
-                        .slice(0, 6)
-                        .reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0)
+                      aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0)
                     )}
                   </Text>
                 </Paper>
@@ -957,21 +925,15 @@ export default function CariDetayModal({
                       .map((hareket) => {
                         const vadeDate = new Date(hareket.vade_tarihi!);
                         const today = new Date();
-                        const gunFarki = Math.floor(
-                          (vadeDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-                        );
+                        const gunFarki = Math.floor((vadeDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
                         return (
                           <Table.Tr key={hareket.id}>
                             <Table.Td>{hareket.belge_no}</Table.Td>
                             <Table.Td>{formatDate(hareket.vade_tarihi!)}</Table.Td>
                             <Table.Td>
-                              <Badge
-                                color={gunFarki < 0 ? 'red' : gunFarki <= 7 ? 'yellow' : 'green'}
-                              >
-                                {gunFarki < 0
-                                  ? `${Math.abs(gunFarki)} gün geçti`
-                                  : `${gunFarki} gün kaldı`}
+                              <Badge color={gunFarki < 0 ? 'red' : gunFarki <= 7 ? 'yellow' : 'green'}>
+                                {gunFarki < 0 ? `${Math.abs(gunFarki)} gün geçti` : `${gunFarki} gün kaldı`}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
@@ -980,15 +942,8 @@ export default function CariDetayModal({
                               </Text>
                             </Table.Td>
                             <Table.Td>
-                              <Badge
-                                color={gunFarki < 0 ? 'red' : gunFarki <= 7 ? 'yellow' : 'green'}
-                                variant="filled"
-                              >
-                                {gunFarki < 0
-                                  ? 'Gecikmiş'
-                                  : gunFarki <= 7
-                                    ? 'Yaklaşıyor'
-                                    : 'Vadeli'}
+                              <Badge color={gunFarki < 0 ? 'red' : gunFarki <= 7 ? 'yellow' : 'green'} variant="filled">
+                                {gunFarki < 0 ? 'Gecikmiş' : gunFarki <= 7 ? 'Yaklaşıyor' : 'Vadeli'}
                               </Badge>
                             </Table.Td>
                           </Table.Tr>

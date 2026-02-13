@@ -23,11 +23,7 @@ export function RedlineTool({ result, onClose }: RedlineToolProps) {
           <Text size="10px" c="red.4" fw={600} mb={2}>
             MEVCUT
           </Text>
-          <Text
-            size="xs"
-            c="gray.5"
-            style={{ textDecoration: 'line-through', lineHeight: 1.6 }}
-          >
+          <Text size="xs" c="gray.5" style={{ textDecoration: 'line-through', lineHeight: 1.6 }}>
             {result.originalText}
           </Text>
         </Box>

@@ -8,6 +8,7 @@ import express from 'express';
 import { pool } from '../database.js';
 import { authenticate, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
 import AuditService from '../services/audit-service.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -42,7 +43,8 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     });
 
     res.json({ success: true, ...result });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'İşlem geçmişi alınamadı' });
   }
 });
@@ -56,7 +58,8 @@ router.get('/stats', authenticate, requireSuperAdmin, async (req, res) => {
     const { days = 7 } = req.query;
     const stats = await AuditService.getStats(parseInt(days, 10));
     res.json({ success: true, data: stats });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'İstatistikler alınamadı' });
   }
 });
@@ -118,7 +121,8 @@ router.get('/summary', authenticate, requireSuperAdmin, async (_req, res) => {
         moduleDistribution: moduleDistResult.rows,
       },
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Özet bilgiler alınamadı' });
   }
 });
@@ -142,7 +146,8 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true, data: log });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Log detayı alınamadı' });
   }
 });
@@ -163,7 +168,8 @@ router.get('/user/:userId/activity', authenticate, requireAdmin, async (req, res
 
     const activity = await AuditService.getUserActivity(parseInt(userId, 10), parseInt(limit, 10));
     res.json({ success: true, data: activity });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Aktiviteler alınamadı' });
   }
 });
@@ -187,7 +193,8 @@ router.get('/entity/:entityType/:entityId', authenticate, requireAdmin, async (r
     );
 
     res.json({ success: true, data: result.rows });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Kayıt geçmişi alınamadı' });
   }
 });
@@ -221,7 +228,8 @@ router.get('/meta/filters', authenticate, requireAdmin, async (req, res) => {
         entityTypes: entityTypesResult.rows.map((r) => r.entity_type),
       },
     });
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Audit logs endpoint hatasi', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Filtre seçenekleri alınamadı' });
   }
 });

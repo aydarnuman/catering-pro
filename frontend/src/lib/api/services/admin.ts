@@ -194,10 +194,7 @@ export const adminAPI = {
   /**
    * Şifre değiştir
    */
-  async changePassword(data: {
-    currentPassword: string;
-    newPassword: string;
-  }): Promise<ApiResponse<any>> {
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<ApiResponse<any>> {
     const response = await api.put('/api/auth/password', data);
     return response.data;
   },
@@ -261,9 +258,7 @@ export const adminAPI = {
    * @param source - Opsiyonel: sadece belirli kaynaktaki bildirimleri işaretle
    */
   async markAllNotificationsRead(source?: 'user' | 'admin' | 'system'): Promise<ApiResponse<any>> {
-    const url = source
-      ? `/api/notifications/read-all?source=${source}`
-      : '/api/notifications/read-all';
+    const url = source ? `/api/notifications/read-all?source=${source}` : '/api/notifications/read-all';
     const response = await api.patch(url);
     return response.data;
   },

@@ -19,6 +19,7 @@
     "test:bordro": "vitest run --testPathPattern=bordro",
     "lint": "npx @biomejs/biome check src/",
     "lint:fix": "npx @biomejs/biome check --write src/",
+    "check": "npx @biomejs/biome check src/",
     "audit:deps": "npm audit --json"
   },
   "dependencies": {
@@ -46,7 +47,6 @@
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.12",
-    "pako": "^1.0.11",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.2",
     "pg": "^8.11.3",

@@ -145,9 +145,7 @@ export function initializeErrorCollector() {
       id: `console_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       type: 'error',
-      message: args
-        .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
-        .join(' '),
+      message: args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' '),
       url: window.location.href,
       userAgent: navigator.userAgent,
     };
@@ -234,11 +232,7 @@ export function showError(error: unknown, options: ErrorOptions = {}) {
 /**
  * Başarı mesajı göster
  */
-export function showSuccess(
-  message: string,
-  title: string = 'Başarılı',
-  options?: { autoClose?: number | false }
-) {
+export function showSuccess(message: string, title: string = 'Başarılı', options?: { autoClose?: number | false }) {
   notifications.show({
     title,
     message,
@@ -250,11 +244,7 @@ export function showSuccess(
 /**
  * Uyarı mesajı göster
  */
-export function showWarning(
-  message: string,
-  title: string = 'Uyarı',
-  options?: { autoClose?: number | false }
-) {
+export function showWarning(message: string, title: string = 'Uyarı', options?: { autoClose?: number | false }) {
   notifications.show({
     title,
     message,
@@ -266,11 +256,7 @@ export function showWarning(
 /**
  * Bilgi mesajı göster
  */
-export function showInfo(
-  message: string,
-  title: string = 'Bilgi',
-  options?: { autoClose?: number | false }
-) {
+export function showInfo(message: string, title: string = 'Bilgi', options?: { autoClose?: number | false }) {
   notifications.show({
     title,
     message,
@@ -305,10 +291,7 @@ export function isApiError(error: unknown): boolean {
 /**
  * Hata mesajını formatla
  */
-export function formatErrorMessage(
-  error: unknown,
-  defaultMessage: string = 'Bir hata oluştu'
-): string {
+export function formatErrorMessage(error: unknown, defaultMessage: string = 'Bir hata oluştu'): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -333,10 +316,7 @@ export function formatErrorMessage(
 /**
  * Try-catch wrapper - otomatik hata gösterimi
  */
-export async function withErrorHandling<T>(
-  fn: () => Promise<T>,
-  options?: ErrorOptions
-): Promise<T | null> {
+export async function withErrorHandling<T>(fn: () => Promise<T>, options?: ErrorOptions): Promise<T | null> {
   try {
     return await fn();
   } catch (error) {

@@ -1,12 +1,4 @@
-import {
-  IconBell,
-  IconBuilding,
-  IconKey,
-  IconPalette,
-  IconRobot,
-  IconSettings,
-  IconUser,
-} from '@tabler/icons-react';
+import { IconBell, IconBuilding, IconKey, IconPalette, IconRobot, IconSettings, IconUser } from '@tabler/icons-react';
 
 // ─── User ────────────────────────────────────────────────
 export interface UserInfo {
@@ -34,6 +26,8 @@ export interface UserPreferences {
   language: string;
   dateFormat: string;
   currency: string;
+  pageSize: string;
+  autoLogout: string;
 }
 
 export const defaultPreferences: UserPreferences = {
@@ -51,6 +45,8 @@ export const defaultPreferences: UserPreferences = {
   language: 'tr',
   dateFormat: 'DD.MM.YYYY',
   currency: 'TRY',
+  pageSize: '20',
+  autoLogout: 'never',
 };
 
 export const colorOptions = [
@@ -171,55 +167,8 @@ export const emptyFirma: Partial<FirmaBilgileri> = {
 };
 
 // ─── Proje ───────────────────────────────────────────────
-export interface Proje {
-  id: number;
-  kod: string;
-  ad: string;
-  firma_id?: number;
-  firma_unvani?: string;
-  musteri: string;
-  kurum?: string;
-  lokasyon?: string;
-  adres: string;
-  il?: string;
-  ilce?: string;
-  sozlesme_no?: string;
-  sozlesme_tarihi?: string;
-  sozlesme_bitis_tarihi?: string;
-  sozlesme_bedeli?: number;
-  teminat_tutari?: number;
-  teminat_iade_tarihi?: string;
-  gunluk_kisi_sayisi?: number;
-  ogun_sayisi?: number;
-  toplam_ogun?: number;
-  gunluk_maliyet_hedef?: number;
-  fatura_unvani?: string;
-  fatura_vergi_no?: string;
-  fatura_vergi_dairesi?: string;
-  fatura_adresi?: string;
-  fatura_kesim_gunu?: number;
-  kdv_orani?: number;
-  hakedis_tipi?: string;
-  aylik_hakedis?: number;
-  hakedis_gun?: number;
-  hakedis_kesinti_orani?: number;
-  yetkili: string;
-  yetkili_unvan?: string;
-  telefon: string;
-  email?: string;
-  proje_tipi?: string;
-  kategori?: string;
-  baslangic_tarihi: string;
-  bitis_tarihi: string;
-  butce: number;
-  durum: string;
-  renk?: string;
-  aktif?: boolean;
-  aciklama: string;
-  notlar?: string;
-  personel_sayisi?: number;
-  toplam_maas?: number;
-}
+// Merkezi tip tanımı: @/types/domain
+export type { Proje } from '@/types/domain';
 
 // ─── Firma Döküman ───────────────────────────────────────
 export interface FirmaDokuman {

@@ -37,14 +37,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
-import type {
-  AINote,
-  AnalysisData,
-  OnemliNot,
-  SavedTender,
-  TakvimItem,
-  TeknikSart,
-} from '../types';
+import type { AINote, AnalysisData, OnemliNot, SavedTender, TakvimItem, TeknikSart } from '../types';
 
 // Helper: Teknik şart text'ini al (null-safe)
 function getTeknikSartText(sart: string | TeknikSart | null | undefined): string {
@@ -126,24 +119,19 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
   const filteredTeknikSartlar = allTeknikSartlar.filter((sart) => {
     const text = getTeknikSartText(sart);
     const matchesSearch = text.toLowerCase().includes(teknikSartArama.toLowerCase());
-    const matchesZorunlu =
-      !sadeceZorunluGoster || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
+    const matchesZorunlu = !sadeceZorunluGoster || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
     return matchesSearch && matchesZorunlu;
   });
 
   // Filtrelenmiş birim fiyatlar
   const filteredBirimFiyatlar =
     analysisData?.birim_fiyatlar?.filter((item) =>
-      (item.kalem || item.aciklama || item.text || '')
-        .toLowerCase()
-        .includes(birimFiyatArama.toLowerCase())
+      (item.kalem || item.aciklama || item.text || '').toLowerCase().includes(birimFiyatArama.toLowerCase())
     ) || [];
 
   // AI Notları
   const allNotlar = analysisData?.notlar || [];
-  const filteredNotlar = allNotlar.filter((not) =>
-    getNoteText(not).toLowerCase().includes(aiNotArama.toLowerCase())
-  );
+  const filteredNotlar = allNotlar.filter((not) => getNoteText(not).toLowerCase().includes(aiNotArama.toLowerCase()));
 
   // Tam Metin
   const tamMetin = analysisData?.tam_metin || '';
@@ -296,9 +284,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
               {filteredTeknikSartlar.length === 0 ? (
                 <Paper p="md" withBorder radius="md" ta="center">
                   <Text size="sm" c="dimmed">
-                    {teknikSartArama || sadeceZorunluGoster
-                      ? 'Sonuç bulunamadı'
-                      : 'Henüz teknik şart yok'}
+                    {teknikSartArama || sadeceZorunluGoster ? 'Sonuç bulunamadı' : 'Henüz teknik şart yok'}
                   </Text>
                 </Paper>
               ) : (
@@ -309,8 +295,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                     typeof sart === 'object' && sart !== null && 'onem' in sart
                       ? (sart as { onem?: string }).onem
                       : undefined;
-                  const isZorunlu =
-                    onem === 'kritik' || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
+                  const isZorunlu = onem === 'kritik' || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
 
                   return (
                     <Paper
@@ -319,20 +304,13 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                       withBorder
                       radius="sm"
                       style={{
-                        background: isZorunlu
-                          ? 'rgba(239, 68, 68, 0.05)'
-                          : 'rgba(59, 130, 246, 0.03)',
+                        background: isZorunlu ? 'rgba(239, 68, 68, 0.05)' : 'rgba(59, 130, 246, 0.03)',
                         borderLeft: isZorunlu ? '3px solid var(--mantine-color-red-5)' : undefined,
                       }}
                     >
                       <Group justify="space-between" wrap="nowrap">
                         <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                          <Badge
-                            size="xs"
-                            variant="filled"
-                            color={isZorunlu ? 'red' : 'blue'}
-                            circle
-                          >
+                          <Badge size="xs" variant="filled" color={isZorunlu ? 'red' : 'blue'} circle>
                             {idx + 1}
                           </Badge>
                           <Box style={{ flex: 1, minWidth: 0 }}>
@@ -344,16 +322,10 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                                 <Badge
                                   size="xs"
                                   variant="light"
-                                  color={
-                                    onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray'
-                                  }
+                                  color={onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray'}
                                   style={{ flexShrink: 0 }}
                                 >
-                                  {onem === 'kritik'
-                                    ? 'Kritik'
-                                    : onem === 'normal'
-                                      ? 'Normal'
-                                      : onem}
+                                  {onem === 'kritik' ? 'Kritik' : onem === 'normal' ? 'Normal' : onem}
                                 </Badge>
                               )}
                             </Group>
@@ -367,12 +339,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={text}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                color={copied ? 'green' : 'gray'}
-                                onClick={copy}
-                              >
+                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -454,9 +421,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="xs">
-                          {item.kalem || item.aciklama || item.text || 'Bilinmiyor'}
-                        </Text>
+                        <Text size="xs">{item.kalem || item.aciklama || item.text || 'Bilinmiyor'}</Text>
                       </Table.Td>
                       <Table.Td>
                         <Text size="xs" ta="center">
@@ -481,12 +446,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         >
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                color={copied ? 'green' : 'gray'}
-                                onClick={copy}
-                              >
+                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -574,12 +534,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={`${takvimItem.olay}: ${takvimItem.tarih}`}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                color={copied ? 'green' : 'gray'}
-                                onClick={copy}
-                              >
+                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -608,20 +563,10 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
             {analysisData?.onemli_notlar && analysisData.onemli_notlar.length > 0 ? (
               <Stack gap="xs">
                 {analysisData.onemli_notlar.map((not) => {
-                  const notItem =
-                    typeof not === 'string' ? { not, tur: 'bilgi' as const } : (not as OnemliNot);
-                  const turColor =
-                    notItem.tur === 'uyari'
-                      ? 'red'
-                      : notItem.tur === 'gereklilik'
-                        ? 'blue'
-                        : 'gray';
+                  const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : (not as OnemliNot);
+                  const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
                   const turLabel =
-                    notItem.tur === 'uyari'
-                      ? 'Uyarı'
-                      : notItem.tur === 'gereklilik'
-                        ? 'Gereklilik'
-                        : 'Bilgi';
+                    notItem.tur === 'uyari' ? 'Uyarı' : notItem.tur === 'gereklilik' ? 'Gereklilik' : 'Bilgi';
                   const TurIcon =
                     notItem.tur === 'uyari'
                       ? IconAlertTriangle
@@ -662,12 +607,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={notItem.not}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                color={copied ? 'green' : 'gray'}
-                                onClick={copy}
-                              >
+                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -743,12 +683,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={text}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                color={copied ? 'green' : 'gray'}
-                                onClick={copy}
-                              >
+                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -796,13 +731,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
               </Text>
               <Group gap="xs">
                 <Tooltip label="Yenile">
-                  <ActionIcon
-                    size="sm"
-                    variant="light"
-                    color="gray"
-                    onClick={fetchDetails}
-                    loading={loadingDetails}
-                  >
+                  <ActionIcon size="sm" variant="light" color="gray" onClick={fetchDetails} loading={loadingDetails}>
                     <IconRefresh size={14} />
                   </ActionIcon>
                 </Tooltip>
@@ -843,12 +772,7 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                     <Text size="xs" c="dimmed" ta="center">
                       Dökümanlar analiz edildiğinde burada tam metin görüntülenecek.
                     </Text>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      onClick={fetchDetails}
-                      leftSection={<IconRefresh size={12} />}
-                    >
+                    <Button size="xs" variant="light" onClick={fetchDetails} leftSection={<IconRefresh size={12} />}>
                       Yeniden Dene
                     </Button>
                   </Stack>

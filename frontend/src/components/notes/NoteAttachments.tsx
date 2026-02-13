@@ -4,18 +4,7 @@
  * NoteAttachments - Dosya ekleri gosterim + upload + delete
  */
 
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  FileButton,
-  Group,
-  Loader,
-  Paper,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Button, FileButton, Group, Loader, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconPaperclip, IconTrash, IconUpload } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -29,12 +18,7 @@ interface NoteAttachmentsProps {
   readonly?: boolean;
 }
 
-export function NoteAttachments({
-  noteId,
-  attachments,
-  onUpdate,
-  readonly = false,
-}: NoteAttachmentsProps) {
+export function NoteAttachments({ noteId, attachments, onUpdate, readonly = false }: NoteAttachmentsProps) {
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = useCallback(
@@ -108,12 +92,7 @@ export function NoteAttachments({
                   </Tooltip>
                   {!readonly && (
                     <Tooltip label="Sil">
-                      <ActionIcon
-                        variant="subtle"
-                        size="xs"
-                        color="red"
-                        onClick={() => handleDelete(att.id)}
-                      >
+                      <ActionIcon variant="subtle" size="xs" color="red" onClick={() => handleDelete(att.id)}>
                         <IconTrash size={12} />
                       </ActionIcon>
                     </Tooltip>
@@ -127,10 +106,7 @@ export function NoteAttachments({
 
       {/* Upload button */}
       {!readonly && (
-        <FileButton
-          onChange={handleUpload}
-          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-        >
+        <FileButton onChange={handleUpload} accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
           {(props) => (
             <Button
               {...props}

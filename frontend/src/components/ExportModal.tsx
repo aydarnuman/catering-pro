@@ -2,12 +2,7 @@
 
 import { Alert, Badge, Button, Group, Modal, Paper, Select, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconAlertCircle,
-  IconDownload,
-  IconFileSpreadsheet,
-  IconFileTypePdf,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconDownload, IconFileSpreadsheet, IconFileTypePdf } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { authFetch } from '@/lib/api';
@@ -121,9 +116,7 @@ export function ExportModal({
     };
   }, [opened, type, getDefaultRaporTipleri]);
 
-  const currentRapor = Array.isArray(raporTipleri)
-    ? raporTipleri.find((r) => r.value === selectedRapor)
-    : null;
+  const currentRapor = Array.isArray(raporTipleri) ? raporTipleri.find((r) => r.value === selectedRapor) : null;
 
   // Export URL oluştur
   const buildExportUrl = (format: 'excel' | 'pdf') => {
@@ -206,8 +199,7 @@ export function ExportModal({
         color: 'green',
         loading: false,
         autoClose: 3000,
-        icon:
-          format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
+        icon: format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
       });
 
       onClose();
@@ -267,24 +259,22 @@ export function ExportModal({
         />
 
         {/* Parametre Seçimi (Proje, Departman, Kategori) */}
-        {currentRapor?.needsParam &&
-          currentRapor.needsParam !== 'tarih' &&
-          currentRapor.needsParam !== 'donem' && (
-            <Select
-              label={
-                currentRapor.needsParam === 'proje'
-                  ? 'Proje Seçin'
-                  : currentRapor.needsParam === 'departman'
-                    ? 'Departman Seçin'
-                    : 'Kategori Seçin'
-              }
-              placeholder="Seçiniz..."
-              data={getParamOptions()}
-              value={selectedParam}
-              onChange={(val) => setSelectedParam(val || '')}
-              searchable
-            />
-          )}
+        {currentRapor?.needsParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem' && (
+          <Select
+            label={
+              currentRapor.needsParam === 'proje'
+                ? 'Proje Seçin'
+                : currentRapor.needsParam === 'departman'
+                  ? 'Departman Seçin'
+                  : 'Kategori Seçin'
+            }
+            placeholder="Seçiniz..."
+            data={getParamOptions()}
+            value={selectedParam}
+            onChange={(val) => setSelectedParam(val || '')}
+            searchable
+          />
+        )}
 
         {/* Dönem Seçimi (Bordro için) */}
         {currentRapor?.needsParam === 'donem' && (
@@ -313,18 +303,8 @@ export function ExportModal({
         {/* Tarih Aralığı Seçimi */}
         {currentRapor?.needsParam === 'tarih' && (
           <Group grow>
-            <StyledDatePicker
-              label="Başlangıç"
-              placeholder="Tarih seçin"
-              value={startDate}
-              onChange={setStartDate}
-            />
-            <StyledDatePicker
-              label="Bitiş"
-              placeholder="Tarih seçin"
-              value={endDate}
-              onChange={setEndDate}
-            />
+            <StyledDatePicker label="Başlangıç" placeholder="Tarih seçin" value={startDate} onChange={setStartDate} />
+            <StyledDatePicker label="Bitiş" placeholder="Tarih seçin" value={endDate} onChange={setEndDate} />
           </Group>
         )}
 

@@ -1,13 +1,16 @@
 import express from 'express';
 import { query } from '../database.js';
-import { guncelleOgunMaliyet, guncellePlanMaliyet, hesaplaReceteMaliyet } from '../services/maliyet-hesaplama-service.js';
-
+import {
+  guncelleOgunMaliyet,
+  guncellePlanMaliyet,
+  hesaplaReceteMaliyet,
+} from '../services/maliyet-hesaplama-service.js';
+import aiFeaturesRouter from './menu-planlama/ai-features.js';
+import menuImportRouter from './menu-planlama/menu-import.js';
 // Sub-router'lar
 import recetelerRouter from './menu-planlama/receteler.js';
 import sartnamelerRouter from './menu-planlama/sartnameler.js';
 import urunKartlariRouter from './menu-planlama/urun-kartlari.js';
-import menuImportRouter from './menu-planlama/menu-import.js';
-import aiFeaturesRouter from './menu-planlama/ai-features.js';
 
 const router = express.Router();
 
@@ -373,6 +376,110 @@ router.delete('/yemekler/:yemekId', async (req, res) => {
     await guncelleOgunMaliyet(ogunId);
 
     res.json({ success: true, message: 'Yemek silindi' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// TOPLU KAYDETME (Bulk Save)
+// =============================================
+
+// Tüm planı tek istekte kaydet
+router.post('/menu-planlari/toplu-kaydet', async (req, res) => {
+  try {
+    const {
+      proje_id,
+      ad,
+      tip,
+      baslangic_tarihi,
+      bitis_tarihi,
+      varsayilan_kisi_sayisi,
+      ogunler, // [{ tarih, ogun_tipi_id, kisi_sayisi, yemekler: [{ recete_id, ad, fiyat }] }]
+    } = req.body;
+
+    if (!proje_id) {
+      return res.status(400).json({ success: false, error: 'Proje seçiniz' });
+    }
+    if (!ogunler || ogunler.length === 0) {
+      return res.status(400).json({ success: false, error: 'En az bir öğün ekleyin' });
+    }
+
+    // 1. Plan oluştur
+    const planResult = await query(
+      `INSERT INTO menu_planlari (
+        proje_id, ad, tip, baslangic_tarihi, bitis_tarihi,
+        varsayilan_kisi_sayisi, durum
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'taslak')
+      RETURNING *`,
+      [proje_id, ad, tip || 'haftalik', baslangic_tarihi, bitis_tarihi, varsayilan_kisi_sayisi || 1000]
+    );
+    const planId = planResult.rows[0].id;
+    const kisiSayisi = varsayilan_kisi_sayisi || 1000;
+
+    let totalOgunler = 0;
+    let totalYemekler = 0;
+
+    // 2. Her öğün için toplu ekle
+    for (const ogun of ogunler) {
+      const ogunResult = await query(
+        `INSERT INTO menu_plan_ogunleri (
+          menu_plan_id, tarih, ogun_tipi_id, kisi_sayisi
+        ) VALUES ($1, $2, $3, $4)
+        ON CONFLICT (menu_plan_id, tarih, ogun_tipi_id) DO UPDATE SET
+          kisi_sayisi = EXCLUDED.kisi_sayisi,
+          updated_at = NOW()
+        RETURNING *`,
+        [planId, ogun.tarih, ogun.ogun_tipi_id, ogun.kisi_sayisi || kisiSayisi]
+      );
+      const ogunId = ogunResult.rows[0].id;
+      totalOgunler++;
+
+      // 3. Yemekleri ekle
+      if (ogun.yemekler && ogun.yemekler.length > 0) {
+        for (let i = 0; i < ogun.yemekler.length; i++) {
+          const yemek = ogun.yemekler[i];
+
+          // recete_id varsa reçete maliyetini al
+          let porsiyonMaliyet = yemek.fiyat || 0;
+          if (yemek.recete_id) {
+            const receteResult = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [yemek.recete_id]);
+            if (receteResult.rows[0]?.tahmini_maliyet) {
+              porsiyonMaliyet = receteResult.rows[0].tahmini_maliyet;
+            }
+          }
+
+          const toplamMaliyet = porsiyonMaliyet * (ogun.kisi_sayisi || kisiSayisi);
+
+          await query(
+            `INSERT INTO menu_ogun_yemekleri (
+              menu_ogun_id, recete_id, sira, porsiyon_maliyet, toplam_maliyet
+            ) VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (menu_ogun_id, recete_id) DO UPDATE SET
+              sira = EXCLUDED.sira,
+              porsiyon_maliyet = EXCLUDED.porsiyon_maliyet,
+              toplam_maliyet = EXCLUDED.toplam_maliyet`,
+            [ogunId, yemek.recete_id, i + 1, porsiyonMaliyet, toplamMaliyet]
+          );
+          totalYemekler++;
+        }
+
+        // Öğün toplamını güncelle
+        await guncelleOgunMaliyet(ogunId);
+      }
+    }
+
+    // 4. Plan toplamını güncelle
+    await guncellePlanMaliyet(planId);
+
+    res.json({
+      success: true,
+      data: {
+        plan_id: planId,
+        toplam_ogun: totalOgunler,
+        toplam_yemek: totalYemekler,
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

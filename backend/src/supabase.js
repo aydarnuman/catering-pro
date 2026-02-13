@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import logger from './utils/logger.js';
 
 // Lazy initialized client
 let _supabase = null;
@@ -28,6 +29,11 @@ function getSupabaseClient() {
   const apiKey = supabaseAnonKey || supabaseServiceKey;
 
   if (!supabaseUrl || !apiKey) {
+    logger.warn('Supabase client baslatılamadi - env degiskenleri eksik', {
+      hasUrl: !!supabaseUrl,
+      hasAnonKey: !!supabaseAnonKey,
+      hasServiceKey: !!supabaseServiceKey,
+    });
     return null;
   }
 

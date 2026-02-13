@@ -29,12 +29,7 @@ export default function DepoModal({
   loading = false,
 }: DepoModalProps) {
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={editingDepo ? 'Depo Düzenle' : 'Yeni Depo Ekle'}
-      size="lg"
-    >
+    <Modal opened={opened} onClose={onClose} title={editingDepo ? 'Depo Düzenle' : 'Yeni Depo Ekle'} size="lg">
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
           label="Depo Adı"
@@ -86,9 +81,7 @@ export default function DepoModal({
           label="Kapasite (m³)"
           placeholder="0"
           value={depoForm.kapasite_m3}
-          onChange={(value) =>
-            setDepoForm({ ...depoForm, kapasite_m3: typeof value === 'number' ? value : 0 })
-          }
+          onChange={(value) => setDepoForm({ ...depoForm, kapasite_m3: typeof value === 'number' ? value : 0 })}
           min={0}
         />
       </SimpleGrid>

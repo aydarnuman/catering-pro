@@ -8,6 +8,7 @@ import { query, transaction } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
+import logger from '../utils/logger.js';
 import { createInvoiceSchema, updateInvoiceSchema, updateInvoiceStatusSchema } from '../validations/invoices.js';
 
 const router = express.Router();
@@ -48,6 +49,7 @@ router.get('/stats', async (_req, res) => {
       bekleyen_tutar: Math.round(parseFloat(stats.bekleyen_tutar)) || 0,
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -159,6 +161,7 @@ router.get('/', async (req, res) => {
       offset: parseInt(offset, 10),
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({
       success: false,
       error: error.message,
@@ -197,6 +200,7 @@ router.get('/:id', async (req, res) => {
       data: invoice,
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({
       success: false,
       error: error.message,
@@ -294,6 +298,7 @@ router.post(
         data: result,
       });
     } catch (error) {
+      logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
       res.status(500).json({
         success: false,
         error: error.message,
@@ -400,6 +405,7 @@ router.put(
         data: result,
       });
     } catch (error) {
+      logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
       res.status(500).json({
         success: false,
         error: error.message,
@@ -439,6 +445,7 @@ router.patch('/:id/status', validate(updateInvoiceStatusSchema), async (req, res
       data: result.rows[0],
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({
       success: false,
       error: error.message,
@@ -473,6 +480,7 @@ router.delete('/:id', authenticate, requirePermission('fatura', 'delete'), audit
       message: 'Fatura başarıyla silindi',
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({
       success: false,
       error: error.message,
@@ -520,6 +528,7 @@ router.get('/summary/monthly', async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({
       success: false,
       error: error.message,
@@ -537,6 +546,7 @@ router.get('/summary/category', async (req, res) => {
     const data = await faturaKalemleriClient.getKategoriOzetSummary({ startDate, endDate });
     res.json({ success: true, data });
   } catch (error) {
+    logger.error('Fatura endpoint hatasi', { error: error.message, stack: error.stack, url: req.originalUrl });
     res.status(500).json({ success: false, error: error.message });
   }
 });

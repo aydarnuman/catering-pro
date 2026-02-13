@@ -111,9 +111,7 @@ export interface UseStokDataReturn {
     ) => void;
     setSayimDepoId: (id: number | null) => void;
     setSayimVerileri: (
-      veriler:
-        | { [key: number]: number }
-        | ((prev: { [key: number]: number }) => { [key: number]: number })
+      veriler: { [key: number]: number } | ((prev: { [key: number]: number }) => { [key: number]: number })
     ) => void;
     // Modal setters
     setDepoModalOpened: (opened: boolean) => void;
@@ -256,7 +254,6 @@ export function useStokData(): UseStokDataReturn {
   // === VERİ YÜKLEME FONKSİYONLARI ===
 
   const loadData = useCallback(async () => {
-    console.log('loadData başlatıldı');
     setLoading(true);
     setError(null);
 
@@ -277,21 +274,13 @@ export function useStokData(): UseStokDataReturn {
       ]);
 
       const urunData =
-        results[0].status === 'fulfilled'
-          ? results[0].value
-          : { success: false, error: results[0].reason?.message };
+        results[0].status === 'fulfilled' ? results[0].value : { success: false, error: results[0].reason?.message };
       const depoData =
-        results[1].status === 'fulfilled'
-          ? results[1].value
-          : { success: false, error: results[1].reason?.message };
+        results[1].status === 'fulfilled' ? results[1].value : { success: false, error: results[1].reason?.message };
       const katData =
-        results[2].status === 'fulfilled'
-          ? results[2].value
-          : { success: false, error: results[2].reason?.message };
+        results[2].status === 'fulfilled' ? results[2].value : { success: false, error: results[2].reason?.message };
       const birimData =
-        results[3].status === 'fulfilled'
-          ? results[3].value
-          : { success: false, error: results[3].reason?.message };
+        results[3].status === 'fulfilled' ? results[3].value : { success: false, error: results[3].reason?.message };
 
       const errors: string[] = [];
       if (!urunData.success) errors.push(`Ürünler: ${urunData.error || 'Alınamadı'}`);
@@ -301,42 +290,34 @@ export function useStokData(): UseStokDataReturn {
         throw new Error(`Kritik veriler alınamadı: ${errors.join(', ')}`);
       }
 
-      const urunList = ((urunData.success && 'data' in urunData ? urunData.data : []) || []).map(
-        (u: any) => ({
-          id: u.id,
-          kod: u.kod,
-          ad: u.ad,
-          kategori: u.kategori || 'Kategorisiz',
-          kategori_id: u.kategori_id,
-          birim: u.birim_kisa || u.birim || 'Ad',
-          ana_birim_id: u.ana_birim_id,
-          toplam_stok: parseFloat(u.toplam_stok) || 0,
-          min_stok: parseFloat(u.min_stok) || 0,
-          max_stok: parseFloat(u.max_stok) || 0,
-          kritik_stok: parseFloat(u.kritik_stok) || 0,
-          son_alis_fiyat: parseFloat(u.son_alis_fiyati) || 0,
-          durum: u.durum || 'normal',
-        })
-      );
+      const urunList = ((urunData.success && 'data' in urunData ? urunData.data : []) || []).map((u: any) => ({
+        id: u.id,
+        kod: u.kod,
+        ad: u.ad,
+        kategori: u.kategori || 'Kategorisiz',
+        kategori_id: u.kategori_id,
+        birim: u.birim_kisa || u.birim || 'Ad',
+        ana_birim_id: u.ana_birim_id,
+        toplam_stok: parseFloat(u.toplam_stok) || 0,
+        min_stok: parseFloat(u.min_stok) || 0,
+        max_stok: parseFloat(u.max_stok) || 0,
+        kritik_stok: parseFloat(u.kritik_stok) || 0,
+        son_alis_fiyat: parseFloat(u.son_alis_fiyati) || 0,
+        durum: u.durum || 'normal',
+      }));
 
       setStoklar(urunList);
       setTumUrunler(urunList);
       setTumStokSayisi(urunList.length);
-      setDepolar(
-        (depoData.success && 'data' in depoData ? depoData.data || [] : []) as unknown as Depo[]
-      );
+      setDepolar((depoData.success && 'data' in depoData ? depoData.data || [] : []) as unknown as Depo[]);
 
-      const katList = (
-        katData.success && 'data' in katData && katData.data ? katData.data : []
-      ).map((k: any) => ({
+      const katList = (katData.success && 'data' in katData && katData.data ? katData.data : []).map((k: any) => ({
         id: k.id,
         kod: k.kod || `KAT${k.id}`,
         ad: k.ad,
       }));
       setKategoriler(katList);
-      setBirimler(
-        (birimData.success && 'data' in birimData && birimData.data ? birimData.data : []) || []
-      );
+      setBirimler((birimData.success && 'data' in birimData && birimData.data ? birimData.data : []) || []);
     } catch (err: any) {
       console.error('Veri yükleme hatası:', err);
 
@@ -484,15 +465,13 @@ export function useStokData(): UseStokDataReturn {
       try {
         const fallbackResult = (await stokAPI.getFaturaKalemler(ettn)) as any;
         if (fallbackResult.success) {
-          const kalemler = (fallbackResult.kalemler || fallbackResult.data || []).map(
-            (k: any, index: number) => ({
-              ...k,
-              sira: k.sira || index + 1,
-              eslesme: null,
-              alternatif_eslesmeler: [],
-              anomali: null,
-            })
-          );
+          const kalemler = (fallbackResult.kalemler || fallbackResult.data || []).map((k: any, index: number) => ({
+            ...k,
+            sira: k.sira || index + 1,
+            eslesme: null,
+            alternatif_eslesmeler: [],
+            anomali: null,
+          }));
           setFaturaKalemler(kalemler);
           setFaturaOzet(null);
           setFaturaInfo(null);

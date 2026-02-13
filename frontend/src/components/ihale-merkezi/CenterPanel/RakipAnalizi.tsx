@@ -65,13 +65,7 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
     >
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          <ThemeIcon
-            size="sm"
-            variant="light"
-            color={config.color}
-            radius="xl"
-            style={{ flexShrink: 0 }}
-          >
+          <ThemeIcon size="sm" variant="light" color={config.color} radius="xl" style={{ flexShrink: 0 }}>
             <Icon size={12} />
           </ThemeIcon>
           <Box style={{ minWidth: 0, flex: 1 }}>
@@ -107,12 +101,7 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             </Tooltip>
           )}
           {rakip.gecmis?.length > 0 && (
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="gray"
-              onClick={() => setExpanded(!expanded)}
-            >
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setExpanded(!expanded)}>
               {expanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
             </ActionIcon>
           )}
@@ -140,12 +129,7 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             </Badge>
           )}
           {rakip.ortalama_indirim_orani != null && (
-            <Badge
-              variant="light"
-              color="green"
-              size="xs"
-              leftSection={<IconCurrencyLira size={9} />}
-            >
+            <Badge variant="light" color="green" size="xs" leftSection={<IconCurrencyLira size={9} />}>
               %{rakip.ortalama_indirim_orani.toFixed(1)} ort. indirim
             </Badge>
           )}
@@ -165,12 +149,7 @@ function RakipKarti({ rakip }: { rakip: Rakip }) {
             Bu kurumdaki geçmişi:
           </Text>
           {rakip.gecmis?.map((g: RakipGecmis) => (
-            <Paper
-              key={`${g.ihale_basligi}-${g.kurum_adi}-${g.sozlesme_tarihi}`}
-              p="xs"
-              radius="sm"
-              bg="dark.7"
-            >
+            <Paper key={`${g.ihale_basligi}-${g.kurum_adi}-${g.sozlesme_tarihi}`} p="xs" radius="sm" bg="dark.7">
               <Group justify="space-between" gap="xs">
                 <Box style={{ minWidth: 0, flex: 1 }}>
                   <Text size="xs" lineClamp={1} fw={500}>

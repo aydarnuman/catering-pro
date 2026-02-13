@@ -7,9 +7,7 @@
  */
 
 import {
-  ActionIcon,
   Badge,
-  Box,
   Button,
   Group,
   List,
@@ -102,7 +100,7 @@ function getStageIcon(stage?: string, status?: string) {
 }
 
 // Stage adı
-function getStageName(stage?: string): string {
+function _getStageName(stage?: string): string {
   switch (stage) {
     case 'text_extraction':
       return 'Metin çıkarma';
@@ -277,31 +275,24 @@ export function AnalysisProgressModal({
               </Group>
 
               {/* Aşamalar */}
-              <Timeline
-                active={getActiveStageIndex(progress.currentFile.stage)}
-                bulletSize={20}
-                lineWidth={2}
-              >
+              <Timeline active={getActiveStageIndex(progress.currentFile.stage)} bulletSize={20} lineWidth={2}>
                 <Timeline.Item
                   bullet={getStageIcon(
                     'text_extraction',
                     progress.currentFile.stage === 'text_extraction'
                       ? 'processing'
                       : progress.currentFile.stage &&
-                          ['visual_analysis', 'merging', 'complete'].includes(
-                            progress.currentFile.stage
-                          )
+                          ['visual_analysis', 'merging', 'complete'].includes(progress.currentFile.stage)
                         ? 'completed'
                         : 'pending'
                   )}
                   title={<Text size="xs">Metin çıkarma</Text>}
                 >
-                  {progress.currentFile.stage === 'text_extraction' &&
-                    progress.currentFile.stageDetail && (
-                      <Text size="xs" c="dimmed">
-                        {progress.currentFile.stageDetail}
-                      </Text>
-                    )}
+                  {progress.currentFile.stage === 'text_extraction' && progress.currentFile.stageDetail && (
+                    <Text size="xs" c="dimmed">
+                      {progress.currentFile.stageDetail}
+                    </Text>
+                  )}
                 </Timeline.Item>
 
                 <Timeline.Item
@@ -309,19 +300,17 @@ export function AnalysisProgressModal({
                     'visual_analysis',
                     progress.currentFile.stage === 'visual_analysis'
                       ? 'processing'
-                      : progress.currentFile.stage &&
-                          ['merging', 'complete'].includes(progress.currentFile.stage)
+                      : progress.currentFile.stage && ['merging', 'complete'].includes(progress.currentFile.stage)
                         ? 'completed'
                         : 'pending'
                   )}
                   title={<Text size="xs">Görsel analiz</Text>}
                 >
-                  {progress.currentFile.stage === 'visual_analysis' &&
-                    progress.currentFile.stageDetail && (
-                      <Text size="xs" c="dimmed">
-                        {progress.currentFile.stageDetail}
-                      </Text>
-                    )}
+                  {progress.currentFile.stage === 'visual_analysis' && progress.currentFile.stageDetail && (
+                    <Text size="xs" c="dimmed">
+                      {progress.currentFile.stageDetail}
+                    </Text>
+                  )}
                 </Timeline.Item>
 
                 <Timeline.Item
@@ -358,9 +347,7 @@ export function AnalysisProgressModal({
                       variant={file.status === 'processing' ? 'filled' : 'light'}
                     >
                       {file.status === 'completed' && <IconCheck size={12} />}
-                      {file.status === 'processing' && (
-                        <IconLoader size={12} className="animate-spin" />
-                      )}
+                      {file.status === 'processing' && <IconLoader size={12} className="animate-spin" />}
                       {file.status === 'failed' && <IconX size={12} />}
                       {file.status === 'pending' && <IconClock size={12} />}
                     </ThemeIcon>
@@ -402,12 +389,7 @@ export function AnalysisProgressModal({
 
           <Group gap="xs">
             {!isComplete && (
-              <Button
-                variant="subtle"
-                color="red"
-                leftSection={<IconPlayerPause size={16} />}
-                onClick={onCancel}
-              >
+              <Button variant="subtle" color="red" leftSection={<IconPlayerPause size={16} />} onClick={onCancel}>
                 İptal
               </Button>
             )}

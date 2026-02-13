@@ -112,16 +112,12 @@ export default function FaturaKalemlerPage() {
 
   // Modal
   const [modalAcik, { open: modalAc, close: modalKapat }] = useDisclosure(false);
-  const [yeniUrunModalAcik, { open: yeniUrunModalAc, close: yeniUrunModalKapat }] =
-    useDisclosure(false);
-  const [birimCarpaniModalAcik, { open: birimCarpaniModalAc, close: birimCarpaniModalKapat }] =
-    useDisclosure(false);
+  const [yeniUrunModalAcik, { open: yeniUrunModalAc, close: yeniUrunModalKapat }] = useDisclosure(false);
+  const [birimCarpaniModalAcik, { open: birimCarpaniModalAc, close: birimCarpaniModalKapat }] = useDisclosure(false);
   const [yeniUrunAdi, setYeniUrunAdi] = useState('');
 
   // Birim çarpanı state'leri
-  const [seciliUrun, setSeciliUrun] = useState<{ id: number; ad: string; kod: string } | null>(
-    null
-  );
+  const [seciliUrun, setSeciliUrun] = useState<{ id: number; ad: string; kod: string } | null>(null);
   const [birimCarpani, setBirimCarpani] = useState<number>(1);
   const [standartBirim, setStandartBirim] = useState<string>('KG');
   // Mini hesaplayıcı (ör: 48 × 250 gr → 12 KG)
@@ -164,8 +160,7 @@ export default function FaturaKalemlerPage() {
             eslestirme_tarihi: k.eslestirme_tarihi,
             birim_carpani: raw.birim_carpani != null ? Number(raw.birim_carpani) : undefined,
             standart_birim: raw.standart_birim != null ? String(raw.standart_birim) : undefined,
-            standart_birim_fiyat:
-              raw.standart_birim_fiyat != null ? Number(raw.standart_birim_fiyat) : undefined,
+            standart_birim_fiyat: raw.standart_birim_fiyat != null ? Number(raw.standart_birim_fiyat) : undefined,
             mapping_id: raw.mapping_id != null ? Number(raw.mapping_id) : undefined,
           };
         })
@@ -184,9 +179,7 @@ export default function FaturaKalemlerPage() {
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string }; status?: number } };
-      const msg =
-        err?.response?.data?.error ??
-        (error instanceof Error ? error.message : 'Kalemler yüklenemedi');
+      const msg = err?.response?.data?.error ?? (error instanceof Error ? error.message : 'Kalemler yüklenemedi');
       if (process.env.NODE_ENV === 'development') {
         console.error('[FaturaKalemler] getKalemler hatası:', {
           ettn,
@@ -267,8 +260,7 @@ export default function FaturaKalemlerPage() {
         : await faturaKalemleriAPI.eslesmeKaldir(ettn, kalemSira);
 
       // Fiyat güncelleme bilgisi (eşleştirme yapıldıysa)
-      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null })
-        .fiyat_guncelleme;
+      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null }).fiyat_guncelleme;
 
       // Notification mesajını oluştur
       let mesaj = urunId ? 'Kalem eşleştirildi' : 'Eşleştirme kaldırıldı';
@@ -305,8 +297,7 @@ export default function FaturaKalemlerPage() {
       const msg =
         error instanceof Error
           ? error.message
-          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-            'Eşleştirme başarısız');
+          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Eşleştirme başarısız');
       notifications.show({ title: 'Hata', message: msg, color: 'red' });
     } finally {
       setSaving(false);
@@ -376,8 +367,7 @@ export default function FaturaKalemlerPage() {
       const msg =
         error instanceof Error
           ? error.message
-          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-            'Ürün oluşturulamadı');
+          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Ürün oluşturulamadı');
       notifications.show({ title: 'Hata', message: msg, color: 'red' });
     } finally {
       setSaving(false);
@@ -391,21 +381,13 @@ export default function FaturaKalemlerPage() {
       setSaving(true);
 
       // Birim çarpanı ve st. birim ürün kartına + fatura kalemine yazılsın (yenileyince 204,12/KG kalsın)
-      const updated = await faturaKalemleriAPI.eslesdir(
-        ettn,
-        seciliKalem.kalem_sira,
-        seciliUrun.id,
-        {
-          birim_carpani:
-            typeof birimCarpani === 'number' ? birimCarpani : Number(birimCarpani) || 1,
-          standart_birim:
-            standartBirim && String(standartBirim).trim() ? String(standartBirim).trim() : 'KG',
-        }
-      );
+      const updated = await faturaKalemleriAPI.eslesdir(ettn, seciliKalem.kalem_sira, seciliUrun.id, {
+        birim_carpani: typeof birimCarpani === 'number' ? birimCarpani : Number(birimCarpani) || 1,
+        standart_birim: standartBirim && String(standartBirim).trim() ? String(standartBirim).trim() : 'KG',
+      });
 
       // Fiyat güncelleme bilgisi
-      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null })
-        .fiyat_guncelleme;
+      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null }).fiyat_guncelleme;
 
       // Hesaplanan standart fiyat
       const hesaplananStdFiyat = seciliKalem.birim_fiyat / (birimCarpani || 1);
@@ -444,8 +426,7 @@ export default function FaturaKalemlerPage() {
       const msg =
         error instanceof Error
           ? error.message
-          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-            'Eşleştirme başarısız');
+          : ((error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Eşleştirme başarısız');
       notifications.show({ title: 'Hata', message: msg, color: 'red' });
     } finally {
       setSaving(false);
@@ -519,8 +500,8 @@ export default function FaturaKalemlerPage() {
       <Container size="xl" py="md">
         <Alert color="red" title="Fatura bulunamadı">
           <Text size="sm" mb="md">
-            Geçerli bir fatura seçmediniz. Lütfen faturalar listesinden bir faturayı açıp
-            &quot;Kalemler &amp; Eşleştir&quot; ile bu sayfaya girin.
+            Geçerli bir fatura seçmediniz. Lütfen faturalar listesinden bir faturayı açıp &quot;Kalemler &amp;
+            Eşleştir&quot; ile bu sayfaya girin.
           </Text>
           <Button
             variant="light"
@@ -584,12 +565,7 @@ export default function FaturaKalemlerPage() {
               >
                 Otomatik Eşleştir
               </Button>
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="light"
-                onClick={verileriYukle}
-                loading={loading}
-              >
+              <Button leftSection={<IconRefresh size={16} />} variant="light" onClick={verileriYukle} loading={loading}>
                 Yenile
               </Button>
             </Group>
@@ -605,10 +581,7 @@ export default function FaturaKalemlerPage() {
                   <Table.Th style={{ width: 50 }}>#</Table.Th>
                   <Table.Th>Fatura Ürün Adı</Table.Th>
                   <Table.Th style={{ width: 100, textAlign: 'right' }}>Miktar</Table.Th>
-                  <Table.Th
-                    style={{ width: 100, textAlign: 'right' }}
-                    title="Fatura birim fiyatı (koli/kutu vb.)"
-                  >
+                  <Table.Th style={{ width: 100, textAlign: 'right' }} title="Fatura birim fiyatı (koli/kutu vb.)">
                     B. Fiyat
                   </Table.Th>
                   <Table.Th style={{ width: 120, textAlign: 'right' }}>Tutar</Table.Th>
@@ -666,8 +639,7 @@ export default function FaturaKalemlerPage() {
                               <Divider my={4} />
                               <Text size="xs" fw={500}>
                                 {formatMoney(kalem.birim_fiyat)} / {kalem.birim_carpani || 1} ={' '}
-                                {formatMoney(kalem.standart_birim_fiyat)}/
-                                {kalem.standart_birim || 'KG'}
+                                {formatMoney(kalem.standart_birim_fiyat)}/{kalem.standart_birim || 'KG'}
                               </Text>
                             </Stack>
                           }
@@ -702,11 +674,7 @@ export default function FaturaKalemlerPage() {
                               {kalem.urun_ad}
                             </Text>
                             {kalem.kategori_ad && (
-                              <Badge
-                                size="xs"
-                                variant="light"
-                                color={kalem.kategori_renk || 'gray'}
-                              >
+                              <Badge size="xs" variant="light" color={kalem.kategori_renk || 'gray'}>
                                 {kalem.kategori_ad}
                               </Badge>
                             )}
@@ -745,8 +713,8 @@ export default function FaturaKalemlerPage() {
         {eslesmemis > 0 && (
           <Alert color="yellow" icon={<IconAlertCircle size={18} />}>
             <Text size="sm">
-              <strong>{eslesmemis} kalem</strong> henüz bir ürün kartına eşleştirilmedi. Maliyet
-              hesaplaması için tüm kalemleri eşleştirmeniz önerilir.
+              <strong>{eslesmemis} kalem</strong> henüz bir ürün kartına eşleştirilmedi. Maliyet hesaplaması için tüm
+              kalemleri eşleştirmeniz önerilir.
             </Text>
           </Alert>
         )}
@@ -772,8 +740,8 @@ export default function FaturaKalemlerPage() {
                 {seciliKalem.fatura_urun_adi}
               </Text>
               <Text size="xs" c="dimmed">
-                {seciliKalem.miktar} {birimFormatla(seciliKalem.birim)} ×{' '}
-                {formatMoney(seciliKalem.birim_fiyat)} = {formatMoney(seciliKalem.tutar)}
+                {seciliKalem.miktar} {birimFormatla(seciliKalem.birim)} × {formatMoney(seciliKalem.birim_fiyat)} ={' '}
+                {formatMoney(seciliKalem.tutar)}
               </Text>
             </Paper>
 
@@ -849,9 +817,7 @@ export default function FaturaKalemlerPage() {
                         cursor: 'pointer',
                         borderBottom: '1px solid var(--mantine-color-gray-2)',
                       }}
-                      onClick={() =>
-                        urunSecVeCarpanSor({ id: urun.id, ad: urun.ad, kod: urun.kod })
-                      }
+                      onClick={() => urunSecVeCarpanSor({ id: urun.id, ad: urun.ad, kod: urun.kod })}
                     >
                       <Group justify="space-between">
                         <Box>
@@ -936,8 +902,8 @@ export default function FaturaKalemlerPage() {
 
           <Alert color="blue" icon={<IconAlertCircle size={18} />}>
             <Text size="sm">
-              Ürün kartı oluşturulduğunda kategori otomatik olarak tahmin edilecektir. Daha sonra
-              ürün kartları sayfasından düzenleyebilirsiniz.
+              Ürün kartı oluşturulduğunda kategori otomatik olarak tahmin edilecektir. Daha sonra ürün kartları
+              sayfasından düzenleyebilirsiniz.
             </Text>
           </Alert>
 
@@ -1141,8 +1107,8 @@ export default function FaturaKalemlerPage() {
             {/* Örnek açıklama */}
             <Alert color="blue" icon={<IconAlertCircle size={18} />}>
               <Text size="xs">
-                <strong>Örnek:</strong> 48×250gr margarin kolisi için çarpan = 12 (48×250gr = 12
-                KG). Böylece koli fiyatını 12&apos;ye bölünce KG fiyatı bulunur.
+                <strong>Örnek:</strong> 48×250gr margarin kolisi için çarpan = 12 (48×250gr = 12 KG). Böylece koli
+                fiyatını 12&apos;ye bölünce KG fiyatı bulunur.
               </Text>
             </Alert>
 

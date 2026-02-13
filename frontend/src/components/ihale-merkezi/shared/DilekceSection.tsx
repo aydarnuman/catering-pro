@@ -113,9 +113,7 @@ interface DilekceSectionProps {
 }
 
 export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionProps) {
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>(
-    []
-  );
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [dilekceContent, setDilekceContent] = useState('');
@@ -221,10 +219,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
       }
     } catch (error) {
       console.error('Dilekçe AI error:', error);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Bir hata oluştu. Lütfen tekrar deneyin.' },
-      ]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Bir hata oluştu. Lütfen tekrar deneyin.' }]);
     } finally {
       setLoading(false);
     }
@@ -305,12 +300,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
         </Group>
         {dilekceContent && (
           <Group gap="xs">
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconCopy size={14} />}
-              onClick={handleCopy}
-            >
+            <Button size="xs" variant="light" leftSection={<IconCopy size={14} />} onClick={handleCopy}>
               Kopyala
             </Button>
             <Button
@@ -368,13 +358,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
             <Stack gap="xs">
               {messages.length === 0 && (
                 <Paper p="md" withBorder radius="md" ta="center">
-                  <ThemeIcon
-                    size="xl"
-                    variant="light"
-                    color={selectedType.color}
-                    radius="xl"
-                    mb="sm"
-                  >
+                  <ThemeIcon size="xl" variant="light" color={selectedType.color} radius="xl" mb="sm">
                     <selectedType.icon size={24} />
                   </ThemeIcon>
                   <Text size="sm" fw={600} mb="xs">
@@ -398,11 +382,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
                   key={`dilekce-msg-${msg.role}-${idx}`}
                   p="sm"
                   radius="md"
-                  bg={
-                    msg.role === 'user'
-                      ? 'var(--mantine-color-blue-light)'
-                      : 'var(--mantine-color-gray-light)'
-                  }
+                  bg={msg.role === 'user' ? 'var(--mantine-color-blue-light)' : 'var(--mantine-color-gray-light)'}
                   style={{
                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                     maxWidth: '90%',

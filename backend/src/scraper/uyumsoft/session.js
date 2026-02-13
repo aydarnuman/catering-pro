@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import logger from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +34,8 @@ function decrypt(text) {
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
-  } catch (_err) {
+  } catch (err) {
+    logger.warn('[UyumsoftSession] decrypt hatasi', { error: err.message });
     return null;
   }
 }
@@ -73,7 +75,8 @@ class UyumsoftSession {
       };
       fs.writeFileSync(this.sessionPath, JSON.stringify(data, null, 2));
       return true;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] saveCredentials hatasi', { error: err.message });
       return false;
     }
   }
@@ -107,7 +110,8 @@ class UyumsoftSession {
         password,
         savedAt: data.savedAt,
       };
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] loadCredentials hatasi', { error: err.message });
       return null;
     }
   }
@@ -121,7 +125,8 @@ class UyumsoftSession {
         fs.unlinkSync(this.sessionPath);
       }
       return true;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] deleteCredentials hatasi', { error: err.message });
       return false;
     }
   }
@@ -150,7 +155,8 @@ class UyumsoftSession {
       };
       fs.writeFileSync(this.cookiePath, JSON.stringify(data, null, 2));
       return true;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] saveCookies hatasi', { error: err.message });
       return false;
     }
   }
@@ -165,7 +171,8 @@ class UyumsoftSession {
       }
       const data = JSON.parse(fs.readFileSync(this.cookiePath, 'utf8'));
       return data.cookies || null;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] loadCookies hatasi', { error: err.message });
       return null;
     }
   }
@@ -184,7 +191,8 @@ class UyumsoftSession {
       }
       const savedDate = new Date(data.savedAt);
       return Date.now() - savedDate.getTime();
-    } catch (_err) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] getCookieAge hatasi', { error: err.message });
       return Infinity;
     }
   }
@@ -207,7 +215,8 @@ class UyumsoftSession {
         fs.unlinkSync(this.cookiePath);
       }
       return true;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] deleteCookies hatasi', { error: err.message });
       return false;
     }
   }
@@ -234,7 +243,8 @@ class UyumsoftSession {
       };
       fs.writeFileSync(this.syncPath, JSON.stringify(data, null, 2));
       return true;
-    } catch (_error) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] saveLastSync hatasi', { error: err.message });
       return false;
     }
   }
@@ -248,7 +258,8 @@ class UyumsoftSession {
         return null;
       }
       return JSON.parse(fs.readFileSync(this.syncPath, 'utf8'));
-    } catch (_err) {
+    } catch (err) {
+      logger.warn('[UyumsoftSession] getSyncData hatasi', { error: err.message });
       return null;
     }
   }

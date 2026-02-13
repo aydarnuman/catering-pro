@@ -2,42 +2,6 @@
   "favorites": {},
   "history": [
     {
-      "id": "logs",
-      "label": "Canlı Loglar",
-      "time": "23:55:55",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "15:07:07",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "16:34:36",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "16:44:00",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "16:46:01",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "16:49:58",
-      "success": true
-    },
-    {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "16:52:05",
@@ -299,6 +263,42 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "19:15:26",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "10:49:24",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "10:51:53",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "11:03:57",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:09:31",
+      "success": true
+    },
+    {
+      "id": "clean-fast",
+      "label": "Hızlı Temizlik",
+      "time": "15:19:37",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:19:41",
       "success": true
     }
   ],

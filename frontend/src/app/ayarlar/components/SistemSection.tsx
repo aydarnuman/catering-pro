@@ -1,18 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Divider,
-  Group,
-  Paper,
-  Select,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import {
   IconCalendarEvent,
   IconChevronRight,
@@ -45,10 +33,7 @@ export default function SistemSection({ preferences, savePreferences, user }: Si
         </Text>
       </div>
 
-      <SettingsCard
-        title="Bölgesel Ayarlar"
-        rightAction={<IconLanguage size={18} color="var(--card-accent)" />}
-      >
+      <SettingsCard title="Bölgesel Ayarlar" rightAction={<IconLanguage size={18} color="var(--card-accent)" />}>
         <Divider />
         <Select
           label="Dil"
@@ -90,7 +75,8 @@ export default function SistemSection({ preferences, savePreferences, user }: Si
         <Select
           label="Sayfa Başına Kayıt"
           description="Listelerde kaç kayıt gösterilsin"
-          defaultValue="20"
+          value={preferences.pageSize}
+          onChange={(value) => savePreferences({ pageSize: value || '20' })}
           data={[
             { value: '10', label: '10 kayıt' },
             { value: '20', label: '20 kayıt' },
@@ -101,7 +87,8 @@ export default function SistemSection({ preferences, savePreferences, user }: Si
         <Select
           label="Otomatik Oturum Kapatma"
           description="İşlem yapılmadığında oturumu kapat"
-          defaultValue="never"
+          value={preferences.autoLogout}
+          onChange={(value) => savePreferences({ autoLogout: value || 'never' })}
           data={[
             { value: 'never', label: 'Hiçbir zaman' },
             { value: '30', label: '30 dakika' },
@@ -135,24 +122,14 @@ export default function SistemSection({ preferences, savePreferences, user }: Si
             <Text size="sm">{process.env.NODE_ENV}</Text>
           </div>
         </SimpleGrid>
-        <Button
-          variant="light"
-          leftSection={<IconDatabase size={16} />}
-          component={Link}
-          href="/admin/sistem"
-        >
+        <Button variant="light" leftSection={<IconDatabase size={16} />} component={Link} href="/admin/sistem">
           Detaylı Sistem Bilgisi
         </Button>
       </SettingsCard>
 
       {/* Admin Panel */}
-      {user?.role === 'admin' && (
-        <Paper
-          p="lg"
-          radius="md"
-          withBorder
-          style={{ background: 'var(--mantine-color-red-light)' }}
-        >
+      {(user?.user_type === 'admin' || user?.user_type === 'super_admin') && (
+        <Paper p="lg" radius="md" withBorder style={{ background: 'var(--mantine-color-red-light)' }}>
           <Group justify="space-between">
             <Group gap="sm">
               <ThemeIcon color="red" variant="filled" size="lg">

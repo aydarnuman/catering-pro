@@ -7,6 +7,7 @@ import {
   Button,
   Container,
   Divider,
+  Drawer,
   Group,
   NavLink,
   Paper,
@@ -15,12 +16,15 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconChevronRight, IconHome } from '@tabler/icons-react';
+import { IconCheck, IconChevronRight, IconHome, IconMenu2 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useConfirmDialog } from '@/components/ConfirmDialog';
 import { useAuth } from '@/context/AuthContext';
+import { usePreferencesContext } from '@/context/PreferencesContext';
 import { authFetch } from '@/lib/api';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
 import { API_BASE_URL } from '@/lib/config';
@@ -33,8 +37,8 @@ import GorunumSection from './components/GorunumSection';
 import KisayollarSection from './components/KisayollarSection';
 import ProfilSection from './components/ProfilSection';
 import SistemSection from './components/SistemSection';
-import type { FirmaBilgileri, UserInfo, UserPreferences } from './components/types';
-import { defaultPreferences, menuItems } from './components/types';
+import type { FirmaBilgileri, UserInfo } from './components/types';
+import { menuItems } from './components/types';
 
 function AyarlarContent() {
   const router = useRouter();
@@ -50,8 +54,15 @@ function AyarlarContent() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Preferences state
-  const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
+  // Preferences (from global context - local-first + server-sync)
+  const { preferences, setPreferences, savePreferences: savePrefs } = usePreferencesContext();
+
+  // Confirm dialog
+  const { confirm: confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
+
+  // Mobile drawer
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
 
   // Firma state (shared: FirmaProjelerSection + FirmaFormModal)
   const [firmalar, setFirmalar] = useState<FirmaBilgileri[]>([]);
@@ -79,11 +90,6 @@ function AyarlarContent() {
         }
       };
       fetchUser();
-    }
-
-    const savedPrefs = localStorage.getItem('userPreferences');
-    if (savedPrefs) {
-      setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
   }, [authUser]);
 
@@ -115,17 +121,18 @@ function AyarlarContent() {
   }, [searchParams]);
 
   // ─── Handlers ──────────────────────────────────────────
-  const savePreferences = (newPrefs: Partial<UserPreferences>) => {
-    const updated = { ...preferences, ...newPrefs };
-    setPreferences(updated);
-    localStorage.setItem('userPreferences', JSON.stringify(updated));
-    notifications.show({
-      title: 'Kaydedildi',
-      message: 'Tercihleriniz güncellendi',
-      color: 'green',
-      icon: <IconCheck size={16} />,
-    });
-  };
+  const savePreferences = useCallback(
+    (newPrefs: Partial<import('./components/types').UserPreferences>) => {
+      savePrefs(newPrefs);
+      notifications.show({
+        title: 'Kaydedildi',
+        message: 'Tercihleriniz güncellendi',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+    },
+    [savePrefs]
+  );
 
   const handleOpenFirmaModal = (firma?: FirmaBilgileri) => {
     setEditingFirma(firma || null);
@@ -133,7 +140,14 @@ function AyarlarContent() {
   };
 
   const handleDeleteFirma = async (id: number) => {
-    if (!confirm('Bu firmayı silmek istediğinize emin misiniz?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Firmayı Sil',
+      message: 'Bu firmayı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+      variant: 'danger',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await authFetch(`${API_BASE_URL}/api/firmalar/${id}`, { method: 'DELETE' });
@@ -195,9 +209,7 @@ function AyarlarContent() {
         return <BildirimlerSection preferences={preferences} savePreferences={savePreferences} />;
 
       case 'sistem':
-        return (
-          <SistemSection preferences={preferences} savePreferences={savePreferences} user={user} />
-        );
+        return <SistemSection preferences={preferences} savePreferences={savePreferences} user={user} />;
 
       case 'kisayollar':
         return <KisayollarSection />;
@@ -207,6 +219,68 @@ function AyarlarContent() {
     }
   };
 
+  // ─── Sidebar Nav Items ──────────────────────────────────
+  const renderNavItems = () => (
+    <>
+      {user && (
+        <>
+          <Group gap="sm" p="sm">
+            <Avatar size={40} radius="xl" color="blue">
+              {user.name?.charAt(0).toUpperCase() || 'U'}
+            </Avatar>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <Text size="sm" fw={600} truncate>
+                {user.name}
+              </Text>
+              <Text size="xs" c="dimmed" truncate>
+                {user.email}
+              </Text>
+            </div>
+          </Group>
+          <Divider />
+        </>
+      )}
+
+      {menuItems.map((item) =>
+        item.href ? (
+          <NavLink
+            key={item.id}
+            component={Link}
+            href={item.href}
+            label={item.label}
+            description={item.description}
+            leftSection={
+              <ThemeIcon variant="light" color={item.color} size="md">
+                <item.icon size={16} />
+              </ThemeIcon>
+            }
+            rightSection={<IconChevronRight size={14} />}
+            style={{ borderRadius: 8 }}
+            onClick={closeDrawer}
+          />
+        ) : (
+          <NavLink
+            key={item.id}
+            label={item.label}
+            description={item.description}
+            leftSection={
+              <ThemeIcon variant="light" color={item.color} size="md">
+                <item.icon size={16} />
+              </ThemeIcon>
+            }
+            active={activeSection === item.id}
+            onClick={() => {
+              setActiveSection(item.id);
+              router.push(`/ayarlar?section=${item.id}`);
+              closeDrawer();
+            }}
+            style={{ borderRadius: 8 }}
+          />
+        )
+      )}
+    </>
+  );
+
   // ─── Layout ────────────────────────────────────────────
   return (
     <Container size="xl" py="xl">
@@ -215,15 +289,14 @@ function AyarlarContent() {
         <Group justify="space-between">
           <div>
             <Group gap="md" align="center" mb="xs">
-              <Button
-                component={Link}
-                href="/"
-                variant="light"
-                leftSection={<IconHome size={18} />}
-                size="sm"
-              >
+              <Button component={Link} href="/" variant="light" leftSection={<IconHome size={18} />} size="sm">
                 Ana Sayfa
               </Button>
+              {isMobile && (
+                <Button variant="light" leftSection={<IconMenu2 size={18} />} size="sm" onClick={openDrawer}>
+                  Menü
+                </Button>
+              )}
             </Group>
             <Title order={1} size="h2" mb={4}>
               ⚙️ Ayarlar
@@ -235,6 +308,11 @@ function AyarlarContent() {
           </Badge>
         </Group>
 
+        {/* Mobile Drawer */}
+        <Drawer opened={drawerOpened} onClose={closeDrawer} title="Ayarlar Menüsü" size="xs" padding="md">
+          <Stack gap="xs">{renderNavItems()}</Stack>
+        </Drawer>
+
         {/* Main Content */}
         <Box
           style={{
@@ -243,80 +321,17 @@ function AyarlarContent() {
             alignItems: 'flex-start',
             gap: 'var(--mantine-spacing-xl)',
             minHeight: '60vh',
-            flexWrap: 'wrap',
           }}
-          className="settings-main-content"
         >
-          {/* Sidebar */}
-          <Paper
-            p="md"
-            radius="md"
-            withBorder
-            w={{ base: '100%', sm: 280 }}
-            style={{ position: 'sticky', top: 80, flexShrink: 0 }}
-          >
-            <Stack gap="xs">
-              {user && (
-                <>
-                  <Group gap="sm" p="sm">
-                    <Avatar size={40} radius="xl" color="blue">
-                      {user.name?.charAt(0).toUpperCase() || 'U'}
-                    </Avatar>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <Text size="sm" fw={600} truncate>
-                        {user.name}
-                      </Text>
-                      <Text size="xs" c="dimmed" truncate>
-                        {user.email}
-                      </Text>
-                    </div>
-                  </Group>
-                  <Divider />
-                </>
-              )}
-
-              {menuItems.map((item) =>
-                item.href ? (
-                  <NavLink
-                    key={item.id}
-                    component={Link}
-                    href={item.href}
-                    label={item.label}
-                    description={item.description}
-                    leftSection={
-                      <ThemeIcon variant="light" color={item.color} size="md">
-                        <item.icon size={16} />
-                      </ThemeIcon>
-                    }
-                    rightSection={<IconChevronRight size={14} />}
-                    style={{ borderRadius: 8 }}
-                  />
-                ) : (
-                  <NavLink
-                    key={item.id}
-                    label={item.label}
-                    description={item.description}
-                    leftSection={
-                      <ThemeIcon variant="light" color={item.color} size="md">
-                        <item.icon size={16} />
-                      </ThemeIcon>
-                    }
-                    active={activeSection === item.id}
-                    onClick={() => {
-                      setActiveSection(item.id);
-                      router.push(`/ayarlar?section=${item.id}`);
-                    }}
-                    style={{ borderRadius: 8 }}
-                  />
-                )
-              )}
-            </Stack>
-          </Paper>
+          {/* Desktop Sidebar */}
+          {!isMobile && (
+            <Paper p="md" radius="md" withBorder w={280} style={{ position: 'sticky', top: 80, flexShrink: 0 }}>
+              <Stack gap="xs">{renderNavItems()}</Stack>
+            </Paper>
+          )}
 
           {/* Content */}
-          <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'visible' }}>
-            {renderContent()}
-          </Box>
+          <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'visible' }}>{renderContent()}</Box>
         </Box>
       </Stack>
 
@@ -328,6 +343,9 @@ function AyarlarContent() {
         firmaCount={firmalar.length}
         onSaved={fetchFirmalar}
       />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialogComponent />
     </Container>
   );
 }

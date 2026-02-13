@@ -21,7 +21,7 @@ Bu döküman Catering Pro'nun lokal geliştirme ortamı kurulumu ve farklı orta
 
 ### Gereksinimler
 
-- Node.js v25+ (mevcut: v25.1.0)
+- Node.js v20+ (LTS onerilen)
 - npm
 - Git
 
@@ -359,14 +359,12 @@ lsof -ti:3001 | xargs kill -9
 
 ---
 
-## 🎨 IDE Ayarları (VS Code)
+## IDE Ayarlari (VS Code / Cursor)
 
-### Önerilen Extensions
+### Onerilen Extensions
 
-- **ES7+ React/Redux/React-Native snippets** - Hızlı snippet'ler
-- **Prettier** - Kod formatlama
-- **ESLint** - Linting
-- **Tailwind CSS IntelliSense** - Tailwind autocomplete
+- **Biome** - Linter & Formatter (ESLint/Prettier KULLANILMIYOR)
+- **ES7+ React/Redux/React-Native snippets** - Hizli snippet'ler
 - **GitLens** - Git entegrasyonu
 
 ---

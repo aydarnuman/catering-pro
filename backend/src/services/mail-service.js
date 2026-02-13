@@ -6,7 +6,7 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { query } from '../database.js';
-import { logAPI, logError } from '../utils/logger.js';
+import logger, { logAPI, logError } from '../utils/logger.js';
 
 // =====================================================
 // MAIL PROVIDER (Resend veya SMTP)
@@ -59,7 +59,8 @@ async function initTransporter() {
   // Bağlantıyı test et
   try {
     await transporter.verify();
-  } catch (_error) {
+  } catch (err) {
+    logger.warn('[MailService] SMTP baglanti testi basarisiz', { error: err.message });
     transporter = null;
   }
 
@@ -382,7 +383,9 @@ async function sendMail({ to, subject, html, text, template, data }) {
       `,
         [toAddress.join(', '), finalSubject, template || null, messageId]
       );
-    } catch (_dbErr) {}
+    } catch (dbErr) {
+      logger.warn('[MailService] Mail log DB yazma hatasi', { error: dbErr.message });
+    }
 
     return { success: true, messageId };
   } catch (error) {
@@ -397,8 +400,8 @@ async function sendMail({ to, subject, html, text, template, data }) {
       `,
         [to, subject, template || null, error.message]
       );
-    } catch (_dbErr) {
-      // Ignore
+    } catch (dbErr) {
+      logger.warn('[MailService] Mail log DB yazma hatasi', { error: dbErr.message });
     }
 
     return { success: false, error: error.message };

@@ -89,8 +89,7 @@ export function ForgotPasswordStep({ onStepChange }: ForgotPasswordStepProps) {
 
           <Alert icon={<IconInfoCircle size={16} />} className="auth-alert-info" radius="md">
             <Text size="sm">
-              E-postayı almadıysanız spam klasörünüzü kontrol edin veya yöneticinizle iletişime
-              geçin.
+              E-postayı almadıysanız spam klasörünüzü kontrol edin veya yöneticinizle iletişime geçin.
             </Text>
           </Alert>
 
@@ -133,8 +132,7 @@ export function ForgotPasswordStep({ onStepChange }: ForgotPasswordStepProps) {
       {/* Info Alert */}
       <Alert icon={<IconInfoCircle size={16} />} className="auth-alert-info" radius="md">
         <Text size="sm">
-          Bu özellik henüz aktif değildir. Şifrenizi sıfırlamak için lütfen yöneticinizle iletişime
-          geçin.
+          Bu özellik henüz aktif değildir. Şifrenizi sıfırlamak için lütfen yöneticinizle iletişime geçin.
         </Text>
       </Alert>
 
@@ -178,15 +176,7 @@ export function ForgotPasswordStep({ onStepChange }: ForgotPasswordStepProps) {
           </Box>
 
           {/* Submit Button */}
-          <Button
-            type="submit"
-            fullWidth
-            size="md"
-            radius="md"
-            loading={isLoading}
-            className="auth-button"
-            mt={8}
-          >
+          <Button type="submit" fullWidth size="md" radius="md" loading={isLoading} className="auth-button" mt={8}>
             {isLoading ? 'Gönderiliyor...' : 'Sıfırlama Linki Gönder'}
           </Button>
         </Stack>

@@ -8,7 +8,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { authenticate } from '../middleware/auth.js';
-import logger from '../utils/logger.js';
+import { asyncHandler } from '../middleware/error-handler.js';
 
 const router = express.Router();
 
@@ -27,8 +27,9 @@ router.use(authenticate);
  *       200:
  *         description: Tercihler başarıyla alındı
  */
-router.get('/', async (req, res) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
     const result = await query(
       `
       SELECT preference_key, preference_value, updated_at
@@ -48,13 +49,10 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       preferences,
-      raw: result.rows, // Detaylı bilgi için
+      raw: result.rows,
     });
-  } catch (error) {
-    logger.error('Tercihler getirme hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -75,8 +73,9 @@ router.get('/', async (req, res) => {
  *       200:
  *         description: Tercihler güncellendi
  */
-router.put('/', async (req, res) => {
-  try {
+router.put(
+  '/',
+  asyncHandler(async (req, res) => {
     const preferences = req.body;
 
     if (!preferences || typeof preferences !== 'object') {
@@ -86,7 +85,6 @@ router.put('/', async (req, res) => {
     const updates = [];
 
     for (const [key, value] of Object.entries(preferences)) {
-      // Güvenlik: key'i validate et
       if (typeof key !== 'string' || key.length > 100) {
         continue;
       }
@@ -111,11 +109,8 @@ router.put('/', async (req, res) => {
       message: 'Tercihler güncellendi',
       count: updates.length,
     });
-  } catch (error) {
-    logger.error('Tercihler güncelleme hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -137,8 +132,9 @@ router.put('/', async (req, res) => {
  *       404:
  *         description: Tercih bulunamadı
  */
-router.get('/:key', async (req, res) => {
-  try {
+router.get(
+  '/:key',
+  asyncHandler(async (req, res) => {
     const { key } = req.params;
 
     const result = await query(
@@ -160,11 +156,8 @@ router.get('/:key', async (req, res) => {
       value: result.rows[0].preference_value,
       updated_at: result.rows[0].updated_at,
     });
-  } catch (error) {
-    logger.error('Tercih getirme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -193,8 +186,9 @@ router.get('/:key', async (req, res) => {
  *       200:
  *         description: Tercih güncellendi
  */
-router.put('/:key', async (req, res) => {
-  try {
+router.put(
+  '/:key',
+  asyncHandler(async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
 
@@ -218,11 +212,8 @@ router.put('/:key', async (req, res) => {
       key,
       value,
     });
-  } catch (error) {
-    logger.error('Tercih güncelleme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -242,8 +233,9 @@ router.put('/:key', async (req, res) => {
  *       200:
  *         description: Tercih silindi
  */
-router.delete('/:key', async (req, res) => {
-  try {
+router.delete(
+  '/:key',
+  asyncHandler(async (req, res) => {
     const { key } = req.params;
 
     const result = await query(
@@ -264,11 +256,8 @@ router.delete('/:key', async (req, res) => {
       message: 'Tercih silindi',
       key,
     });
-  } catch (error) {
-    logger.error('Tercih silme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -286,8 +275,9 @@ router.delete('/:key', async (req, res) => {
  *             schema:
  *               type: object
  */
-router.get('/export/all', async (req, res) => {
-  try {
+router.get(
+  '/export/all',
+  asyncHandler(async (req, res) => {
     const result = await query(
       `
       SELECT preference_key, preference_value
@@ -310,11 +300,8 @@ router.get('/export/all', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="preferences-${Date.now()}.json"`);
     res.json(exportData);
-  } catch (error) {
-    logger.error('Tercih export hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 /**
  * @swagger
@@ -340,8 +327,9 @@ router.get('/export/all', async (req, res) => {
  *       200:
  *         description: Import başarılı
  */
-router.post('/import/all', async (req, res) => {
-  try {
+router.post(
+  '/import/all',
+  asyncHandler(async (req, res) => {
     const { preferences, merge = true } = req.body;
 
     if (!preferences || typeof preferences !== 'object') {
@@ -350,12 +338,7 @@ router.post('/import/all', async (req, res) => {
 
     // Eğer merge değilse önce mevcut tercihleri sil
     if (!merge) {
-      await query(
-        `
-        DELETE FROM user_preferences WHERE user_id = $1
-      `,
-        [req.user.id]
-      );
+      await query('DELETE FROM user_preferences WHERE user_id = $1', [req.user.id]);
     }
 
     // Yeni tercihleri ekle/güncelle
@@ -386,10 +369,7 @@ router.post('/import/all', async (req, res) => {
       count: updates.length,
       merge,
     });
-  } catch (error) {
-    logger.error('Tercih import hatası', { error: error.message, userId: req.user.id });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  })
+);
 
 export default router;

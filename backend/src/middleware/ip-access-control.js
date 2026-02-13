@@ -42,7 +42,10 @@ export const ipAccessControl = async (req, res, next) => {
 
     if (!clientIp) {
       logger.warn('IP address could not be determined', {
-        headers: req.headers,
+        host: req.headers?.host,
+        userAgent: req.headers?.['user-agent'],
+        xForwardedFor: req.headers?.['x-forwarded-for'],
+        xRealIp: req.headers?.['x-real-ip'],
         ip: req.ip,
       });
       // IP belirlenemezse erişim izni ver (güvenlik riski olabilir)
