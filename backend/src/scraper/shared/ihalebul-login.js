@@ -23,7 +23,7 @@ class LoginService {
       await sessionManager.applyCookies(page, session.cookies);
 
       // Test sayfasına git
-      await page.goto(TEST_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.goto(TEST_URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
       await this.delay(2000);
 
       // Login kontrolü
@@ -50,7 +50,7 @@ class LoginService {
     }
 
     // Ana sayfaya git
-    await page.goto(HOME_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(HOME_URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
     await this.delay(2000);
 
     // Login formunu bul - ihalebul.com'da form header dropdown içinde
@@ -155,7 +155,7 @@ class LoginService {
 
     // Navigation'ı bekle
     try {
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
     } catch (err) {
       logger.debug('[ihalebulLogin] Element bekleme timeout', { error: err.message });
     }

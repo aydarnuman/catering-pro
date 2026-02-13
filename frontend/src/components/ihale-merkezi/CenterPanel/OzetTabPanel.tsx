@@ -39,6 +39,7 @@ import { useMemo, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
 import type { AnalysisData, SavedTender } from '../types';
+import { normalizeAnalysisData } from './normalizeAnalysis';
 import {
   BenzerIsTanimiCard,
   BirimFiyatlarCard,
@@ -205,7 +206,7 @@ export function OzetTabPanel({
   savedTender,
   isSaved,
   hasAnalysis,
-  analysisSummary,
+  analysisSummary: rawAnalysisSummary,
   editingCards,
   toggleCardEdit,
   correctionCount,
@@ -222,6 +223,12 @@ export function OzetTabPanel({
   onOpenDocumentWizard,
 }: OzetTabPanelProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('tumu');
+
+  // ─── Normalize analysis data (savunmacı katman) ───────────────
+  const analysisSummary = useMemo(
+    () => normalizeAnalysisData(rawAnalysisSummary),
+    [rawAnalysisSummary]
+  );
 
   // ─── Count cards per category ──────────────────────────────────
   const categoryCounts = useMemo(() => {

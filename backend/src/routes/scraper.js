@@ -713,6 +713,11 @@ router.post('/fetch-documents/:tenderId', async (req, res) => {
     try {
       // Browser başlat ve sayfa oluştur
       page = await browserManager.createPage();
+
+      // Sayfa seviyesinde timeout'ları artır (döküman çekme uzun sürebilir)
+      page.setDefaultTimeout(300000); // 5 dakika
+      page.setDefaultNavigationTimeout(300000); // 5 dakika
+
       await loginService.ensureLoggedIn(page);
       const content = await documentScraper.scrapeAllContent(page, tender.url, false);
 
@@ -848,6 +853,8 @@ router.post('/add-tender', async (req, res) => {
 
     // Browser başlat ve login
     page = await browserManager.createPage();
+    page.setDefaultTimeout(300000); // 5 dakika
+    page.setDefaultNavigationTimeout(300000); // 5 dakika
     await loginService.ensureLoggedIn(page);
 
     // İhale detaylarını çek (yeni fonksiyon kullan)
@@ -1046,6 +1053,8 @@ router.post('/update-tracked', async (_req, res) => {
 
     try {
       page = await browserManager.createPage();
+      page.setDefaultTimeout(300000); // 5 dakika
+      page.setDefaultNavigationTimeout(300000); // 5 dakika
       await loginService.ensureLoggedIn(page);
 
       for (const tender of trackedResult.rows) {

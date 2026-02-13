@@ -43,7 +43,6 @@ import {
   IconUsers,
   IconWallet,
 } from '@tabler/icons-react';
-import type React from 'react';
 import { useEffect, useState } from 'react';
 import type {
   AnalysisData,
@@ -63,7 +62,12 @@ import type {
 /** Gerçek personel pozisyonu mu, yoksa iş yeri/lokasyon mu ayırt et */
 export function isRealPersonelPosition(pozisyon: string): boolean {
   if (!pozisyon) return false;
-  const lower = pozisyon.toLowerCase();
+  const trimmed = pozisyon.trim();
+  // Sadece sayı olan değerler pozisyon değil (AI bazen satır numarası çıkarıyor)
+  if (/^\d+$/.test(trimmed)) return false;
+  // Çok kısa değerler (1-2 karakter) genelde yanlış çıkarım
+  if (trimmed.length <= 2) return false;
+  const lower = trimmed.toLowerCase();
   const personelKeywords = [
     'aşçı',
     'asci',
@@ -1086,7 +1090,8 @@ export function OgunBilgileriCard({
   const flatOgunler = ogunler.filter((o) => o.tur);
 
   // Toplam hesapla - flat format veya props'tan gelen
-  const toplamOgun = toplamOgunSayisi || flatOgunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
+  // Not: miktar bazen string ("128000") geliyor, Number() ile dönüştür
+  const toplamOgun = toplamOgunSayisi || flatOgunler.reduce((sum, o) => sum + (Number(o.miktar) || 0), 0);
 
   // Badge metni
   const badgeText = toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
@@ -1217,34 +1222,8 @@ export function OgunBilgileriCard({
 // CATERİNG DETAY KARTLARI (Azure v5 - Kategorize)
 // ═══════════════════════════════════════════════════════════════
 
-function CateringInfoRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string | number | null | undefined;
-  icon?: React.ReactNode;
-}) {
-  if (value === null || value === undefined || value === '') return null;
-  return (
-    <Group gap="xs" wrap="nowrap" py={3}>
-      {icon && (
-        <ThemeIcon size="xs" variant="light" color="gray" radius="xl">
-          {icon}
-        </ThemeIcon>
-      )}
-      <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>
-        {label}
-      </Text>
-      <Text size="xs" fw={500} style={{ flex: 1 }}>
-        {value}
-      </Text>
-    </Group>
-  );
-}
-
 export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: AnalysisData | null }) {
+  const [expanded, setExpanded] = useState(false);
   if (!analysisSummary) return null;
 
   const {
@@ -1270,156 +1249,93 @@ export function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: A
     menu_tablosu,
   } = analysisSummary;
 
-  // Kategori 1: Kişi Dağılımı
-  const kisiFields = [kahvalti_kisi_sayisi, ogle_kisi_sayisi, aksam_kisi_sayisi, diyet_kisi_sayisi];
-  const hasKisiDagilimi = kisiFields.some(Boolean);
-
-  // Kategori 2: Hizmet & Mutfak
-  const hizmetFields = [
-    mutfak_tipi,
-    servis_tipi,
-    et_tipi,
-    yemek_pisirilecek_yer,
-    yemek_cesit_sayisi,
-    hizmet_gun_sayisi,
+  // Tüm catering detay satırlarını topla
+  type InfoItem = { label: string; value: string | number | null | undefined; section: string };
+  const allItems: InfoItem[] = [
+    // Kişi Dağılımı
+    { label: 'Kahvaltı Kişi', value: kahvalti_kisi_sayisi, section: 'kisi' },
+    { label: 'Öğle Kişi', value: ogle_kisi_sayisi, section: 'kisi' },
+    { label: 'Akşam Kişi', value: aksam_kisi_sayisi, section: 'kisi' },
+    { label: 'Diyet Kişi', value: diyet_kisi_sayisi, section: 'kisi' },
+    // Hizmet & Mutfak
+    { label: 'Mutfak Tipi', value: mutfak_tipi, section: 'hizmet' },
+    { label: 'Servis Tipi', value: servis_tipi, section: 'hizmet' },
+    { label: 'Et Tipi', value: et_tipi, section: 'hizmet' },
+    { label: 'Pişirme Yeri', value: yemek_pisirilecek_yer, section: 'hizmet' },
+    { label: 'Çeşit Sayısı', value: yemek_cesit_sayisi, section: 'hizmet' },
+    { label: 'Hizmet Günü', value: hizmet_gun_sayisi, section: 'hizmet' },
+    // Lojistik
+    { label: 'Dağıtım Saati', value: dagitim_saatleri, section: 'lojistik' },
+    { label: 'Dağıtım Noktaları', value: dagitim_noktalari, section: 'lojistik' },
+    { label: 'Ekipman', value: ekipman_listesi, section: 'lojistik' },
+    // Kalite
+    { label: 'Kalite Std.', value: kalite_standartlari, section: 'kalite' },
+    { label: 'Gıda Güv.', value: gida_guvenligi_belgeleri, section: 'kalite' },
+    { label: 'İşçilik Oranı', value: iscilik_orani, section: 'kalite' },
+    // Menü & Fiyat
+    { label: 'Öğün Dağılımı', value: ogun_dagilimi, section: 'menu' },
+    { label: 'Malzeme Listesi', value: malzeme_listesi, section: 'menu' },
+    { label: 'Birim Fiyat', value: birim_fiyat_cetveli, section: 'menu' },
+    { label: 'Menü Tablosu', value: menu_tablosu, section: 'menu' },
   ];
-  const hasHizmetMutfak = hizmetFields.some(Boolean);
 
-  // Kategori 3: Lojistik & Dağıtım
-  const lojistikFields = [dagitim_saatleri, dagitim_noktalari, ekipman_listesi];
-  const hasLojistik = lojistikFields.some(Boolean);
+  // Sadece değer olan satırları filtrele
+  const filledItems = allItems.filter(
+    (item) => item.value !== null && item.value !== undefined && item.value !== ''
+  );
 
-  // Kategori 4: Kalite & Belgeler
-  const kaliteFields = [kalite_standartlari, gida_guvenligi_belgeleri, iscilik_orani];
-  const hasKalite = kaliteFields.some(Boolean);
+  if (filledItems.length === 0) return null;
 
-  // Kategori 5: Menü & Fiyat
-  const menuFields = [menu_tablosu, malzeme_listesi, birim_fiyat_cetveli, ogun_dagilimi];
-  const hasMenuFiyat = menuFields.some(Boolean);
-
-  // Hiçbir kategori dolmamışsa gösterme
-  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat) return null;
+  // Daraltılmış: ilk 6 satır, genişletilmiş: tümü
+  const displayItems = expanded ? filledItems : filledItems.slice(0, 6);
+  const hasMore = filledItems.length > 6;
 
   return (
-    <>
-      {/* Üst Sıra: Kişi Dağılımı + Hizmet & Mutfak */}
-      {(hasKisiDagilimi || hasHizmetMutfak) && (
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {/* Kişi Dağılımı */}
-          {hasKisiDagilimi && (
-            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-              <Group gap="xs" mb="xs">
-                <ThemeIcon size="sm" variant="light" color="blue">
-                  <IconUsers size={12} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Kişi Dağılımı
-                </Text>
-              </Group>
-              <Stack gap={0}>
-                <CateringInfoRow label="Kahvaltı" value={kahvalti_kisi_sayisi} />
-                <CateringInfoRow label="Öğle" value={ogle_kisi_sayisi} />
-                <CateringInfoRow label="Akşam" value={aksam_kisi_sayisi} />
-                <CateringInfoRow label="Diyet" value={diyet_kisi_sayisi} />
-              </Stack>
-            </Paper>
-          )}
-
-          {/* Hizmet & Mutfak */}
-          {hasHizmetMutfak && (
-            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-              <Group gap="xs" mb="xs">
-                <ThemeIcon size="sm" variant="light" color="orange">
-                  <IconToolsKitchen2 size={12} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Hizmet & Mutfak
-                </Text>
-              </Group>
-              <Stack gap={0}>
-                <CateringInfoRow label="Mutfak Tipi" value={mutfak_tipi} />
-                <CateringInfoRow label="Servis Tipi" value={servis_tipi} />
-                <CateringInfoRow label="Et Tipi" value={et_tipi} />
-                <CateringInfoRow label="Pişirme Yeri" value={yemek_pisirilecek_yer} />
-                <CateringInfoRow label="Çeşit Sayısı" value={yemek_cesit_sayisi} />
-                <CateringInfoRow label="Hizmet Günü" value={hizmet_gun_sayisi} />
-              </Stack>
-            </Paper>
-          )}
-        </SimpleGrid>
-      )}
-
-      {/* Orta Sıra: Lojistik + Kalite */}
-      {(hasLojistik || hasKalite) && (
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {/* Lojistik & Dağıtım */}
-          {hasLojistik && (
-            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-              <Group gap="xs" mb="xs">
-                <ThemeIcon size="sm" variant="light" color="teal">
-                  <IconMapPin size={12} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Lojistik & Dağıtım
-                </Text>
-              </Group>
-              <Stack gap={0}>
-                <CateringInfoRow label="Dağıtım Saati" value={dagitim_saatleri} />
-                <CateringInfoRow label="Dağıtım Noktaları" value={dagitim_noktalari} />
-                <CateringInfoRow label="Ekipman" value={ekipman_listesi} />
-              </Stack>
-            </Paper>
-          )}
-
-          {/* Kalite & Belgeler */}
-          {hasKalite && (
-            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-              <Group gap="xs" mb="xs">
-                <ThemeIcon size="sm" variant="light" color="green">
-                  <IconCertificate size={12} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Kalite & Belgeler
-                </Text>
-              </Group>
-              <Stack gap={0}>
-                <CateringInfoRow label="Kalite Std." value={kalite_standartlari} />
-                <CateringInfoRow label="Gıda Güv." value={gida_guvenligi_belgeleri} />
-                <CateringInfoRow label="İşçilik Oranı" value={iscilik_orani} />
-              </Stack>
-            </Paper>
-          )}
-        </SimpleGrid>
-      )}
-
-      {/* Alt Sıra: Menü & Fiyat (tam genişlik) */}
-      {hasMenuFiyat && (
-        <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-          <Group gap="xs" mb="xs">
-            <ThemeIcon size="sm" variant="light" color="violet">
-              <IconClipboardList size={12} />
-            </ThemeIcon>
-            <Text size="sm" fw={600}>
-              Menü & Fiyat Bilgileri
-            </Text>
-          </Group>
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-            <Stack gap={0}>
-              <CateringInfoRow label="Öğün Dağılımı" value={ogun_dagilimi} />
-              <CateringInfoRow label="Malzeme Listesi" value={malzeme_listesi} />
-            </Stack>
-            <Stack gap={0}>
-              <CateringInfoRow label="Birim Fiyat" value={birim_fiyat_cetveli} />
-              <CateringInfoRow label="Menü Tablosu" value={menu_tablosu} />
-            </Stack>
-          </SimpleGrid>
-        </Paper>
-      )}
-    </>
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="orange">
+            <IconToolsKitchen2 size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            Catering Detayları
+          </Text>
+          <Badge size="xs" variant="light" color="orange">
+            {filledItems.length} alan
+          </Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="orange"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${filledItems.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 500 : undefined}>
+        <Stack gap={0}>
+          {displayItems.map((item) => (
+            <Group key={`catering-${item.label}`} gap="xs" wrap="nowrap" py={3}>
+              <Text size="xs" c="dimmed" style={{ minWidth: 100, flexShrink: 0 }}>
+                {item.label}
+              </Text>
+              <Text size="xs" fw={500} style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
+                {item.value}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
   );
 }
 
 // İş Yerleri Kartı
+// Not: yerler zaten normalizeAnalysis katmanında temizlenmiş geliyor
 export function IsYerleriCard({ yerler }: { yerler: string[] }) {
   const [expanded, setExpanded] = useState(false);
   if (!yerler || yerler.length === 0) return null;
@@ -1978,13 +1894,29 @@ export function ServisSaatleriCard({
           ))}
         </Stack>
       ) : (
-        <Group gap="md">
-          {entries.map(([key, value]) => (
-            <Badge key={key} size="lg" variant="light" color="cyan" leftSection={<IconClock size={12} />}>
-              {labels[key] || key}: {value}
-            </Badge>
-          ))}
-        </Group>
+        <Stack gap={4}>
+          {entries.map(([key, value]) => {
+            // Uzun metin kontrolü - badge'e sığmayan metinleri düz text olarak göster
+            const isLong = value.length > 30;
+            return isLong ? (
+              <Group key={key} gap="xs" wrap="nowrap">
+                <ThemeIcon size="xs" variant="light" color="cyan" radius="xl" style={{ flexShrink: 0 }}>
+                  <IconClock size={10} />
+                </ThemeIcon>
+                <Text size="xs" fw={500} style={{ minWidth: 55 }}>
+                  {labels[key] || key}:
+                </Text>
+                <Text size="xs" c="dimmed" lineClamp={2} style={{ flex: 1 }}>
+                  {value}
+                </Text>
+              </Group>
+            ) : (
+              <Badge key={key} size="lg" variant="light" color="cyan" leftSection={<IconClock size={12} />}>
+                {labels[key] || key}: {value}
+              </Badge>
+            );
+          })}
+        </Stack>
       )}
     </Paper>
   );

@@ -245,7 +245,11 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
   // ========== STEP 1: DOWNLOAD DOCUMENTS ==========
 
   const handleDownloadDocuments = async () => {
-    setStep1Status({ status: 'loading', message: 'Site içerikleri çekiliyor...' });
+    setStep1Status({ status: 'loading', message: 'Site içerikleri çekiliyor... (bu işlem birkaç dakika sürebilir)' });
+
+    // Scraper işlemi uzun sürebilir (5-10 dk), 10 dakika timeout
+    const scrapeController = new AbortController();
+    const scrapeTimeoutId = setTimeout(() => scrapeController.abort(), 600000); // 10 dakika
 
     try {
       // 1. Önce scraper ile site içeriklerini çek (ihale ilanı, mal/hizmet listesi)
@@ -253,7 +257,10 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: scrapeController.signal,
       });
+
+      clearTimeout(scrapeTimeoutId);
 
       const scrapeData = await scrapeResult.json();
 
@@ -306,15 +313,24 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
         throw new Error(result.error || 'Bilinmeyen hata');
       }
     } catch (error: unknown) {
+      clearTimeout(scrapeTimeoutId);
       console.error('Download error:', error);
+
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      const errorMessage = isAbortError
+        ? 'İşlem zaman aşımına uğradı (10 dakika). Lütfen tekrar deneyin.'
+        : error instanceof Error
+          ? error.message
+          : 'Dökümanlar indirilemedi';
+
       setStep1Status({
         status: 'error',
-        message: error instanceof Error ? error.message : 'Dökümanlar indirilemedi',
+        message: errorMessage,
       });
 
       notifications.show({
-        title: 'Hata',
-        message: 'Dökümanlar indirilemedi',
+        title: isAbortError ? 'Zaman Aşımı' : 'Hata',
+        message: errorMessage,
         color: 'red',
       });
     }

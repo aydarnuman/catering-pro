@@ -44,9 +44,9 @@ class BrowserManager {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
 
-    // Timeout ayarla
-    page.setDefaultTimeout(30000);
-    page.setDefaultNavigationTimeout(30000);
+    // Timeout ayarla - ihalebul.com yavaş olabiliyor, yeterince uzun tutulmalı
+    page.setDefaultTimeout(180000); // 3 dakika
+    page.setDefaultNavigationTimeout(180000); // 3 dakika
 
     return page;
   }

@@ -1926,6 +1926,119 @@ router.post('/add-from-analysis', async (req, res) => {
       return true; // Gerçekten eksik
     });
 
+    // ═══════════════════════════════════════════════════════════════
+    // SON VALİDASYON VE TEMİZLİK
+    // AI çıktısındaki yapısal hataları düzelt (her ihalede farklı olabilir)
+    // ═══════════════════════════════════════════════════════════════
+
+    // --- personel_detaylari: Geçersiz pozisyon adlarını filtrele ---
+    if (analysisSummary.personel_detaylari && analysisSummary.personel_detaylari.length > 0) {
+      analysisSummary.personel_detaylari = analysisSummary.personel_detaylari.filter((p) => {
+        const poz = (p.pozisyon || '').trim();
+        // Boş pozisyon
+        if (!poz) return false;
+        // Sadece sayı (AI satır numarası çıkarmış)
+        if (/^\d+$/.test(poz)) return false;
+        // 2 karakter veya daha kısa (anlamsız)
+        if (poz.length <= 2) return false;
+        // "TOPLAM" zaten ayrı yerde işleniyor
+        if (normalizeForCompare(poz) === 'toplam') return false;
+        return true;
+      });
+
+      // Adet alanını her zaman number yap
+      for (const p of analysisSummary.personel_detaylari) {
+        if (typeof p.adet === 'string') {
+          p.adet = parseInt(String(p.adet).replace(/[^\d]/g, ''), 10) || 0;
+        }
+      }
+    }
+
+    // --- is_yerleri: Yemek/malzeme isimlerini filtrele ---
+    if (analysisSummary.is_yerleri && analysisSummary.is_yerleri.length > 0) {
+      const yemekKeywords = [
+        'kebap', 'kebab', 'kofte', 'pilav', 'corba', 'salata', 'makarna', 'borek',
+        'dolma', 'sarma', 'kizartma', 'tatli', 'komposto', 'hosaf', 'cacik', 'ayran',
+        'patates', 'patlican', 'domates', 'biber', 'sogan', 'havuc', 'fasulye',
+        'mercimek', 'bulgur', 'pirinc', 'tavuk', 'et ', 'kuzu', 'dana',
+        'yogurt', 'peynir', 'sut', 'yumurta', 'ekmek', 'simit',
+        'mantar', 'kabak', 'lahana', 'ispanak', 'bamya', 'bezelye',
+        'musakka', 'karniyarik', 'guvec', 'sote', 'haslama', 'izgara',
+        'firinda', 'kiymali', 'etli', 'tavuklu', 'sebzeli', 'corba',
+        'rosto', 'bonfile', 'sinitzel', 'fajita', 'manti', 'kumpir',
+      ];
+
+      analysisSummary.is_yerleri = analysisSummary.is_yerleri.filter((yer) => {
+        const yerStr = typeof yer === 'string' ? yer : (yer.isim || yer.ad || '');
+        const yerNorm = normalizeForCompare(yerStr);
+        // Çok kısa
+        if (yerNorm.length < 3) return false;
+        // Sadece sayı
+        if (/^\d+$/.test(yerStr.trim())) return false;
+        // Yemek/malzeme ismi
+        if (yemekKeywords.some((kw) => yerNorm.includes(kw))) return false;
+        return true;
+      });
+    }
+
+    // --- ogun_bilgileri: Flat öğünleri deduplicate et ---
+    if (analysisSummary.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0) {
+      const flatOgunler = analysisSummary.ogun_bilgileri.filter((o) => o.tur && !o.rows);
+      const tabloOgunler = analysisSummary.ogun_bilgileri.filter((o) => o.rows && o.headers);
+
+      // Flat öğünleri tür bazında deduplicate et
+      const ogunMap = new Map();
+      for (const ogun of flatOgunler) {
+        const turNorm = normalizeForCompare(ogun.tur || '');
+        // Aynı tür zaten varsa, daha büyük miktarı tercih et
+        if (ogunMap.has(turNorm)) {
+          const existing = ogunMap.get(turNorm);
+          const existingMiktar = Number(existing.miktar) || 0;
+          const newMiktar = Number(ogun.miktar) || 0;
+          if (newMiktar > existingMiktar) {
+            ogunMap.set(turNorm, { ...ogun, miktar: newMiktar });
+          }
+        } else {
+          ogunMap.set(turNorm, { ...ogun, miktar: Number(ogun.miktar) || 0 });
+        }
+      }
+
+      // Birleştir: deduplicate edilmiş flat + tablo
+      analysisSummary.ogun_bilgileri = [...ogunMap.values(), ...tabloOgunler];
+
+      // toplam_ogun_sayisi hesapla (flat öğünlerden, tablo öğünleri hariç)
+      if (!analysisSummary.toplam_ogun_sayisi) {
+        // Sadece gerçek öğün türlerini topla (günde X öğün gibi meta bilgileri hariç)
+        const gercekOgunler = [...ogunMap.values()].filter((o) => {
+          const miktar = Number(o.miktar) || 0;
+          return miktar > 100; // 100'den az olanlar genelde meta bilgi
+        });
+        if (gercekOgunler.length > 0) {
+          analysisSummary.toplam_ogun_sayisi = gercekOgunler.reduce(
+            (sum, o) => sum + (Number(o.miktar) || 0), 0
+          );
+        }
+      }
+    }
+
+    // --- birim_fiyatlar: Tip zorlama ---
+    if (analysisSummary.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0) {
+      for (const bf of analysisSummary.birim_fiyatlar) {
+        if (bf.miktar && typeof bf.miktar === 'string') {
+          const parsed = parseFloat(bf.miktar.replace(/[^\d.,]/g, '').replace(',', '.'));
+          if (!isNaN(parsed)) bf.miktar = parsed;
+        }
+        if (bf.fiyat && typeof bf.fiyat === 'string') {
+          const parsed = parseFloat(bf.fiyat.replace(/[^\d.,]/g, '').replace(',', '.'));
+          if (!isNaN(parsed)) bf.fiyat = parsed;
+        }
+        if (bf.tutar && typeof bf.tutar === 'string') {
+          const parsed = parseFloat(bf.tutar.replace(/[^\d.,]/g, '').replace(',', '.'));
+          if (!isNaN(parsed)) bf.tutar = parsed;
+        }
+      }
+    }
+
     // ─── Gramaj Gruplama (Fallback) ────────────────────────────────
     // Eğer prompt gramaj_gruplari üretmediyse, düz gramaj listesindeki
     // "Toplam" satırlarını ayırıcı olarak kullanarak yemek grupları oluştur.

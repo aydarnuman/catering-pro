@@ -228,12 +228,16 @@ class DocumentScraper {
    */
   async scrapeAllContent(page, tenderUrl) {
     try {
+      // domcontentloaded daha güvenilir - networkidle2 yavaş sitelerde timeout yapıyor
       await page.goto(tenderUrl, {
-        waitUntil: 'networkidle2',
-        timeout: 30000,
+        waitUntil: 'domcontentloaded',
+        timeout: 180000, // 3 dakika
       });
 
-      await page.waitForSelector('body', { timeout: 10000 });
+      // Sayfanın tamamen yüklenmesini bekle
+      await page.waitForSelector('body', { timeout: 30000 });
+      // Dinamik içeriklerin yüklenmesi için ekstra bekleme
+      await this.sleep(3000);
 
       // Önce mevcut sayfadaki dökümanları çek
       let allDocumentLinks = await this.scrapeDocumentLinksFromPage(page);
@@ -498,8 +502,8 @@ class DocumentScraper {
    * Tek ihale için tüm detayları çek (URL ile ekleme için)
    */
   async scrapeTenderDetails(page, url) {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-    await this.sleep(1500);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 180000 });
+    await this.sleep(3000);
 
     // Detay bilgileri
     const details = await page.evaluate(() => {
