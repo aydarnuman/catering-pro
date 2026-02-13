@@ -101,23 +101,26 @@ export function OgunSection({ data }: { data: AnalysisData }) {
   return (
     <SectionBlock title="Ogun Bilgileri" count={data.ogun_bilgileri.length}>
       <Stack gap={8}>
-        {data.ogun_bilgileri.map((ogun) => {
+        {data.ogun_bilgileri.map((ogun, ogunIdx) => {
           if (isOgunTable(ogun)) {
             return (
-              <Box key={`ogun-tbl-${ogun.headers.join('-')}`}>
+              <Box key={`ogun-tbl-${ogunIdx}-${ogun.headers.join('-')}`}>
                 <Table withTableBorder withColumnBorders highlightOnHover styles={DARK_TABLE_STYLES}>
                   <Table.Thead>
                     <Table.Tr>
-                      {ogun.headers.map((h) => (
-                        <Table.Th key={h}>{h}</Table.Th>
+                      {ogun.headers.map((h, hIdx) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: headers can duplicate
+                        <Table.Th key={`h-${hIdx}`}>{h}</Table.Th>
                       ))}
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {ogun.rows.map((row) => (
-                      <Table.Tr key={row.join('-')}>
-                        {row.map((cell) => (
-                          <Table.Td key={cell}>{cell}</Table.Td>
+                    {ogun.rows.map((row, rowIdx) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: cell values (e.g. prices) can duplicate
+                      <Table.Tr key={`t${ogunIdx}-r${rowIdx}`}>
+                        {row.map((cell, cellIdx) => (
+                          // biome-ignore lint/suspicious/noArrayIndexKey: cell values can duplicate
+                          <Table.Td key={`r${rowIdx}-c${cellIdx}`}>{cell}</Table.Td>
                         ))}
                       </Table.Tr>
                     ))}
@@ -129,7 +132,7 @@ export function OgunSection({ data }: { data: AnalysisData }) {
           if (!ogun.tur) return null;
           return (
             <DataRow
-              key={`ogun-${ogun.tur}`}
+              key={`ogun-${ogunIdx}-${ogun.tur}`}
               label={`Ogun: ${ogun.tur}`}
               value={ogun.miktar ? `${ogun.miktar} ${ogun.birim || 'kisi'}` : 'Detay mevcut'}
             />

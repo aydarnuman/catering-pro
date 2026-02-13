@@ -159,10 +159,10 @@ function MenuShortCard({ menu, onClick }: { menu: KurumMenuOzet; onClick: () => 
         </Group>
 
         <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
-          {menu.gunluk_maliyet > 0 ? (
+          {Number(menu.gunluk_maliyet) > 0 ? (
             <>
               <Text size="xs" fw={700} c="green">
-                {menu.gunluk_maliyet.toFixed(2)} TL
+                {Number(menu.gunluk_maliyet).toFixed(2)} TL
               </Text>
               <Text size="9px" c="dimmed">
                 gun / kisi
