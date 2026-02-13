@@ -446,19 +446,20 @@ Kurallar:
           overflow: 'hidden', // Önemli: taşmayı engeller
         }}
       >
-        {/* Compact Header - dark klasik */}
+        {/* Compact Header */}
         <Box
           p="xs"
           style={{
-            borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
+            borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid var(--mantine-color-gray-2)',
             flexShrink: 0,
-            background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
+            background: isDark ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <Group gap="xs" justify="space-between">
             <Group gap="xs">
-              <IconBrain size={16} color={isDark ? 'gray.4' : 'var(--mantine-color-violet-6)'} />
-              <Text size="xs" fw={500} c={isDark ? 'gray.4' : undefined}>
+              <IconBrain size={16} color={isDark ? '#a78bfa' : 'var(--mantine-color-violet-6)'} />
+              <Text size="xs" fw={600} c={isDark ? 'rgba(255,255,255,0.85)' : undefined}>
                 AI Agent
               </Text>
             </Group>
@@ -478,17 +479,19 @@ Kurallar:
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
-                    padding: '4px 8px',
-                    borderRadius: 6,
-                    background: isDark ? 'rgba(255,255,255,0.08)' : 'var(--mantine-color-gray-0)',
-                    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--mantine-color-gray-3)',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    background: isDark ? 'rgba(255,255,255,0.06)' : 'var(--mantine-color-gray-0)',
+                    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid var(--mantine-color-gray-3)',
                     fontSize: 12,
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <Text size="md">{currentTemplate?.icon || '🤖'}</Text>
                   <Text
                     size="xs"
                     fw={500}
+                    c={isDark ? 'rgba(255,255,255,0.8)' : undefined}
                     style={{
                       maxWidth: 80,
                       overflow: 'hidden',
@@ -504,8 +507,18 @@ Kurallar:
                   <IconChevronDown size={12} style={{ opacity: 0.5 }} />
                 </UnstyledButton>
               </Popover.Target>
-              <Popover.Dropdown p="sm" style={{ maxHeight: 400, overflowY: 'auto' }}>
-                <Text size="xs" fw={600} c="dimmed" mb="xs">
+              <Popover.Dropdown
+                p="sm"
+                style={{
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  ...(isDark && {
+                    background: '#1a1b1e',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }),
+                }}
+              >
+                <Text size="xs" fw={600} c={isDark ? 'rgba(255,255,255,0.5)' : 'dimmed'} mb="xs">
                   Şablon Seçin
                 </Text>
                 <Stack gap="xs">
@@ -527,22 +540,24 @@ Kurallar:
                               alignItems: 'center',
                               gap: 8,
                               padding: '6px 8px',
-                              borderRadius: 6,
-                              background: selectedTemplate === t.slug ? 'var(--mantine-color-violet-0)' : 'transparent',
-                              border:
-                                selectedTemplate === t.slug
-                                  ? '1px solid var(--mantine-color-violet-3)'
-                                  : '1px solid transparent',
+                              borderRadius: 8,
+                              background: selectedTemplate === t.slug
+                                ? isDark ? 'rgba(139, 92, 246, 0.15)' : 'var(--mantine-color-violet-0)'
+                                : 'transparent',
+                              border: selectedTemplate === t.slug
+                                ? isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--mantine-color-violet-3)'
+                                : '1px solid transparent',
+                              transition: 'all 0.15s ease',
                             }}
                           >
                             <Text size="lg">{t.icon}</Text>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <Text size="xs" fw={500}>
+                              <Text size="xs" fw={500} c={isDark ? 'rgba(255,255,255,0.85)' : undefined}>
                                 {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
                               </Text>
                             </div>
                             {selectedTemplate === t.slug && (
-                              <IconCheck size={14} color="var(--mantine-color-violet-6)" />
+                              <IconCheck size={14} color={isDark ? '#a78bfa' : 'var(--mantine-color-violet-6)'} />
                             )}
                           </UnstyledButton>
                         ))}
@@ -556,23 +571,36 @@ Kurallar:
         </Box>
 
         {/* Messages Area - Scroll edilebilir alan */}
-        <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <Box
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            background: isDark
+              ? 'linear-gradient(180deg, rgba(20, 21, 23, 0.5) 0%, rgba(20, 21, 23, 0.8) 100%)'
+              : 'linear-gradient(180deg, #f8f9fa 0%, #f1f3f5 100%)',
+          }}
+        >
           <ScrollArea
             h="100%"
             type="always"
-            scrollbarSize={8}
+            scrollbarSize={6}
             offsetScrollbars
             styles={{
               root: { height: '100%' },
               viewport: {
                 height: '100%',
-                // Mobilde touch scroll için
                 WebkitOverflowScrolling: 'touch',
                 overscrollBehavior: 'contain',
               },
+              scrollbar: {
+                '&[data-orientation="vertical"]': {
+                  background: 'transparent',
+                },
+              },
             }}
           >
-            <Stack gap="sm" p="sm">
+            <Stack gap="md" p="sm">
               {messages.length === 0 ? (
                 <Box py="xs">
                   <PromptSuggestions
@@ -584,34 +612,85 @@ Kurallar:
                 </Box>
               ) : (
                 messages.map((message) => (
-                  <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
-                    <Avatar size="sm" color={message.type === 'user' ? 'blue' : 'violet'} radius="xl">
+                  <Group
+                    key={message.id}
+                    align="flex-start"
+                    gap="xs"
+                    wrap="nowrap"
+                    style={{
+                      flexDirection: message.type === 'user' ? 'row-reverse' : 'row',
+                    }}
+                  >
+                    <Avatar
+                      size="sm"
+                      radius="xl"
+                      style={{
+                        background: message.type === 'user'
+                          ? isDark ? 'rgba(99, 102, 241, 0.2)' : 'var(--mantine-color-indigo-1)'
+                          : isDark ? 'rgba(139, 92, 246, 0.2)' : 'var(--mantine-color-violet-1)',
+                        color: message.type === 'user'
+                          ? isDark ? '#a5b4fc' : 'var(--mantine-color-indigo-6)'
+                          : isDark ? '#c4b5fd' : 'var(--mantine-color-violet-6)',
+                        border: isDark
+                          ? `1px solid ${message.type === 'user' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(139, 92, 246, 0.3)'}`
+                          : 'none',
+                        flexShrink: 0,
+                      }}
+                    >
                       {message.type === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
                     </Avatar>
-                    <Paper
-                      p="xs"
-                      bg={message.type === 'user' ? 'blue.0' : 'gray.0'}
-                      radius="md"
+                    <Box
                       style={{
                         flex: 1,
                         maxWidth: 'calc(100% - 40px)',
-                        ...(isDark && {
-                          background: message.type === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                        }),
                       }}
                     >
+                      {/* Zaman damgası */}
                       <Text
-                        size="xs"
-                        c={isDark ? 'gray.3' : undefined}
-                        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        size="10px"
+                        c={isDark ? 'rgba(255,255,255,0.35)' : 'dimmed'}
+                        mb={3}
+                        style={{ textAlign: message.type === 'user' ? 'right' : 'left' }}
                       >
-                        {message.content}
+                        {message.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
+                      <Paper
+                        p="xs"
+                        radius="lg"
+                        style={{
+                          background: message.type === 'user'
+                            ? isDark
+                              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.2))'
+                              : 'linear-gradient(135deg, #eef2ff, #e0e7ff)'
+                            : isDark
+                              ? 'rgba(255, 255, 255, 0.06)'
+                              : '#ffffff',
+                          border: isDark
+                            ? `1px solid ${message.type === 'user' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`
+                            : `1px solid ${message.type === 'user' ? 'var(--mantine-color-indigo-2)' : 'var(--mantine-color-gray-2)'}`,
+                          borderRadius: message.type === 'user'
+                            ? '14px 14px 4px 14px'
+                            : '14px 14px 14px 4px',
+                        }}
+                      >
+                        <Text
+                          size="xs"
+                          c={isDark ? 'rgba(255, 255, 255, 0.88)' : 'var(--mantine-color-dark-7)'}
+                          style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.55 }}
+                        >
+                          {message.content}
+                        </Text>
+                      </Paper>
                       {message.toolsUsed && message.toolsUsed.length > 0 && (
                         <Group gap={4} mt={4}>
                           {message.toolsUsed.slice(0, 3).map((tool) => (
-                            <Badge key={tool} size="xs" variant="dot" color="violet">
+                            <Badge
+                              key={tool}
+                              size="xs"
+                              variant={isDark ? 'light' : 'dot'}
+                              color="violet"
+                              style={isDark ? { background: 'rgba(139, 92, 246, 0.15)', color: '#c4b5fd' } : undefined}
+                            >
                               {tool.split('_').slice(0, 2).join(' ')}
                             </Badge>
                           ))}
@@ -622,19 +701,36 @@ Kurallar:
                           )}
                         </Group>
                       )}
-                    </Paper>
+                    </Box>
                   </Group>
                 ))
               )}
               {isLoading && (
-                <Group gap="xs">
-                  <Avatar size="sm" color="violet" radius="xl">
+                <Group gap="xs" wrap="nowrap">
+                  <Avatar
+                    size="sm"
+                    radius="xl"
+                    style={{
+                      background: isDark ? 'rgba(139, 92, 246, 0.2)' : 'var(--mantine-color-violet-1)',
+                      color: isDark ? '#c4b5fd' : 'var(--mantine-color-violet-6)',
+                      border: isDark ? '1px solid rgba(139, 92, 246, 0.3)' : 'none',
+                      flexShrink: 0,
+                    }}
+                  >
                     <IconRobot size={14} />
                   </Avatar>
-                  <Paper p="xs" radius="md" className="nested-card">
+                  <Paper
+                    p="xs"
+                    radius="lg"
+                    style={{
+                      background: isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff',
+                      border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid var(--mantine-color-gray-2)',
+                      borderRadius: '14px 14px 14px 4px',
+                    }}
+                  >
                     <Group gap="xs">
-                      <Loader size="xs" color="violet" />
-                      <Text size="xs" c={isDark ? 'gray.4' : 'dimmed'}>
+                      <Loader size="xs" color={isDark ? 'violet.4' : 'violet'} />
+                      <Text size="xs" c={isDark ? 'rgba(255,255,255,0.6)' : 'dimmed'}>
                         Düşünüyor...
                       </Text>
                     </Group>
@@ -646,17 +742,18 @@ Kurallar:
           </ScrollArea>
         </Box>
 
-        {/* Input Area - dark klasik */}
+        {/* Input Area */}
         <Box
           p="sm"
           style={{
-            borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
+            borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid var(--mantine-color-gray-2)',
             paddingBottom: 'env(safe-area-inset-bottom, 8px)',
             flexShrink: 0,
-            background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
+            background: isDark ? 'rgba(26, 27, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(8px)',
           }}
         >
-          <Group gap="xs">
+          <Group gap={8}>
             <TextInput
               flex={1}
               placeholder="Mesaj yazın..."
@@ -673,7 +770,7 @@ Kurallar:
               rightSection={
                 inputValue.trim() && !isLoading ? (
                   <Tooltip
-                    label={isEnhancing ? 'Zenginlestiriliyor...' : "Prompt'u iyilestir"}
+                    label={isEnhancing ? 'Zenginleştiriliyor...' : "Prompt'u iyileştir"}
                     withArrow
                     position="top"
                   >
@@ -700,27 +797,35 @@ Kurallar:
                   paddingLeft: 16,
                   paddingRight: inputValue.trim() && !isLoading ? 40 : 16,
                   minHeight: 44,
-                  ...(isDark && {
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.9)',
-                  }),
+                  fontSize: 13,
+                  ...(isDark
+                    ? {
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.9)',
+                        '&::placeholder': { color: 'rgba(255,255,255,0.35)' },
+                      }
+                    : {
+                        background: '#f8f9fa',
+                        border: '1px solid var(--mantine-color-gray-3)',
+                      }),
                 },
               }}
             />
             <ActionIcon
               size={44}
               radius="xl"
-              variant={isDark ? 'filled' : 'gradient'}
-              color={isDark ? 'dark.4' : undefined}
-              gradient={!isDark ? { from: 'violet', to: 'grape' } : undefined}
+              variant="gradient"
+              gradient={isDark ? { from: 'indigo.7', to: 'violet.7' } : { from: 'violet', to: 'grape' }}
               onClick={() => handleSendMessage()}
               loading={isLoading}
               disabled={!inputValue.trim()}
               style={{
                 minWidth: 44,
                 minHeight: 44,
-                ...(isDark && { background: 'rgba(255,255,255,0.12)', color: 'white' }),
+                boxShadow: isDark ? '0 2px 12px rgba(99, 102, 241, 0.3)' : '0 2px 12px rgba(139, 92, 246, 0.3)',
+                opacity: !inputValue.trim() ? 0.5 : 1,
+                transition: 'all 0.2s ease',
               }}
             >
               <IconSend size={16} />
