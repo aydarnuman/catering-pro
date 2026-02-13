@@ -1897,7 +1897,7 @@ export function ServisSaatleriCard({
         <Stack gap={4}>
           {entries.map(([key, value]) => {
             // Uzun metin kontrolü - badge'e sığmayan metinleri düz text olarak göster
-            const isLong = value.length > 30;
+            const isLong = (value || '').length > 30;
             return isLong ? (
               <Group key={key} gap="xs" wrap="nowrap">
                 <ThemeIcon size="xs" variant="light" color="cyan" radius="xl" style={{ flexShrink: 0 }}>
