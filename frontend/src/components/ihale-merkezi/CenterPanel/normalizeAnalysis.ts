@@ -7,7 +7,7 @@
  * Kullanım: OzetTabPanel.tsx içinde useMemo ile sarılır.
  */
 
-import type { AnalysisData, OgunBilgisi, PersonelDetay } from '../types';
+import type { AnalysisData, BirimFiyat, OgunBilgisi, PersonelDetay } from '../types';
 
 // ─── Yardımcı Fonksiyonlar ──────────────────────────────────────
 
@@ -127,18 +127,7 @@ function normalizeOgunler(ogunler?: OgunBilgisi[]): OgunBilgisi[] {
 
 // ─── Birim Fiyatlar Normalizasyonu ──────────────────────────────
 
-function normalizeBirimFiyatlar(
-  fiyatlar?: Array<{
-    kalem?: string;
-    aciklama?: string;
-    text?: string;
-    birim?: string;
-    miktar?: string | number;
-    fiyat?: string | number;
-    tutar?: string | number;
-    [key: string]: unknown;
-  }>
-): typeof fiyatlar {
+function normalizeBirimFiyatlar(fiyatlar?: BirimFiyat[]): BirimFiyat[] {
   if (!fiyatlar || !Array.isArray(fiyatlar)) return [];
 
   return fiyatlar.map((bf) => ({
