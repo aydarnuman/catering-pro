@@ -1,0 +1,4 @@
+-- Bu migration Supabase Dashboard üzerinden uygulanmıştır.
+-- İçerik: Kurum menüleri tablosu ekleme
+-- Tarih: 2026-02-13
+-- NOT: Orijinal SQL Dashboard'dan çalıştırıldığı için dosya placeholder'dır.

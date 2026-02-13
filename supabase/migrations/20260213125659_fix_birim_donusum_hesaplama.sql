@@ -8,8 +8,11 @@
 --
 -- DÜZELTME:
 --   1. birim_donusumleri tablosuna eksik kayıtlar ekle
---   2. recalc_recete_maliyet() fonksiyonunu birim dönüşümlü hale getir
---   3. Tüm reçete maliyetlerini doğru formülle yeniden hesapla
+--   2. Ürüne özel birim dönüşüm tablosu oluştur
+--   3. get_birim_donusum_carpani() SQL fonksiyonu ekle (ürüne özel + genel)
+--   4. recalc_recete_maliyet() trigger'ını birim dönüşümlü hale getir
+--   5. Yanlış birim atanmış ürün kartlarını düzelt
+--   6. Tüm reçete maliyetlerini doğru formülle yeniden hesapla
 -- ============================================================
 
 -- 1. birim_donusumleri tablosuna eksik identity ve alias kayıtları ekle
@@ -42,10 +45,45 @@ VALUES
   ('paket', 'paket')
 ON CONFLICT (varyasyon) DO NOTHING;
 
--- 3. Birim dönüşüm çarpanı hesaplayan yardımcı fonksiyon (SQL seviyesinde)
+-- 3. Yanlış birim atanmış ürün kartlarını düzelt
+-- Defne Yaprağı: birim='adet' ama fiyat_birimi='kg' → birim='kg' olmalı
+UPDATE urun_kartlari SET birim = 'kg' WHERE id = 82 AND birim = 'adet' AND fiyat_birimi = 'kg';
+-- Karanfil: aynı sorun
+UPDATE urun_kartlari SET birim = 'kg' WHERE id = 114 AND birim = 'adet' AND fiyat_birimi = 'kg';
+
+-- 4. Ürüne özel birim dönüşüm tablosu
+CREATE TABLE IF NOT EXISTS urun_birim_donusumleri (
+    id SERIAL PRIMARY KEY,
+    urun_kart_id INTEGER NOT NULL REFERENCES urun_kartlari(id) ON DELETE CASCADE,
+    kaynak_birim VARCHAR(20) NOT NULL,
+    hedef_birim VARCHAR(20) NOT NULL,
+    carpan DECIMAL(15,6) NOT NULL,
+    aciklama VARCHAR(200),
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(urun_kart_id, kaynak_birim, hedef_birim)
+);
+
+CREATE INDEX IF NOT EXISTS idx_urun_birim_don_urun ON urun_birim_donusumleri(urun_kart_id);
+
+COMMENT ON TABLE urun_birim_donusumleri IS 
+  'Ürüne özel birim dönüşüm katsayıları. Örn: 1 demet maydanoz = 100g → g:demet = 0.01';
+
+-- 5. Bilinen ürünler için dönüşüm faktörleri
+INSERT INTO urun_birim_donusumleri (urun_kart_id, kaynak_birim, hedef_birim, carpan, aciklama)
+VALUES 
+  (4763, 'g', 'demet', 0.01, '1 demet maydanoz ≈ 100g'),
+  (4881, 'g', 'demet', 0.005, '1 demet taze soğan ≈ 200g'),
+  (4658, 'g', 'adet', 0.0025, '1 kavanoz çilek reçeli ≈ 400g'),
+  (4767, 'adet', 'kg', 0.12, '1 adet limon ≈ 120g'),
+  (4767, 'ml', 'kg', 0.0025, '1 kg limon ≈ 400ml suyu'),
+  (4759, 'adet', 'kg', 0.005, '1 diş sarımsak ≈ 5g')
+ON CONFLICT (urun_kart_id, kaynak_birim, hedef_birim) DO NOTHING;
+
+-- 6. get_birim_donusum_carpani fonksiyonu (ürüne özel dönüşüm destekli)
 CREATE OR REPLACE FUNCTION get_birim_donusum_carpani(
   p_kaynak_birim TEXT,
-  p_hedef_birim TEXT
+  p_hedef_birim TEXT,
+  p_urun_kart_id INTEGER DEFAULT NULL
 )
 RETURNS DECIMAL(15,6) AS $$
 DECLARE
@@ -53,7 +91,6 @@ DECLARE
   v_std_hedef TEXT;
   v_carpan DECIMAL(15,6);
 BEGIN
-  -- NULL kontrolü
   IF p_kaynak_birim IS NULL OR p_hedef_birim IS NULL THEN
     RETURN 1;
   END IF;
@@ -74,44 +111,53 @@ BEGIN
     RETURN 1;
   END IF;
 
-  -- Direkt dönüşüm var mı?
+  -- Ürüne özel dönüşüm (varsa en öncelikli)
+  IF p_urun_kart_id IS NOT NULL THEN
+    SELECT carpan INTO v_carpan
+    FROM urun_birim_donusumleri
+    WHERE urun_kart_id = p_urun_kart_id
+      AND kaynak_birim = v_std_kaynak AND hedef_birim = v_std_hedef
+    LIMIT 1;
+    IF v_carpan IS NOT NULL THEN RETURN v_carpan; END IF;
+
+    -- Ürüne özel ters dönüşüm
+    SELECT carpan INTO v_carpan
+    FROM urun_birim_donusumleri
+    WHERE urun_kart_id = p_urun_kart_id
+      AND kaynak_birim = v_std_hedef AND hedef_birim = v_std_kaynak
+    LIMIT 1;
+    IF v_carpan IS NOT NULL AND v_carpan > 0 THEN RETURN 1.0 / v_carpan; END IF;
+  END IF;
+
+  -- Genel dönüşüm tablosu
   SELECT carpan INTO v_carpan
   FROM birim_donusumleri
   WHERE kaynak_birim = v_std_kaynak AND hedef_birim = v_std_hedef
   LIMIT 1;
+  IF v_carpan IS NOT NULL THEN RETURN v_carpan; END IF;
 
-  IF v_carpan IS NOT NULL THEN
-    RETURN v_carpan;
-  END IF;
-
-  -- Ters dönüşüm var mı?
+  -- Genel ters dönüşüm
   SELECT carpan INTO v_carpan
   FROM birim_donusumleri
   WHERE kaynak_birim = v_std_hedef AND hedef_birim = v_std_kaynak
   LIMIT 1;
+  IF v_carpan IS NOT NULL AND v_carpan > 0 THEN RETURN 1.0 / v_carpan; END IF;
 
-  IF v_carpan IS NOT NULL AND v_carpan > 0 THEN
-    RETURN 1.0 / v_carpan;
-  END IF;
-
-  -- Bilinen temel dönüşümler (fallback)
+  -- Bilinen fallback
   IF v_std_kaynak IN ('g', 'gr') AND v_std_hedef = 'kg' THEN RETURN 0.001; END IF;
   IF v_std_kaynak = 'kg' AND v_std_hedef IN ('g', 'gr') THEN RETURN 1000; END IF;
   IF v_std_kaynak = 'ml' AND v_std_hedef IN ('L', 'lt') THEN RETURN 0.001; END IF;
   IF v_std_kaynak IN ('L', 'lt') AND v_std_hedef = 'ml' THEN RETURN 1000; END IF;
 
-  -- Dönüşüm bulunamadı - aynı tip birimler arasında ise 1 döndür
-  -- (adet→adet, porsiyon→porsiyon gibi zaten yukarıda yakalandı)
-  -- Farklı tipte birimler arasında 1 döndürülmesi riskli ama
-  -- mevcut veriyi korumak için fallback olarak bırakıyoruz
+  -- Dönüşüm bulunamadı - fallback 1
   RETURN 1;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
-COMMENT ON FUNCTION get_birim_donusum_carpani(TEXT, TEXT) IS 
-  'İki birim arası dönüşüm çarpanını hesaplar. Normalize + tablo araması + ters dönüşüm + fallback.';
+COMMENT ON FUNCTION get_birim_donusum_carpani(TEXT, TEXT, INTEGER) IS 
+  'İki birim arası dönüşüm çarpanını hesaplar. Ürüne özel > genel tablo > ters > fallback.';
 
--- 4. recalc_recete_maliyet() fonksiyonunu BİRİM DÖNÜŞÜMLÜ hale getir
+-- 7. recalc_recete_maliyet() trigger'ını birim dönüşümlü hale getir
 CREATE OR REPLACE FUNCTION recalc_recete_maliyet()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -119,17 +165,11 @@ BEGIN
   SET 
     tahmini_maliyet = (
       SELECT COALESCE(SUM(
-        -- Aktif miktar (şef gramajı veya sistem miktarı)
         CASE 
           WHEN rm.aktif_miktar_tipi = 'sef' AND rm.sef_miktar IS NOT NULL THEN rm.sef_miktar
           ELSE rm.miktar
         END
-        -- Birim dönüşüm çarpanı (g→kg = 0.001, ml→lt = 0.001 vb.)
-        * get_birim_donusum_carpani(
-            rm.birim,
-            COALESCE(uk.birim, 'kg')
-          )
-        -- Birim fiyat (TL/kg, TL/lt, TL/adet)
+        * get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id)
         * COALESCE(rm.birim_fiyat, 0)
       ), 0)
       FROM recete_malzemeler rm
@@ -138,7 +178,6 @@ BEGIN
     ),
     updated_at = NOW()
   WHERE r.id = NEW.recete_id;
-  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -146,10 +185,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION recalc_recete_maliyet() IS 
   'recete_malzemeler.birim_fiyat değişince receteler.tahmini_maliyet günceller (birim dönüşümlü).';
 
--- 5. Trigger'ı yeniden oluştur (fonksiyon değişti, trigger aynı kalıyor)
--- (CREATE OR REPLACE FUNCTION yeterli, trigger otomatik yeni fonksiyonu kullanır)
-
--- 6. TÜM REÇETE MALİYETLERİNİ DOĞRU FORMÜLLE YENİDEN HESAPLA
+-- 8. Tüm reçete maliyetlerini doğru formülle yeniden hesapla
 UPDATE receteler r
 SET 
   tahmini_maliyet = sub.maliyet,
@@ -162,10 +198,7 @@ FROM (
         WHEN rm.aktif_miktar_tipi = 'sef' AND rm.sef_miktar IS NOT NULL THEN rm.sef_miktar
         ELSE rm.miktar
       END
-      * get_birim_donusum_carpani(
-          rm.birim,
-          COALESCE(uk.birim, 'kg')
-        )
+      * get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id)
       * COALESCE(rm.birim_fiyat, 0)
     ), 0) AS maliyet
   FROM recete_malzemeler rm

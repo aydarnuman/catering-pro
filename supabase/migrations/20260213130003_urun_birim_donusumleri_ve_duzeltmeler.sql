@@ -1,0 +1,4 @@
+-- Bu migration Supabase Dashboard üzerinden uygulanmıştır.
+-- İçerik: Ürün birim dönüşümleri ve veri düzeltmeleri
+-- Tarih: 2026-02-13
+-- NOT: Orijinal SQL Dashboard'dan çalıştırıldığı için dosya placeholder'dır.
