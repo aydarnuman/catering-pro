@@ -7,6 +7,7 @@ import {
   IconAlertCircle,
   IconCheck,
   IconChevronLeft,
+  IconClock,
   IconDotsVertical,
   IconDownload,
   IconInfoCircle,
@@ -18,6 +19,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import AgentsSection from '../components/AgentsSection';
+import SchedulersSection from '../components/SchedulersSection';
 import ModelSettingsTab from './components/ModelSettingsTab';
 import TemplatesTab from './components/TemplatesTab';
 import type { AIModel, ImportPreviewData } from './components/types';
@@ -188,7 +190,7 @@ export default function AIAyarlariPage() {
           </Menu>
         </Group>
 
-        {/* 3 Tab */}
+        {/* 4 Tab */}
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
             <Tabs.Tab value="templates" leftSection={<IconTemplate size={16} />}>
@@ -199,6 +201,9 @@ export default function AIAyarlariPage() {
             </Tabs.Tab>
             <Tabs.Tab value="agents" leftSection={<IconRobot size={16} />}>
               Agent Yönetimi
+            </Tabs.Tab>
+            <Tabs.Tab value="schedulers" leftSection={<IconClock size={16} />}>
+              Zamanlanmış Görevler
             </Tabs.Tab>
           </Tabs.List>
 
@@ -233,12 +238,25 @@ export default function AIAyarlariPage() {
               <Alert icon={<IconInfoCircle size={16} />} color="violet" variant="light">
                 <Text size="sm">
                   <strong>Agent&apos;lar</strong>, belirli uzmanlık alanlarında analiz ve görev yapabilen
-                  özelleştirilmiş AI modülleridir. Her agent kendi system prompt&apos;u, araçları ve bilgi tabanı
-                  (kütüphane) ile çalışır. Yeni agent&apos;lar ekleyebilir, mevcut agent&apos;ların davranışlarını ve
-                  kaynaklarını buradan yönetebilirsiniz.
+                  özelleştirilmiş AI modülleridir. Her agent kendi davranış talimatı, araçları ve bilgi tabanı
+                  (kütüphane) ile çalışır. Mevcut agent&apos;ların davranışlarını ve kaynaklarını buradan
+                  yönetebilirsiniz.
                 </Text>
               </Alert>
               <AgentsSection />
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="schedulers" pt="xl">
+            <Stack gap="lg">
+              <Alert icon={<IconInfoCircle size={16} />} color="teal" variant="light">
+                <Text size="sm">
+                  <strong>Zamanlanmış görevler</strong>, arka planda otomatik çalışan servislerdir. Fatura
+                  senkronizasyonu, ihale tarama, piyasa fiyat takibi, hatırlatıcı bildirimleri ve döküman işleme
+                  kuyruğunu buradan izleyebilir ve yönetebilirsiniz.
+                </Text>
+              </Alert>
+              <SchedulersSection />
             </Stack>
           </Tabs.Panel>
         </Tabs>

@@ -879,4 +879,204 @@ router.get('/logs/recent', async (_req, res) => {
   }
 });
 
+// ==========================================
+// SCHEDULER MANAGEMENT ENDPOINTS
+// ==========================================
+
+// Lazy imports — scheduler singletons are started in server.js
+// We import them here for status/toggle/trigger operations
+let _syncScheduler = null;
+let _tenderScheduler = null;
+let _piyasaSyncScheduler = null;
+let _reminderScheduler = null;
+let _documentQueueProcessor = null;
+
+async function getSchedulers() {
+  if (!_syncScheduler) {
+    const mod = await import('../services/sync-scheduler.js');
+    _syncScheduler = mod.default;
+  }
+  if (!_tenderScheduler) {
+    const mod = await import('../services/tender-scheduler.js');
+    _tenderScheduler = mod.default;
+  }
+  if (!_piyasaSyncScheduler) {
+    const mod = await import('../services/piyasa-sync-scheduler.js');
+    _piyasaSyncScheduler = mod.default;
+  }
+  if (!_reminderScheduler) {
+    const mod = await import('../services/reminder-notification-scheduler.js');
+    _reminderScheduler = mod.default;
+  }
+  if (!_documentQueueProcessor) {
+    const mod = await import('../services/document-queue-processor.js');
+    _documentQueueProcessor = mod.default;
+  }
+  return {
+    sync: _syncScheduler,
+    tender: _tenderScheduler,
+    piyasa: _piyasaSyncScheduler,
+    reminder: _reminderScheduler,
+    document: _documentQueueProcessor,
+  };
+}
+
+const SCHEDULER_META = {
+  sync: {
+    id: 'sync',
+    name: 'Fatura Senkronizasyonu',
+    description: 'Uyumsoft ERP fatura verilerini otomatik senkronize eder',
+    category: 'sync',
+    schedule: '6 saatte bir + gece yarısı tam sync + Pazartesi haftalık rapor',
+  },
+  tender: {
+    id: 'tender',
+    name: 'İhale Tarama',
+    description: 'ihalebul.com üzerinden yeni ihaleleri tarar ve dökümanları işler',
+    category: 'data',
+    schedule: '08:00, 14:00, 19:00 liste tarama + 09:00, 15:00 döküman işleme',
+  },
+  piyasa: {
+    id: 'piyasa',
+    name: 'Piyasa Fiyat Takibi',
+    description: 'Gıda piyasa fiyatlarını Camgöz, Hal.gov.tr ve Tavily kaynaklarından toplar',
+    category: 'data',
+    schedule: '08:30, 13:30, 18:30 fiyat sync + 09:00 hal fiyatları + Pazartesi mevzuat',
+  },
+  reminder: {
+    id: 'reminder',
+    name: 'Hatırlatıcı Bildirimleri',
+    description: 'Yaklaşan vade tarihleri, not hatırlatıcıları ve gecikmiş ödemeler için bildirim gönderir',
+    category: 'automation',
+    schedule: 'Her gün 07:00',
+  },
+  document: {
+    id: 'document',
+    name: 'Doküman İşleme Kuyruğu',
+    description: 'Yüklenen dökümanları Azure AI ve Claude ile otomatik analiz eder',
+    category: 'automation',
+    schedule: 'Sürekli (event-driven + 10sn polling)',
+  },
+};
+
+// GET /api/system/schedulers - Tüm scheduler durumları
+router.get('/schedulers', authenticate, async (_req, res) => {
+  try {
+    const schedulers = await getSchedulers();
+    const result = [];
+
+    for (const [key, meta] of Object.entries(SCHEDULER_META)) {
+      const svc = schedulers[key];
+      let status = {};
+
+      try {
+        if (svc && typeof svc.getStatus === 'function') {
+          status = svc.getStatus() || {};
+        } else if (svc && typeof svc.getQueueStatus === 'function') {
+          status = svc.getQueueStatus() || {};
+        }
+      } catch (e) {
+        status = { error: e.message };
+      }
+
+      result.push({
+        ...meta,
+        isRunning: status.isRunning ?? status.running ?? false,
+        lastRunAt: status.lastSyncTime ?? status.lastScrapeTime ?? status.lastRunAt ?? status.lastProcessedAt ?? null,
+        lastRunStatus: status.lastRunStatus ?? (status.error ? 'error' : null),
+        stats: status.stats ?? status.statistics ?? null,
+        nextRun: status.nextRun ?? null,
+        jobCount: status.activeJobs ?? status.queueLength ?? status.pendingCount ?? null,
+      });
+    }
+
+    return res.json({ success: true, schedulers: result });
+  } catch (error) {
+    logger.error('[Schedulers] Status error', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Scheduler durumları alınamadı' });
+  }
+});
+
+// POST /api/system/schedulers/:id/toggle - Scheduler başlat/durdur
+router.post('/schedulers/:id/toggle', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schedulers = await getSchedulers();
+    const svc = schedulers[id];
+
+    if (!svc || !SCHEDULER_META[id]) {
+      return res.status(404).json({ success: false, error: 'Scheduler bulunamadı' });
+    }
+
+    // Determine current state
+    let isRunning = false;
+    try {
+      const st =
+        typeof svc.getStatus === 'function'
+          ? svc.getStatus()
+          : typeof svc.getQueueStatus === 'function'
+            ? svc.getQueueStatus()
+            : {};
+      isRunning = st?.isRunning ?? st?.running ?? false;
+    } catch {
+      /* ignore */
+    }
+
+    if (isRunning) {
+      if (typeof svc.stop === 'function') svc.stop();
+      logger.info(`[Schedulers] Stopped: ${id}`);
+      return res.json({ success: true, action: 'stopped', scheduler: id });
+    }
+    if (typeof svc.start === 'function') svc.start();
+    logger.info(`[Schedulers] Started: ${id}`);
+    return res.json({ success: true, action: 'started', scheduler: id });
+  } catch (error) {
+    logger.error('[Schedulers] Toggle error', { error: error.message, id: req.params.id });
+    return res.status(500).json({ success: false, error: 'Scheduler değiştirilemedi' });
+  }
+});
+
+// POST /api/system/schedulers/:id/trigger - Scheduler manuel tetikleme
+router.post('/schedulers/:id/trigger', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schedulers = await getSchedulers();
+    const svc = schedulers[id];
+
+    if (!svc || !SCHEDULER_META[id]) {
+      return res.status(404).json({ success: false, error: 'Scheduler bulunamadı' });
+    }
+
+    // Trigger based on type
+    switch (id) {
+      case 'sync':
+        if (svc.isRunning) return res.json({ success: false, message: 'Zaten çalışıyor' });
+        svc.triggerManualSync?.({ months: 1, maxInvoices: 500 }) ?? svc.runSync?.({ trigger: 'manual' });
+        break;
+      case 'tender':
+        if (svc.isListRunning) return res.json({ success: false, message: 'Zaten çalışıyor' });
+        svc.scrapeList?.({ pages: 2, trigger: 'manual' });
+        break;
+      case 'piyasa':
+        if (svc.isRunning) return res.json({ success: false, message: 'Zaten çalışıyor' });
+        svc.runSync?.({ trigger: 'manual' });
+        break;
+      case 'reminder':
+        svc.checkAndSendReminders?.();
+        break;
+      case 'document':
+        svc.triggerManualProcess?.() ?? svc.processQueue?.();
+        break;
+      default:
+        return res.status(400).json({ success: false, error: 'Bilinmeyen scheduler' });
+    }
+
+    logger.info(`[Schedulers] Manual trigger: ${id}`);
+    return res.json({ success: true, message: `${SCHEDULER_META[id].name} tetiklendi`, scheduler: id });
+  } catch (error) {
+    logger.error('[Schedulers] Trigger error', { error: error.message, id: req.params.id });
+    return res.status(500).json({ success: false, error: 'Scheduler tetiklenemedi' });
+  }
+});
+
 export default router;

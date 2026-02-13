@@ -33,6 +33,8 @@ export interface Agent {
   tool_count?: number;
   knowledge_count?: number;
   context_sort_order?: number;
+  last_analysis_at?: string | null;
+  last_analysis_status?: string | null;
 }
 
 export interface AgentTool {

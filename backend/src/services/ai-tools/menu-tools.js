@@ -4,6 +4,7 @@
  */
 
 import { query } from '../../database.js';
+import { donusumCarpaniAl } from '../../utils/birim-donusum.js';
 import { searchMarketPrices } from '../market-scraper.js';
 
 // =============================================
@@ -198,6 +199,81 @@ Bu tool:
       required: ['proje_id', 'tarih'],
     },
   },
+
+  // =============================================
+  // BİRİM DENETİM TOOL'LARI
+  // =============================================
+
+  {
+    name: 'birim_denetim_raporu',
+    description: `Reçete-ürün birim uyumsuzluklarını, fiyatsız ürünleri, fiyat anomalilerini ve eksik dönüşümleri tarar.
+    
+Örnek: "birim denetim raporu çıkar", "fiyat sorunlarını kontrol et", "eksik dönüşümleri bul"`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        sadece_sorunlu: {
+          type: 'boolean',
+          description: 'Sadece sorunlu olanları getir (varsayılan: true)',
+        },
+        recete_id: {
+          type: 'number',
+          description: 'Belirli bir reçete için denetim (opsiyonel)',
+        },
+      },
+    },
+  },
+  {
+    name: 'birim_donusum_ekle',
+    description: `Bir ürün için ürüne özel birim dönüşümü ekler. Örnek: "Maydanoz için 1 demet = 100g dönüşümü ekle"`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        urun_kart_id: { type: 'number', description: 'Ürün kartı ID' },
+        kaynak_birim: { type: 'string', description: 'Kaynak birim (g, ml, adet vb.)' },
+        hedef_birim: { type: 'string', description: 'Hedef birim (kg, lt, demet vb.)' },
+        carpan: { type: 'number', description: 'Dönüşüm çarpanı. Örn: g→demet için 0.01 (1 demet=100g)' },
+        aciklama: { type: 'string', description: 'Açıklama (1 demet maydanoz ≈ 100g)' },
+      },
+      required: ['urun_kart_id', 'kaynak_birim', 'hedef_birim', 'carpan'],
+    },
+  },
+  {
+    name: 'urun_fiyat_guncelle',
+    description: `Bir ürünün fiyatını günceller. Fiyat kaynağını belirtir.
+    
+Örnek: "Un fiyatını 30 TL/kg olarak güncelle", "Bal fiyatını piyasa fiyatıyla güncelle"`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        urun_kart_id: { type: 'number', description: 'Ürün kartı ID' },
+        urun_adi: { type: 'string', description: 'Ürün adı (ID yoksa ada göre ara)' },
+        fiyat: { type: 'number', description: 'Yeni birim fiyat (TL)' },
+        kaynak: {
+          type: 'string',
+          description: 'Fiyat kaynağı: FATURA, PIYASA, TAHMIN, MANUEL',
+        },
+      },
+      required: ['fiyat'],
+    },
+  },
+  {
+    name: 'recete_birim_duzelt',
+    description: `Bir reçete malzemesinin birimini veya ürün eşleşmesini düzeltir. Sonrasında maliyet otomatik yeniden hesaplanır.
+    
+Örnek: "Mercimek çorbasında su birimini ml olarak düzelt", "Zeytin reçetesindeki zeytin malzemesini doğru ürünle eşle"`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        malzeme_id: { type: 'number', description: 'recete_malzemeler ID' },
+        recete_id: { type: 'number', description: 'Reçete ID (malzeme_id yoksa reçete + malzeme adı ile bul)' },
+        malzeme_adi: { type: 'string', description: 'Malzeme adı (malzeme_id yoksa)' },
+        yeni_birim: { type: 'string', description: 'Yeni birim (g, gr, ml, kg, lt, adet vb.)' },
+        yeni_miktar: { type: 'number', description: 'Yeni miktar (birim değişince miktar da değişebilir)' },
+        yeni_urun_kart_id: { type: 'number', description: 'Yeni ürün kartı ID (yanlış eşleşme düzeltme)' },
+      },
+    },
+  },
 ];
 
 // =============================================
@@ -273,10 +349,28 @@ export const menuToolImplementations = {
 
       const receteId = receteResult.rows[0].id;
 
-      // Malzemeleri ekle
+      // Malzemeleri ekle (birim doğrulamalı)
+      const izinliBirimler = new Set([
+        'g',
+        'gr',
+        'kg',
+        'ml',
+        'lt',
+        'l',
+        'adet',
+        'porsiyon',
+        'dilim',
+        'tutam',
+        'demet',
+        'paket',
+      ]);
       if (malzemeler && malzemeler.length > 0) {
         for (let i = 0; i < malzemeler.length; i++) {
           const m = malzemeler[i];
+
+          // Birim doğrulama — geçersiz birimde varsayılana düş
+          const birim = (m.birim || 'g').toLowerCase();
+          const gecerliBirim = izinliBirimler.has(birim) ? birim : 'g';
 
           // Stok kartı var mı ara
           const stokResult = await query(
@@ -294,7 +388,7 @@ export const menuToolImplementations = {
               recete_id, stok_kart_id, malzeme_adi, miktar, birim, sira
             ) VALUES ($1, $2, $3, $4, $5, $6)
           `,
-            [receteId, stokResult.rows[0]?.id || null, m.ad, m.miktar, m.birim || 'g', i + 1]
+            [receteId, stokResult.rows[0]?.id || null, m.ad, m.miktar, gecerliBirim, i + 1]
           );
         }
       }
@@ -386,6 +480,8 @@ export const menuToolImplementations = {
         SELECT 
           rm.*,
           COALESCE(urk.aktif_fiyat, urk.son_alis_fiyati, 0) as sistem_fiyat,
+          urk.birim as urun_birim,
+          urk.fiyat_birimi as urun_fiyat_birimi,
           COALESCE(
             (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
              WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
@@ -408,17 +504,14 @@ export const menuToolImplementations = {
 
       for (const m of malzemeResult.rows) {
         const birimFiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
-        let maliyet = 0;
-        const birim = (m.birim || '').toLowerCase();
+        const miktar = parseFloat(m.miktar) || 0;
+        const malzemeBirim = (m.birim || '').toLowerCase();
+        // Ürün kartının birimi (fiyat bu birim bazında)
+        const urunBirim = (m.urun_birim || m.urun_standart_birim || 'kg').toLowerCase();
 
-        // Birim dönüşümü
-        if (birim === 'g' || birim === 'gr') {
-          maliyet = (m.miktar / 1000) * birimFiyat;
-        } else if (birim === 'ml') {
-          maliyet = (m.miktar / 1000) * birimFiyat;
-        } else {
-          maliyet = m.miktar * birimFiyat;
-        }
+        // Birim dönüşümü: merkezi modül kullan (hardcoded YASAK, ürüne özel dönüşüm dahil)
+        const carpan = await donusumCarpaniAl(malzemeBirim, urunBirim, m.urun_kart_id);
+        const maliyet = miktar * carpan * birimFiyat;
 
         toplamMaliyet += maliyet;
 
@@ -1240,6 +1333,334 @@ export const menuToolImplementations = {
         tarih,
         menu,
         toplam_porsiyon_maliyet: Math.round(toplamMaliyet * 100) / 100,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // =============================================
+  // BİRİM DENETİM TOOL UYGULAMALARI
+  // =============================================
+
+  birim_denetim_raporu: async ({ sadece_sorunlu: _sadece_sorunlu = true, recete_id = null }) => {
+    try {
+      const params = [];
+      let receteFilter = '';
+      if (recete_id) {
+        params.push(recete_id);
+        receteFilter = `AND rm.recete_id = $${params.length}`;
+      }
+
+      // 1. Cross-type birim uyumsuzlukları (carpan=1 fallback)
+      const uyumsuzResult = await query(
+        `
+        SELECT 
+          rm.id as malzeme_id, rm.recete_id, r.ad as recete_adi,
+          rm.malzeme_adi, rm.birim as malzeme_birim, uk.birim as urun_birim,
+          rm.miktar, rm.birim_fiyat, uk.ad as urun_adi, rm.urun_kart_id,
+          get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id) as carpan
+        FROM recete_malzemeler rm
+        JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+        JOIN receteler r ON r.id = rm.recete_id
+        WHERE get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id) = 1
+          AND LOWER(rm.birim) != LOWER(uk.birim)
+          ${receteFilter}
+        ORDER BY rm.miktar * COALESCE(rm.birim_fiyat, 0) DESC
+        LIMIT 30
+      `,
+        params
+      );
+
+      // 2. Fiyatsız ürünler (reçetede kullanılan)
+      const fiyatsizResult = await query(`
+        SELECT uk.id, uk.ad, uk.birim,
+          COUNT(rm.id) as kullanim_sayisi
+        FROM urun_kartlari uk
+        JOIN recete_malzemeler rm ON rm.urun_kart_id = uk.id
+        WHERE uk.aktif = true AND (uk.aktif_fiyat IS NULL OR uk.aktif_fiyat = 0)
+        GROUP BY uk.id, uk.ad, uk.birim
+        ORDER BY COUNT(rm.id) DESC
+        LIMIT 20
+      `);
+
+      // 3. Fiyat anomalileri (>500 TL/kg veya >200 TL/adet, kategoriye göre)
+      const anomaliResult = await query(`
+        SELECT id, ad, birim, aktif_fiyat, aktif_fiyat_tipi,
+          (SELECT COUNT(*) FROM recete_malzemeler WHERE urun_kart_id = uk.id) as kullanim
+        FROM urun_kartlari uk
+        WHERE aktif = true AND aktif_fiyat IS NOT NULL
+          AND (
+            (birim = 'kg' AND aktif_fiyat > 2000)
+            OR (birim = 'adet' AND aktif_fiyat > 500)
+            OR (birim = 'lt' AND aktif_fiyat > 1000)
+            OR (birim = 'demet' AND aktif_fiyat > 200)
+          )
+        ORDER BY aktif_fiyat DESC
+        LIMIT 20
+      `);
+
+      // 4. Eşleşmemiş malzemeler
+      const eslesmemisResult = await query(
+        `
+        SELECT rm.id, rm.recete_id, r.ad as recete_adi, rm.malzeme_adi, rm.birim, rm.miktar
+        FROM recete_malzemeler rm
+        JOIN receteler r ON r.id = rm.recete_id
+        WHERE rm.urun_kart_id IS NULL ${receteFilter}
+        ORDER BY rm.malzeme_adi
+        LIMIT 20
+      `,
+        params
+      );
+
+      // 5. Genel istatistikler
+      const statsResult = await query(`
+        SELECT 
+          (SELECT COUNT(*) FROM receteler WHERE aktif = true) as recete_sayisi,
+          (SELECT COUNT(*) FROM recete_malzemeler) as malzeme_sayisi,
+          (SELECT COUNT(*) FROM urun_kartlari WHERE aktif = true) as urun_sayisi,
+          (SELECT COUNT(*) FROM urun_birim_donusumleri) as ozel_donusum_sayisi,
+          (SELECT ROUND(AVG(tahmini_maliyet)::numeric, 2) FROM receteler WHERE aktif = true) as ort_maliyet
+      `);
+
+      const sorunSayisi =
+        uyumsuzResult.rows.length +
+        fiyatsizResult.rows.length +
+        anomaliResult.rows.length +
+        eslesmemisResult.rows.length;
+
+      return {
+        success: true,
+        toplam_sorun: sorunSayisi,
+        istatistikler: statsResult.rows[0],
+        birim_uyumsuzluklari: uyumsuzResult.rows,
+        fiyatsiz_urunler: fiyatsizResult.rows,
+        fiyat_anomalileri: anomaliResult.rows,
+        eslesmemis_malzemeler: eslesmemisResult.rows,
+        ozet:
+          sorunSayisi === 0
+            ? 'Tüm birim dönüşümleri ve fiyatlar düzgün. Sorun yok.'
+            : `${sorunSayisi} sorun tespit edildi: ${uyumsuzResult.rows.length} birim uyumsuzluğu, ${fiyatsizResult.rows.length} fiyatsız ürün, ${anomaliResult.rows.length} fiyat anomalisi, ${eslesmemisResult.rows.length} eşleşmemiş malzeme.`,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  birim_donusum_ekle: async ({ urun_kart_id, kaynak_birim, hedef_birim, carpan, aciklama }) => {
+    try {
+      // Ürün kartı kontrolü
+      const urunResult = await query('SELECT id, ad, birim FROM urun_kartlari WHERE id = $1', [urun_kart_id]);
+      if (urunResult.rows.length === 0) {
+        return { success: false, error: `Ürün kartı ${urun_kart_id} bulunamadı` };
+      }
+      const urun = urunResult.rows[0];
+
+      // Çarpan geçerliliği
+      if (!carpan || carpan <= 0) {
+        return { success: false, error: "Çarpan 0'dan büyük olmalı" };
+      }
+
+      // Kaydet
+      const result = await query(
+        `
+        INSERT INTO urun_birim_donusumleri (urun_kart_id, kaynak_birim, hedef_birim, carpan, aciklama)
+        VALUES ($1, LOWER($2), LOWER($3), $4, $5)
+        ON CONFLICT (urun_kart_id, kaynak_birim, hedef_birim) 
+        DO UPDATE SET carpan = $4, aciklama = $5
+        RETURNING id
+      `,
+        [urun_kart_id, kaynak_birim, hedef_birim, carpan, aciklama || `${kaynak_birim}→${hedef_birim} = ${carpan}`]
+      );
+
+      // Bu ürünü kullanan reçetelerin maliyetlerini yeniden hesapla
+      const receteler = await query('SELECT DISTINCT recete_id FROM recete_malzemeler WHERE urun_kart_id = $1', [
+        urun_kart_id,
+      ]);
+
+      for (const r of receteler.rows) {
+        await query(
+          `
+          UPDATE receteler SET tahmini_maliyet = (
+            SELECT COALESCE(SUM(
+              CASE WHEN rm.aktif_miktar_tipi = 'sef' AND rm.sef_miktar IS NOT NULL THEN rm.sef_miktar ELSE rm.miktar END
+              * get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id)
+              * COALESCE(rm.birim_fiyat, 0)
+            ), 0)
+            FROM recete_malzemeler rm
+            LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+            WHERE rm.recete_id = $1
+          ), updated_at = NOW()
+          WHERE id = $1
+        `,
+          [r.recete_id]
+        );
+      }
+
+      return {
+        success: true,
+        donusum_id: result.rows[0].id,
+        urun: urun.ad,
+        donusum: `${kaynak_birim} → ${hedef_birim} = ${carpan}`,
+        guncellenen_recete_sayisi: receteler.rows.length,
+        mesaj: `${urun.ad} için ${kaynak_birim}→${hedef_birim} dönüşümü eklendi (çarpan: ${carpan}). ${receteler.rows.length} reçete maliyeti güncellendi.`,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  urun_fiyat_guncelle: async ({ urun_kart_id, urun_adi, fiyat, kaynak = 'MANUEL' }) => {
+    try {
+      let urun;
+      if (urun_kart_id) {
+        const result = await query('SELECT id, ad, birim, aktif_fiyat FROM urun_kartlari WHERE id = $1', [
+          urun_kart_id,
+        ]);
+        urun = result.rows[0];
+      } else if (urun_adi) {
+        const result = await query(
+          'SELECT id, ad, birim, aktif_fiyat FROM urun_kartlari WHERE LOWER(ad) = LOWER($1) AND aktif = true LIMIT 1',
+          [urun_adi]
+        );
+        urun = result.rows[0];
+      }
+      if (!urun) return { success: false, error: 'Ürün bulunamadı' };
+
+      if (!fiyat || fiyat <= 0) return { success: false, error: "Fiyat 0'dan büyük olmalı" };
+
+      const oncekiFiyat = urun.aktif_fiyat;
+
+      // Fiyatı güncelle
+      await query(
+        'UPDATE urun_kartlari SET aktif_fiyat = $1, aktif_fiyat_tipi = $2, updated_at = NOW() WHERE id = $3',
+        [fiyat, kaynak, urun.id]
+      );
+
+      // Not: aktif_fiyat değişince trigger otomatik recete_malzemeler.birim_fiyat'ı günceller,
+      //       ve o da receteler.tahmini_maliyet'i günceller (cascade trigger'lar)
+
+      // Etkilenen reçete sayısı
+      const receteSayisi = await query(
+        'SELECT COUNT(DISTINCT recete_id) as sayi FROM recete_malzemeler WHERE urun_kart_id = $1',
+        [urun.id]
+      );
+
+      return {
+        success: true,
+        urun_id: urun.id,
+        urun_adi: urun.ad,
+        birim: urun.birim,
+        onceki_fiyat: oncekiFiyat ? parseFloat(oncekiFiyat) : null,
+        yeni_fiyat: fiyat,
+        kaynak: kaynak,
+        etkilenen_recete: parseInt(receteSayisi.rows[0].sayi, 10),
+        mesaj: `${urun.ad} fiyatı ${oncekiFiyat || 'yok'} → ${fiyat} TL/${urun.birim} olarak güncellendi (${kaynak}). ${receteSayisi.rows[0].sayi} reçete etkilendi.`,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  recete_birim_duzelt: async ({ malzeme_id, recete_id, malzeme_adi, yeni_birim, yeni_miktar, yeni_urun_kart_id }) => {
+    try {
+      // Malzemeyi bul
+      let malzeme;
+      if (malzeme_id) {
+        const result = await query(
+          `SELECT rm.*, r.ad as recete_adi FROM recete_malzemeler rm 
+           JOIN receteler r ON r.id = rm.recete_id WHERE rm.id = $1`,
+          [malzeme_id]
+        );
+        malzeme = result.rows[0];
+      } else if (recete_id && malzeme_adi) {
+        const result = await query(
+          `SELECT rm.*, r.ad as recete_adi FROM recete_malzemeler rm 
+           JOIN receteler r ON r.id = rm.recete_id 
+           WHERE rm.recete_id = $1 AND LOWER(rm.malzeme_adi) LIKE LOWER($2) LIMIT 1`,
+          [recete_id, `%${malzeme_adi}%`]
+        );
+        malzeme = result.rows[0];
+      }
+      if (!malzeme) return { success: false, error: 'Malzeme bulunamadı' };
+
+      const degisiklikler = [];
+      const updateParts = [];
+      const updateValues = [];
+      let paramIdx = 1;
+
+      // Birim değişikliği
+      if (yeni_birim && yeni_birim !== malzeme.birim) {
+        updateParts.push(`birim = $${paramIdx}`);
+        updateValues.push(yeni_birim);
+        degisiklikler.push(`birim: ${malzeme.birim} → ${yeni_birim}`);
+        paramIdx++;
+      }
+
+      // Miktar değişikliği
+      if (yeni_miktar && yeni_miktar !== parseFloat(malzeme.miktar)) {
+        updateParts.push(`miktar = $${paramIdx}`);
+        updateValues.push(yeni_miktar);
+        degisiklikler.push(`miktar: ${malzeme.miktar} → ${yeni_miktar}`);
+        paramIdx++;
+      }
+
+      // Ürün kartı değişikliği
+      if (yeni_urun_kart_id && yeni_urun_kart_id !== malzeme.urun_kart_id) {
+        const yeniUrun = await query('SELECT id, ad, birim, aktif_fiyat FROM urun_kartlari WHERE id = $1', [
+          yeni_urun_kart_id,
+        ]);
+        if (yeniUrun.rows.length === 0) return { success: false, error: `Ürün kartı ${yeni_urun_kart_id} bulunamadı` };
+
+        updateParts.push(`urun_kart_id = $${paramIdx}`);
+        updateValues.push(yeni_urun_kart_id);
+        degisiklikler.push(`ürün: ${malzeme.urun_kart_id} → ${yeni_urun_kart_id} (${yeniUrun.rows[0].ad})`);
+        paramIdx++;
+
+        // Yeni ürünün fiyatını da set et
+        if (yeniUrun.rows[0].aktif_fiyat) {
+          updateParts.push(`birim_fiyat = $${paramIdx}`);
+          updateValues.push(yeniUrun.rows[0].aktif_fiyat);
+          paramIdx++;
+        }
+      }
+
+      if (updateParts.length === 0) {
+        return { success: false, error: 'Değişiklik belirtilmedi' };
+      }
+
+      // Güncelle
+      updateValues.push(malzeme.id);
+      await query(`UPDATE recete_malzemeler SET ${updateParts.join(', ')} WHERE id = $${paramIdx}`, updateValues);
+
+      // Reçete maliyetini yeniden hesapla
+      await query(
+        `
+        UPDATE receteler SET tahmini_maliyet = (
+          SELECT COALESCE(SUM(
+            CASE WHEN rm.aktif_miktar_tipi = 'sef' AND rm.sef_miktar IS NOT NULL THEN rm.sef_miktar ELSE rm.miktar END
+            * get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg'), rm.urun_kart_id)
+            * COALESCE(rm.birim_fiyat, 0)
+          ), 0)
+          FROM recete_malzemeler rm
+          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+          WHERE rm.recete_id = $1
+        ), updated_at = NOW()
+        WHERE id = $1
+      `,
+        [malzeme.recete_id]
+      );
+
+      // Yeni maliyet
+      const yeniMaliyet = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [malzeme.recete_id]);
+
+      return {
+        success: true,
+        recete: malzeme.recete_adi,
+        malzeme: malzeme.malzeme_adi,
+        degisiklikler: degisiklikler,
+        yeni_recete_maliyeti: parseFloat(yeniMaliyet.rows[0]?.tahmini_maliyet || 0),
+        mesaj: `${malzeme.recete_adi} > ${malzeme.malzeme_adi}: ${degisiklikler.join(', ')}. Yeni reçete maliyeti: ${yeniMaliyet.rows[0]?.tahmini_maliyet || 0} TL`,
       };
     } catch (error) {
       return { success: false, error: error.message };

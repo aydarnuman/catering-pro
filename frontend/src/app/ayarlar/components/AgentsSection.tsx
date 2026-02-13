@@ -33,16 +33,24 @@ import { notifications } from '@mantine/notifications';
 import {
   IconBook2,
   IconBrain,
+  IconBrandInstagram,
   IconCalculator,
   IconCheck,
+  IconClock,
+  IconCopy,
+  IconFileAnalytics,
   IconFileText,
   IconHelmet,
+  IconInfoCircle,
   IconLink,
+  IconMessageChatbot,
   IconNote,
   IconPencil,
   IconPlus,
   IconRadar,
+  IconReportAnalytics,
   IconScale,
+  IconSearch,
   IconSettings,
   IconTool,
   IconTrash,
@@ -79,6 +87,142 @@ const CONTENT_TYPE_ICONS: Record<string, React.ElementType> = {
 
 const MODEL_OPTIONS = [{ value: 'claude-opus-4-20250514', label: 'Claude Opus 4' }];
 
+// ─── Category Definitions ─────────────────────────────────────
+
+const IHALE_AGENT_SLUGS = ['mevzuat', 'maliyet', 'teknik', 'rekabet'];
+
+interface AgentCategory {
+  label: string;
+  description: string;
+  agents: Agent[];
+}
+
+function categorizeAgents(agents: Agent[]): AgentCategory[] {
+  const ihaleAgents = agents.filter((a) => IHALE_AGENT_SLUGS.includes(a.slug));
+  const generalAgents = agents.filter((a) => !IHALE_AGENT_SLUGS.includes(a.slug));
+
+  const categories: AgentCategory[] = [];
+
+  if (ihaleAgents.length > 0) {
+    categories.push({
+      label: 'İhale Analiz Agentları',
+      description: 'Sanal İhale Masası için özelleştirilmiş analiz agentları',
+      agents: ihaleAgents,
+    });
+  }
+
+  if (generalAgents.length > 0) {
+    categories.push({
+      label: 'Genel Agentlar',
+      description: 'Genel amaçlı AI asistan agentları',
+      agents: generalAgents,
+    });
+  }
+
+  return categories;
+}
+
+// ─── Static AI Services (Not in DB) ──────────────────────────
+
+interface StaticAIService {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  color: string;
+  category: 'assistant' | 'domain' | 'analysis';
+  configLocation: string;
+  features: string[];
+}
+
+const STATIC_AI_SERVICES: StaticAIService[] = [
+  {
+    id: 'ai-chat',
+    name: 'Ana AI Asistan',
+    description: 'Tüm modüllere erişimi olan merkezi sohbet asistanı. Tool calling, hafıza ve öğrenme destekli.',
+    icon: IconMessageChatbot,
+    color: 'violet',
+    category: 'assistant',
+    configLocation: 'Model ve Ayarlar sekmesinden',
+    features: ['Sohbet', 'Tool Calling', 'Hafıza', 'Öğrenme'],
+  },
+  {
+    id: 'instagram-ai',
+    name: 'Instagram İçerik AI',
+    description: 'Yemek fotoğraflarından sosyal medya içeriği, caption ve hashtag üretir.',
+    icon: IconBrandInstagram,
+    color: 'pink',
+    category: 'domain',
+    configLocation: "Henüz UI'dan yapılandırılamıyor",
+    features: ['Caption', 'Hashtag', 'DM Yanıt', 'Menü Postu'],
+  },
+  {
+    id: 'yuklenici-ai',
+    name: 'Yüklenici Analiz AI',
+    description: 'Firma profil özeti, güçlü/zayıf yönler ve ihale bazlı rakip risk analizi yapar.',
+    icon: IconSearch,
+    color: 'orange',
+    category: 'domain',
+    configLocation: "Henüz UI'dan yapılandırılamıyor",
+    features: ['Profil Özeti', 'Rakip Analizi', 'İstihbarat Raporu'],
+  },
+  {
+    id: 'doc-pipeline',
+    name: 'Doküman Analiz Pipeline',
+    description:
+      'İhale dokümanlarını Azure AI ve Claude ile otomatik analiz eder. Teknik şartname, birim fiyat çıkarımı.',
+    icon: IconFileAnalytics,
+    color: 'cyan',
+    category: 'analysis',
+    configLocation: 'ai.config.js ve environment variables',
+    features: ['PDF Analiz', 'Azure DI', 'Claude Vision', 'Otomatik Sınıflandırma'],
+  },
+  {
+    id: 'daily-audit',
+    name: 'Günlük Veri Denetimi',
+    description: 'Fiyat anomalileri, kategori sapmaları ve veri kalitesi sorunlarını otomatik tespit eder.',
+    icon: IconReportAnalytics,
+    color: 'yellow',
+    category: 'analysis',
+    configLocation: "Henüz UI'dan yapılandırılamıyor",
+    features: ['Fiyat Anomali', 'Kategori Sapma', 'Veri Kalitesi'],
+  },
+  {
+    id: 'duplicate-detector',
+    name: 'Mükerrer Fatura Tespiti',
+    description: 'Aynı faturanın birden fazla kaydedilmesini SQL ve AI ile tespit ederek uyarır.',
+    icon: IconCopy,
+    color: 'red',
+    category: 'analysis',
+    configLocation: "Henüz UI'dan yapılandırılamıyor",
+    features: ['Benzerlik Analizi', 'Otomatik Uyarı'],
+  },
+];
+
+const STATIC_CATEGORY_LABELS: Record<string, { label: string; description: string }> = {
+  assistant: { label: 'Merkezi Asistan', description: 'Ana AI sohbet asistanı' },
+  domain: { label: 'Alan Uzmanı Servisler', description: 'Belirli iş alanları için AI destekli özellikler' },
+  analysis: { label: 'Analiz ve Denetim', description: 'Otomatik veri analizi ve kalite kontrol servisleri' },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────
+
+function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 1) return 'Az önce';
+  if (diffMin < 60) return `${diffMin} dk önce`;
+  if (diffHour < 24) return `${diffHour} saat önce`;
+  if (diffDay < 7) return `${diffDay} gün önce`;
+  return date.toLocaleDateString('tr-TR');
+}
+
 // ─── Main Component ──────────────────────────────────────────
 
 export default function AgentsSection() {
@@ -90,13 +234,13 @@ export default function AgentsSection() {
     queryKey: ['agents'],
     queryFn: async () => {
       const response = await agentAPI.getAll();
-      // Backend returns flat { success, agents } not nested { data: { agents } }
       const raw = response as unknown as { success: boolean; agents?: Agent[]; data?: { agents?: Agent[] } };
       return raw.success ? (raw.data?.agents ?? raw.agents ?? []) : [];
     },
   });
 
   const agents = agentsData || [];
+  const categories = categorizeAgents(agents);
 
   if (isLoading) {
     return (
@@ -117,16 +261,71 @@ export default function AgentsSection() {
               AI agent&apos;larını yapılandırın ve yönetin
             </Text>
           </div>
-          <Badge size="lg" variant="light" color="cyan">
-            {agents.length} Agent
+          <Group gap="xs">
+            <Badge size="lg" variant="light" color="cyan">
+              {agents.length} Agent
+            </Badge>
+            <Badge size="lg" variant="light" color="green">
+              {agents.filter((a) => a.is_active).length} Aktif
+            </Badge>
+          </Group>
+        </Group>
+
+        {categories.map((category) => (
+          <Box key={category.label} mb="lg">
+            <Group gap="xs" mb="xs">
+              <Text fw={600} size="sm" c="dimmed" tt="uppercase" lts={0.5}>
+                {category.label}
+              </Text>
+              <Text size="xs" c="dimmed">
+                — {category.description}
+              </Text>
+            </Group>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+              {category.agents.map((agent) => (
+                <AgentCard key={agent.id} agent={agent} onSelect={() => setSelectedAgent(agent.slug)} />
+              ))}
+            </SimpleGrid>
+          </Box>
+        ))}
+      </Paper>
+
+      {/* Static AI Services */}
+      <Paper p="lg" withBorder radius="md">
+        <Group justify="space-between" mb="md">
+          <div>
+            <Title order={3}>Diğer AI Servisleri</Title>
+            <Text c="dimmed" size="sm">
+              Sistemdeki yapay zeka destekli özellikler
+            </Text>
+          </div>
+          <Badge size="lg" variant="light" color="grape">
+            {STATIC_AI_SERVICES.length} Servis
           </Badge>
         </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-          {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} onSelect={() => setSelectedAgent(agent.slug)} />
-          ))}
-        </SimpleGrid>
+        {(['assistant', 'domain', 'analysis'] as const).map((cat) => {
+          const services = STATIC_AI_SERVICES.filter((s) => s.category === cat);
+          if (services.length === 0) return null;
+          const catMeta = STATIC_CATEGORY_LABELS[cat];
+          return (
+            <Box key={cat} mb="lg">
+              <Group gap="xs" mb="xs">
+                <Text fw={600} size="sm" c="dimmed" tt="uppercase" lts={0.5}>
+                  {catMeta.label}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  — {catMeta.description}
+                </Text>
+              </Group>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                {services.map((svc) => (
+                  <StaticServiceCard key={svc.id} service={svc} />
+                ))}
+              </SimpleGrid>
+            </Box>
+          );
+        })}
       </Paper>
 
       {/* Agent Detail Modal */}
@@ -163,11 +362,51 @@ interface AgentCardProps {
 }
 
 function AgentCard({ agent, onSelect }: AgentCardProps) {
+  const queryClient = useQueryClient();
   const IconComponent = AGENT_ICONS[agent.icon || 'brain'] || IconBrain;
 
+  // Toggle mutation
+  const toggleMutation = useMutation({
+    mutationFn: (newActive: boolean) => agentAPI.update(agent.slug, { is_active: newActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      notifications.show({
+        title: agent.is_active ? 'Devre Dışı' : 'Aktif',
+        message: `${agent.name} ${agent.is_active ? 'devre dışı bırakıldı' : 'aktif edildi'}`,
+        color: agent.is_active ? 'orange' : 'green',
+      });
+    },
+    onError: () => {
+      notifications.show({ title: 'Hata', message: 'Durum değiştirilemedi', color: 'red' });
+    },
+  });
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (agent.is_system) return; // System agents cannot be toggled
+    toggleMutation.mutate(!agent.is_active);
+  };
+
+  const switchElement = (
+    <Switch
+      checked={agent.is_active}
+      size="sm"
+      onClick={handleToggle}
+      disabled={agent.is_system}
+      styles={agent.is_system ? { track: { cursor: 'not-allowed' } } : undefined}
+    />
+  );
+
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onSelect}>
-      <Group justify="space-between" mb="md">
+    <Card
+      shadow="sm"
+      padding="lg"
+      radius="md"
+      withBorder
+      style={{ cursor: 'pointer', opacity: agent.is_active ? 1 : 0.6 }}
+      onClick={onSelect}
+    >
+      <Group justify="space-between" mb="sm">
         <Group gap="sm">
           <ThemeIcon
             size="lg"
@@ -186,10 +425,16 @@ function AgentCard({ agent, onSelect }: AgentCardProps) {
             </Text>
           </div>
         </Group>
-        <Switch checked={agent.is_active} size="sm" onClick={(e) => e.stopPropagation()} readOnly />
+        {agent.is_system ? (
+          <Tooltip label="Sistem agentı devre dışı bırakılamaz" withArrow>
+            <Box>{switchElement}</Box>
+          </Tooltip>
+        ) : (
+          switchElement
+        )}
       </Group>
 
-      <Group gap="xs">
+      <Group gap="xs" mb="xs">
         <Badge size="xs" variant="light" color={agent.color || 'gray'}>
           {agent.tool_count || 0} araç
         </Badge>
@@ -201,6 +446,80 @@ function AgentCard({ agent, onSelect }: AgentCardProps) {
             Sistem
           </Badge>
         )}
+      </Group>
+
+      {/* Last run info */}
+      {agent.last_analysis_at && (
+        <Group gap={4} mt={4}>
+          <IconClock size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+          <Text size="10px" c="dimmed">
+            Son analiz: {formatRelativeTime(agent.last_analysis_at)}
+          </Text>
+          {agent.last_analysis_status && (
+            <Badge
+              size="xs"
+              variant="dot"
+              color={
+                agent.last_analysis_status === 'completed'
+                  ? 'green'
+                  : agent.last_analysis_status === 'error'
+                    ? 'red'
+                    : 'yellow'
+              }
+            >
+              {agent.last_analysis_status === 'completed'
+                ? 'Başarılı'
+                : agent.last_analysis_status === 'error'
+                  ? 'Hata'
+                  : 'Devam ediyor'}
+            </Badge>
+          )}
+        </Group>
+      )}
+    </Card>
+  );
+}
+
+// ─── Static Service Card ─────────────────────────────────────
+
+interface StaticServiceCardProps {
+  service: StaticAIService;
+}
+
+function StaticServiceCard({ service }: StaticServiceCardProps) {
+  const IconComp = service.icon;
+
+  return (
+    <Card shadow="sm" padding="md" radius="md" withBorder>
+      <Group justify="space-between" mb="sm">
+        <Group gap="sm">
+          <ThemeIcon size="lg" variant="light" color={service.color} radius="md">
+            <IconComp size={20} />
+          </ThemeIcon>
+          <div>
+            <Text fw={600} size="sm">
+              {service.name}
+            </Text>
+            <Text size="xs" c="dimmed" lineClamp={2}>
+              {service.description}
+            </Text>
+          </div>
+        </Group>
+      </Group>
+
+      <Group gap={4} wrap="wrap" mb="xs">
+        {service.features.map((f) => (
+          <Badge key={f} size="xs" variant="light" color={service.color}>
+            {f}
+          </Badge>
+        ))}
+      </Group>
+
+      <Group gap={4}>
+        <IconSettings size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+        <Text size="10px" c="dimmed">
+          {service.configLocation}
+        </Text>
       </Group>
     </Card>
   );
@@ -222,7 +541,6 @@ function AgentDetailEditor({ slug, onClose }: AgentDetailEditorProps) {
     queryKey: ['agent-detail', slug],
     queryFn: async () => {
       const response = await agentAPI.getBySlug(slug);
-      // Backend returns flat { success, agent } not nested { data: { agent } }
       const raw = response as unknown as { success: boolean; agent?: AgentDetail; data?: { agent?: AgentDetail } };
       return raw.success ? (raw.data?.agent ?? raw.agent ?? null) : null;
     },
@@ -240,7 +558,7 @@ function AgentDetailEditor({ slug, onClose }: AgentDetailEditorProps) {
       });
       queryClient.invalidateQueries({ queryKey: ['agent-detail', slug] });
       queryClient.invalidateQueries({ queryKey: ['agents'] });
-      onClose(); // Close modal after save
+      onClose();
     },
     onError: () => {
       notifications.show({
@@ -345,60 +663,110 @@ function GeneralSettingsTab({ agent, onSave, saving }: GeneralSettingsTabProps) 
             <Select label="Model" data={MODEL_OPTIONS} {...form.getInputProps('model')} />
           </Grid.Col>
           <Grid.Col span={6}>
-            <NumberInput label="Max Tokens" min={256} max={8192} step={256} {...form.getInputProps('max_tokens')} />
+            <Tooltip
+              label="Yanıt uzunluk limitini belirler. Yüksek değer = daha detaylı yanıtlar, daha yavaş ve maliyetli."
+              withArrow
+              multiline
+              w={260}
+            >
+              <NumberInput
+                label={
+                  <Group gap={4}>
+                    <span>Maks. Yanıt Uzunluğu</span>
+                    <IconInfoCircle size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                  </Group>
+                }
+                min={256}
+                max={8192}
+                step={256}
+                {...form.getInputProps('max_tokens')}
+              />
+            </Tooltip>
           </Grid.Col>
         </Grid>
 
         <Box>
-          <Text size="sm" fw={500} mb="xs">
-            Temperature: {Number(form.values.temperature ?? 0).toFixed(2)}
-          </Text>
+          <Tooltip
+            label="Düşük = tutarlı ve öngörülebilir yanıtlar. Yüksek = yaratıcı ve çeşitli yanıtlar. Analiz için 0.1-0.3 önerilir."
+            withArrow
+            multiline
+            w={280}
+          >
+            <Text size="sm" fw={500} mb="xs" style={{ cursor: 'help' }}>
+              <Group gap={4}>
+                <span>Yaratıcılık Seviyesi: {Number(form.values.temperature ?? 0).toFixed(2)}</span>
+                <IconInfoCircle size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              </Group>
+            </Text>
+          </Tooltip>
           <Slider
             min={0}
             max={1}
             step={0.05}
             marks={[
-              { value: 0, label: '0' },
-              { value: 0.5, label: '0.5' },
-              { value: 1, label: '1' },
+              { value: 0, label: 'Tutarlı' },
+              { value: 0.5, label: 'Dengeli' },
+              { value: 1, label: 'Yaratıcı' },
             ]}
             {...form.getInputProps('temperature')}
           />
         </Box>
 
         <Box>
-          <Text size="sm" fw={500} mb="xs">
-            Verdict Ağırlığı: %{Math.round(Number(form.values.verdict_weight ?? 0) * 100)}
-          </Text>
+          <Tooltip
+            label="Bu agent'ın nihai karardaki (gir/girme) etkisini belirler. Yüksek = bu agent'ın görüşü daha belirleyici."
+            withArrow
+            multiline
+            w={280}
+          >
+            <Text size="sm" fw={500} mb="xs" style={{ cursor: 'help' }}>
+              <Group gap={4}>
+                <span>Karar Etkisi: %{Math.round(Number(form.values.verdict_weight ?? 0) * 100)}</span>
+                <IconInfoCircle size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              </Group>
+            </Text>
+          </Tooltip>
           <Slider
             min={0}
             max={1}
             step={0.05}
             marks={[
-              { value: 0, label: '0%' },
-              { value: 0.5, label: '50%' },
-              { value: 1, label: '100%' },
+              { value: 0, label: 'Düşük' },
+              { value: 0.5, label: 'Orta' },
+              { value: 1, label: 'Yüksek' },
             ]}
             {...form.getInputProps('verdict_weight')}
           />
         </Box>
 
-        <Divider label="System Prompt" labelPosition="center" />
+        <Divider label="Davranış Talimatı" labelPosition="center" />
 
-        <Textarea
-          placeholder="Agent'ın system prompt'u..."
-          rows={8}
-          styles={{
-            input: {
-              fontFamily: 'monospace',
-              fontSize: 12,
-            },
-          }}
-          {...form.getInputProps('system_prompt')}
-        />
+        <Tooltip
+          label="Agent'ın nasıl davranacağını belirleyen ana talimat metni. Uzmanlık alanı, ton ve kurallar burada tanımlanır."
+          withArrow
+          multiline
+          w={300}
+          position="top-start"
+        >
+          <Textarea
+            placeholder="Agent'ın davranış talimatı..."
+            rows={8}
+            styles={{
+              input: {
+                fontFamily: 'monospace',
+                fontSize: 12,
+              },
+            }}
+            {...form.getInputProps('system_prompt')}
+          />
+        </Tooltip>
 
         <Group justify="space-between">
-          <Switch label="Agent Aktif" {...form.getInputProps('is_active', { type: 'checkbox' })} />
+          <Switch
+            label="Agent Aktif"
+            disabled={agent.is_system}
+            {...form.getInputProps('is_active', { type: 'checkbox' })}
+          />
           <Button type="submit" loading={saving} leftSection={<IconCheck size={16} />}>
             Kaydet
           </Button>
@@ -603,7 +971,6 @@ function KnowledgeTab({ agent }: KnowledgeTabProps) {
     queryKey: ['agent-knowledge', agent.slug],
     queryFn: async () => {
       const response = await agentAPI.getKnowledge(agent.slug);
-      // Backend returns flat { success, knowledge } not nested { data: { knowledge } }
       const raw = response as unknown as {
         success: boolean;
         knowledge?: AgentKnowledge[];
@@ -644,7 +1011,7 @@ function KnowledgeTab({ agent }: KnowledgeTabProps) {
           Henüz kaynak eklenmemiş
         </Text>
       ) : (
-        <ScrollArea h={300}>
+        <ScrollArea mah={300}>
           <Stack gap="xs">
             {knowledge.map((item: AgentKnowledge) => {
               const IconComp = CONTENT_TYPE_ICONS[item.content_type] || IconFileText;

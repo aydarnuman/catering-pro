@@ -54,9 +54,10 @@ router.get('/', authenticate, async (_req, res) => {
       SELECT 
         a.*,
         (SELECT COUNT(*) FROM agent_tools WHERE agent_id = a.id AND is_active = TRUE) as tool_count,
-        (SELECT COUNT(*) FROM agent_knowledge_base WHERE agent_id = a.id AND is_active = TRUE) as knowledge_count
+        (SELECT COUNT(*) FROM agent_knowledge_base WHERE agent_id = a.id AND is_active = TRUE) as knowledge_count,
+        (SELECT MAX(aa.created_at) FROM agent_analyses aa WHERE aa.agent_id = a.slug AND aa.status = 'completed') as last_analysis_at,
+        (SELECT aa.status FROM agent_analyses aa WHERE aa.agent_id = a.slug ORDER BY aa.created_at DESC LIMIT 1) as last_analysis_status
       FROM agents a
-      WHERE a.is_active = TRUE
       ORDER BY a.name ASC
     `);
 
