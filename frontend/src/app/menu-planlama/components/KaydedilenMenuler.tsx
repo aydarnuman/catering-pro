@@ -6,21 +6,31 @@ import {
   Box,
   Button,
   Card,
-  Divider,
   Group,
   Loader,
   Paper,
   SimpleGrid,
   Stack,
+  Tabs,
   Text,
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconCalendarEvent, IconChefHat, IconEye, IconPlus } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconBuildingCommunity,
+  IconCalendarEvent,
+  IconChefHat,
+  IconEye,
+  IconFile,
+  IconPlus,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { type KurumMenuOzet, kurumMenuleriAPI } from '@/lib/api/services/kurum-menuleri';
 import { formatMoney } from '@/lib/formatters';
+import { KurumMenuTakvim } from './KurumMenuTakvim';
 import { type MenuPlan, useMenuPlanlama } from './MenuPlanlamaContext';
 
 // Kaydedilen Menü Kartı
@@ -81,27 +91,99 @@ const KaydedilenMenuKart = ({ menu }: { menu: MenuPlan }) => {
   );
 };
 
+const MENU_SUBTABS = ['kurum', 'proje'] as const;
+
 export function KaydedilenMenuler() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { kaydedilenMenuler, kaydedilenMenulerLoading } = useMenuPlanlama();
 
+  const subtabParam = searchParams.get('subtab');
+  const initialSubtab = MENU_SUBTABS.includes(subtabParam as (typeof MENU_SUBTABS)[number]) ? subtabParam : 'kurum';
+  const [activeSubtab, setActiveSubtab] = useState<string | null>(initialSubtab);
+
+  const [kurumView, setKurumView] = useState<'list' | 'editor'>('list');
+  const [selectedKurumMenuId, setSelectedKurumMenuId] = useState<number | null>(null);
+
+  const handleSubtabChange = useCallback(
+    (value: string | null) => {
+      setActiveSubtab(value);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', 'menuler');
+      if (value && value !== 'kurum') {
+        params.set('subtab', value);
+      } else {
+        params.delete('subtab');
+      }
+      const qs = params.toString();
+      router.replace(`/menu-planlama?${qs}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  useEffect(() => {
+    if (MENU_SUBTABS.includes(subtabParam as (typeof MENU_SUBTABS)[number])) {
+      setActiveSubtab(subtabParam);
+    }
+  }, [subtabParam]);
+
   return (
-    <Stack gap="xl">
-      {/* ═══ Kurum Menüleri ═══ */}
-      <KurumMenuleriSection />
+    <Tabs value={activeSubtab} onChange={handleSubtabChange} variant="default" radius="sm">
+      <Tabs.List mb="md">
+        <Tabs.Tab value="kurum" leftSection={<IconBuildingCommunity size={16} />}>
+          Kurum Menüleri
+        </Tabs.Tab>
+        <Tabs.Tab value="proje" leftSection={<IconFile size={16} />}>
+          Proje Menüleri
+        </Tabs.Tab>
+      </Tabs.List>
 
-      <Divider label="Proje Menü Planları" labelPosition="center" color="dark.4" />
+      <Tabs.Panel value="kurum">
+        {kurumView === 'list' ? (
+          <KurumMenuleriSection
+            onNewTemplate={() => {
+              setSelectedKurumMenuId(null);
+              setKurumView('editor');
+            }}
+            onSelectTemplate={(menuId) => {
+              setSelectedKurumMenuId(menuId ?? null);
+              setKurumView('editor');
+            }}
+          />
+        ) : (
+          <Stack gap="md">
+            <Button
+              variant="subtle"
+              leftSection={<IconArrowLeft size={16} />}
+              onClick={() => {
+                setKurumView('list');
+                setSelectedKurumMenuId(null);
+              }}
+              size="sm"
+            >
+              Listeye dön
+            </Button>
+            <KurumMenuTakvim initialMenuId={selectedKurumMenuId} />
+          </Stack>
+        )}
+      </Tabs.Panel>
 
-      {/* ═══ Kayıtlı Proje Menüleri ═══ */}
-      <ProjeMenuleriSection menuler={kaydedilenMenuler} loading={kaydedilenMenulerLoading} />
-    </Stack>
+      <Tabs.Panel value="proje">
+        <ProjeMenuleriSection menuler={kaydedilenMenuler} loading={kaydedilenMenulerLoading} />
+      </Tabs.Panel>
+    </Tabs>
   );
 }
 
 // ─── Kurum Menüleri Section ───────────────────────────────────
 
-function KurumMenuleriSection() {
-  const router = useRouter();
-
+function KurumMenuleriSection({
+  onNewTemplate,
+  onSelectTemplate,
+}: {
+  onNewTemplate: () => void;
+  onSelectTemplate: (menuId?: number) => void;
+}) {
   const { data: menuResp, isLoading } = useQuery({
     queryKey: ['kurum-menuleri-tab'],
     queryFn: () => kurumMenuleriAPI.getMenuler(),
@@ -119,21 +201,15 @@ function KurumMenuleriSection() {
           </ThemeIcon>
           <div>
             <Text fw={600} size="sm">
-              Kurum Menuleri
+              Kurum Menüleri
             </Text>
             <Text size="xs" c="dimmed">
-              Kurum tipine gore hazir menu sablonlari
+              Kurum tipine göre hazır menü şablonları
             </Text>
           </div>
         </Group>
-        <Button
-          size="xs"
-          variant="light"
-          color="green"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => router.push('/menu-planlama?tab=kurum-menuleri')}
-        >
-          Yeni Sablon
+        <Button size="xs" variant="light" color="green" leftSection={<IconPlus size={14} />} onClick={onNewTemplate}>
+          Yeni Şablon
         </Button>
       </Group>
 
@@ -154,22 +230,17 @@ function KurumMenuleriSection() {
           <Stack align="center" gap="sm">
             <IconChefHat size={32} color="var(--mantine-color-gray-6)" />
             <Text size="sm" c="dimmed" ta="center">
-              Henuz kurum menusu olusturulmamis
+              Henüz kurum menüsü oluşturulmamış
             </Text>
-            <Button
-              size="xs"
-              variant="subtle"
-              color="green"
-              onClick={() => router.push('/menu-planlama?tab=kurum-menuleri')}
-            >
-              Ilk sablonu olustur
+            <Button size="xs" variant="subtle" color="green" onClick={onNewTemplate}>
+              İlk şablonu oluştur
             </Button>
           </Stack>
         </Paper>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="sm">
           {menuler.map((menu) => (
-            <KurumMenuKart key={menu.id} menu={menu} onClick={() => router.push('/menu-planlama?tab=kurum-menuleri')} />
+            <KurumMenuKart key={menu.id} menu={menu} onClick={() => onSelectTemplate(menu.id)} />
           ))}
         </SimpleGrid>
       )}

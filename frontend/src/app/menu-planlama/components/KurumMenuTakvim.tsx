@@ -44,7 +44,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   type KurumMenuOzet,
   type KurumTipi,
@@ -110,7 +110,12 @@ const HARIC_TUTMA_OPTIONS = ['domuz', 'alkol', 'gluten', 'laktoz', 'fistik', 'de
 
 // ─── Component ────────────────────────────────────────────────
 
-export function KurumMenuTakvim() {
+interface KurumMenuTakvimProps {
+  /** Açılışta düzenlenecek menü ID'si (liste tıklamasından geliyorsa) */
+  initialMenuId?: number | null;
+}
+
+export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
   const queryClient = useQueryClient();
 
   // ─── Config state ─────────────────────────────────────────
@@ -450,6 +455,13 @@ export function KurumMenuTakvim() {
     setMenuAdi('');
     setHasChanges(false);
   }, []);
+
+  // ─── Initial load (liste tıklamasından geliyorsa) ─────────
+  useEffect(() => {
+    if (initialMenuId != null && initialMenuId > 0) {
+      loadMenu(initialMenuId);
+    }
+  }, [initialMenuId, loadMenu]);
 
   // ─── Render ───────────────────────────────────────────────
 
@@ -851,7 +863,7 @@ function KurumMenuCell({
             ) : (
               <Stack gap={4} align="center" justify="center" mih={112}>
                 {yemekler.map((y) => (
-                  <Text key={y.id} size="xs" fw={500} c="white" lineClamp={1} ta="center">
+                  <Text key={y.id} size="xs" fw={500} c="dimmed" lineClamp={1} ta="center">
                     {y.ad}
                   </Text>
                 ))}

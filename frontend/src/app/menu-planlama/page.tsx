@@ -2,7 +2,7 @@
 
 import { Box, Center, Container, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconBook2, IconBuildingCommunity, IconCalendar, IconFile, IconPackages } from '@tabler/icons-react';
+import { IconBook2, IconCalendar, IconFile, IconPackages } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -10,7 +10,6 @@ import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 import { KaydedilenMenuler } from './components/KaydedilenMenuler';
-import { KurumMenuTakvim } from './components/KurumMenuTakvim';
 import { MenuPlanlamaProvider } from './components/MenuPlanlamaContext';
 import { MenuTakvim } from './components/MenuTakvim';
 import { MobileMenuNav } from './components/MobileMenuNav';
@@ -24,7 +23,7 @@ import {
 } from './components/types';
 import { UrunlerTab } from './components/UrunlerTab';
 
-const VALID_TABS = ['takvim', 'receteler', 'urunler', 'menuler', 'kurum-menuleri'] as const;
+const VALID_TABS = ['takvim', 'receteler', 'urunler', 'menuler'] as const;
 
 export default function MenuPlanlamaPage() {
   const { isMobile, isMounted } = useResponsive();
@@ -192,9 +191,6 @@ export default function MenuPlanlamaPage() {
               <Tabs.Tab value="menuler" leftSection={<IconFile size={16} />}>
                 Menüler
               </Tabs.Tab>
-              <Tabs.Tab value="kurum-menuleri" leftSection={<IconBuildingCommunity size={16} />}>
-                Kurum Menüleri
-              </Tabs.Tab>
 
               {/* Ayırıcı */}
               <Box
@@ -237,10 +233,6 @@ export default function MenuPlanlamaPage() {
               <MenuPlanlamaProvider>
                 <KaydedilenMenuler />
               </MenuPlanlamaProvider>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="kurum-menuleri">
-              <KurumMenuTakvim />
             </Tabs.Panel>
           </Tabs>
         </Container>

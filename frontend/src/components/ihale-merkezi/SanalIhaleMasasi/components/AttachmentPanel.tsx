@@ -482,8 +482,17 @@ function AttachmentListItem({ attachment, onClick, onSaveVirtual }: AttachmentLi
   );
 
   return (
-    <UnstyledButton
+    <Box
+      component="div"
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       style={{
         display: 'block',
         width: '100%',
@@ -492,6 +501,7 @@ function AttachmentListItem({ attachment, onClick, onSaveVirtual }: AttachmentLi
         background: 'transparent',
         transition: 'background 0.15s ease',
         position: 'relative',
+        cursor: 'pointer',
       }}
       className="ring-list-item"
     >
@@ -587,6 +597,6 @@ function AttachmentListItem({ attachment, onClick, onSaveVirtual }: AttachmentLi
           </Group>
         </Box>
       </Group>
-    </UnstyledButton>
+    </Box>
   );
 }
