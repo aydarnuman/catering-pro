@@ -149,6 +149,7 @@ export interface SartnameGramaj {
   porsiyon_gramaj: number;
   birim: string;
   birim_fiyat?: number;
+  urun_birim?: string;
 }
 
 export interface SartnameSet {
@@ -220,6 +221,7 @@ export interface GramajEditableRowProps {
     porsiyon_gramaj: number;
     birim: string;
     birim_fiyat?: number;
+    urun_birim?: string;
   };
   sartnameId: number;
   onUpdate: (

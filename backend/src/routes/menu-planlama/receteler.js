@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../../database.js';
 import { hesaplaReceteMaliyet } from '../../services/maliyet-hesaplama-service.js';
+import { validateReceteBirim } from '../../utils/birim-validator.js';
 
 const router = express.Router();
 
@@ -239,6 +240,14 @@ router.post('/recete/:receteId/malzeme', async (req, res) => {
     const { receteId } = req.params;
     const { malzeme_adi, miktar, birim, stok_kart_id, zorunlu = true } = req.body;
 
+    // Birim doğrulama
+    if (birim) {
+      const birimCheck = validateReceteBirim(birim);
+      if (!birimCheck.valid) {
+        return res.status(400).json({ success: false, error: birimCheck.error });
+      }
+    }
+
     // Sıra numarası al
     const siraResult = await query(
       'SELECT COALESCE(MAX(sira), 0) + 1 as sira FROM recete_malzemeler WHERE recete_id = $1',
@@ -269,6 +278,14 @@ router.put('/recete/malzeme/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { malzeme_adi, miktar, birim, stok_kart_id } = req.body;
+
+    // Birim doğrulama
+    if (birim) {
+      const birimCheck = validateReceteBirim(birim);
+      if (!birimCheck.valid) {
+        return res.status(400).json({ success: false, error: birimCheck.error });
+      }
+    }
 
     const result = await query(
       `
@@ -374,10 +391,20 @@ router.post('/receteler', async (req, res) => {
 
     const receteId = receteResult.rows[0].id;
 
-    // Malzemeleri ekle
+    // Malzemeleri ekle (birim doğrulamalı)
     if (malzemeler && malzemeler.length > 0) {
       for (let i = 0; i < malzemeler.length; i++) {
         const m = malzemeler[i];
+        // Birim doğrulama
+        if (m.birim) {
+          const birimCheck = validateReceteBirim(m.birim);
+          if (!birimCheck.valid) {
+            return res.status(400).json({
+              success: false,
+              error: `Malzeme "${m.malzeme_adi}": ${birimCheck.error}`,
+            });
+          }
+        }
         await query(
           `
           INSERT INTO recete_malzemeler (
@@ -501,6 +528,14 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
     const { id } = req.params;
     const { stok_kart_id, urun_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
 
+    // Birim doğrulama
+    if (birim) {
+      const birimCheck = validateReceteBirim(birim);
+      if (!birimCheck.valid) {
+        return res.status(400).json({ success: false, error: birimCheck.error });
+      }
+    }
+
     // Sıra numarasını bul
     const siraResult = await query(
       `
@@ -595,6 +630,14 @@ router.put('/malzemeler/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { stok_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
+
+    // Birim doğrulama
+    if (birim) {
+      const birimCheck = validateReceteBirim(birim);
+      if (!birimCheck.valid) {
+        return res.status(400).json({ success: false, error: birimCheck.error });
+      }
+    }
 
     // Fiyat belirleme (standart enum: FATURA/PIYASA/MANUEL/VARSAYILAN/SOZLESME)
     let finalFiyat = birim_fiyat;

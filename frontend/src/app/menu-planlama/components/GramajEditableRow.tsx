@@ -4,6 +4,7 @@ import { ActionIcon, Select, Table, Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getDonusumCarpani } from '@/lib/constants';
 import type { GramajEditableRowProps } from './types';
 
 export const GramajEditableRow = ({ gramaj, sartnameId, onUpdate, onDelete }: GramajEditableRowProps) => {
@@ -43,12 +44,15 @@ export const GramajEditableRow = ({ gramaj, sartnameId, onUpdate, onDelete }: Gr
     }
   }, [debouncedMalzeme, debouncedMiktar, debouncedBirim, gramaj.id, sartnameId, onUpdate]);
 
-  // Fiyat hesapla (gramaj × birim fiyat / 1000 eğer birim gram ise)
+  // Fiyat hesapla: gramaj × dönüşüm çarpanı × birim fiyat
+  // birim_fiyat her zaman ürün kartı birimi bazında (TL/kg, TL/lt, TL/adet)
   const hesaplananFiyat = useMemo(() => {
     if (!gramaj.birim_fiyat || !gramaj.porsiyon_gramaj) return null;
-    const carpan = birim === 'kg' || birim === 'L' ? 1 : 0.001; // g ve ml için 1000'e böl
+    // Ürün kartı birimi: fiyatın hangi birim bazında olduğu (varsayılan kg)
+    const urunBirim = gramaj.urun_birim || (['ml', 'l', 'L'].includes(birim) ? 'lt' : birim === 'adet' ? 'adet' : 'kg');
+    const carpan = getDonusumCarpani(birim, urunBirim);
     return gramaj.porsiyon_gramaj * gramaj.birim_fiyat * carpan;
-  }, [gramaj.birim_fiyat, gramaj.porsiyon_gramaj, birim]);
+  }, [gramaj.birim_fiyat, gramaj.porsiyon_gramaj, gramaj.urun_birim, birim]);
 
   return (
     <Table.Tr>

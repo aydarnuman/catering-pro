@@ -57,11 +57,31 @@ async function hesaplaReceteMaliyet(receteId) {
         Number(m.varyant_fiyat) ||
         0;
 
-      // Birim dönüşümü: birim_donusumleri tablosundan (malzeme birimi → ürün fiyat birimi)
+      // Birim dönüşümü: birim_donusumleri + urun_birim_donusumleri tablosundan
       const malzemeBirimi = (m.birim || '').toLowerCase();
       const fiyatBirimi = (m.urun_standart_birim || m.urun_fiyat_birimi || 'kg').toLowerCase();
-      const carpan = await donusumCarpaniAl(malzemeBirimi, fiyatBirimi);
+      const carpan = await donusumCarpaniAl(malzemeBirimi, fiyatBirimi, m.urun_kart_id);
       const maliyet = m.miktar * carpan * birimFiyat;
+
+      // Birim uyumluluk kontrolü: carpan=1 ama birimler farklı → potansiyel sorun
+      if (carpan === 1 && malzemeBirimi !== fiyatBirimi && birimFiyat > 0) {
+        try {
+          await query(
+            `INSERT INTO birim_donusum_log (kaynak_birim, hedef_birim, urun_kart_id, urun_adi, recete_id, recete_adi, sorun_tipi)
+             SELECT $1, $2, $3, uk.ad, $4, r.ad, 'fallback'
+             FROM (SELECT 1) x
+             LEFT JOIN urun_kartlari uk ON uk.id = $3
+             LEFT JOIN receteler r ON r.id = $4
+             WHERE NOT EXISTS (
+               SELECT 1 FROM birim_donusum_log
+               WHERE kaynak_birim = $1 AND hedef_birim = $2 AND COALESCE(urun_kart_id, 0) = COALESCE($3, 0) AND cozuldu = false
+             )`,
+            [malzemeBirimi, fiyatBirimi, m.urun_kart_id, receteId]
+          );
+        } catch (_logErr) {
+          // Log tablosu yoksa sessizce devam et
+        }
+      }
 
       // Fiyat kaynağı belirleme (aktif_fiyat_tipi varsa onu kullan)
       let fiyatKaynagi = 'yok';
@@ -72,7 +92,7 @@ async function hesaplaReceteMaliyet(receteId) {
       else if (Number(m.piyasa_fiyat) > 0) fiyatKaynagi = 'PIYASA';
       else if (Number(m.varyant_fiyat) > 0) fiyatKaynagi = 'VARYANT';
 
-      // Malzeme fiyatını güncelle
+      // Malzeme fiyatını güncelle (birim_fiyat = ürün kartı birim fiyatı, toplam_fiyat = dönüştürülmüş maliyet)
       await query(
         `
         UPDATE recete_malzemeler SET
@@ -81,13 +101,14 @@ async function hesaplaReceteMaliyet(receteId) {
           fiyat_kaynagi = $3
         WHERE id = $4
       `,
-        [birimFiyat, Math.round(maliyet * 100) / 100, fiyatKaynagi, m.id]
+        [birimFiyat, maliyet, fiyatKaynagi, m.id]
       );
 
       toplamMaliyet += maliyet;
     }
 
-    // Reçete maliyetini güncelle
+    // Reçete maliyetini güncelle (yuvarlama sadece final toplamda)
+    const yuvarlanmisMaliyet = Math.round(toplamMaliyet * 100) / 100;
     await query(
       `
       UPDATE receteler SET
@@ -95,7 +116,7 @@ async function hesaplaReceteMaliyet(receteId) {
         son_hesaplama_tarihi = NOW()
       WHERE id = $2
     `,
-      [Math.round(toplamMaliyet * 100) / 100, receteId]
+      [yuvarlanmisMaliyet, receteId]
     );
 
     return toplamMaliyet;
@@ -153,7 +174,9 @@ async function guncelleOgunMaliyet(ogunId) {
     if (planId.rows.length > 0) {
       await guncellePlanMaliyet(planId.rows[0].menu_plan_id);
     }
-  } catch (_error) {}
+  } catch (error) {
+    logger.error(`Öğün ${ogunId} maliyet güncelleme hatası: ${error.message}`);
+  }
 }
 
 /**
@@ -201,7 +224,9 @@ async function guncellePlanMaliyet(planId) {
     `,
       [toplam, gunlukOrtalama, porsiyonOrtalama, planId]
     );
-  } catch (_error) {}
+  } catch (error) {
+    logger.error(`Plan ${planId} maliyet güncelleme hatası: ${error.message}`);
+  }
 }
 
 export { hesaplaReceteMaliyet, guncelleOgunMaliyet, guncellePlanMaliyet };

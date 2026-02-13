@@ -84,7 +84,7 @@ const getMalzemeIcon = (ad: string): string => {
 };
 
 // Birimler - merkezi constants'dan
-import { getDonusumCarpani, RECETE_BIRIMLERI } from '@/lib/constants';
+import { BIRIM_DONUSUM, getDonusumCarpani, normalizeBirim, RECETE_BIRIMLERI } from '@/lib/constants';
 
 const BIRIMLER = [...RECETE_BIRIMLERI];
 
@@ -1409,7 +1409,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                               const piyasaF = m.piyasa_fiyat || 0;
                               const fiyat = faturaF && piyasaF ? (faturaF + piyasaF) / 2 : piyasaF || faturaF || 0;
                               const miktar = Number(m.miktar) || 0;
-                              const carpan = getDonusumCarpani(m.birim || '', 'kg');
+                              // Ürünün gerçek birimini kullan (hardcoded 'kg' YASAK)
+                              const urunBirim = m.urun_birim || m.stok_birim || 'kg';
+                              const carpan = getDonusumCarpani(m.birim || '', urunBirim);
                               const maliyet = miktar * carpan * Number(fiyat);
                               return toplam + maliyet;
                             }, 0) || 0;
@@ -1442,7 +1444,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           selectedRecete.malzemeler?.reduce((toplam, m) => {
                             const fiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
                             const miktar = Number(m.miktar) || 0;
-                            const carpan = getDonusumCarpani(m.birim || '', 'kg');
+                            // Ürünün gerçek birimini kullan (hardcoded 'kg' YASAK)
+                            const urunBirim = m.urun_birim || m.stok_birim || 'kg';
+                            const carpan = getDonusumCarpani(m.birim || '', urunBirim);
                             const maliyet = miktar * carpan * Number(fiyat);
                             return toplam + maliyet;
                           }, 0) || 0;
@@ -1595,18 +1599,22 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
                             const miktar = Number(m.miktar) || 0;
                             const birimLower = (m.birim || '').toLowerCase();
-                            let maliyet = 0;
-                            if (['g', 'gr', 'ml'].includes(birimLower)) {
-                              maliyet = (miktar / 1000) * Number(fiyat);
-                            } else {
-                              maliyet = miktar * Number(fiyat);
-                            }
+                            // Ürünün gerçek birimini kullan (hardcoded if/else YASAK)
+                            const urunBirim =
+                              m.urun_birim ||
+                              m.stok_birim ||
+                              (['ml', 'lt', 'l'].includes(birimLower) ? 'lt' : birimLower === 'adet' ? 'adet' : 'kg');
+                            const maliyet = hesaplaMaliyet(miktar, m.birim || '', Number(fiyat), urunBirim);
 
-                            const fiyatBirimi = ['ml', 'lt', 'l'].includes(birimLower)
-                              ? 'lt'
-                              : birimLower === 'adet'
-                                ? 'adet'
-                                : 'kg';
+                            const fiyatBirimi = urunBirim;
+
+                            // Birim dönüşüm uyarısı: kaynak!=hedef ve tanımlı dönüşüm yok
+                            const nKaynak = normalizeBirim(m.birim || '');
+                            const nHedef = normalizeBirim(urunBirim);
+                            const birimUyarisi =
+                              nKaynak !== nHedef &&
+                              !BIRIM_DONUSUM[`${nKaynak}:${nHedef}`] &&
+                              !BIRIM_DONUSUM[`${nHedef}:${nKaynak}`];
 
                             if (isEditing) {
                               // DÜZENLEME MODU - Kompakt satır içi
@@ -1729,6 +1737,15 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                     <Text fw={700} size="sm" c={maliyet > 0 ? 'teal' : 'dimmed'}>
                                       {maliyet > 0 ? formatMoney(maliyet) : '—'}
                                     </Text>
+                                    {birimUyarisi && (
+                                      <Text
+                                        size="xs"
+                                        c="yellow.7"
+                                        title={`Birim dönüşümü tanımsız: ${m.birim} → ${urunBirim}. Maliyet tahmini olabilir.`}
+                                      >
+                                        ⚠
+                                      </Text>
+                                    )}
                                     <ActionIcon
                                       variant="subtle"
                                       color="red"

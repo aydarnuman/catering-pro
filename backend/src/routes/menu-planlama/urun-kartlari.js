@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../../database.js';
 import { optimizeSingleProduct } from '../../services/arama-terimi-optimizer.js';
+import { validateFiyatMantik, validateUrunBirim } from '../../utils/birim-validator.js';
 import logger from '../../utils/logger.js';
 
 const router = express.Router();
@@ -167,6 +168,20 @@ router.post('/urun-kartlari', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
     }
 
+    // Birim doğrulama (gr→kg, ml→lt otomatik normalize)
+    const birimCheck = validateUrunBirim(fiyat_birimi);
+    if (!birimCheck.valid) {
+      return res.status(400).json({ success: false, error: birimCheck.error });
+    }
+
+    // Fiyat mantık kontrolü
+    if (manuel_fiyat) {
+      const fiyatCheck = validateFiyatMantik(manuel_fiyat, birimCheck.birim);
+      if (!fiyatCheck.valid) {
+        return res.status(400).json({ success: false, error: fiyatCheck.error });
+      }
+    }
+
     // Aynı isimde aktif ürün var mı kontrol et
     const existing = await query('SELECT id FROM urun_kartlari WHERE LOWER(ad) = LOWER($1) AND aktif = true', [ad]);
 
@@ -176,11 +191,11 @@ router.post('/urun-kartlari', async (req, res) => {
 
     const result = await query(
       `
-      INSERT INTO urun_kartlari (ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO urun_kartlari (ad, kategori_id, varsayilan_birim, birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `,
-      [ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon]
+      [ad, kategori_id, varsayilan_birim, birimCheck.birim, stok_kart_id, manuel_fiyat, birimCheck.birim, ikon]
     );
 
     const newProduct = result.rows[0];
@@ -202,6 +217,20 @@ router.put('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon, aktif } = req.body;
+
+    // Birim doğrulama (eğer gönderildiyse)
+    if (fiyat_birimi) {
+      const birimCheck = validateUrunBirim(fiyat_birimi);
+      if (!birimCheck.valid) {
+        return res.status(400).json({ success: false, error: birimCheck.error });
+      }
+    }
+    if (manuel_fiyat) {
+      const fiyatCheck = validateFiyatMantik(manuel_fiyat, fiyat_birimi || 'kg');
+      if (!fiyatCheck.valid) {
+        return res.status(400).json({ success: false, error: fiyatCheck.error });
+      }
+    }
 
     // Mevcut ürünü kontrol et
     const existing = await query('SELECT * FROM urun_kartlari WHERE id = $1', [id]);

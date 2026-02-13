@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
+import { validateFiyatMantik } from '../utils/birim-validator.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -619,6 +620,14 @@ router.post('/kartlar', authenticate, requirePermission('stok', 'create'), audit
       raf_omru_gun,
       aciklama,
     } = req.body;
+
+    // Fiyat mantık kontrolü
+    if (son_alis_fiyat) {
+      const fiyatCheck = validateFiyatMantik(son_alis_fiyat, 'kg');
+      if (!fiyatCheck.valid) {
+        return res.status(400).json({ success: false, error: fiyatCheck.error });
+      }
+    }
 
     // Otomatik kod oluştur (eğer verilmediyse)
     let urunKod = kod;

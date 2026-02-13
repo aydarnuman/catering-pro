@@ -899,9 +899,9 @@ router.get('/receteler', async (req, res) => {
         r.kalori,
         r.protein,
         r.porsiyon_miktar,
-        -- Piyasa maliyet hesaplama (birim_donusumleri tablosu ile)
+        -- Piyasa maliyet hesaplama (get_birim_donusum_carpani fonksiyonu ile)
         (SELECT COALESCE(SUM(
-          rm.miktar * COALESCE(bd.carpan, CASE WHEN rm.birim IN ('g', 'gr', 'ml') THEN 0.001 ELSE 1 END) * COALESCE(
+          rm.miktar * get_birim_donusum_carpani(rm.birim, COALESCE(uk.birim, 'kg')) * COALESCE(
             (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
             uk.son_alis_fiyati,
             rm.birim_fiyat
@@ -909,9 +909,6 @@ router.get('/receteler', async (req, res) => {
         ), 0)
         FROM recete_malzemeler rm
         LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
-        LEFT JOIN birim_eslestirme be ON be.varyasyon = rm.birim
-        LEFT JOIN birim_donusumleri bd ON bd.kaynak_birim = COALESCE(be.standart, LOWER(rm.birim)) 
-          AND bd.hedef_birim = COALESCE(LOWER(uk.birim), 'kg')
         WHERE rm.recete_id = r.id) as piyasa_maliyet,
         -- Fatura güncellik kontrolü (30 gün)
         (SELECT MIN(fiyat_guncel_mi(COALESCE(rm.fatura_fiyat_tarihi, uk.son_alis_tarihi), 30))::boolean

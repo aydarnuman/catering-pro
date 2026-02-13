@@ -15,6 +15,7 @@ import express from 'express';
 import { parseStringPromise } from 'xml2js';
 import { query } from '../database.js';
 import { faturaService } from '../scraper/uyumsoft/index.js';
+import { validateUrunBirim } from '../utils/birim-validator.js';
 
 const router = express.Router();
 
@@ -794,13 +795,17 @@ router.post('/urunler/hizli-olustur', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunlu' });
     }
 
+    // Birim doğrulama ve normalize (gr→kg, ml→lt)
+    const birimCheck = validateUrunBirim(birim || 'adet');
+    const normalizedBirim = birimCheck.valid ? birimCheck.birim : 'adet';
+
     const result = await query(
       `
-      INSERT INTO urun_kartlari (ad, kod, kategori_id, varsayilan_birim, created_at)
-      VALUES ($1, $2, $3, COALESCE(NULLIF(TRIM($4), ''), 'ADET'), NOW())
+      INSERT INTO urun_kartlari (ad, kod, kategori_id, varsayilan_birim, birim, fiyat_birimi, created_at)
+      VALUES ($1, $2, $3, $4, $4, $4, NOW())
       RETURNING *
     `,
-      [String(ad).trim(), kod || null, kategori_id || null, birim || 'ADET']
+      [String(ad).trim(), kod || null, kategori_id || null, normalizedBirim]
     );
 
     res.status(201).json({ success: true, data: result.rows[0] });
