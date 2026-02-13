@@ -4,15 +4,9 @@
  * NotesToolbar - Stats badges, search, tag filter, export menu, calc toggle
  */
 
-import { ActionIcon, Badge, Box, CopyButton, Group, Menu, Select, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Group, Select, TextInput, Tooltip } from '@mantine/core';
 import {
-  IconCalculator,
-  IconCheck,
-  IconCopy,
-  IconDownload,
-  IconFileText,
   IconPin,
-  IconPrinter,
   IconSearch,
   IconTrash,
   IconX,
@@ -26,12 +20,6 @@ interface NotesToolbarProps {
   tagFilter: string | null;
   onTagFilterChange: (tag: string | null) => void;
   tagOptions: Array<{ value: string; label: string }>;
-  calcOpen: boolean;
-  onCalcToggle: () => void;
-  notesCount: number;
-  allNotesText: string;
-  allNotesMarkdown: string;
-  onPrint: () => void;
   onDeleteCompleted: () => void;
   borderColor: string;
 }
@@ -44,12 +32,6 @@ export function NotesToolbar({
   tagFilter,
   onTagFilterChange,
   tagOptions,
-  calcOpen,
-  onCalcToggle,
-  notesCount,
-  allNotesText,
-  allNotesMarkdown,
-  onPrint,
   onDeleteCompleted,
   borderColor,
 }: NotesToolbarProps) {
@@ -71,56 +53,6 @@ export function NotesToolbar({
           )}
         </Group>
         <Group gap={4}>
-          <Tooltip label="Hesap Makinasi">
-            <ActionIcon
-              variant={calcOpen ? 'light' : 'subtle'}
-              color={calcOpen ? 'teal' : 'gray'}
-              size="sm"
-              radius="md"
-              onClick={onCalcToggle}
-            >
-              <IconCalculator size={15} />
-            </ActionIcon>
-          </Tooltip>
-          {notesCount > 0 && (
-            <Menu position="bottom-end" withArrow>
-              <Menu.Target>
-                <Tooltip label="Disa aktar">
-                  <ActionIcon variant="subtle" color="gray" size="sm" radius="md">
-                    <IconDownload size={15} />
-                  </ActionIcon>
-                </Tooltip>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <CopyButton value={allNotesText}>
-                  {({ copied, copy }) => (
-                    <Menu.Item
-                      leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                      onClick={copy}
-                      color={copied ? 'green' : undefined}
-                    >
-                      {copied ? 'Kopyalandi' : 'Tumunu kopyala'}
-                    </Menu.Item>
-                  )}
-                </CopyButton>
-                <CopyButton value={allNotesMarkdown}>
-                  {({ copied, copy }) => (
-                    <Menu.Item
-                      leftSection={copied ? <IconCheck size={14} /> : <IconFileText size={14} />}
-                      onClick={copy}
-                      color={copied ? 'green' : undefined}
-                    >
-                      {copied ? 'Kopyalandi' : 'Markdown'}
-                    </Menu.Item>
-                  )}
-                </CopyButton>
-                <Menu.Divider />
-                <Menu.Item leftSection={<IconPrinter size={14} />} onClick={onPrint}>
-                  Yazdir
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          )}
           {stats.completed > 0 && (
             <Tooltip label="Tamamlananlari sil">
               <ActionIcon variant="subtle" color="red" size="sm" radius="md" onClick={onDeleteCompleted}>

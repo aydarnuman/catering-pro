@@ -4,12 +4,6 @@
     {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
-      "time": "16:52:05",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
       "time": "19:25:24",
       "success": true
     },
@@ -299,6 +293,12 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "15:19:41",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:57:29",
       "success": true
     }
   ],

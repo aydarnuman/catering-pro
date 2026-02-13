@@ -32,6 +32,8 @@ interface FolderBarProps {
   createFolder: (data: { name: string; color: string; password: string | null }) => Promise<NoteFolder | null>;
   deleteFolder: (id: number) => Promise<boolean | undefined>;
   unlockFolder: (id: number, password: string) => Promise<boolean | undefined>;
+  unlockedFolders: Set<number>;
+  onUnlockFolder: (id: number) => void;
   borderColor: string;
 }
 
@@ -42,9 +44,10 @@ export function FolderBar({
   createFolder,
   deleteFolder,
   unlockFolder,
+  unlockedFolders,
+  onUnlockFolder,
   borderColor,
 }: FolderBarProps) {
-  const [unlockedFolders, setUnlockedFolders] = useState<Set<number>>(new Set());
   const [unlockingFolderId, setUnlockingFolderId] = useState<number | null>(null);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
@@ -84,14 +87,14 @@ export function FolderBar({
     if (!unlockingFolderId || !unlockPassword) return;
     const ok = await unlockFolder(unlockingFolderId, unlockPassword);
     if (ok) {
-      setUnlockedFolders((prev) => new Set([...prev, unlockingFolderId]));
+      onUnlockFolder(unlockingFolderId);
       onFolderSelect(unlockingFolderId);
       setUnlockingFolderId(null);
       setUnlockPassword('');
     } else {
       notifications.show({ message: 'Yanlis sifre', color: 'red' });
     }
-  }, [unlockingFolderId, unlockPassword, unlockFolder, onFolderSelect]);
+  }, [unlockingFolderId, unlockPassword, unlockFolder, onUnlockFolder, onFolderSelect]);
 
   return (
     <Box px="lg" py="xs" style={{ borderBottom: `1px solid ${borderColor}` }}>
@@ -104,7 +107,7 @@ export function FolderBar({
             style={{ cursor: 'pointer', flexShrink: 0 }}
             onClick={() => onFolderSelect(null)}
           >
-            Tum Notlar
+            Tumunu Goster
           </Badge>
           {folders.map((f) => {
             const isActive = activeFolderId === f.id;

@@ -6,17 +6,25 @@
  * Orchestrates sub-components: FolderBar, NotesToolbar, NoteComposer, NotesList, EditNoteModal, CalcPopup
  */
 
-import { Box, Group, Modal, ScrollArea, SegmentedControl, Text, useMantineColorScheme } from '@mantine/core';
+import { ActionIcon, Box, CopyButton, Group, Menu, Modal, ScrollArea, SegmentedControl, Text, Tooltip, useMantineColorScheme } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconArrowsMaximize,
+  IconArrowsMinimize,
+  IconCalculator,
   IconCalendar,
   IconCheck,
+  IconCopy,
+  IconDownload,
+  IconFileText,
   IconListCheck,
   IconNote,
   IconNotebook,
   IconNotes,
+  IconPrinter,
   IconUser,
+  IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -52,21 +60,28 @@ const CONTEXT_LABELS: Record<string, string> = {
   recipe: 'Recete',
 };
 
-type ActiveTab = 'notes' | 'tasks' | 'agenda' | 'tracker';
+type MainTab = 'plan' | 'tracker';
+type SubTab = 'notes' | 'tasks' | 'agenda';
+type ActiveTab = SubTab | 'tracker';
 
 export function UnifiedNotesModal() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isFullScreen = !!isMobile || isExpanded;
 
   const { state, closeNotes } = useNotesModal();
   const { opened, contextType, contextId, contextTitle, initialTab } = state;
 
   // ── State ──
-  const [activeTab, setActiveTab] = useState<ActiveTab>('notes');
+  const [mainTab, setMainTab] = useState<MainTab>('plan');
+  const [subTab, setSubTab] = useState<SubTab>('notes');
+  const activeTab: ActiveTab = mainTab === 'tracker' ? 'tracker' : subTab;
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
+  const [unlockedFolders, setUnlockedFolders] = useState<Set<number>>(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<UnifiedNote | null>(null);
   const [noteMode, setNoteMode] = useState<'personal' | 'context'>('personal');
@@ -82,10 +97,17 @@ export function UnifiedNotesModal() {
       setSearchQuery('');
       setTagFilter(null);
       setActiveFolderId(null);
+      setUnlockedFolders(new Set());
       setComposerOpen(false);
       setEditingNote(null);
       setNoteMode(contextType ? 'context' : 'personal');
-      setActiveTab(initialTab === 'tasks' ? 'tasks' : initialTab === 'agenda' ? 'agenda' : 'notes');
+      if (initialTab === 'tasks' || initialTab === 'agenda') {
+        setMainTab('plan');
+        setSubTab(initialTab);
+      } else {
+        setMainTab('plan');
+        setSubTab('notes');
+      }
       setEditChecklist([]);
       setCalcOpen(false);
     }
@@ -116,15 +138,33 @@ export function UnifiedNotesModal() {
   const { allNotesText, allNotesMarkdown, handlePrint } = useNoteExport(notes);
 
   // ── Filtering ──
+  // Determine which folder IDs are locked (have password & not yet unlocked)
+  const lockedFolderIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const f of folders) {
+      if (f.is_locked && !unlockedFolders.has(f.id)) {
+        ids.add(f.id);
+      }
+    }
+    return ids;
+  }, [folders, unlockedFolders]);
+
   const filteredNotes = useMemo(() => {
     let result = [...notes];
+
+    // Hide notes in locked folders (password not entered yet)
+    if (lockedFolderIds.size > 0) {
+      result = result.filter((n) => !n.folder_id || !lockedFolderIds.has(n.folder_id));
+    }
+
+    // Folder filter applies to all plan tabs (notes, tasks, agenda)
+    if (activeFolderId !== null) {
+      result = result.filter((n) => n.folder_id === activeFolderId);
+    }
 
     if (activeTab === 'tasks') {
       result = result.filter((n) => n.is_task);
     } else if (activeTab === 'notes') {
-      if (activeFolderId !== null) {
-        result = result.filter((n) => n.folder_id === activeFolderId);
-      }
       result.sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
@@ -148,7 +188,7 @@ export function UnifiedNotesModal() {
     }
 
     return result;
-  }, [notes, activeTab, activeFolderId, tagFilter, searchQuery]);
+  }, [notes, activeTab, activeFolderId, lockedFolderIds, tagFilter, searchQuery]);
 
   const pinnedCount = activeTab === 'notes' ? filteredNotes.filter((n) => n.pinned).length : 0;
 
@@ -258,39 +298,67 @@ export function UnifiedNotesModal() {
     <Modal
       opened={opened}
       onClose={closeNotes}
+      withCloseButton={false}
       title={
-        <Group gap="sm">
-          <Box
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: isDark
-                ? 'linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.15) 100%)'
-                : 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(99,102,241,0.08) 100%)',
-              border: `1px solid ${isDark ? 'rgba(139,92,246,0.25)' : 'rgba(139,92,246,0.18)'}`,
-              boxShadow: '0 2px 8px rgba(139,92,246,0.15)',
-            }}
-          >
-            <IconNote size={20} color="var(--mantine-color-violet-5)" />
-          </Box>
-          <Box>
-            <Text fw={700} size="lg" style={{ letterSpacing: '-0.02em' }}>
-              Calisma Alanim
-            </Text>
-            <Text size="xs" c="dimmed" fw={500}>
-              {isContextMode ? contextLabel : 'Notlar, gorevler ve takip'}
-            </Text>
-          </Box>
+        <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
+          <Group gap="sm" wrap="nowrap">
+            <Box
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: isDark
+                  ? 'linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.15) 100%)'
+                  : 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(99,102,241,0.08) 100%)',
+                border: `1px solid ${isDark ? 'rgba(139,92,246,0.25)' : 'rgba(139,92,246,0.18)'}`,
+                boxShadow: '0 2px 8px rgba(139,92,246,0.15)',
+              }}
+            >
+              <IconNote size={20} color="var(--mantine-color-violet-5)" />
+            </Box>
+            <Box>
+              <Text fw={700} size="lg" style={{ letterSpacing: '-0.02em' }}>
+                Calisma Alanim
+              </Text>
+              <Text size="xs" c="dimmed" fw={500}>
+                {isContextMode ? contextLabel : 'Notlar, gorevler ve takip'}
+              </Text>
+            </Box>
+          </Group>
+          <Group gap={4} wrap="nowrap">
+            {!isMobile && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="md"
+                radius="md"
+                onClick={() => setIsExpanded((v) => !v)}
+                title={isExpanded ? 'Kucult' : 'Tam ekran'}
+              >
+                {isExpanded ? <IconArrowsMinimize size={18} /> : <IconArrowsMaximize size={18} />}
+              </ActionIcon>
+            )}
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="md"
+              radius="md"
+              onClick={closeNotes}
+              title="Kapat (ESC)"
+              style={{ transition: 'all 0.15s ease' }}
+            >
+              <IconX size={18} />
+            </ActionIcon>
+          </Group>
         </Group>
       }
-      fullScreen={!!isMobile}
-      size={isMobile ? undefined : '85vw'}
-      centered={!isMobile}
-      radius={isMobile ? 0 : 'lg'}
+      fullScreen={isFullScreen}
+      size={isFullScreen ? undefined : 900}
+      centered={!isFullScreen}
+      radius={isFullScreen ? 0 : 'lg'}
       padding={0}
       overlayProps={{ backgroundOpacity: 0.5, blur: 8 }}
       styles={{
@@ -300,21 +368,21 @@ export function UnifiedNotesModal() {
             ? 'linear-gradient(180deg, #1e1e24 0%, #1a1a1e 100%)'
             : 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
           backdropFilter: 'blur(12px)',
-          borderRadius: isMobile ? 0 : 'var(--mantine-radius-lg) var(--mantine-radius-lg) 0 0',
+          borderRadius: isFullScreen ? 0 : 'var(--mantine-radius-lg) var(--mantine-radius-lg) 0 0',
         },
         body: {
           padding: 0,
           background: surfaceBg,
-          height: isMobile ? 'calc(100vh - 60px)' : '82vh',
+          height: isFullScreen ? 'calc(100vh - 60px)' : '60vh',
           display: 'flex',
           flexDirection: 'column',
         },
         content: {
           background: surfaceBg,
-          maxHeight: isMobile ? undefined : '90vh',
-          borderRadius: isMobile ? 0 : 'var(--mantine-radius-lg)',
+          maxHeight: isFullScreen ? undefined : '70vh',
+          borderRadius: isFullScreen ? 0 : 'var(--mantine-radius-lg)',
         },
-        close: { transition: 'all 0.15s ease', borderRadius: 10 },
+        title: { flex: 1 },
       }}
       className="ws-header-gradient"
     >
@@ -353,67 +421,165 @@ export function UnifiedNotesModal() {
         </Box>
       )}
 
-      {/* ── Tab SegmentedControl ── */}
+      {/* ── Main Tabs + Global Actions ── */}
       <Box px="lg" py="sm" style={{ borderBottom: `1px solid ${borderSubtl}` }}>
-        <SegmentedControl
-          value={activeTab}
-          onChange={(v) => {
-            setActiveTab(v as ActiveTab);
-            setSearchQuery('');
-            setTagFilter(null);
-            setComposerOpen(false);
-          }}
-          size="sm"
-          radius="md"
-          fullWidth
-          data={[
-            {
-              value: 'notes',
-              label: (
-                <Group gap={6} justify="center">
-                  <IconNotes size={15} />
-                  <Text size="xs" fw={600}>
-                    Notlar{stats.total > 0 ? ` (${stats.total})` : ''}
-                  </Text>
-                </Group>
-              ),
-            },
-            {
-              value: 'tasks',
-              label: (
-                <Group gap={6} justify="center">
-                  <IconListCheck size={15} />
-                  <Text size="xs" fw={600}>
-                    Gorevler{stats.pending > 0 ? ` (${stats.pending})` : ''}
-                  </Text>
-                </Group>
-              ),
-            },
-            {
-              value: 'agenda',
-              label: (
-                <Group gap={6} justify="center">
-                  <IconCalendar size={15} />
-                  <Text size="xs" fw={600}>
-                    Ajanda
-                  </Text>
-                </Group>
-              ),
-            },
-            {
-              value: 'tracker',
-              label: (
-                <Group gap={6} justify="center">
-                  <IconNotebook size={15} />
-                  <Text size="xs" fw={600}>
-                    Takip Defteri
-                  </Text>
-                </Group>
-              ),
-            },
-          ]}
-        />
+        <Group gap="sm" wrap="nowrap">
+          <SegmentedControl
+            value={mainTab}
+            onChange={(v) => {
+              setMainTab(v as MainTab);
+              setSearchQuery('');
+              setTagFilter(null);
+              setComposerOpen(false);
+            }}
+            size="sm"
+            radius="md"
+            style={{ flex: 1 }}
+            data={[
+              {
+                value: 'plan',
+                label: (
+                  <Group gap={6} justify="center">
+                    <IconNotes size={15} />
+                    <Text size="xs" fw={600}>
+                      Takip Plani
+                    </Text>
+                  </Group>
+                ),
+              },
+              {
+                value: 'tracker',
+                label: (
+                  <Group gap={6} justify="center">
+                    <IconNotebook size={15} />
+                    <Text size="xs" fw={600}>
+                      Takip Defteri
+                    </Text>
+                  </Group>
+                ),
+              },
+            ]}
+          />
+          <Group gap={4} wrap="nowrap">
+            <Tooltip label="Hesap Makinasi">
+              <ActionIcon
+                variant={calcOpen ? 'light' : 'subtle'}
+                color={calcOpen ? 'teal' : 'gray'}
+                size="sm"
+                radius="md"
+                onClick={() => setCalcOpen((p) => !p)}
+              >
+                <IconCalculator size={15} />
+              </ActionIcon>
+            </Tooltip>
+            {notes.length > 0 && (
+              <Menu position="bottom-end" withArrow>
+                <Menu.Target>
+                  <Tooltip label="Disa aktar">
+                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md">
+                      <IconDownload size={15} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <CopyButton value={allNotesText}>
+                    {({ copied, copy }) => (
+                      <Menu.Item
+                        leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        onClick={copy}
+                        color={copied ? 'green' : undefined}
+                      >
+                        {copied ? 'Kopyalandi' : 'Tumunu kopyala'}
+                      </Menu.Item>
+                    )}
+                  </CopyButton>
+                  <CopyButton value={allNotesMarkdown}>
+                    {({ copied, copy }) => (
+                      <Menu.Item
+                        leftSection={copied ? <IconCheck size={14} /> : <IconFileText size={14} />}
+                        onClick={copy}
+                        color={copied ? 'green' : undefined}
+                      >
+                        {copied ? 'Kopyalandi' : 'Markdown'}
+                      </Menu.Item>
+                    )}
+                  </CopyButton>
+                  <Menu.Divider />
+                  <Menu.Item leftSection={<IconPrinter size={14} />} onClick={handlePrint}>
+                    Yazdir
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            )}
+          </Group>
+        </Group>
       </Box>
+
+      {/* ── Folder Bar (tum sekmeler) ── */}
+      <FolderBar
+        folders={folders}
+        activeFolderId={activeFolderId}
+        onFolderSelect={setActiveFolderId}
+        createFolder={createFolder}
+        deleteFolder={deleteFolder}
+        unlockFolder={unlockFolder}
+        unlockedFolders={unlockedFolders}
+        onUnlockFolder={(id) => setUnlockedFolders((prev) => new Set([...prev, id]))}
+        borderColor={borderSubtl}
+      />
+
+      {/* ── Sub Tabs (Takip Plani) ── */}
+      {mainTab === 'plan' && (
+        <Box px="lg" py={8} style={{ borderBottom: `1px solid ${borderSubtl}` }}>
+          <SegmentedControl
+            value={subTab}
+            onChange={(v) => {
+              setSubTab(v as SubTab);
+              setSearchQuery('');
+              setTagFilter(null);
+              setComposerOpen(false);
+            }}
+            size="sm"
+            radius="md"
+            fullWidth
+            data={[
+              {
+                value: 'notes',
+                label: (
+                  <Group gap={4} justify="center">
+                    <IconNotes size={13} />
+                    <Text size="xs" fw={500}>
+                      Notlar{stats.total > 0 ? ` (${stats.total})` : ''}
+                    </Text>
+                  </Group>
+                ),
+              },
+              {
+                value: 'tasks',
+                label: (
+                  <Group gap={4} justify="center">
+                    <IconListCheck size={13} />
+                    <Text size="xs" fw={500}>
+                      Gorevler{stats.pending > 0 ? ` (${stats.pending})` : ''}
+                    </Text>
+                  </Group>
+                ),
+              },
+              {
+                value: 'agenda',
+                label: (
+                  <Group gap={4} justify="center">
+                    <IconCalendar size={13} />
+                    <Text size="xs" fw={500}>
+                      Ajanda
+                    </Text>
+                  </Group>
+                ),
+              },
+            ]}
+          />
+        </Box>
+      )}
 
       {/* ── Content Area ── */}
       <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
@@ -426,21 +592,9 @@ export function UnifiedNotesModal() {
             </Box>
           </ScrollArea>
         ) : activeTab === 'agenda' ? (
-          <AgendaView notes={notes} onEdit={handleEditNote} onToggleComplete={handleToggleComplete} />
+          <AgendaView notes={filteredNotes} onEdit={handleEditNote} onToggleComplete={handleToggleComplete} />
         ) : (
           <>
-            {activeTab === 'notes' && (
-              <FolderBar
-                folders={folders}
-                activeFolderId={activeFolderId}
-                onFolderSelect={setActiveFolderId}
-                createFolder={createFolder}
-                deleteFolder={deleteFolder}
-                unlockFolder={unlockFolder}
-                borderColor={borderSubtl}
-              />
-            )}
-
             <NotesToolbar
               activeTab={activeTab}
               stats={stats}
@@ -449,12 +603,6 @@ export function UnifiedNotesModal() {
               tagFilter={tagFilter}
               onTagFilterChange={setTagFilter}
               tagOptions={tagOptions}
-              calcOpen={calcOpen}
-              onCalcToggle={() => setCalcOpen((p) => !p)}
-              notesCount={notes.length}
-              allNotesText={allNotesText}
-              allNotesMarkdown={allNotesMarkdown}
-              onPrint={handlePrint}
               onDeleteCompleted={handleDeleteCompleted}
               borderColor={borderSubtl}
             />
