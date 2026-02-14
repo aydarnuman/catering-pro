@@ -83,7 +83,15 @@ export function RightPanel({
   const { mutateAsync: createMasaPaketi, isPending: isSendingToMasa } = useCreateMasaPaketi();
 
   // HITL corrections
-  const { correctionCount, isConfirmed } = useAnalysisCorrections(tenderId ? Number(tenderId) : null);
+  const { correctionCount, isConfirmed, saveCorrection } = useAnalysisCorrections(tenderId ? Number(tenderId) : null);
+
+  // Wrapper: AnalysisDetailModal onSave → saveCorrection
+  const handleAnalysisCardSave = useCallback(
+    (fieldPath: string, oldValue: unknown, newValue: unknown) => {
+      saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+    },
+    [saveCorrection]
+  );
 
   // Custom Cards
   const {
@@ -715,6 +723,7 @@ export function RightPanel({
         onCrossAnalysis={handleCrossAnalysis}
         crossAnalysisResult={crossAnalysisResult || undefined}
         isCrossAnalyzing={isCrossAnalyzing}
+        onAnalysisSave={handleAnalysisCardSave}
       />
     </Box>
   );

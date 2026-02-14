@@ -63,6 +63,8 @@ export interface AnalysisCenterModalProps {
   onCrossAnalysis?: () => void;
   crossAnalysisResult?: string;
   isCrossAnalyzing?: boolean;
+  // Analiz kartı kaydetme
+  onAnalysisSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
 }
 
 type TabValue = 'all' | 'analysis' | 'cards' | 'notes';
@@ -287,7 +289,7 @@ export function AnalysisCenterModal({
   opened,
   onClose,
   analysisSummary,
-  tenderId: _tenderId,
+  tenderId,
   tenderCards,
   onCardClick,
   onCardDelete,
@@ -304,6 +306,7 @@ export function AnalysisCenterModal({
   onCrossAnalysis,
   crossAnalysisResult,
   isCrossAnalyzing,
+  onAnalysisSave,
 }: AnalysisCenterModalProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -921,6 +924,8 @@ export function AnalysisCenterModal({
           title={selectedAnalysisCardForDetail.title}
           icon={<Text size="lg">{selectedAnalysisCardForDetail.icon}</Text>}
           color={selectedAnalysisCardForDetail.color}
+          tenderId={tenderId}
+          onSave={onAnalysisSave}
         />
       )}
     </Modal>

@@ -23,9 +23,11 @@ import {
   TextInput,
   ThemeIcon,
   Tooltip,
+  TypographyStylesProvider,
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import Markdown from 'react-markdown';
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -921,7 +923,7 @@ function CompactAIPanel({
   cardType,
   selectedItems,
   tenderId,
-  onApplyResult: _onApplyResult,
+  onApplyResult,
 }: {
   data: unknown;
   cardType: AnalysisCardType;
@@ -930,7 +932,7 @@ function CompactAIPanel({
   onApplyResult?: (result: unknown) => void;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
-  const [result, setResult] = useState<{ action: string; content: string } | null>(null);
+  const [result, setResult] = useState<{ action: string; content: string; riskLevel?: string } | null>(null);
 
   const textData = useMemo(() => {
     if (selectedItems.size > 0 && Array.isArray(data)) {
@@ -966,10 +968,18 @@ function CompactAIPanel({
       });
       const aiResult = res.data?.data;
       if (aiResult) {
-        setResult({ action: label, content: aiResult.result || aiResult.text || JSON.stringify(aiResult) });
+        // Backend farklı formatlarda dönebilir: { content: "str" }, { content: { text: "str" } }, { result: "str" }
+        const content =
+          typeof aiResult.content === 'string'
+            ? aiResult.content
+            : aiResult.content?.text
+              ? aiResult.content.text
+              : aiResult.result || aiResult.text || JSON.stringify(aiResult, null, 2);
+        setResult({ action: label, content, riskLevel: aiResult.risk_level });
       }
-    } catch {
-      notifications.show({ title: 'Hata', message: 'AI işlemi başarısız', color: 'red' });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'AI işlemi başarısız';
+      notifications.show({ title: 'AI Hatası', message: errorMsg, color: 'red' });
     } finally {
       setLoading(null);
     }
@@ -985,9 +995,13 @@ function CompactAIPanel({
             AI Yardımcı
           </Text>
         </Group>
-        {selectedItems.size > 0 && (
+        {selectedItems.size > 0 ? (
+          <Badge size="xs" variant="light" color="violet" mt={4}>
+            {selectedItems.size} öğe seçili - sadece seçilenler analiz edilecek
+          </Badge>
+        ) : (
           <Text size="xs" c="dimmed" mt={4}>
-            {selectedItems.size} öğe seçili
+            Tüm içerik analiz edilecek
           </Text>
         )}
       </Box>
@@ -1025,44 +1039,73 @@ function CompactAIPanel({
                 Bu Kart İçin
               </Text>
               {cardSpecificActions.map((action) => (
-                <UnstyledButton
-                  key={action.id}
-                  onClick={() => handleAction(action.id, action.transformType, action.label)}
-                  disabled={loading !== null}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    background: loading === action.id ? 'var(--mantine-color-dark-5)' : 'transparent',
-                    opacity: loading && loading !== action.id ? 0.5 : 1,
-                  }}
-                >
-                  {loading === action.id ? <Loader size={14} /> : action.icon}
-                  <Text size="xs">{action.label}</Text>
-                </UnstyledButton>
+                <Tooltip key={action.id} label={action.description} withArrow position="left" multiline w={200}>
+                  <UnstyledButton
+                    onClick={() => handleAction(action.id, action.transformType, action.label)}
+                    disabled={loading !== null}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      background: loading === action.id ? 'var(--mantine-color-dark-5)' : 'transparent',
+                      opacity: loading && loading !== action.id ? 0.5 : 1,
+                    }}
+                  >
+                    {loading === action.id ? <Loader size={14} /> : action.icon}
+                    <Text size="xs">{action.label}</Text>
+                  </UnstyledButton>
+                </Tooltip>
               ))}
             </>
           )}
         </Stack>
       </ScrollArea.Autosize>
 
-      {/* Result */}
-      {result && (
+      {/* Loading skeleton */}
+      {loading && (
         <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-5)', flex: 1 }}>
+          <Group gap="xs" mb="xs">
+            <Loader size={14} color="violet" />
+            <Text size="xs" c="dimmed">AI analiz ediyor...</Text>
+          </Group>
+          <Stack gap={6}>
+            <Box h={10} w="90%" style={{ background: 'var(--mantine-color-dark-5)', borderRadius: 4, opacity: 0.6 }} />
+            <Box h={10} w="75%" style={{ background: 'var(--mantine-color-dark-5)', borderRadius: 4, opacity: 0.4 }} />
+            <Box h={10} w="85%" style={{ background: 'var(--mantine-color-dark-5)', borderRadius: 4, opacity: 0.3 }} />
+          </Stack>
+        </Box>
+      )}
+
+      {/* Result */}
+      {result && !loading && (
+        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-5)', flex: 1, overflow: 'hidden' }}>
           <Group justify="space-between" mb="xs">
-            <Text size="xs" fw={600} c="violet">
-              {result.action}
-            </Text>
+            <Group gap={6}>
+              <Text size="xs" fw={600} c="violet">
+                {result.action}
+              </Text>
+              {result.riskLevel && (
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color={result.riskLevel === 'high' ? 'red' : result.riskLevel === 'medium' ? 'yellow' : 'green'}
+                >
+                  {result.riskLevel === 'high' ? 'Yüksek Risk' : result.riskLevel === 'medium' ? 'Orta Risk' : 'Düşük Risk'}
+                </Badge>
+              )}
+            </Group>
             <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setResult(null)}>
               <IconX size={12} />
             </ActionIcon>
           </Group>
-          <ScrollArea.Autosize mah={200}>
-            <Text size="xs" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {result.content}
-            </Text>
+          <ScrollArea.Autosize mah={350}>
+            <TypographyStylesProvider>
+              <div style={{ fontSize: '0.8rem', lineHeight: 1.6 }}>
+                <Markdown>{result.content}</Markdown>
+              </div>
+            </TypographyStylesProvider>
           </ScrollArea.Autosize>
           <Group gap="xs" mt="sm">
             <CopyButton value={result.content}>
@@ -1078,6 +1121,19 @@ function CompactAIPanel({
                 </Button>
               )}
             </CopyButton>
+            {onApplyResult && (
+              <Tooltip label="AI sonucunu kart verisine uygula" withArrow>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="violet"
+                  onClick={() => onApplyResult(result.content)}
+                  leftSection={<IconCheck size={12} />}
+                >
+                  Uygula
+                </Button>
+              </Tooltip>
+            )}
           </Group>
         </Box>
       )}
