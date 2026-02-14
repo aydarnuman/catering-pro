@@ -28,6 +28,7 @@ import {
   IconShieldLock,
   IconShoppingCart,
   IconSparkles,
+  IconTable,
   IconToolsKitchen2,
   IconUser,
   IconUserCircle,
@@ -85,6 +86,13 @@ const allMenuGroups: MenuGroup[] = [
         icon: IconSparkles,
         badge: 'AI',
         badgeColor: 'violet',
+      },
+      {
+        label: 'Sanal İhale Masası',
+        href: '/ihale-merkezi?tab=tracked',
+        icon: IconTable,
+        badge: 'AI',
+        badgeColor: 'indigo',
       },
       {
         label: 'İhale İstihbarat',

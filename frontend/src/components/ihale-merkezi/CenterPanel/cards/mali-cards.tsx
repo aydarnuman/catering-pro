@@ -30,6 +30,7 @@ interface BirimFiyatlarCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
 }
 
 export function BirimFiyatlarCard({
@@ -42,6 +43,7 @@ export function BirimFiyatlarCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: BirimFiyatlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -163,7 +165,7 @@ export function BirimFiyatlarCard({
                     )}
                     {(item.fiyat || item.tutar) && (
                       <Badge size="xs" variant="light" color="green" style={{ flexShrink: 0 }}>
-                        {Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺
+                        {new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(item.fiyat || item.tutar))} TL
                       </Badge>
                     )}
                   </Group>
@@ -194,6 +196,7 @@ export function BirimFiyatlarCard({
         data={birimFiyatlar}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -213,6 +216,7 @@ interface TeminatOranlariCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
 }
 
 const TEMINAT_LABELS: Record<string, string> = {
@@ -231,6 +235,7 @@ export function TeminatOranlariCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: TeminatOranlariCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -305,6 +310,7 @@ export function TeminatOranlariCard({
         data={teminat}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -324,6 +330,7 @@ interface MaliKriterlerCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
 }
 
 const MALI_LABELS: Record<string, string> = {
@@ -346,6 +353,7 @@ export function MaliKriterlerCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: MaliKriterlerCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -427,6 +435,7 @@ export function MaliKriterlerCard({
         data={kriterler}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -441,9 +450,18 @@ interface CezaKosullariCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+  onSave?: (cardType: string, originalData: unknown, newData: unknown) => void;
 }
 
-export function CezaKosullariCard({ cezalar, showCheckbox, isSelected, onToggleSelect }: CezaKosullariCardProps) {
+export function CezaKosullariCard({
+  cezalar,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+  tenderId,
+  onSave,
+}: CezaKosullariCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { displayItems } = useExpandableItems(cezalar, 4);
@@ -494,6 +512,8 @@ export function CezaKosullariCard({ cezalar, showCheckbox, isSelected, onToggleS
         icon={<IconGavel size={16} />}
         color="red"
         data={cezalar}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );
@@ -508,9 +528,18 @@ interface FiyatFarkiCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+  onSave?: (cardType: string, originalData: unknown, newData: unknown) => void;
 }
 
-export function FiyatFarkiCard({ fiyatFarki, showCheckbox, isSelected, onToggleSelect }: FiyatFarkiCardProps) {
+export function FiyatFarkiCard({
+  fiyatFarki,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+  tenderId,
+  onSave,
+}: FiyatFarkiCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   if (!fiyatFarki || (!fiyatFarki.formul && !fiyatFarki.katsayilar)) return null;
@@ -552,6 +581,8 @@ export function FiyatFarkiCard({ fiyatFarki, showCheckbox, isSelected, onToggleS
         icon={<IconMathFunction size={16} />}
         color="pink"
         data={fiyatFarki}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );

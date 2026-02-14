@@ -70,9 +70,9 @@ export function ExpandableCardShell({
       className="glassy-card-nested"
       style={
         isCorrected
-          ? { borderColor: 'var(--mantine-color-green-5)' }
+          ? { border: '1px solid var(--mantine-color-green-5)' }
           : isSelected && showCheckbox
-            ? { borderColor: 'var(--mantine-color-green-6)', borderWidth: 2 }
+            ? { border: '2px solid var(--mantine-color-green-6)' }
             : undefined
       }
     >

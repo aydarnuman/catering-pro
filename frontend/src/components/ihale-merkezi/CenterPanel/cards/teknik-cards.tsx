@@ -30,6 +30,7 @@ interface TeknikSartlarCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
 }
 
 export function TeknikSartlarCard({
@@ -42,6 +43,7 @@ export function TeknikSartlarCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: TeknikSartlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -148,6 +150,7 @@ export function TeknikSartlarCard({
         data={teknikSartlar}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -193,9 +196,18 @@ interface OnemliNotlarCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+  onSave?: (cardType: string, originalData: unknown, newData: unknown) => void;
 }
 
-export function OnemliNotlarCard({ notlar, showCheckbox, isSelected, onToggleSelect }: OnemliNotlarCardProps) {
+export function OnemliNotlarCard({
+  notlar,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+  tenderId,
+  onSave,
+}: OnemliNotlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { displayItems } = useExpandableItems(notlar, 5);
@@ -249,6 +261,8 @@ export function OnemliNotlarCard({ notlar, showCheckbox, isSelected, onToggleSel
         icon={<IconAlertCircle size={16} />}
         color="orange"
         data={notlar}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );

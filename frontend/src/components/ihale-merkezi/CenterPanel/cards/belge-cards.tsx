@@ -17,11 +17,15 @@ export function GerekliBelgelerCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
+  onSave,
 }: {
   belgeler: GerekliBelge[];
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+  onSave?: (cardType: string, originalData: unknown, newData: unknown) => void;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(belgeler, 5);
@@ -81,6 +85,8 @@ export function GerekliBelgelerCard({
         icon={<IconCertificate size={14} />}
         color="lime"
         data={belgeler}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );
@@ -109,6 +115,7 @@ export function IletisimCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: {
   iletisim: IletisimBilgileri;
   isEditing?: boolean;
@@ -119,6 +126,7 @@ export function IletisimCard({
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -188,6 +196,7 @@ export function IletisimCard({
         data={iletisim}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -202,11 +211,15 @@ export function EksikBilgilerCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
+  onSave,
 }: {
   eksikBilgiler: string[];
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+  onSave?: (cardType: string, originalData: unknown, newData: unknown) => void;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(eksikBilgiler, 8);
@@ -246,6 +259,8 @@ export function EksikBilgilerCard({
         icon={<IconAlertTriangle size={14} />}
         color="yellow"
         data={eksikBilgiler}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );

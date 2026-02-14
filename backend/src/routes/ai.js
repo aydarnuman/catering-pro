@@ -3703,4 +3703,76 @@ Sadece JSON döndür.`,
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// POST /api/ai/cross-analysis
+// Tüm analiz kartları arasında çapraz analiz yap
+// ═══════════════════════════════════════════════════════════════
+router.post('/cross-analysis', authenticate, async (req, res) => {
+  try {
+    const { tender_id, analysis_summary } = req.body;
+
+    if (!analysis_summary) {
+      return res.status(400).json({ success: false, error: 'analysis_summary zorunlu' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ success: false, error: 'AI servisi yapılandırılmamış' });
+    }
+
+    const systemPrompt = `Sen bir ihale analiz uzmanısın. Verilen ihale analiz verilerini çapraz kontrol edeceksin.
+
+GÖREV:
+1. Farklı kategorilerdeki verilerin tutarlılığını kontrol et
+2. Eksik veya çelişkili bilgileri tespit et
+3. Kritik uyarıları belirle
+4. Öneriler sun
+
+ÇIKTI FORMATI (Türkçe):
+## 🔍 Çapraz Analiz Sonuçları
+
+### ✅ Tutarlı Veriler
+- [Tutarlı bulunan önemli veriler]
+
+### ⚠️ Uyarılar
+- [Dikkat edilmesi gereken noktalar]
+
+### ❌ Eksik/Çelişkili Bilgiler
+- [Tespit edilen sorunlar]
+
+### 💡 Öneriler
+- [Teklif hazırlarken dikkat edilmesi gerekenler]
+
+Kısa ve öz ol. Sadece önemli bulgulara odaklan.`;
+
+    const userMessage = `İhale Analiz Verileri:
+${JSON.stringify(analysis_summary, null, 2)}
+
+Lütfen bu verileri çapraz kontrol et ve bulgularını raporla.`;
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    const responseText = message.content[0]?.type === 'text' ? message.content[0].text : '';
+
+    logger.info('[Cross Analysis] Çapraz analiz tamamlandı', { tender_id });
+
+    return res.json({
+      success: true,
+      data: {
+        content: responseText,
+        tender_id,
+      },
+    });
+  } catch (error) {
+    logger.error('[Cross Analysis] Hata', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

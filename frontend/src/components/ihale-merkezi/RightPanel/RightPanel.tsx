@@ -1,37 +1,17 @@
 'use client';
 
 import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import {
-  Accordion,
   ActionIcon,
   Badge,
   Box,
   Button,
-  Checkbox,
   Group,
   Menu,
   Paper,
   ScrollArea,
-  Select,
   Stack,
   Text,
   Textarea,
-  TextInput,
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
@@ -41,8 +21,7 @@ import {
   IconCards,
   IconCheck,
   IconCopy,
-  IconEdit,
-  IconGripVertical,
+  IconExternalLink,
   IconList,
   IconNote,
   IconPackage,
@@ -50,25 +29,18 @@ import {
   IconSend,
   IconSparkles,
   IconTable,
-  IconTrash,
-  IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNotesModal } from '@/context/NotesContext';
 import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
 import { useCreateMasaPaketi } from '@/hooks/useMasaVeriPaketi';
-import type { CardCategory, CreateCardInput, TenderCard, UpdateCardInput } from '@/hooks/useTenderCards';
+import type { CreateCardInput, TenderCard } from '@/hooks/useTenderCards';
 import { useTenderCards } from '@/hooks/useTenderCards';
-import { AnalysisCardsPanel } from '../CenterPanel/AnalysisCardsPanel';
 import { normalizeAnalysisData } from '../CenterPanel/normalizeAnalysis';
 import type { AnalysisData, IhaleMerkeziState, SavedTender } from '../types';
-import {
-  filterAnalysisBySelection,
-  getAllAnalysisCardPaths,
-  getAnalysisCardsForCategory,
-} from '../utils/selection-helpers';
-import { CardCategoryBadge, CardContentRenderer, CardDetailModal } from './CardRenderers';
+import { filterAnalysisBySelection, getAllAnalysisCardPaths } from '../utils/selection-helpers';
+import { AnalysisCenterModal } from './AnalysisCenterModal';
+import { CardDetailModal } from './CardRenderers';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -90,338 +62,17 @@ interface VeriPaketiNote {
   createdAt: string;
 }
 
-// ─── Sortable Card Wrapper ────────────────────────────────────
-
-function SortableCard({
-  card,
-  onUpdate,
-  onDelete,
-  isUpdating,
-  onCardClick,
-  isSelected,
-  onToggleSelect,
-}: {
-  card: TenderCard;
-  onUpdate: (data: UpdateCardInput & { id: number }) => void;
-  onDelete: (id: number) => void;
-  isUpdating: boolean;
-  onCardClick: (card: TenderCard) => void;
-  isSelected?: boolean;
-  onToggleSelect?: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: card.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <EditableCard
-        card={card}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-        isUpdating={isUpdating}
-        onCardClick={onCardClick}
-        dragHandleProps={{ ...attributes, ...listeners }}
-        isSelected={isSelected}
-        onToggleSelect={onToggleSelect}
-      />
-    </div>
-  );
-}
-
-// ─── Editable Card Component ──────────────────────────────────
-
-function EditableCard({
-  card,
-  onUpdate,
-  onDelete,
-  isUpdating,
-  onCardClick,
-  dragHandleProps,
-  isSelected,
-  onToggleSelect,
-}: {
-  card: TenderCard;
-  onUpdate: (data: UpdateCardInput & { id: number }) => void;
-  onDelete: (id: number) => void;
-  isUpdating: boolean;
-  onCardClick: (card: TenderCard) => void;
-  dragHandleProps?: Record<string, unknown>;
-  isSelected?: boolean;
-  onToggleSelect?: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(card.title);
-  const [editText, setEditText] = useState(typeof card.content?.text === 'string' ? card.content.text : '');
-  const [editCategory, setEditCategory] = useState<string>(card.category || 'diger');
-
-  const handleSave = () => {
-    onUpdate({
-      id: card.id,
-      title: editTitle.trim() || card.title,
-      content: { ...card.content, text: editText },
-      category: editCategory as CardCategory,
-    });
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditTitle(card.title);
-    setEditText(typeof card.content?.text === 'string' ? card.content.text : '');
-    setEditCategory(card.category || 'diger');
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <Paper p="xs" radius="sm" withBorder style={{ borderColor: 'var(--mantine-color-pink-7)' }}>
-        <Stack gap={6}>
-          <TextInput
-            size="xs"
-            placeholder="Kart başlığı"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.currentTarget.value)}
-          />
-          {card.card_type === 'text' && (
-            <Textarea
-              size="xs"
-              placeholder="İçerik"
-              value={editText}
-              onChange={(e) => setEditText(e.currentTarget.value)}
-              autosize
-              minRows={2}
-              maxRows={6}
-            />
-          )}
-          <Select
-            size="xs"
-            placeholder="Kategori"
-            value={editCategory}
-            onChange={(val) => setEditCategory(val || 'diger')}
-            data={[
-              { value: 'operasyonel', label: 'Operasyonel' },
-              { value: 'mali', label: 'Mali' },
-              { value: 'teknik', label: 'Teknik' },
-              { value: 'belgeler', label: 'Belgeler' },
-              { value: 'diger', label: 'Diğer' },
-            ]}
-          />
-          <Group gap={4} justify="flex-end">
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              onClick={handleCancel}
-              leftSection={<IconX size={10} />}
-            >
-              İptal
-            </Button>
-            <Button
-              size="compact-xs"
-              variant="filled"
-              color="pink"
-              onClick={handleSave}
-              loading={isUpdating}
-              leftSection={<IconCheck size={10} />}
-            >
-              Kaydet
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
-    );
-  }
-
-  return (
-    <Paper
-      p="xs"
-      radius="sm"
-      withBorder
-      onClick={() => onCardClick(card)}
-      style={{
-        cursor: 'pointer',
-        transition: 'all 0.15s ease',
-        borderColor: isSelected ? 'var(--mantine-color-green-6)' : undefined,
-        borderWidth: isSelected ? 2 : undefined,
-      }}
-      styles={{
-        root: {
-          '&:hover': {
-            borderColor: 'var(--mantine-color-pink-7)',
-            background: 'rgba(236, 72, 153, 0.05)',
-          },
-        },
-      }}
-    >
-      <Group justify="space-between" gap="xs" mb={4}>
-        <Group gap={4} style={{ flex: 1, minWidth: 0 }}>
-          {onToggleSelect && (
-            <Checkbox
-              checked={isSelected}
-              onChange={(e) => {
-                e.stopPropagation();
-                onToggleSelect();
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          )}
-          {dragHandleProps && (
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="gray"
-              style={{ cursor: 'grab' }}
-              onClick={(e) => e.stopPropagation()}
-              {...dragHandleProps}
-            >
-              <IconGripVertical size={10} />
-            </ActionIcon>
-          )}
-          <Text size="xs" fw={600} lineClamp={1} style={{ flex: 1 }}>
-            {card.title}
-          </Text>
-        </Group>
-        <Group gap={2} onClick={(e) => e.stopPropagation()}>
-          <Tooltip label="Hızlı düzenle">
-            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setEditing(true)}>
-              <IconEdit size={10} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Sil">
-            <ActionIcon size="xs" variant="subtle" color="red" onClick={() => onDelete(card.id)}>
-              <IconTrash size={10} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      </Group>
-      <Box style={{ maxHeight: 80, overflow: 'hidden' }}>
-        <CardContentRenderer card={card} />
-      </Box>
-      <Group gap={4} mt={4}>
-        <CardCategoryBadge category={card.category} />
-        {card.document_name && (
-          <Badge size="xs" variant="dot" color="gray">
-            {card.document_name}
-          </Badge>
-        )}
-      </Group>
-    </Paper>
-  );
-}
-
-// ─── Editable Note Component ──────────────────────────────────
-
-function EditableNote({
-  note,
-  onUpdate,
-  onDelete,
-  isSelected,
-  onToggleSelect,
-}: {
-  note: VeriPaketiNote;
-  onUpdate: (id: string, text: string) => void;
-  onDelete: (id: string) => void;
-  isSelected?: boolean;
-  onToggleSelect?: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(note.text);
-
-  const handleSave = () => {
-    if (editText.trim()) {
-      onUpdate(note.id, editText.trim());
-    }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <Paper p="xs" radius="sm" withBorder style={{ borderColor: 'var(--mantine-color-teal-7)' }}>
-        <Stack gap={4}>
-          <Textarea
-            size="xs"
-            value={editText}
-            onChange={(e) => setEditText(e.currentTarget.value)}
-            autosize
-            minRows={2}
-            maxRows={5}
-          />
-          <Group gap={4} justify="flex-end">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="gray"
-              onClick={() => {
-                setEditText(note.text);
-                setEditing(false);
-              }}
-            >
-              <IconX size={10} />
-            </ActionIcon>
-            <ActionIcon size="xs" variant="filled" color="teal" onClick={handleSave}>
-              <IconCheck size={10} />
-            </ActionIcon>
-          </Group>
-        </Stack>
-      </Paper>
-    );
-  }
-
-  return (
-    <Paper
-      p="xs"
-      radius="sm"
-      withBorder
-      style={{
-        borderColor: isSelected ? 'var(--mantine-color-green-6)' : undefined,
-        borderWidth: isSelected ? 2 : undefined,
-      }}
-    >
-      <Group justify="space-between" gap="xs" align="flex-start">
-        {onToggleSelect && <Checkbox checked={isSelected} onChange={onToggleSelect} />}
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text size="xs">{note.text}</Text>
-          {note.source && (
-            <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 10 }}>
-              Kaynak: {note.source}
-            </Text>
-          )}
-        </Box>
-        <Group gap={2} style={{ flexShrink: 0 }}>
-          <Tooltip label="Düzenle">
-            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setEditing(true)}>
-              <IconEdit size={10} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Sil">
-            <ActionIcon size="xs" variant="subtle" color="red" onClick={() => onDelete(note.id)}>
-              <IconTrash size={10} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      </Group>
-    </Paper>
-  );
-}
-
 // ─── Main Component ───────────────────────────────────────────
 
 export function RightPanel({
   state,
-  onStateChange,
-  onRefreshData,
+  onStateChange: _onStateChange,
+  onRefreshData: _onRefreshData,
   selectedText,
   selectedTextDocId,
   mobileActiveTab,
 }: RightPanelProps) {
-  const { selectedTender, veriPaketiSections } = state;
-  const { openContextNotes } = useNotesModal();
+  const { selectedTender } = state;
   const router = useRouter();
 
   const isSavedTender = selectedTender && 'tender_id' in selectedTender;
@@ -432,50 +83,17 @@ export function RightPanel({
   const { mutateAsync: createMasaPaketi, isPending: isSendingToMasa } = useCreateMasaPaketi();
 
   // HITL corrections
-  const { correctionCount, isConfirmed, saveCorrection, getCorrectionForField } = useAnalysisCorrections(
-    tenderId ? Number(tenderId) : null
-  );
+  const { correctionCount, isConfirmed } = useAnalysisCorrections(tenderId ? Number(tenderId) : null);
 
   // Custom Cards
   const {
     cards: tenderCards,
-    isLoading: cardsLoading,
     createCard,
     updateCard,
     deleteCard,
-    reorderCard,
     isCreating: isCardCreating,
     isUpdating: isCardUpdating,
   } = useTenderCards(tenderId ? Number(tenderId) : null);
-
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      const oldIndex = tenderCards.findIndex((c) => c.id === active.id);
-      const newIndex = tenderCards.findIndex((c) => c.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-      reorderCard({ id: Number(active.id), sort_order: newIndex + 1 });
-    },
-    [tenderCards, reorderCard]
-  );
-
-  // AI Analiz editing state
-  const [editingAnalysisCards, setEditingAnalysisCards] = useState<Set<string>>(new Set());
-  const toggleAnalysisCardEdit = useCallback((cardName: string) => {
-    setEditingAnalysisCards((prev) => {
-      const next = new Set(prev);
-      if (next.has(cardName)) next.delete(cardName);
-      else next.add(cardName);
-      return next;
-    });
-  }, []);
 
   // AI transform loading
   const [aiTransformLoading, setAiTransformLoading] = useState(false);
@@ -493,6 +111,11 @@ export function RightPanel({
     setDetailModalOpened(false);
     setTimeout(() => setDetailModalCard(null), 200); // Clear after animation
   }, []);
+
+  // ─── Analysis Center Modal (states only - handlers defined after analysisSummary) ─────
+  const [analysisCenterOpened, setAnalysisCenterOpened] = useState(false);
+  const [crossAnalysisResult, setCrossAnalysisResult] = useState<string | null>(null);
+  const [isCrossAnalyzing, setIsCrossAnalyzing] = useState(false);
 
   const isMobile = !!mobileActiveTab;
 
@@ -542,31 +165,6 @@ export function RightPanel({
     });
   }, []);
 
-  const toggleAnalysisCategory = useCallback(
-    (category: string) => {
-      // Get all field paths for this category from analysisSummary
-      const categoryCards = getAnalysisCardsForCategory(analysisSummary, category);
-      const allSelected = categoryCards.every((path) => selectedAnalysisCards.has(path));
-
-      setSelectedAnalysisCards((prev) => {
-        const next = new Set(prev);
-        if (allSelected) {
-          // Deselect all in category
-          for (const path of categoryCards) {
-            next.delete(path);
-          }
-        } else {
-          // Select all in category
-          for (const path of categoryCards) {
-            next.add(path);
-          }
-        }
-        return next;
-      });
-    },
-    [analysisSummary, selectedAnalysisCards]
-  );
-
   const toggleUserCard = useCallback((cardId: number) => {
     setSelectedUserCards((prev) => {
       const next = new Set(prev);
@@ -584,6 +182,82 @@ export function RightPanel({
       return next;
     });
   }, []);
+
+  // ─── Analysis Center Modal Handlers ────────────────────────
+  const handleCrossAnalysis = useCallback(async () => {
+    if (!analysisSummary || !tenderId) return;
+    setIsCrossAnalyzing(true);
+    setCrossAnalysisResult(null);
+    try {
+      const { api } = await import('@/lib/api');
+      const { getApiUrl } = await import('@/lib/config');
+      const res = await api.post(getApiUrl('/api/ai/cross-analysis'), {
+        tender_id: tenderId,
+        analysis_summary: analysisSummary,
+      });
+      if (res.data?.data?.content) {
+        setCrossAnalysisResult(res.data.data.content);
+      }
+    } catch {
+      notifications.show({ title: 'Hata', message: 'Çapraz analiz başarısız', color: 'red' });
+    } finally {
+      setIsCrossAnalyzing(false);
+    }
+  }, [analysisSummary, tenderId]);
+
+  const handleSendToMasaFromModal = useCallback(
+    async (data: { analysisCards: string[]; userCards: number[]; notes: string[] }) => {
+      if (!tenderId) return;
+      try {
+        // Seçili analiz kartlarını filtrele
+        const filteredAnalysis = analysisSummary
+          ? filterAnalysisBySelection(analysisSummary, new Set(data.analysisCards))
+          : undefined;
+
+        // Seçili özel kartları al
+        const selectedCards = tenderCards.filter((c) => data.userCards.includes(c.id));
+
+        // Seçili notları al
+        const selectedNoteTexts = paketiNotes.filter((n) => data.notes.includes(n.id)).map((n) => n.text);
+
+        await createMasaPaketi({
+          tenderId: Number(tenderId),
+          tender_title: savedTender?.ihale_basligi,
+          kurum: savedTender?.kurum,
+          tarih: savedTender?.tarih,
+          bedel: savedTender?.bedel,
+          sure: savedTender?.sure,
+          analysis_cards: filteredAnalysis,
+          user_cards: selectedCards as unknown[],
+          notes: selectedNoteTexts.map((text) => ({ text, source: 'Modal' })) as unknown[],
+        });
+
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Veriler masaya gönderildi',
+          color: 'green',
+        });
+
+        setAnalysisCenterOpened(false);
+        router.push(`/ihale/${tenderId}/masa`);
+      } catch {
+        notifications.show({ title: 'Hata', message: 'Masaya gönderme başarısız', color: 'red' });
+      }
+    },
+    [
+      tenderId,
+      analysisSummary,
+      tenderCards,
+      paketiNotes,
+      createMasaPaketi,
+      router,
+      savedTender?.ihale_basligi,
+      savedTender?.kurum,
+      savedTender?.tarih,
+      savedTender?.bedel,
+      savedTender?.sure,
+    ]
+  );
 
   // Tümünü seç/kaldır fonksiyonları (gelecekte UI'da kullanılacak)
   // const selectAll = useCallback(() => {
@@ -610,19 +284,9 @@ export function RightPanel({
 
     const allAnalysisCards = getAllAnalysisCardPaths(analysisSummary);
     setSelectedAnalysisCards(new Set(allAnalysisCards));
-    setSelectedUserCards(new Set(tenderCards.map((c) => c.id)));
-    setSelectedNotes(new Set(paketiNotes.map((n) => n.id)));
+    setSelectedUserCards(new Set(tenderCardIds ? tenderCardIds.split(',').map(Number) : []));
+    setSelectedNotes(new Set(paketiNoteIds ? paketiNoteIds.split(',') : []));
   }, [analysisSummary, tenderCardIds, paketiNoteIds]);
-
-  const updateNote = useCallback((id: string, text: string) => {
-    setPaketiNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n)));
-    notifications.show({ message: 'Not güncellendi', color: 'teal', autoClose: 1500 });
-  }, []);
-
-  const deleteNote = useCallback((id: string) => {
-    setPaketiNotes((prev) => prev.filter((n) => n.id !== id));
-    notifications.show({ message: 'Not silindi', color: 'gray', autoClose: 1500 });
-  }, []);
 
   const addSelectedTextAsNote = useCallback(() => {
     if (selectedText) addNote(selectedText, 'Döküman seçimi', selectedTextDocId);
@@ -660,13 +324,6 @@ export function RightPanel({
       }
     },
     [selectedText, tenderId, selectedTextDocId, createCard]
-  );
-
-  // ─── Accordion ────────────────────────────────────────────
-  const accordionValue = useMemo(() => Array.from(veriPaketiSections || new Set()), [veriPaketiSections]);
-  const handleAccordionChange = useCallback(
-    (values: string[]) => onStateChange({ veriPaketiSections: new Set(values) }),
-    [onStateChange]
   );
 
   // ─── Render ───────────────────────────────────────────────
@@ -768,240 +425,194 @@ export function RightPanel({
             </Text>
           </Box>
         ) : (
-          <Accordion
-            multiple
-            value={accordionValue}
-            onChange={handleAccordionChange}
-            variant="separated"
-            radius="md"
-            styles={{
-              item: { borderColor: 'var(--mantine-color-dark-4)', background: 'rgba(255, 255, 255, 0.02)' },
-              control: { padding: '8px 12px' },
-              label: { fontSize: 'var(--mantine-font-size-sm)', fontWeight: 600 },
-              content: { padding: '0 8px 8px' },
-            }}
-            mx="xs"
-            mt="xs"
-          >
-            {/* ═══ 1. AI Analiz ════════════════════════════════ */}
-            {hasAnalysis && (
-              <Accordion.Item value="analiz">
-                <Accordion.Control
-                  icon={
-                    <ThemeIcon size="xs" variant="light" color="violet">
-                      <IconBrain size={12} />
+          <Stack gap="md" mx="xs" mt="xs">
+            {/* ═══ Analiz Merkezi Ana Butonu ════════════════════ */}
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+              }}
+            >
+              <Stack gap="sm">
+                <Group justify="space-between">
+                  <Group gap="sm">
+                    <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
+                      <IconBrain size={20} />
                     </ThemeIcon>
-                  }
-                >
-                  <Group gap="xs">
-                    AI Analiz
-                    {correctionCount > 0 && (
-                      <Badge size="xs" variant="light" color="yellow">
-                        {correctionCount} düzeltme
-                      </Badge>
-                    )}
-                    {isConfirmed && (
-                      <Badge size="xs" variant="light" color="green">
-                        Onaylı
-                      </Badge>
-                    )}
+                    <Box>
+                      <Text size="sm" fw={600}>
+                        Analiz Merkezi
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        AI analiz, özel kartlar ve notlarınız tek yerde
+                      </Text>
+                    </Box>
                   </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <AnalysisCardsPanel
-                    analysisSummary={analysisSummary}
-                    editingCards={editingAnalysisCards}
-                    toggleCardEdit={toggleAnalysisCardEdit}
-                    saveCorrection={saveCorrection}
-                    getCorrectionForField={getCorrectionForField}
-                    onRefreshData={onRefreshData}
-                    selectedCards={selectedAnalysisCards}
-                    onToggleCard={toggleAnalysisCard}
-                    onToggleCategory={toggleAnalysisCategory}
-                    showCheckboxes
-                  />
-                </Accordion.Panel>
-              </Accordion.Item>
-            )}
+                </Group>
 
-            {/* ═══ 2. Özel Kartlar ═════════════════════════════ */}
-            <Accordion.Item value="ozel-kartlar">
-              <Accordion.Control
-                icon={
-                  <ThemeIcon size="xs" variant="light" color="pink">
-                    <IconCards size={12} />
-                  </ThemeIcon>
-                }
-              >
+                {/* Stats */}
                 <Group gap="xs">
-                  Özel Kartlar
+                  {hasAnalysis && (
+                    <Badge size="sm" variant="light" color="violet" leftSection={<IconBrain size={10} />}>
+                      AI Analiz
+                    </Badge>
+                  )}
                   {tenderCards.length > 0 && (
-                    <Badge size="xs" variant="light" color="pink">
-                      {tenderCards.length}
+                    <Badge size="sm" variant="light" color="pink" leftSection={<IconCards size={10} />}>
+                      {tenderCards.length} Kart
+                    </Badge>
+                  )}
+                  {paketiNotes.length > 0 && (
+                    <Badge size="sm" variant="light" color="teal" leftSection={<IconNote size={10} />}>
+                      {paketiNotes.length} Not
+                    </Badge>
+                  )}
+                  {correctionCount > 0 && (
+                    <Badge size="sm" variant="light" color="yellow">
+                      {correctionCount} düzeltme
+                    </Badge>
+                  )}
+                  {isConfirmed && (
+                    <Badge size="sm" variant="light" color="green" leftSection={<IconCheck size={10} />}>
+                      Onaylı
                     </Badge>
                   )}
                 </Group>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="xs">
-                  {/* ── Seçimden kart oluştur (metin + AI menü) ── */}
-                  {selectedText && (
-                    <Group gap={4}>
+
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'indigo' }}
+                  size="md"
+                  leftSection={<IconExternalLink size={18} />}
+                  onClick={() => setAnalysisCenterOpened(true)}
+                  fullWidth
+                  style={{ boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
+                >
+                  Analiz Merkezi&apos;ni Aç
+                </Button>
+              </Stack>
+            </Paper>
+
+            {/* ═══ Hızlı İşlemler ═══════════════════════════════ */}
+            <Paper p="sm" radius="md" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--mantine-color-dark-5)' }}>
+              <Text size="xs" c="dimmed" mb="xs" fw={500}>
+                Hızlı İşlemler
+              </Text>
+
+              {/* Metin seçiliyse kart oluşturma */}
+              {selectedText && (
+                <Group gap={4} mb="xs">
+                  <Button
+                    variant="light"
+                    size="compact-xs"
+                    color="pink"
+                    leftSection={<IconPlus size={12} />}
+                    loading={isCardCreating}
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      const input: CreateCardInput = {
+                        title: selectedText.length > 80 ? `${selectedText.substring(0, 80)}...` : selectedText,
+                        content: { text: selectedText },
+                        source_type: 'pdf_selection',
+                        source_document_id: selectedTextDocId,
+                        source_text: selectedText,
+                        category: 'diger',
+                      };
+                      createCard(input);
+                    }}
+                  >
+                    Seçimden Kart Oluştur
+                  </Button>
+                  <Menu shadow="md" width={180} position="bottom-end">
+                    <Menu.Target>
                       <Button
                         variant="light"
                         size="compact-xs"
-                        color="pink"
-                        leftSection={<IconPlus size={12} />}
-                        loading={isCardCreating}
-                        style={{ flex: 1 }}
-                        onClick={() => {
-                          const input: CreateCardInput = {
-                            title: selectedText.length > 80 ? `${selectedText.substring(0, 80)}...` : selectedText,
-                            content: { text: selectedText },
-                            source_type: 'pdf_selection',
-                            source_document_id: selectedTextDocId,
-                            source_text: selectedText,
-                            category: 'diger',
-                          };
-                          createCard(input);
-                        }}
+                        color="violet"
+                        loading={aiTransformLoading}
+                        leftSection={<IconSparkles size={12} />}
                       >
-                        Metin Kartı
+                        AI
                       </Button>
-                      <Menu shadow="md" width={180} position="bottom-end">
-                        <Menu.Target>
-                          <Button
-                            variant="light"
-                            size="compact-xs"
-                            color="violet"
-                            loading={aiTransformLoading}
-                            leftSection={<IconSparkles size={12} />}
-                          >
-                            AI
-                          </Button>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Label>AI Dönüşüm</Menu.Label>
-                          <Menu.Item leftSection={<IconTable size={14} />} onClick={() => handleAiTransform('table')}>
-                            Tablo Çıkar
-                          </Menu.Item>
-                          <Menu.Item leftSection={<IconNote size={14} />} onClick={() => handleAiTransform('summary')}>
-                            Özetle
-                          </Menu.Item>
-                          <Menu.Item leftSection={<IconList size={14} />} onClick={() => handleAiTransform('extract')}>
-                            Veri Çıkar
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
-                    </Group>
-                  )}
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Label>AI Dönüşüm</Menu.Label>
+                      <Menu.Item leftSection={<IconTable size={14} />} onClick={() => handleAiTransform('table')}>
+                        Tablo Çıkar
+                      </Menu.Item>
+                      <Menu.Item leftSection={<IconNote size={14} />} onClick={() => handleAiTransform('summary')}>
+                        Özetle
+                      </Menu.Item>
+                      <Menu.Item leftSection={<IconList size={14} />} onClick={() => handleAiTransform('extract')}>
+                        Veri Çıkar
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                </Group>
+              )}
 
-                  {/* ── Kart listesi (DnD sortable) ── */}
-                  {cardsLoading ? (
-                    <Text size="xs" c="dimmed">
-                      Yükleniyor...
-                    </Text>
-                  ) : tenderCards.length === 0 ? (
-                    <Text size="xs" c="dimmed" ta="center" py="xs">
-                      Henüz özel kart yok. Döküman üzerinden metin seçip kart oluşturabilirsiniz.
-                    </Text>
-                  ) : (
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                      <SortableContext items={tenderCards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                        {tenderCards.map((card) => (
-                          <SortableCard
-                            key={card.id}
-                            card={card}
-                            onUpdate={updateCard}
-                            onDelete={deleteCard}
-                            isUpdating={isCardUpdating}
-                            onCardClick={handleCardClick}
-                            isSelected={selectedUserCards.has(card.id)}
-                            onToggleSelect={() => toggleUserCard(card.id)}
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  )}
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
+              {/* Hızlı not ekleme */}
+              <Group gap="xs">
+                <Textarea
+                  placeholder="Hızlı not ekle..."
+                  size="xs"
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.currentTarget.value)}
+                  autosize
+                  minRows={1}
+                  maxRows={3}
+                  style={{ flex: 1 }}
+                />
+                <ActionIcon
+                  variant="light"
+                  color="teal"
+                  size="md"
+                  disabled={!newNoteText.trim()}
+                  onClick={() => {
+                    if (newNoteText.trim()) {
+                      addNote(newNoteText.trim(), 'Manuel');
+                      setNewNoteText('');
+                    }
+                  }}
+                >
+                  <IconPlus size={14} />
+                </ActionIcon>
+              </Group>
+            </Paper>
 
-            {/* ═══ 3. Notlar ═══════════════════════════════════ */}
-            <Accordion.Item value="notlar">
-              <Accordion.Control
-                icon={
-                  <ThemeIcon size="xs" variant="light" color="teal">
-                    <IconNote size={12} />
-                  </ThemeIcon>
-                }
-              >
+            {/* ═══ Seçim Özeti ══════════════════════════════════ */}
+            {(selectedAnalysisCards.size > 0 || selectedUserCards.size > 0 || selectedNotes.size > 0) && (
+              <Paper p="sm" radius="md" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" fw={500}>
+                    Seçili Öğeler
+                  </Text>
+                  <Badge size="sm" variant="light" color="blue">
+                    {selectedAnalysisCards.size + selectedUserCards.size + selectedNotes.size} seçili
+                  </Badge>
+                </Group>
                 <Group gap="xs">
-                  Notlar
-                  {paketiNotes.length > 0 && (
-                    <Badge size="xs" variant="light" color="teal">
-                      {paketiNotes.length}
+                  {selectedAnalysisCards.size > 0 && (
+                    <Badge size="xs" variant="dot" color="violet">
+                      {selectedAnalysisCards.size} analiz
+                    </Badge>
+                  )}
+                  {selectedUserCards.size > 0 && (
+                    <Badge size="xs" variant="dot" color="pink">
+                      {selectedUserCards.size} kart
+                    </Badge>
+                  )}
+                  {selectedNotes.size > 0 && (
+                    <Badge size="xs" variant="dot" color="teal">
+                      {selectedNotes.size} not
                     </Badge>
                   )}
                 </Group>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="xs">
-                  {/* Not ekle */}
-                  <Group gap="xs">
-                    <Textarea
-                      placeholder="Not ekle..."
-                      size="xs"
-                      value={newNoteText}
-                      onChange={(e) => setNewNoteText(e.currentTarget.value)}
-                      autosize
-                      minRows={1}
-                      maxRows={3}
-                      style={{ flex: 1 }}
-                    />
-                    <ActionIcon
-                      variant="light"
-                      color="teal"
-                      size="md"
-                      disabled={!newNoteText.trim()}
-                      onClick={() => {
-                        if (newNoteText.trim()) {
-                          addNote(newNoteText.trim(), 'Manuel');
-                          setNewNoteText('');
-                        }
-                      }}
-                    >
-                      <IconPlus size={14} />
-                    </ActionIcon>
-                  </Group>
-
-                  {/* Not listesi */}
-                  {paketiNotes.map((note) => (
-                    <EditableNote
-                      key={note.id}
-                      note={note}
-                      onUpdate={updateNote}
-                      onDelete={deleteNote}
-                      isSelected={selectedNotes.has(note.id)}
-                      onToggleSelect={() => toggleNote(note.id)}
-                    />
-                  ))}
-
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    color="violet"
-                    leftSection={<IconNote size={12} />}
-                    onClick={() =>
-                      openContextNotes('tender', savedTender?.tender_id ?? 0, savedTender?.ihale_basligi || 'İhale')
-                    }
-                  >
-                    Tüm İhale Notlarını Aç
-                  </Button>
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
+              </Paper>
+            )}
+          </Stack>
         )}
       </ScrollArea>
 
@@ -1078,6 +689,32 @@ export function RightPanel({
         onUpdate={updateCard}
         onDelete={deleteCard}
         isUpdating={isCardUpdating}
+      />
+
+      {/* ─── Analysis Center Modal ──────────────────────────── */}
+      <AnalysisCenterModal
+        opened={analysisCenterOpened}
+        onClose={() => setAnalysisCenterOpened(false)}
+        analysisSummary={analysisSummary}
+        tenderId={tenderId ? Number(tenderId) : undefined}
+        tenderCards={tenderCards}
+        onCardClick={handleCardClick}
+        onCardDelete={(id) => deleteCard(id)}
+        notes={paketiNotes}
+        onNoteDelete={(id) => {
+          setPaketiNotes((prev) => prev.filter((n) => n.id !== id));
+        }}
+        selectedAnalysisCards={selectedAnalysisCards}
+        selectedUserCards={selectedUserCards}
+        selectedNotes={selectedNotes}
+        onToggleAnalysisCard={toggleAnalysisCard}
+        onToggleUserCard={toggleUserCard}
+        onToggleNote={toggleNote}
+        onSendToMasa={handleSendToMasaFromModal}
+        isSendingToMasa={isSendingToMasa}
+        onCrossAnalysis={handleCrossAnalysis}
+        crossAnalysisResult={crossAnalysisResult || undefined}
+        isCrossAnalyzing={isCrossAnalyzing}
       />
     </Box>
   );

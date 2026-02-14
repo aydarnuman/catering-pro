@@ -1,8 +1,18 @@
 'use client';
 
-import { Box, Checkbox, Group as MantineGroup, Paper, SegmentedControl, Stack, Text, ThemeIcon } from '@mantine/core';
+import {
+  Badge,
+  Box,
+  Checkbox,
+  Group as MantineGroup,
+  Paper,
+  SegmentedControl,
+  Stack,
+  Text,
+  ThemeIcon,
+} from '@mantine/core';
 import { IconBuildingBank, IconClipboardList, IconFolder, IconSettings } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { AnalysisData } from '../types';
 import { getAnalysisCardsForCategory } from '../utils/selection-helpers';
 import {
@@ -32,6 +42,7 @@ type CategoryTab = 'tumu' | 'operasyonel' | 'mali' | 'teknik' | 'belgeler';
 
 interface AnalysisCardsPanelProps {
   analysisSummary?: AnalysisData;
+  tenderId?: number | null;
   // HITL correction system
   editingCards: Set<string>;
   toggleCardEdit: (cardName: string) => void;
@@ -158,6 +169,7 @@ function filterEksikBilgiler(eksikBilgiler: string[], summary: AnalysisData): st
 
 export function AnalysisCardsPanel({
   analysisSummary: rawAnalysisSummary,
+  tenderId,
   editingCards,
   toggleCardEdit,
   saveCorrection,
@@ -169,6 +181,14 @@ export function AnalysisCardsPanel({
   showCheckboxes = false,
 }: AnalysisCardsPanelProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('tumu');
+
+  // Wrapper function to convert card onSave to saveCorrection format
+  const handleCardSave = useCallback(
+    (fieldPath: string, oldValue: unknown, newValue: unknown) => {
+      saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+    },
+    [saveCorrection]
+  );
 
   const analysisSummary = useMemo(() => normalizeAnalysisData(rawAnalysisSummary), [rawAnalysisSummary]);
 
@@ -224,32 +244,44 @@ export function AnalysisCardsPanel({
 
   const showCategory = (cat: CategoryTab) => activeCategory === 'tumu' || activeCategory === cat;
 
-  // Category header with optional master checkbox
+  // Category header — divider style, not card
   const CategoryHeader = ({ category, icon, label }: { category: string; icon: React.ReactNode; label: string }) => {
-    if (!showCheckboxes || !onToggleCategory) return null;
-
     const categoryCards = getAnalysisCardsForCategory(analysisSummary, category);
     if (categoryCards.length === 0) return null;
 
+    const color = getCategoryColor(category);
     const allSelected = selectedCards ? categoryCards.every((path) => selectedCards.has(path)) : false;
     const someSelected = selectedCards ? categoryCards.some((path) => selectedCards.has(path)) : false;
 
     return (
-      <Paper p="xs" mb="sm" withBorder style={{ background: 'rgba(255, 255, 255, 0.02)' }}>
-        <MantineGroup gap="xs">
+      <MantineGroup gap={8} mt="md" mb={6} wrap="nowrap" align="center">
+        {showCheckboxes && onToggleCategory && (
           <Checkbox
+            size="xs"
             checked={allSelected}
             indeterminate={someSelected && !allSelected}
             onChange={() => onToggleCategory(category)}
+            color={color}
+            styles={{ input: { cursor: 'pointer' } }}
           />
-          <ThemeIcon size="sm" variant="light" color={getCategoryColor(category)}>
-            {icon}
-          </ThemeIcon>
-          <Text size="sm" fw={600}>
-            {label} ({categoryCards.length})
-          </Text>
-        </MantineGroup>
-      </Paper>
+        )}
+        <ThemeIcon size={20} variant="light" color={color} radius="xl">
+          {icon}
+        </ThemeIcon>
+        <Text
+          size="xs"
+          fw={700}
+          tt="uppercase"
+          c={`${color}.5`}
+          style={{ letterSpacing: '0.05em', whiteSpace: 'nowrap' }}
+        >
+          {label}
+        </Text>
+        <Badge size="xs" variant="dot" color={color} style={{ flexShrink: 0 }}>
+          {categoryCards.length}
+        </Badge>
+        <Box style={{ flex: 1, height: 1, background: `var(--mantine-color-${color}-light)` }} />
+      </MantineGroup>
     );
   };
 
@@ -364,6 +396,8 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('takvim')}
               onToggleSelect={() => onToggleCard?.('takvim')}
+              tenderId={tenderId ?? undefined}
+              onSave={handleCardSave}
             />
           )}
 
@@ -378,6 +412,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('servis_saatleri')}
               onToggleSelect={() => onToggleCard?.('servis_saatleri')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -392,6 +427,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('personel_detaylari')}
               onToggleSelect={() => onToggleCard?.('personel_detaylari')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -407,6 +443,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('ogun_bilgileri')}
               onToggleSelect={() => onToggleCard?.('ogun_bilgileri')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -418,6 +455,8 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('is_yerleri')}
               onToggleSelect={() => onToggleCard?.('is_yerleri')}
+              tenderId={tenderId ?? undefined}
+              onSave={handleCardSave}
             />
           )}
 
@@ -432,6 +471,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('gramaj_gruplari')}
               onToggleSelect={() => onToggleCard?.('gramaj_gruplari')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -463,6 +503,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('birim_fiyatlar')}
               onToggleSelect={() => onToggleCard?.('birim_fiyatlar')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -477,6 +518,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('teminat_oranlari')}
               onToggleSelect={() => onToggleCard?.('teminat_oranlari')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -491,6 +533,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('mali_kriterler')}
               onToggleSelect={() => onToggleCard?.('mali_kriterler')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -501,6 +544,8 @@ export function AnalysisCardsPanel({
                 showCheckbox={showCheckboxes}
                 isSelected={selectedCards?.has('fiyat_farki')}
                 onToggleSelect={() => onToggleCard?.('fiyat_farki')}
+                tenderId={tenderId ?? undefined}
+                onSave={handleCardSave}
               />
             )}
 
@@ -510,6 +555,8 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('ceza_kosullari')}
               onToggleSelect={() => onToggleCard?.('ceza_kosullari')}
+              tenderId={tenderId ?? undefined}
+              onSave={handleCardSave}
             />
           )}
 
@@ -596,6 +643,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('teknik_sartlar')}
               onToggleSelect={() => onToggleCard?.('teknik_sartlar')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -616,6 +664,8 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('onemli_notlar')}
               onToggleSelect={() => onToggleCard?.('onemli_notlar')}
+              tenderId={tenderId ?? undefined}
+              onSave={handleCardSave}
             />
           )}
 
@@ -667,6 +717,8 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('gerekli_belgeler')}
               onToggleSelect={() => onToggleCard?.('gerekli_belgeler')}
+              tenderId={tenderId ?? undefined}
+              onSave={handleCardSave}
             />
           )}
 
@@ -681,6 +733,7 @@ export function AnalysisCardsPanel({
               showCheckbox={showCheckboxes}
               isSelected={selectedCards?.has('iletisim')}
               onToggleSelect={() => onToggleCard?.('iletisim')}
+              tenderId={tenderId ?? undefined}
             />
           )}
 
@@ -694,6 +747,8 @@ export function AnalysisCardsPanel({
                   showCheckbox={showCheckboxes}
                   isSelected={selectedCards?.has('eksik_bilgiler')}
                   onToggleSelect={() => onToggleCard?.('eksik_bilgiler')}
+                  tenderId={tenderId ?? undefined}
+                  onSave={handleCardSave}
                 />
               ) : null;
             })()}

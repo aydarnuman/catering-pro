@@ -47,11 +47,88 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { type ContentType, detectContentType, splitContentToItems } from '../normalizeAnalysis';
 
+// Tarih formatla (ISO -> TR format)
+function formatDate(value: string): string {
+  // ISO format: 2024-01-15 veya 2024-01-15T10:30:00
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}.${month}.${year}`;
+  }
+  return value;
+}
+
+// Para birimi formatla
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value).replace('₺', '').trim() + ' TL';
+}
+
+// Yüzde formatla
+function formatPercentage(value: number | string): string {
+  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (Number.isNaN(num)) return String(value);
+  return `%${num.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
 // Hücre değerini formatla
-function formatCellValue(value: unknown): string {
-  if (value === null || value === undefined) return '-';
-  if (typeof value === 'number') return value.toLocaleString('tr-TR');
+function formatCellValue(value: unknown, fieldKey?: string): string {
+  if (value === null || value === undefined || value === '') return '-';
+  
+  // Boolean
   if (typeof value === 'boolean') return value ? 'Evet' : 'Hayır';
+  
+  // Number
+  if (typeof value === 'number') {
+    // Para birimi alanları
+    if (fieldKey && (fieldKey.includes('fiyat') || fieldKey.includes('tutar') || fieldKey.includes('bedel') || fieldKey.includes('ucret'))) {
+      return formatCurrency(value);
+    }
+    // Yüzde alanları
+    if (fieldKey && (fieldKey.includes('oran') || fieldKey.includes('yuzde') || fieldKey.includes('percent'))) {
+      return formatPercentage(value);
+    }
+    return value.toLocaleString('tr-TR');
+  }
+  
+  // String
+  if (typeof value === 'string') {
+    const str = value.trim();
+    
+    // ISO tarih formatı kontrolü
+    if (/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(str)) {
+      return formatDate(str);
+    }
+    
+    // String içinde yüzde işareti varsa
+    if (str.includes('%') || (fieldKey && fieldKey.includes('oran'))) {
+      const numMatch = str.match(/[\d.,]+/);
+      if (numMatch) {
+        const num = Number.parseFloat(numMatch[0].replace(',', '.'));
+        if (!Number.isNaN(num) && !str.includes('%')) {
+          return formatPercentage(num);
+        }
+      }
+    }
+    
+    // String içinde para birimi (TL, ₺) varsa düzgün formatla
+    if (str.includes('TL') || str.includes('₺')) {
+      const numMatch = str.replace(/[^\d.,]/g, '');
+      if (numMatch) {
+        const num = Number.parseFloat(numMatch.replace(/\./g, '').replace(',', '.'));
+        if (!Number.isNaN(num)) {
+          return formatCurrency(num);
+        }
+      }
+    }
+    
+    return str;
+  }
+  
   return String(value);
 }
 
@@ -281,7 +358,7 @@ function ObjectKeyValueRenderer({ obj }: { obj: Record<string, unknown> }) {
             {key.replace(/_/g, ' ')}
           </Text>
           <Text size="sm" fw={600}>
-            {highlightNumbers(String(value))}
+            {highlightNumbers(formatCellValue(value, key))}
           </Text>
         </Box>
       ))}
@@ -807,7 +884,7 @@ function EditableTableRenderer({
                       styles={{ input: { textAlign: col.align || 'left' } }}
                     />
                   ) : (
-                    formatCellValue(obj[col.key])
+                    formatCellValue(obj[col.key], col.key)
                   )}
                 </Table.Td>
               ))}

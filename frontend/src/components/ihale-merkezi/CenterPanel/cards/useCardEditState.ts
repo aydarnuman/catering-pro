@@ -47,10 +47,17 @@ export function useCardEditState<T>({
 }: UseCardEditStateOptions<T>): UseCardEditStateReturn<T> {
   const [editData, setEditData] = useState<T>(originalData);
   const initialDataRef = useRef<T>(originalData);
+  // Track previous isEditing state to detect entering edit mode
+  const wasEditingRef = useRef(isEditing);
 
-  // isEditing true olunca orijinal veriyi kopyala
+  // Only clone data when ENTERING edit mode (isEditing changes from false to true)
+  // NOT when originalData changes during edit mode (that would cause infinite loop
+  // because originalData is often created inline with spread/map)
   useEffect(() => {
-    if (isEditing) {
+    const enteringEditMode = isEditing && !wasEditingRef.current;
+    wasEditingRef.current = isEditing;
+
+    if (enteringEditMode) {
       // Deep clone for arrays/objects
       const cloned = JSON.parse(JSON.stringify(originalData)) as T;
       setEditData(cloned);

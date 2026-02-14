@@ -51,6 +51,19 @@ interface EditableCardProps {
   showCheckbox?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  tenderId?: number;
+}
+
+// Tarih formatla (ISO -> TR format)
+function formatDisplayDate(value: string): string {
+  if (!value) return '-';
+  // ISO format: 2024-01-15 veya 2024-01-15T10:30:00
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}.${month}.${year}`;
+  }
+  return value;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -62,9 +75,11 @@ export function TakvimCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
+  onSave,
 }: {
   takvim: Array<{ olay: string; tarih: string; gun?: string }>;
-} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect'>) {
+} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect' | 'tenderId' | 'onSave'>) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(takvim, 6);
 
@@ -96,7 +111,7 @@ export function TakvimCard({
                 </Text>
                 <Group gap={4}>
                   <Text size="xs" c="dimmed">
-                    {item.tarih}
+                    {formatDisplayDate(item.tarih)}
                   </Text>
                   {item.gun && (
                     <Badge size="xs" variant="outline" color="cyan">
@@ -118,6 +133,8 @@ export function TakvimCard({
         icon={<IconCalendar size={16} />}
         color="cyan"
         data={takvim}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );
@@ -137,6 +154,7 @@ export function ServisSaatleriCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: { saatler: ServisSaatleri } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -226,6 +244,7 @@ export function ServisSaatleriCard({
         data={saatler}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -245,6 +264,7 @@ export function PersonelCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: { personel: PersonelDetay[] } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -405,6 +425,7 @@ export function PersonelCard({
         data={personel}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -427,6 +448,7 @@ export function OgunBilgileriCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: { ogunler: OgunBilgisi[]; toplamOgunSayisi?: number } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -656,6 +678,7 @@ export function OgunBilgileriCard({
         data={ogunler}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
@@ -670,9 +693,11 @@ export function IsYerleriCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
+  onSave,
 }: {
   yerler: string[];
-} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect'>) {
+} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect' | 'tenderId' | 'onSave'>) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(yerler, 4);
 
@@ -714,6 +739,8 @@ export function IsYerleriCard({
         icon={<IconMapPin size={16} />}
         color="teal"
         data={yerler}
+        tenderId={tenderId}
+        onSave={onSave}
       />
     </>
   );
@@ -733,6 +760,7 @@ export function GramajBilgileriCard({
   showCheckbox,
   isSelected,
   onToggleSelect,
+  tenderId,
 }: { gramajlar: GramajGrubu[] } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -838,6 +866,7 @@ export function GramajBilgileriCard({
         data={gramajlar}
         onSave={onSave}
         isCorrected={isCorrected}
+        tenderId={tenderId}
       />
     </>
   );
