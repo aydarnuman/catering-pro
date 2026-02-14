@@ -27,7 +27,6 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import Markdown from 'react-markdown';
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -47,6 +46,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
+import Markdown from 'react-markdown';
 import { type ContentType, detectContentType, splitContentToItems } from '../normalizeAnalysis';
 
 // Tarih formatla (ISO -> TR format)
@@ -62,12 +62,15 @@ function formatDate(value: string): string {
 
 // Para birimi formatla
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('tr-TR', {
+  return `${new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value).replace('₺', '').trim() + ' TL';
+  })
+    .format(value)
+    .replace('₺', '')
+    .trim()} TL`;
 }
 
 // Yüzde formatla
@@ -80,14 +83,20 @@ function formatPercentage(value: number | string): string {
 // Hücre değerini formatla
 function formatCellValue(value: unknown, fieldKey?: string): string {
   if (value === null || value === undefined || value === '') return '-';
-  
+
   // Boolean
   if (typeof value === 'boolean') return value ? 'Evet' : 'Hayır';
-  
+
   // Number
   if (typeof value === 'number') {
     // Para birimi alanları
-    if (fieldKey && (fieldKey.includes('fiyat') || fieldKey.includes('tutar') || fieldKey.includes('bedel') || fieldKey.includes('ucret'))) {
+    if (
+      fieldKey &&
+      (fieldKey.includes('fiyat') ||
+        fieldKey.includes('tutar') ||
+        fieldKey.includes('bedel') ||
+        fieldKey.includes('ucret'))
+    ) {
       return formatCurrency(value);
     }
     // Yüzde alanları
@@ -96,18 +105,18 @@ function formatCellValue(value: unknown, fieldKey?: string): string {
     }
     return value.toLocaleString('tr-TR');
   }
-  
+
   // String
   if (typeof value === 'string') {
     const str = value.trim();
-    
+
     // ISO tarih formatı kontrolü
     if (/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(str)) {
       return formatDate(str);
     }
-    
+
     // String içinde yüzde işareti varsa
-    if (str.includes('%') || (fieldKey && fieldKey.includes('oran'))) {
+    if (str.includes('%') || fieldKey?.includes('oran')) {
       const numMatch = str.match(/[\d.,]+/);
       if (numMatch) {
         const num = Number.parseFloat(numMatch[0].replace(',', '.'));
@@ -116,7 +125,7 @@ function formatCellValue(value: unknown, fieldKey?: string): string {
         }
       }
     }
-    
+
     // String içinde para birimi (TL, ₺) varsa düzgün formatla
     if (str.includes('TL') || str.includes('₺')) {
       const numMatch = str.replace(/[^\d.,]/g, '');
@@ -127,10 +136,10 @@ function formatCellValue(value: unknown, fieldKey?: string): string {
         }
       }
     }
-    
+
     return str;
   }
-  
+
   return String(value);
 }
 
@@ -652,18 +661,29 @@ function EditableListRenderer({
     if (typeof originalItem === 'object' && originalItem !== null) {
       const obj = originalItem as Record<string, unknown>;
       // Ana metin alanını belirle ve güncelle
-      const textField = obj.madde !== undefined ? 'madde'
-        : obj.text !== undefined ? 'text'
-        : obj.description !== undefined ? 'description'
-        : obj.not !== undefined ? 'not'
-        : obj.kalem !== undefined ? 'kalem'
-        : obj.aciklama !== undefined ? 'aciklama'
-        : obj.pozisyon !== undefined ? 'pozisyon'
-        : obj.tur !== undefined ? 'tur'
-        : obj.olay !== undefined ? 'olay'
-        : obj.belge !== undefined ? 'belge'
-        : null;
-      
+      const textField =
+        obj.madde !== undefined
+          ? 'madde'
+          : obj.text !== undefined
+            ? 'text'
+            : obj.description !== undefined
+              ? 'description'
+              : obj.not !== undefined
+                ? 'not'
+                : obj.kalem !== undefined
+                  ? 'kalem'
+                  : obj.aciklama !== undefined
+                    ? 'aciklama'
+                    : obj.pozisyon !== undefined
+                      ? 'pozisyon'
+                      : obj.tur !== undefined
+                        ? 'tur'
+                        : obj.olay !== undefined
+                          ? 'olay'
+                          : obj.belge !== undefined
+                            ? 'belge'
+                            : null;
+
       if (textField) {
         onUpdateItem(index, { ...obj, [textField]: editValue });
       } else {
@@ -794,18 +814,20 @@ function EditableTableRenderer({
 
   // Column tanımı yoksa, ilk item'dan dinamik olarak oluştur
   const predefinedColumns = getTableColumns(cardType);
-  const columns: TableColumn[] = predefinedColumns || (() => {
-    const firstItem = items[0];
-    if (typeof firstItem === 'object' && firstItem !== null) {
-      return Object.keys(firstItem as Record<string, unknown>)
-        .filter(key => key !== 'id' && !key.startsWith('_'))
-        .map(key => ({
-          key,
-          label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        }));
-    }
-    return [{ key: 'value', label: 'Değer' }];
-  })();
+  const columns: TableColumn[] =
+    predefinedColumns ||
+    (() => {
+      const firstItem = items[0];
+      if (typeof firstItem === 'object' && firstItem !== null) {
+        return Object.keys(firstItem as Record<string, unknown>)
+          .filter((key) => key !== 'id' && !key.startsWith('_'))
+          .map((key) => ({
+            key,
+            label: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          }));
+      }
+      return [{ key: 'value', label: 'Değer' }];
+    })();
 
   const startEdit = (index: number, item: unknown) => {
     const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
@@ -818,7 +840,10 @@ function EditableTableRenderer({
   };
 
   const saveEdit = (index: number, originalItem: unknown) => {
-    const obj = (typeof originalItem === 'object' && originalItem !== null ? originalItem : {}) as Record<string, unknown>;
+    const obj = (typeof originalItem === 'object' && originalItem !== null ? originalItem : {}) as Record<
+      string,
+      unknown
+    >;
     const updatedItem = { ...obj };
     for (const col of columns) {
       const value = editValues[col.key];
@@ -858,12 +883,20 @@ function EditableTableRenderer({
           const isSelected = selectedItems.has(i);
           const isEditing = editingItem === i;
           const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
-          const rowKey = obj.id ? String(obj.id) : `row-${i}-${JSON.stringify(Object.values(obj).slice(0, 2)).slice(0, 30)}`;
-          
+          const rowKey = obj.id
+            ? String(obj.id)
+            : `row-${i}-${JSON.stringify(Object.values(obj).slice(0, 2)).slice(0, 30)}`;
+
           return (
             <Table.Tr
               key={`etr-${rowKey}`}
-              style={{ background: isSelected ? 'var(--mantine-color-dark-6)' : isEditing ? 'var(--mantine-color-blue-light)' : undefined }}
+              style={{
+                background: isSelected
+                  ? 'var(--mantine-color-dark-6)'
+                  : isEditing
+                    ? 'var(--mantine-color-blue-light)'
+                    : undefined,
+              }}
             >
               {editable && (
                 <Table.Td>
@@ -1068,7 +1101,9 @@ function CompactAIPanel({
         <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-5)', flex: 1 }}>
           <Group gap="xs" mb="xs">
             <Loader size={14} color="violet" />
-            <Text size="xs" c="dimmed">AI analiz ediyor...</Text>
+            <Text size="xs" c="dimmed">
+              AI analiz ediyor...
+            </Text>
           </Group>
           <Stack gap={6}>
             <Box h={10} w="90%" style={{ background: 'var(--mantine-color-dark-5)', borderRadius: 4, opacity: 0.6 }} />
@@ -1092,7 +1127,11 @@ function CompactAIPanel({
                   variant="light"
                   color={result.riskLevel === 'high' ? 'red' : result.riskLevel === 'medium' ? 'yellow' : 'green'}
                 >
-                  {result.riskLevel === 'high' ? 'Yüksek Risk' : result.riskLevel === 'medium' ? 'Orta Risk' : 'Düşük Risk'}
+                  {result.riskLevel === 'high'
+                    ? 'Yüksek Risk'
+                    : result.riskLevel === 'medium'
+                      ? 'Orta Risk'
+                      : 'Düşük Risk'}
                 </Badge>
               )}
             </Group>
@@ -1303,37 +1342,36 @@ export function AnalysisDetailModal({
   const filteredData = useMemo(() => {
     if (!searchQuery.trim()) return localData;
     const query = searchQuery.toLowerCase().trim();
-    
+
     if (Array.isArray(localData)) {
       return localData.filter((item) => {
         const text = getItemDisplayText(item, cardType).toLowerCase();
         // Obje içindeki tüm değerleri de kontrol et
         if (typeof item === 'object' && item !== null) {
           const objValues = Object.values(item as Record<string, unknown>)
-            .filter(v => v != null)
-            .map(v => String(v).toLowerCase())
+            .filter((v) => v != null)
+            .map((v) => String(v).toLowerCase())
             .join(' ');
           return text.includes(query) || objValues.includes(query);
         }
         return text.includes(query);
       });
     }
-    
+
     if (typeof localData === 'string') {
       return localData.toLowerCase().includes(query) ? localData : '';
     }
-    
+
     if (typeof localData === 'object' && localData !== null) {
-      const matches = Object.entries(localData as Record<string, unknown>)
-        .filter(([k, v]) => {
-          const keyMatch = k.toLowerCase().includes(query);
-          const valueMatch = v != null && String(v).toLowerCase().includes(query);
-          return keyMatch || valueMatch;
-        });
+      const matches = Object.entries(localData as Record<string, unknown>).filter(([k, v]) => {
+        const keyMatch = k.toLowerCase().includes(query);
+        const valueMatch = v != null && String(v).toLowerCase().includes(query);
+        return keyMatch || valueMatch;
+      });
       if (matches.length === 0) return null;
       return Object.fromEntries(matches);
     }
-    
+
     return localData;
   }, [localData, searchQuery, cardType]);
 
@@ -1468,11 +1506,13 @@ export function AnalysisDetailModal({
             placeholder="Ara..."
             size="xs"
             leftSection={<IconSearch size={14} />}
-            rightSection={searchQuery && (
-              <ActionIcon size="xs" variant="subtle" onClick={() => setSearchQuery('')}>
-                <IconX size={12} />
-              </ActionIcon>
-            )}
+            rightSection={
+              searchQuery && (
+                <ActionIcon size="xs" variant="subtle" onClick={() => setSearchQuery('')}>
+                  <IconX size={12} />
+                </ActionIcon>
+              )
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             w={200}

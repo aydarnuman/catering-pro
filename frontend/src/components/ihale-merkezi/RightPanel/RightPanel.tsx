@@ -504,7 +504,11 @@ export function RightPanel({
             </Paper>
 
             {/* ═══ Hızlı İşlemler ═══════════════════════════════ */}
-            <Paper p="sm" radius="md" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--mantine-color-dark-5)' }}>
+            <Paper
+              p="sm"
+              radius="md"
+              style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--mantine-color-dark-5)' }}
+            >
               <Text size="xs" c="dimmed" mb="xs" fw={500}>
                 Hızlı İşlemler
               </Text>
@@ -592,7 +596,11 @@ export function RightPanel({
 
             {/* ═══ Seçim Özeti ══════════════════════════════════ */}
             {(selectedAnalysisCards.size > 0 || selectedUserCards.size > 0 || selectedNotes.size > 0) && (
-              <Paper p="sm" radius="md" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+              >
                 <Group justify="space-between" mb="xs">
                   <Text size="xs" fw={500}>
                     Seçili Öğeler

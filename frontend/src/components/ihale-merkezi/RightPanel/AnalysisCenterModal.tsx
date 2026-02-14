@@ -31,8 +31,8 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { TenderCard } from '@/hooks/useTenderCards';
+import { type AnalysisCardType, AnalysisDetailModal } from '../CenterPanel/cards/AnalysisDetailModal';
 import type { AnalysisData } from '../types';
-import { AnalysisDetailModal, type AnalysisCardType } from '../CenterPanel/cards/AnalysisDetailModal';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -267,13 +267,7 @@ function SelectableCard({
         )}
         {onDelete && (
           <Tooltip label="Sil" withArrow position="top">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="gray"
-              onClick={onDelete}
-              style={{ opacity: 0.5 }}
-            >
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onDelete} style={{ opacity: 0.5 }}>
               <IconTrash size={12} />
             </ActionIcon>
           </Tooltip>
@@ -327,7 +321,7 @@ export function AnalysisCenterModal({
       setSelectedAnalysisCardForDetail({ cardType, data, title, icon, color });
       setDetailModalOpened(true);
     },
-    [],
+    []
   );
 
   // ─── Computed Values ────────────────────────────────────────
@@ -523,13 +517,7 @@ export function AnalysisCenterModal({
               </Text>
             </Box>
           </Group>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="lg"
-            onClick={onClose}
-            style={{ opacity: 0.6 }}
-          >
+          <ActionIcon variant="subtle" color="gray" size="lg" onClick={onClose} style={{ opacity: 0.6 }}>
             <IconX size={18} />
           </ActionIcon>
         </Group>
@@ -807,7 +795,9 @@ export function AnalysisCenterModal({
                       status={getCardStatus(card.data)}
                       isSelected={selectedAnalysisCards.has(card.path)}
                       onToggle={() => onToggleAnalysisCard(card.path)}
-                      onClick={() => handleOpenAnalysisCardDetail(card.type, card.data, meta.label, meta.icon, meta.color)}
+                      onClick={() =>
+                        handleOpenAnalysisCardDetail(card.type, card.data, meta.label, meta.icon, meta.color)
+                      }
                     />
                   );
                 })}

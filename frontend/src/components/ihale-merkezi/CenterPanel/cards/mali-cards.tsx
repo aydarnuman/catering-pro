@@ -165,7 +165,10 @@ export function BirimFiyatlarCard({
                     )}
                     {(item.fiyat || item.tutar) && (
                       <Badge size="xs" variant="light" color="green" style={{ flexShrink: 0 }}>
-                        {new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(item.fiyat || item.tutar))} TL
+                        {new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                          Number(item.fiyat || item.tutar)
+                        )}{' '}
+                        TL
                       </Badge>
                     )}
                   </Group>
