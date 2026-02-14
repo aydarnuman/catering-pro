@@ -130,9 +130,10 @@ router.get('/admin-stats', async (_req, res) => {
     const todayCari = await safeQuery(`SELECT COUNT(*) as c FROM cariler WHERE DATE(created_at) = CURRENT_DATE`, [
       { c: 0 },
     ]);
-    const todayPersonel = await safeQuery(`SELECT COUNT(*) as c FROM personeller WHERE DATE(created_at) = CURRENT_DATE`, [
-      { c: 0 },
-    ]);
+    const todayPersonel = await safeQuery(
+      `SELECT COUNT(*) as c FROM personeller WHERE DATE(created_at) = CURRENT_DATE`,
+      [{ c: 0 }]
+    );
 
     // Son aktiviteler
     const recentActivities = await safeQuery(
