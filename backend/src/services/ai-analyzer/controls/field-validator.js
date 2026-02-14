@@ -155,14 +155,45 @@ function hasContent(value) {
 /**
  * Kritik alanların doluluğunu kontrol et
  * @param {Object} analysis - Analiz sonucu
- * @returns {{ valid: boolean, missing: Array, filled: Array, completeness: number }}
+ * @param {string} [docType] - Belge tipi (opsiyonel, verilirse sadece ilgili alanlar kontrol edilir)
+ * @returns {{ valid: boolean, missing: Array, filled: Array, completeness: number, skipped: boolean }}
  */
-export function validateCriticalFields(analysis) {
+export function validateCriticalFields(analysis, docType) {
+  // docType verilmişse, sadece o belge tipine uygun alanları kontrol et
+  const fieldsToCheck = docType ? getCriticalFieldsForDocType(docType) : Object.keys(CRITICAL_FIELDS);
+
+  // unit_price gibi belge tiplerinde kritik alan araması tamamen atlanır
+  if (fieldsToCheck.length === 0) {
+    logger.info(`Belge tipi [${docType}], kritik alan araması ATLANDI (bu belge tipinde kritik alan yok)`, {
+      module: 'field-validator',
+      docType,
+    });
+    return {
+      valid: true,
+      missing: [],
+      filled: [],
+      completeness: 1,
+      details: {},
+      skipped: true,
+    };
+  }
+
+  if (docType) {
+    logger.info(`Belge tipi [${docType}], aranacak kritik alanlar: [${fieldsToCheck.join(', ')}]`, {
+      module: 'field-validator',
+      docType,
+      fieldCount: fieldsToCheck.length,
+    });
+  }
+
   const missing = [];
   const filled = [];
   const details = {};
 
-  for (const [field, config] of Object.entries(CRITICAL_FIELDS)) {
+  for (const field of fieldsToCheck) {
+    const config = CRITICAL_FIELDS[field];
+    if (!config) continue;
+
     const value = analysis[field];
     const fieldHasContent = hasContent(value);
 
@@ -183,11 +214,13 @@ export function validateCriticalFields(analysis) {
     }
   }
 
-  const totalFields = Object.keys(CRITICAL_FIELDS).length;
-  const completeness = filled.length / totalFields;
+  const totalFields = fieldsToCheck.length;
+  const completeness = totalFields > 0 ? filled.length / totalFields : 1;
 
   logger.info('Critical fields validation', {
     module: 'field-validator',
+    docType: docType || 'all',
+    checkedFields: fieldsToCheck.length,
     filled: filled.length,
     missing: missing.length,
     completeness: `${(completeness * 100).toFixed(1)}%`,
@@ -204,21 +237,70 @@ export function validateCriticalFields(analysis) {
 }
 
 /**
- * Döküman tipine göre hangi kritik alanların bekleneceğini belirle
+ * Belge tipine göre aranacak kritik alanları belirle
+ *
+ * Mapping:
+ *   admin_spec, zeyilname_admin_spec, idari_sartname → 5 kritik alanın tamamı
+ *   tech_spec, zeyilname_tech_spec, teknik_sartname  → sadece servis_saatleri
+ *   unit_price, birim_fiyat                          → ATLA (boş dizi)
+ *   contract, sozlesme                               → teminat_oranlari, mali_kriterler
+ *   ilan                                             → iletisim, tahmini_bedel
+ *   Bilinmeyen / null                                → 5 alanın tamamı (mevcut davranış)
+ *
+ * @param {string|null} docType - Döküman tipi
+ * @returns {string[]} Aranacak kritik alan isimleri
+ */
+export function getCriticalFieldsForDocType(docType) {
+  if (!docType) return Object.keys(CRITICAL_FIELDS);
+
+  const normalized = docType.toLowerCase();
+
+  // admin_spec / zeyilname_admin_spec / idari_sartname / idari → tüm alanlar
+  if (
+    normalized.includes('admin_spec') ||
+    normalized.includes('idari_sartname') ||
+    normalized.includes('idari') ||
+    normalized.includes('zeyilname_admin')
+  ) {
+    return Object.keys(CRITICAL_FIELDS);
+  }
+
+  // tech_spec / zeyilname_tech_spec / teknik_sartname / teknik → sadece servis_saatleri
+  if (
+    normalized.includes('tech_spec') ||
+    normalized.includes('teknik_sartname') ||
+    normalized.includes('teknik') ||
+    normalized.includes('zeyilname_tech')
+  ) {
+    return ['servis_saatleri'];
+  }
+
+  // unit_price / birim_fiyat → kritik alan araması ATLANSIN
+  if (normalized.includes('unit_price') || normalized.includes('birim_fiyat')) {
+    return [];
+  }
+
+  // contract / sozlesme → teminat_oranlari, mali_kriterler
+  if (normalized.includes('contract') || normalized.includes('sozlesme')) {
+    return ['teminat_oranlari', 'mali_kriterler'];
+  }
+
+  // ilan → iletisim, tahmini_bedel
+  if (normalized.includes('ilan') || normalized.includes('announcement')) {
+    return ['iletisim', 'tahmini_bedel'];
+  }
+
+  // Bilinmeyen docType → 5 alanın tamamı (güvenli varsayılan)
+  return Object.keys(CRITICAL_FIELDS);
+}
+
+/**
+ * Döküman tipine göre hangi kritik alanların bekleneceğini belirle (eski API, geriye uyumlu)
  * @param {string} docType - Döküman tipi
  * @returns {string[]} Beklenen kritik alan listesi
  */
 export function getExpectedFieldsForDocType(docType) {
-  const expected = [];
-  const normalizedType = (docType || '').toLowerCase();
-
-  for (const [field, config] of Object.entries(CRITICAL_FIELDS)) {
-    if (config.docTypes?.some((dt) => normalizedType.includes(dt))) {
-      expected.push(field);
-    }
-  }
-
-  return expected;
+  return getCriticalFieldsForDocType(docType);
 }
 
 /**
@@ -304,6 +386,7 @@ export function logValidationResult(validation, stage = 'unknown') {
 export default {
   CRITICAL_FIELDS,
   validateCriticalFields,
+  getCriticalFieldsForDocType,
   getExpectedFieldsForDocType,
   findRelevantChunks,
   logValidationResult,

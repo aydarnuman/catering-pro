@@ -22,6 +22,7 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 // TEK MERKEZİ CONFIG - başka yerde config tanımlamayın!
 import aiConfig, { getCustomModelId, isAzureConfigured, isCustomModelEnabled } from '../../config/ai.config.js';
+import { checkApiCircuit, reportApiError } from '../../utils/circuit-breaker.js';
 import logger from '../../utils/logger.js';
 // Kritik alan validasyonu (Layer 6.5)
 import { logValidationResult, validateCriticalFields } from './controls/field-validator.js';
@@ -31,10 +32,11 @@ import { PipelineMonitor } from './controls/quality-metrics.js';
 import { extract as extractLocal } from './pipeline/extractor.js';
 // Zero-Loss Pipeline - Son fallback olarak kullanılır
 import { runZeroLossPipeline as runFallbackPipeline } from './pipeline/index.js';
+// Dosya adından belge tipi tespiti
+import { detectDocTypeFromFilename } from './prompts/doc-type/index.js';
 import { analyzeWithCustomModel, analyzeWithLayout, checkHealth } from './providers/azure-document-ai.js';
 import { createErrorOutput, createSuccessOutput } from './schemas/final-output.js';
 import { mergeResults } from './utils/merge-results.js';
-import { checkApiCircuit, reportApiError } from '../../utils/circuit-breaker.js';
 import { safeJsonParse } from './utils/parser.js';
 import { calculateCompleteness } from './utils/table-helpers.js';
 
@@ -58,7 +60,10 @@ export async function analyzeDocument(filePath, options = {}) {
   const fileName = path.basename(filePath);
   const documentId = `unified_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-  const { onProgress, provider = 'auto' } = options;
+  const { onProgress, provider = 'auto', docType: explicitDocType } = options;
+
+  // Belge tipi tespiti (explicit > filename detection)
+  const docType = explicitDocType || detectDocTypeFromFilename(fileName) || null;
 
   // Pipeline Monitor başlat (performans takibi)
   const monitor = new PipelineMonitor(documentId);
@@ -68,6 +73,7 @@ export async function analyzeDocument(filePath, options = {}) {
     module: 'unified-pipeline',
     file: fileName,
     provider,
+    docType: docType || 'unknown',
     customModelEnabled: isCustomModelEnabled(),
   });
 
@@ -261,11 +267,11 @@ export async function analyzeDocument(filePath, options = {}) {
     progress('critical_fields', 'Kritik alanlar kontrol ediliyor...', 92);
 
     const analysis = result.analysis || result;
-    const criticalValidation = validateCriticalFields(analysis);
+    const criticalValidation = validateCriticalFields(analysis, docType);
     logValidationResult(criticalValidation, 'unified-pipeline');
 
-    // Eksik kritik alanlar varsa doldurmaya çalış
-    if (!criticalValidation.valid && criticalValidation.missing.length > 0) {
+    // Eksik kritik alanlar varsa doldurmaya çalış (skipped=true ise atla)
+    if (!criticalValidation.skipped && !criticalValidation.valid && criticalValidation.missing.length > 0) {
       logger.info(`Unified Pipeline: ${criticalValidation.missing.length} eksik kritik alan bulundu, dolduruluyor...`, {
         module: 'unified-pipeline',
         missingFields: criticalValidation.missing.map((m) => m.field),
@@ -346,7 +352,7 @@ export async function analyzeDocument(filePath, options = {}) {
       }
 
       // Re-validate
-      const revalidation = validateCriticalFields(result.analysis || result);
+      const revalidation = validateCriticalFields(result.analysis || result, docType);
       logValidationResult(revalidation, 'unified-pipeline-post-fill');
 
       // Meta'ya kritik alan bilgisi ekle

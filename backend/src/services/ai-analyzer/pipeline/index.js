@@ -19,12 +19,13 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
 import aiConfig from '../../../config/ai.config.js';
+import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import logger from '../../../utils/logger.js';
 import { applyResolutions, resolveConflicts } from '../controls/conflict-resolver.js';
 import { findRelevantChunks, logValidationResult, validateCriticalFields } from '../controls/field-validator.js';
 import { createTextHash, runAllP0Checks } from '../controls/p0-checks.js';
+import { detectDocTypeFromFilename } from '../prompts/doc-type/index.js';
 import { createErrorOutput, createSuccessOutput } from '../schemas/final-output.js';
-import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import { safeJsonParse } from '../utils/parser.js';
 import { analyze, analyzeZeroLoss } from './analyzer.js';
 import { assembleResults, validateNoNewInformation } from './assembler.js';
@@ -735,11 +736,15 @@ export async function runZeroLossPipeline(filePath, options = {}) {
     enableP0Checks = true,
     enableConflictDetection = true,
     concurrency = 4,
+    docType: explicitDocType,
   } = options;
 
   const fileName = path.basename(filePath);
   const ext = path.extname(filePath).toLowerCase();
   const documentId = `doc_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  // Belge tipi tespiti (explicit > filename detection)
+  const docType = explicitDocType || detectDocTypeFromFilename(fileName) || null;
 
   // ZIP kontrolü
   if (ext === '.zip') {
@@ -750,6 +755,7 @@ export async function runZeroLossPipeline(filePath, options = {}) {
   logger.info('═══ ZERO-LOSS PIPELINE BAŞLADI ═══', {
     module: 'zero-loss',
     file: fileName,
+    docType: docType || 'unknown',
     extractionTypes,
     useMicroExtraction,
   });
@@ -946,15 +952,15 @@ export async function runZeroLossPipeline(filePath, options = {}) {
 
     logger.info('▶ Layer 6.5: FILL MISSING CRITICAL FIELDS başlıyor...', { module: 'zero-loss' });
 
-    // Kritik alanları kontrol et
-    let criticalValidation = validateCriticalFields(assembled);
+    // Kritik alanları kontrol et (docType ile filtrelenmiş)
+    let criticalValidation = validateCriticalFields(assembled, docType);
     logValidationResult(criticalValidation, 'post-assembly');
 
     // finalAssembled: Layer 6.5 sonrası kullanılacak obje
     let finalAssembled = assembled;
 
-    // Eksik kritik alanlar varsa doldurmaya çalış
-    if (!criticalValidation.valid && criticalValidation.missing.length > 0) {
+    // Eksik kritik alanlar varsa doldurmaya çalış (skipped=true ise atla)
+    if (!criticalValidation.skipped && !criticalValidation.valid && criticalValidation.missing.length > 0) {
       logger.info(`Found ${criticalValidation.missing.length} missing critical fields, attempting to fill...`, {
         module: 'zero-loss',
         missingFields: criticalValidation.missing.map((m) => m.field),
@@ -972,7 +978,7 @@ export async function runZeroLossPipeline(filePath, options = {}) {
       finalAssembled = await fillMissingFields(assembled, chunks, criticalValidation.missing, onProgress);
 
       // Re-validate
-      const revalidation = validateCriticalFields(finalAssembled);
+      const revalidation = validateCriticalFields(finalAssembled, docType);
       logValidationResult(revalidation, 'post-fill');
 
       logger.info('✓ Layer 6.5 tamamlandı', {
