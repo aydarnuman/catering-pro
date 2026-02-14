@@ -34,6 +34,7 @@ import { runZeroLossPipeline as runFallbackPipeline } from './pipeline/index.js'
 import { analyzeWithCustomModel, analyzeWithLayout, checkHealth } from './providers/azure-document-ai.js';
 import { createErrorOutput, createSuccessOutput } from './schemas/final-output.js';
 import { mergeResults } from './utils/merge-results.js';
+import { checkApiCircuit, reportApiError } from '../../utils/circuit-breaker.js';
 import { safeJsonParse } from './utils/parser.js';
 import { calculateCompleteness } from './utils/table-helpers.js';
 
@@ -280,6 +281,17 @@ export async function analyzeDocument(filePath, options = {}) {
 
       // Her eksik alan için focused extraction
       for (const { field, config } of criticalValidation.missing) {
+        // Circuit breaker kontrolü — tripped ise kalan alanları da atla
+        const circuit = checkApiCircuit();
+        if (!circuit.allowed) {
+          logger.warn('⛔ Pipeline durduruldu: Kritik alan doldurma atlanıyor (circuit breaker)', {
+            module: 'unified-pipeline',
+            reason: circuit.reason,
+            skippedField: field,
+          });
+          break;
+        }
+
         try {
           // Eksik alan doldurma - yeterli metin gönder (150K limit)
           const fillText =
@@ -317,6 +329,15 @@ export async function analyzeDocument(filePath, options = {}) {
             }
           }
         } catch (fillError) {
+          // Fatal hata kontrolü
+          if (reportApiError(fillError)) {
+            logger.error('⛔ Pipeline durduruldu: Kritik alan doldurma sırasında fatal API hatası', {
+              module: 'unified-pipeline',
+              field,
+              error: fillError.message,
+            });
+            break; // Kalan alanları da atla
+          }
           logger.warn(`Kritik alan doldurma hatası: ${field}`, {
             module: 'unified-pipeline',
             error: fillError.message,
@@ -764,6 +785,16 @@ ${fullJsonSchema}`;
   const MAX_ATTEMPTS = 2; // 1 deneme + 1 retry
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Circuit breaker kontrolü
+    const circuit = checkApiCircuit();
+    if (!circuit.allowed) {
+      logger.warn('⛔ Pipeline durduruldu: Claude API circuit breaker açık', {
+        module: 'unified-pipeline',
+        reason: circuit.reason,
+      });
+      return {};
+    }
+
     try {
       const response = await anthropic.messages.create({
         model: aiConfig.claude.analysisModel, // Opus 4 - derin belge analizi için
@@ -792,6 +823,15 @@ ${fullJsonSchema}`;
       await new Promise((resolve) => setTimeout(resolve, 2000));
       logger.info('Retrying Claude analysis due to JSON parse failure...');
     } catch (err) {
+      // Fatal hata kontrolü (credit balance vb.)
+      if (reportApiError(err)) {
+        logger.error('⛔ Pipeline durduruldu: Fatal API hatası', {
+          module: 'unified-pipeline',
+          error: err.message,
+        });
+        return {};
+      }
+
       logger.warn(`Claude analysis failed (attempt ${attempt}/${MAX_ATTEMPTS})`, { error: err.message });
 
       if (attempt >= MAX_ATTEMPTS) return {};

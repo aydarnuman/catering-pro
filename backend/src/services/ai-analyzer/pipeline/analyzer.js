@@ -18,6 +18,7 @@ import { getCorrectionHintsForPrompt } from '../../pipeline-learning-service.js'
 import { createTextHash, ensureValidJson } from '../controls/p0-checks.js';
 import { getPrompt } from '../prompts/index.js';
 import { createFinding } from '../schemas/chunk-output.js';
+import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import { safeJsonParse } from '../utils/parser.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -59,6 +60,24 @@ const STAGE2_PROMPT = ENHANCED_STAGE2_PROMPT;
 async function analyzeChunk(chunk, extractionType = 'full') {
   const startTime = Date.now();
   const chunkId = `chunk_${chunk.index}`;
+
+  // Circuit breaker kontrolü
+  const circuit = checkApiCircuit();
+  if (!circuit.allowed) {
+    logger.warn('⛔ Pipeline durduruldu: Chunk analizi atlanıyor (circuit breaker)', {
+      module: 'analyzer',
+      chunkId,
+      reason: circuit.reason,
+    });
+    return {
+      chunk_id: chunkId,
+      chunkIndex: chunk.index,
+      extractionType,
+      error: `Circuit breaker: ${circuit.reason}`,
+      extractedData: {},
+      findings: [],
+    };
+  }
 
   try {
     // Prompt seç
@@ -125,6 +144,7 @@ async function analyzeChunk(chunk, extractionType = 'full') {
       json_valid: isValid,
     };
   } catch (error) {
+    reportApiError(error); // Fatal ise circuit trip eder
     logger.error('Chunk analysis failed', {
       chunkIndex: chunk.index,
       extractionType,
@@ -506,6 +526,16 @@ Notlar: ${JSON.stringify(data.onemli_notlar || [])}
       ? summariesText.slice(0, maxInputLength) + '\n\n[... kısaltıldı ...]'
       : summariesText;
 
+  // Circuit breaker kontrolü
+  const circuit = checkApiCircuit();
+  if (!circuit.allowed) {
+    logger.warn('⛔ Pipeline durduruldu: Stage 2 synthesis atlanıyor (circuit breaker)', {
+      module: 'analyzer',
+      reason: circuit.reason,
+    });
+    throw new Error(`Circuit breaker: ${circuit.reason}`);
+  }
+
   try {
     const response = await anthropic.messages.create({
       model: aiConfig.claude.defaultModel, // Sonnet
@@ -564,6 +594,7 @@ Notlar: ${JSON.stringify(data.onemli_notlar || [])}
       },
     };
   } catch (error) {
+    reportApiError(error); // Fatal ise circuit trip eder
     logger.error('Stage 2 failed', { error: error.message });
     throw error;
   }
@@ -578,6 +609,16 @@ Notlar: ${JSON.stringify(data.onemli_notlar || [])}
 export async function analyze(chunks, onProgress) {
   // Küçük dökümanlar için tek aşama yeterli
   if (chunks.length <= 2) {
+    // Circuit breaker kontrolü
+    const circuit = checkApiCircuit();
+    if (!circuit.allowed) {
+      logger.warn('⛔ Pipeline durduruldu: Single-stage analiz atlanıyor (circuit breaker)', {
+        module: 'analyzer',
+        reason: circuit.reason,
+      });
+      return { parse_error: true, meta: { chunkCount: chunks.length, method: 'skipped-circuit-breaker' } };
+    }
+
     logger.info('Small document, using single-stage analysis', {
       chunkCount: chunks.length,
     });
@@ -585,25 +626,26 @@ export async function analyze(chunks, onProgress) {
     // Tüm içeriği birleştir ve direkt Sonnet ile analiz et
     const combinedContent = chunks.map((c) => c.content).join('\n\n---\n\n');
 
-    const response = await anthropic.messages.create({
-      model: aiConfig.claude.defaultModel,
-      max_tokens: 8192,
-      messages: [
-        {
-          role: 'user',
-          content: STAGE2_PROMPT.replace('PARÇA ANALİZLERİ:', 'DÖKÜMAN İÇERİĞİ:') + combinedContent,
-        },
-      ],
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: aiConfig.claude.defaultModel,
+        max_tokens: 8192,
+        messages: [
+          {
+            role: 'user',
+            content: STAGE2_PROMPT.replace('PARÇA ANALİZLERİ:', 'DÖKÜMAN İÇERİĞİ:') + combinedContent,
+          },
+        ],
+      });
+    } catch (error) {
+      reportApiError(error);
+      throw error;
+    }
 
     const responseText = response.content[0]?.text || '{}';
-    let result = {};
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      }
-    } catch {
+    let result = safeJsonParse(responseText) || {};
+    if (!result || Object.keys(result).length === 0) {
       result = { ozet: responseText.slice(0, 500) };
     }
 

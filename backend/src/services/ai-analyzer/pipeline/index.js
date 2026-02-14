@@ -24,6 +24,7 @@ import { applyResolutions, resolveConflicts } from '../controls/conflict-resolve
 import { findRelevantChunks, logValidationResult, validateCriticalFields } from '../controls/field-validator.js';
 import { createTextHash, runAllP0Checks } from '../controls/p0-checks.js';
 import { createErrorOutput, createSuccessOutput } from '../schemas/final-output.js';
+import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import { safeJsonParse } from '../utils/parser.js';
 import { analyze, analyzeZeroLoss } from './analyzer.js';
 import { assembleResults, validateNoNewInformation } from './assembler.js';
@@ -93,6 +94,17 @@ async function fillMissingFields(analysis, chunks, missingFields, _onProgress) {
   const filled = [];
 
   for (const { field, config } of missingFields) {
+    // Circuit breaker kontrolü — tripped ise kalan alanları da atla
+    const circuit = checkApiCircuit();
+    if (!circuit.allowed) {
+      logger.warn('⛔ Pipeline durduruldu: Fill-missing atlanıyor (circuit breaker)', {
+        module: 'fill-missing',
+        reason: circuit.reason,
+        skippedField: field,
+      });
+      break;
+    }
+
     logger.info(`▶ Filling missing field: ${field}`, { module: 'fill-missing' });
 
     // İlgili chunk'ları bul
@@ -105,7 +117,10 @@ async function fillMissingFields(analysis, chunks, missingFields, _onProgress) {
     }
 
     // Her relevant chunk için focused prompt ile dene
+    let fieldBreak = false;
     for (const chunk of relevantChunks) {
+      if (fieldBreak) break;
+
       try {
         const response = await anthropic.messages.create({
           model: aiConfig.claude.defaultModel, // Sonnet (daha güçlü)
@@ -147,12 +162,23 @@ async function fillMissingFields(analysis, chunks, missingFields, _onProgress) {
           }
         }
       } catch (err) {
+        // Fatal hata kontrolü
+        if (reportApiError(err)) {
+          logger.error('⛔ Pipeline durduruldu: Fill-missing sırasında fatal API hatası', {
+            module: 'fill-missing',
+            field,
+            error: err.message,
+          });
+          fieldBreak = true;
+          break;
+        }
         logger.warn(`Fill attempt failed for ${field}`, {
           module: 'fill-missing',
           error: err.message,
         });
       }
     }
+    if (fieldBreak) break;
   }
 
   logger.info(`Fill missing completed: ${filled.length}/${missingFields.length} fields filled`, {
@@ -220,6 +246,17 @@ async function ocrSinglePage(pagePath, pageIndex, totalPages, maxRetries = 3) {
   const mediaType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Circuit breaker kontrolü — tripped ise direkt Tesseract'a düş
+    const circuit = checkApiCircuit();
+    if (!circuit.allowed) {
+      logger.warn('⛔ Pipeline durduruldu: OCR Tesseract fallback (circuit breaker)', {
+        module: 'ocr',
+        pageIndex: pageIndex + 1,
+        reason: circuit.reason,
+      });
+      return ocrWithTesseract(pagePath, pageIndex);
+    }
+
     try {
       const response = await anthropic.messages.create({
         model: aiConfig.claude.defaultModel,
@@ -253,6 +290,16 @@ Sadece metni döndür, yorum veya açıklama ekleme.`,
       );
       return text;
     } catch (error) {
+      // Fatal hata kontrolü — credit balance vb.
+      if (reportApiError(error)) {
+        logger.error('⛔ Pipeline durduruldu: OCR sırasında fatal API hatası, Tesseract fallback', {
+          module: 'ocr',
+          pageIndex: pageIndex + 1,
+          error: error.message,
+        });
+        return ocrWithTesseract(pagePath, pageIndex);
+      }
+
       if (attempt === maxRetries) {
         logger.error(
           `    ✗ Sayfa ${pageIndex + 1} Claude Vision ${maxRetries} denemede başarısız, Tesseract fallback deneniyor...`,
@@ -385,38 +432,54 @@ async function performOcr(filePath, onProgress) {
 
   // Görsel dosyalar için direkt OCR
   if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+    // Circuit breaker kontrolü
+    const circuit = checkApiCircuit();
+    if (!circuit.allowed) {
+      logger.warn('⛔ Pipeline durduruldu: Görsel OCR atlanıyor (circuit breaker)', {
+        module: 'ocr',
+        reason: circuit.reason,
+      });
+      return '';
+    }
+
     logger.info('  Görsel OCR başlıyor...', { module: 'ocr', file: path.basename(filePath) });
     const imageData = fs.readFileSync(filePath);
     const base64Image = imageData.toString('base64');
     const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
 
-    const response = await anthropic.messages.create({
-      model: aiConfig.claude.defaultModel,
-      max_tokens: aiConfig.claude.maxTokens,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mimeType, data: base64Image },
-            },
-            {
-              type: 'text',
-              text: `Bu görüntüdeki TÜM metni oku ve aynen yaz.
+    try {
+      const response = await anthropic.messages.create({
+        model: aiConfig.claude.defaultModel,
+        max_tokens: aiConfig.claude.maxTokens,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mimeType, data: base64Image },
+              },
+              {
+                type: 'text',
+                text: `Bu görüntüdeki TÜM metni oku ve aynen yaz.
 El yazısı varsa dikkatli oku, okunaksız kısımları [okunamadı] olarak işaretle.
 Tablo varsa yapısını koru (| ile ayır).
 Form alanları varsa "Alan: Değer" formatında yaz.
 Türkçe karakterleri doğru kullan (ş, ğ, ü, ö, ç, ı).
 Sadece metni döndür, yorum veya açıklama ekleme.`,
-            },
-          ],
-        },
-      ],
-    });
+              },
+            ],
+          },
+        ],
+      });
 
-    logger.info('  ✓ Görsel OCR tamamlandı', { module: 'ocr' });
-    return response.content[0]?.text || '';
+      logger.info('  ✓ Görsel OCR tamamlandı', { module: 'ocr' });
+      return response.content[0]?.text || '';
+    } catch (error) {
+      reportApiError(error);
+      logger.error('Görsel OCR hatası', { module: 'ocr', error: error.message });
+      return '';
+    }
   }
 
   return '';

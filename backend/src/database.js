@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { checkDbCircuit, reportDbError, reportDbSuccess } from './utils/circuit-breaker.js';
 import logger from './utils/logger.js';
 
 // Not: .env dosyasi server.js icindeki env-loader.js tarafindan yukleniyor
@@ -115,10 +116,25 @@ const SLOW_QUERY_THRESHOLD = parseInt(process.env.SLOW_QUERY_THRESHOLD || '1000'
 // ============================================================
 
 export async function query(text, params) {
+  // Circuit breaker kontrolu — pause durumunda sorguyu engelle
+  const circuit = checkDbCircuit();
+  if (!circuit.allowed) {
+    logger.warn('⛔ Pipeline durduruldu: DB sorgusu atlanıyor (circuit breaker)', {
+      reason: circuit.reason,
+      sorgu: text.substring(0, 100),
+    });
+    const cbError = new Error(`DB Circuit Breaker: ${circuit.reason}`);
+    cbError.code = 'CIRCUIT_BREAKER';
+    throw cbError;
+  }
+
   const start = Date.now();
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
+
+    // Basarili sorgu — timeout sayacini sifirla
+    reportDbSuccess();
 
     // Yavas sorgu uyarisi (1000ms+ varsayilan)
     if (duration > SLOW_QUERY_THRESHOLD) {
@@ -137,6 +153,9 @@ export async function query(text, params) {
     return res;
   } catch (error) {
     const duration = Date.now() - start;
+
+    // Circuit breaker'a hatayi bildir (timeout ise sayaci arttirir)
+    reportDbError(error);
 
     // Baglanti hatalarini ozel olarak logla
     const isConnectionError = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', '57P01', '57P03'].includes(
