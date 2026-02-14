@@ -559,20 +559,49 @@ function EditableListRenderer({
   editable: boolean;
 }) {
   const [editValue, setEditValue] = useState('');
+  const [originalItem, setOriginalItem] = useState<unknown>(null);
 
   const startEdit = (index: number, item: unknown) => {
     const text = getItemDisplayText(item, cardType);
     setEditValue(text);
+    setOriginalItem(item);
     onEditItem(index);
   };
 
+  // Obje yapısını koruyarak sadece ana metin alanını güncelle
   const saveEdit = (index: number) => {
-    onUpdateItem(index, editValue);
+    if (typeof originalItem === 'object' && originalItem !== null) {
+      const obj = originalItem as Record<string, unknown>;
+      // Ana metin alanını belirle ve güncelle
+      const textField = obj.madde !== undefined ? 'madde'
+        : obj.text !== undefined ? 'text'
+        : obj.description !== undefined ? 'description'
+        : obj.not !== undefined ? 'not'
+        : obj.kalem !== undefined ? 'kalem'
+        : obj.aciklama !== undefined ? 'aciklama'
+        : obj.pozisyon !== undefined ? 'pozisyon'
+        : obj.tur !== undefined ? 'tur'
+        : obj.olay !== undefined ? 'olay'
+        : obj.belge !== undefined ? 'belge'
+        : null;
+      
+      if (textField) {
+        onUpdateItem(index, { ...obj, [textField]: editValue });
+      } else {
+        // Hiçbir alan eşleşmezse string olarak kaydet
+        onUpdateItem(index, editValue);
+      }
+    } else {
+      // String ise direkt string olarak kaydet
+      onUpdateItem(index, editValue);
+    }
+    setOriginalItem(null);
   };
 
   const cancelEdit = () => {
     onEditItem(null);
     setEditValue('');
+    setOriginalItem(null);
   };
 
   return (
@@ -659,9 +688,9 @@ function EditableTableRenderer({
   cardType,
   selectedItems,
   onToggleSelect,
-  editingItem: _editingItem,
-  onEditItem: _onEditItem,
-  onUpdateItem: _onUpdateItem,
+  editingItem,
+  onEditItem,
+  onUpdateItem,
   editable,
 }: {
   items: unknown[];
@@ -673,6 +702,8 @@ function EditableTableRenderer({
   onUpdateItem: (index: number, newValue: unknown) => void;
   editable: boolean;
 }) {
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
   // items boş ise
   if (items.length === 0) {
     return (
@@ -697,6 +728,38 @@ function EditableTableRenderer({
     return [{ key: 'value', label: 'Değer' }];
   })();
 
+  const startEdit = (index: number, item: unknown) => {
+    const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+    const values: Record<string, string> = {};
+    for (const col of columns) {
+      values[col.key] = obj[col.key] != null ? String(obj[col.key]) : '';
+    }
+    setEditValues(values);
+    onEditItem(index);
+  };
+
+  const saveEdit = (index: number, originalItem: unknown) => {
+    const obj = (typeof originalItem === 'object' && originalItem !== null ? originalItem : {}) as Record<string, unknown>;
+    const updatedItem = { ...obj };
+    for (const col of columns) {
+      const value = editValues[col.key];
+      // Sayı alanları için number'a dönüştür
+      if (col.align === 'right' && value) {
+        const num = Number(value.replace(/[^\d,.]/g, '').replace(',', '.'));
+        updatedItem[col.key] = Number.isNaN(num) ? value : num;
+      } else {
+        updatedItem[col.key] = value;
+      }
+    }
+    onUpdateItem(index, updatedItem);
+    setEditValues({});
+  };
+
+  const cancelEdit = () => {
+    onEditItem(null);
+    setEditValues({});
+  };
+
   return (
     <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
       <Table.Thead>
@@ -708,39 +771,62 @@ function EditableTableRenderer({
               {col.label}
             </Table.Th>
           ))}
-          {editable && <Table.Th w={60}></Table.Th>}
+          {editable && <Table.Th w={80}>İşlem</Table.Th>}
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
         {items.map((item, i) => {
           const isSelected = selectedItems.has(i);
+          const isEditing = editingItem === i;
           const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
-          const rowKey = obj.id ? String(obj.id) : `row-${JSON.stringify(Object.values(obj).slice(0, 3)).slice(0, 50)}`;
+          const rowKey = obj.id ? String(obj.id) : `row-${i}-${JSON.stringify(Object.values(obj).slice(0, 2)).slice(0, 30)}`;
+          
           return (
             <Table.Tr
               key={`etr-${rowKey}`}
-              style={{ background: isSelected ? 'var(--mantine-color-dark-6)' : undefined }}
+              style={{ background: isSelected ? 'var(--mantine-color-dark-6)' : isEditing ? 'var(--mantine-color-blue-light)' : undefined }}
             >
               {editable && (
                 <Table.Td>
-                  <Checkbox size="xs" checked={isSelected} onChange={() => onToggleSelect(i)} />
+                  <Checkbox size="xs" checked={isSelected} onChange={() => onToggleSelect(i)} disabled={isEditing} />
                 </Table.Td>
               )}
               <Table.Td>
-                <Badge size="xs" variant="light" color="gray">
+                <Badge size="xs" variant="light" color={isEditing ? 'blue' : 'gray'}>
                   {i + 1}
                 </Badge>
               </Table.Td>
               {columns.map((col) => (
                 <Table.Td key={`${rowKey}-${col.key}`} style={{ textAlign: col.align || 'left' }}>
-                  {formatCellValue(obj[col.key])}
+                  {isEditing ? (
+                    <TextInput
+                      size="xs"
+                      value={editValues[col.key] || ''}
+                      onChange={(e) => setEditValues({ ...editValues, [col.key]: e.target.value })}
+                      style={{ minWidth: 80 }}
+                      styles={{ input: { textAlign: col.align || 'left' } }}
+                    />
+                  ) : (
+                    formatCellValue(obj[col.key])
+                  )}
                 </Table.Td>
               ))}
               {editable && (
                 <Table.Td>
-                  <ActionIcon size="xs" variant="subtle" color="gray">
-                    <IconEdit size={12} />
-                  </ActionIcon>
+                  {isEditing ? (
+                    <Group gap={4} wrap="nowrap">
+                      <ActionIcon size="xs" variant="filled" color="green" onClick={() => saveEdit(i, item)}>
+                        <IconCheck size={12} />
+                      </ActionIcon>
+                      <ActionIcon size="xs" variant="subtle" color="gray" onClick={cancelEdit}>
+                        <IconX size={12} />
+                      </ActionIcon>
+                    </Group>
+                  ) : (
+                    <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => startEdit(i, item)}>
+                      <IconEdit size={12} />
+                    </ActionIcon>
+                  )}
                 </Table.Td>
               )}
             </Table.Tr>
