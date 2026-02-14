@@ -9,3 +9,4 @@ out/
 *.tsbuildinfo
 .env.local
 .env.production
+tsconfig.tsbuildinfo
