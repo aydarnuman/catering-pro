@@ -20,6 +20,7 @@ import ihaleAgentService from '../services/ihale-agent-service.js';
 import { invalidatePastLearningCache } from '../services/ihale-past-learning-service.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import SettingsVersionService from '../services/settings-version-service.js';
+import { createAnthropicClient } from '../utils/anthropic-client.js';
 import logger from '../utils/logger.js';
 import {
   buildToolPrompt,
@@ -2693,9 +2694,7 @@ router.post('/ihale-masasi/match-ingredients', optionalAuth, async (req, res) =>
     const itemList = [...uniqueItems];
     const katalog = urunler.map((u) => ({ id: u.id, ad: u.ad }));
 
-    const aiClient = new (await import('@anthropic-ai/sdk')).default({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const aiClient = await createAnthropicClient();
 
     const aiResponse = await aiClient.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -3124,9 +3123,7 @@ router.post('/card-transform', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Geçersiz transform_type' });
     }
 
-    const aiClient = new (await import('@anthropic-ai/sdk')).default({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const aiClient = await createAnthropicClient();
 
     const aiResponse = await aiClient.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -3199,9 +3196,7 @@ ${JSON.stringify(analysis_summary, null, 2)}
 
 Lütfen bu verileri çapraz kontrol et ve bulgularını raporla.`;
 
-    const aiClient = new (await import('@anthropic-ai/sdk')).default({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const aiClient = await createAnthropicClient();
 
     const message = await aiClient.messages.create({
       model: 'claude-sonnet-4-20250514',
