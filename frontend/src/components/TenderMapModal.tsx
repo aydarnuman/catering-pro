@@ -158,6 +158,7 @@ interface TenderMapModalProps {
   opened: boolean;
   onClose: () => void;
   tenders: Tender[];
+  onSelectTender?: (tender: Tender) => void;
 }
 
 interface CityTenderGroup {
@@ -242,7 +243,7 @@ function LeafletMap({
   return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
 }
 
-export default function TenderMapModal({ opened, onClose, tenders: initialTenders }: TenderMapModalProps) {
+export default function TenderMapModal({ opened, onClose, tenders: initialTenders, onSelectTender }: TenderMapModalProps) {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [mapKey, setMapKey] = useState(0);
   const [allTenders, setAllTenders] = useState<Tender[]>([]);
@@ -504,7 +505,14 @@ export default function TenderMapModal({ opened, onClose, tenders: initialTender
                           borderColor: tender.status === 'active' ? 'rgba(34, 197, 94, 0.4)' : 'var(--surface-border)',
                           cursor: 'pointer',
                         }}
-                        onClick={() => window.open(`/tenders/${tender.id}`, '_blank')}
+                        onClick={() => {
+                          if (onSelectTender) {
+                            onClose();
+                            onSelectTender(tender);
+                          } else {
+                            window.open(`/ihale-merkezi?tender=${tender.id}`, '_blank');
+                          }
+                        }}
                       >
                         <Stack gap={4}>
                           <Group justify="space-between" wrap="nowrap">
@@ -515,6 +523,12 @@ export default function TenderMapModal({ opened, onClose, tenders: initialTender
                               {formatDate(tender.tender_date || tender.deadline)}
                             </Text>
                           </Group>
+
+                          {(tender.organization || tender.organization_name) && (
+                            <Text size="xs" c="gray.5" lineClamp={1}>
+                              {tender.organization || tender.organization_name}
+                            </Text>
+                          )}
 
                           <Text size="xs" fw={500} lineClamp={2} c="white">
                             {tender.title}

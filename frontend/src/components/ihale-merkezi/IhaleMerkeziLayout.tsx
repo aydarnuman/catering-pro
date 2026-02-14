@@ -243,6 +243,7 @@ function IhaleMerkeziLayoutInner() {
           opened={state.mapModalOpen}
           onClose={() => updateState({ mapModalOpen: false })}
           tenders={state.allTenders}
+          onSelectTender={selectTender}
         />
 
         {state.selectedTender && 'tender_id' in state.selectedTender && (
@@ -329,6 +330,7 @@ function IhaleMerkeziLayoutInner() {
         opened={state.mapModalOpen}
         onClose={() => updateState({ mapModalOpen: false })}
         tenders={state.allTenders}
+        onSelectTender={selectTender}
       />
 
       {state.selectedTender && 'tender_id' in state.selectedTender && (

@@ -18,10 +18,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconBrain,
-  IconCards,
-  IconCheck,
   IconCopy,
-  IconExternalLink,
   IconList,
   IconNote,
   IconPackage,
@@ -434,72 +431,73 @@ export function RightPanel({
           </Box>
         ) : (
           <Stack gap="md" mx="xs" mt="xs">
-            {/* ═══ Analiz Merkezi Ana Butonu ════════════════════ */}
+            {/* ═══ Analiz Merkezi ═══════════════════════════════════ */}
             <Paper
               p="md"
-              radius="md"
+              radius="lg"
               style={{
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: 'linear-gradient(145deg, rgba(30, 27, 45, 0.95) 0%, rgba(24, 24, 37, 0.98) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.12)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
+                cursor: 'pointer',
               }}
+              onClick={() => setAnalysisCenterOpened(true)}
             >
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Group gap="sm">
-                    <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
-                      <IconBrain size={20} />
-                    </ThemeIcon>
-                    <Box>
-                      <Text size="sm" fw={600}>
-                        Analiz Merkezi
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        AI analiz, özel kartlar ve notlarınız tek yerde
-                      </Text>
-                    </Box>
+              <Stack gap="md">
+                <Group gap="md" wrap="nowrap" align="flex-start">
+                  <Box
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.15) 100%)',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                    }}
+                  >
+                    <IconBrain size={22} style={{ color: 'var(--mantine-color-violet-4)' }} stroke={1.5} />
+                  </Box>
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="sm" fw={600} c="white" lh={1.3}>
+                      Analiz Merkezi
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4} lh={1.4}>
+                      AI analiz, özel kartlar ve notlarınız tek yerde
+                    </Text>
+                  </Box>
+                </Group>
+
+                {(hasAnalysis || tenderCards.length > 0 || paketiNotes.length > 0 || correctionCount > 0 || isConfirmed) && (
+                  <Group gap={6} wrap="wrap">
+                    {hasAnalysis && (
+                      <Badge size="xs" variant="subtle" color="violet" radius="sm">
+                        AI Analiz
+                      </Badge>
+                    )}
+                    {tenderCards.length > 0 && (
+                      <Badge size="xs" variant="subtle" color="pink" radius="sm">
+                        {tenderCards.length} Kart
+                      </Badge>
+                    )}
+                    {paketiNotes.length > 0 && (
+                      <Badge size="xs" variant="subtle" color="teal" radius="sm">
+                        {paketiNotes.length} Not
+                      </Badge>
+                    )}
+                    {correctionCount > 0 && (
+                      <Badge size="xs" variant="subtle" color="yellow" radius="sm">
+                        {correctionCount} düzeltme
+                      </Badge>
+                    )}
+                    {isConfirmed && (
+                      <Badge size="xs" variant="subtle" color="green" radius="sm">
+                        Onaylı
+                      </Badge>
+                    )}
                   </Group>
-                </Group>
-
-                {/* Stats */}
-                <Group gap="xs">
-                  {hasAnalysis && (
-                    <Badge size="sm" variant="light" color="violet" leftSection={<IconBrain size={10} />}>
-                      AI Analiz
-                    </Badge>
-                  )}
-                  {tenderCards.length > 0 && (
-                    <Badge size="sm" variant="light" color="pink" leftSection={<IconCards size={10} />}>
-                      {tenderCards.length} Kart
-                    </Badge>
-                  )}
-                  {paketiNotes.length > 0 && (
-                    <Badge size="sm" variant="light" color="teal" leftSection={<IconNote size={10} />}>
-                      {paketiNotes.length} Not
-                    </Badge>
-                  )}
-                  {correctionCount > 0 && (
-                    <Badge size="sm" variant="light" color="yellow">
-                      {correctionCount} düzeltme
-                    </Badge>
-                  )}
-                  {isConfirmed && (
-                    <Badge size="sm" variant="light" color="green" leftSection={<IconCheck size={10} />}>
-                      Onaylı
-                    </Badge>
-                  )}
-                </Group>
-
-                <Button
-                  variant="gradient"
-                  gradient={{ from: 'violet', to: 'indigo' }}
-                  size="md"
-                  leftSection={<IconExternalLink size={18} />}
-                  onClick={() => setAnalysisCenterOpened(true)}
-                  fullWidth
-                  style={{ boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
-                >
-                  Analiz Merkezi&apos;ni Aç
-                </Button>
+                )}
               </Stack>
             </Paper>
 
@@ -593,41 +591,6 @@ export function RightPanel({
                 </ActionIcon>
               </Group>
             </Paper>
-
-            {/* ═══ Seçim Özeti ══════════════════════════════════ */}
-            {(selectedAnalysisCards.size > 0 || selectedUserCards.size > 0 || selectedNotes.size > 0) && (
-              <Paper
-                p="sm"
-                radius="md"
-                style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-              >
-                <Group justify="space-between" mb="xs">
-                  <Text size="xs" fw={500}>
-                    Seçili Öğeler
-                  </Text>
-                  <Badge size="sm" variant="light" color="blue">
-                    {selectedAnalysisCards.size + selectedUserCards.size + selectedNotes.size} seçili
-                  </Badge>
-                </Group>
-                <Group gap="xs">
-                  {selectedAnalysisCards.size > 0 && (
-                    <Badge size="xs" variant="dot" color="violet">
-                      {selectedAnalysisCards.size} analiz
-                    </Badge>
-                  )}
-                  {selectedUserCards.size > 0 && (
-                    <Badge size="xs" variant="dot" color="pink">
-                      {selectedUserCards.size} kart
-                    </Badge>
-                  )}
-                  {selectedNotes.size > 0 && (
-                    <Badge size="xs" variant="dot" color="teal">
-                      {selectedNotes.size} not
-                    </Badge>
-                  )}
-                </Group>
-              </Paper>
-            )}
           </Stack>
         )}
       </ScrollArea>
@@ -641,10 +604,13 @@ export function RightPanel({
             borderTop: '1px solid var(--mantine-color-default-border)',
             flexShrink: 0,
             background: 'rgba(24, 24, 27, 0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
           }}
         >
           {/* Selection Summary */}
-          <Stack gap={4} mb="xs">
+          <Stack gap={4} mb="xs" align="flex-end">
             <Text size="xs" c="dimmed">
               ✓ {selectedAnalysisCards.size} analiz kartı
             </Text>
@@ -661,7 +627,6 @@ export function RightPanel({
             variant="gradient"
             gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
             leftSection={<IconSend size={16} />}
-            fullWidth
             size="sm"
             loading={isSendingToMasa}
             disabled={selectedAnalysisCards.size + selectedUserCards.size + selectedNotes.size === 0}

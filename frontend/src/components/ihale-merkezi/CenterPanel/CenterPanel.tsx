@@ -35,6 +35,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import RaporMerkeziModal from '@/components/rapor-merkezi/RaporMerkeziModal';
 import { formatDate } from '@/lib/formatters';
+import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
 import { DocumentWizardModal } from '../DocumentWizardModal';
 import type { IhaleMerkeziState, SavedTender, TenderStatus } from '../types';
@@ -227,15 +228,44 @@ export function CenterPanel({ state, onUpdateStatus, onRefreshData, onTextSelect
               borderColor: 'var(--mantine-color-blue-5)',
             }}
           >
-            <ThemeIcon size={50} variant="light" color="blue" radius="xl" mx="auto" mb="md">
-              <IconBookmark size={24} />
-            </ThemeIcon>
-            <Text size="md" fw={600}>
-              İhaleyi Takip Et
-            </Text>
-            <Text size="sm" c="dimmed" mt="xs">
-              Döküman indirmek ve analiz yapmak için önce ihaleyi takip listesine ekleyin
-            </Text>
+            <Stack align="center" gap="md">
+              <ThemeIcon size={50} variant="light" color="blue" radius="xl">
+                <IconBookmark size={24} />
+              </ThemeIcon>
+              <Text size="md" fw={600}>
+                İhaleyi Takip Et
+              </Text>
+              <Text size="sm" c="dimmed">
+                Döküman indirmek ve analiz yapmak için önce ihaleyi takip listesine ekleyin
+              </Text>
+              <Button
+                variant="filled"
+                color="blue"
+                size="md"
+                leftSection={<IconBookmark size={18} />}
+                onClick={async () => {
+                  try {
+                    await tendersAPI.addTracking(Number(selectedTender.id));
+                    notifications.show({
+                      title: 'Takibe Eklendi',
+                      message: 'İhale takip listesine eklendi',
+                      color: 'green',
+                      autoClose: 2000,
+                    });
+                    onRefreshData?.();
+                  } catch (error) {
+                    console.error('Takibe ekleme hatası:', error);
+                    notifications.show({
+                      title: 'Hata',
+                      message: 'İhale takibe eklenemedi',
+                      color: 'red',
+                    });
+                  }
+                }}
+              >
+                Takip Listesine Ekle
+              </Button>
+            </Stack>
           </Paper>
         </ScrollArea>
       </Box>

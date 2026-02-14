@@ -112,23 +112,23 @@ export default function RaporMerkeziModal({ opened, onClose, module, context = {
 
   // Filtrelenmiş raporlar
   const filteredModules = useMemo(() => {
-    if (!catalog) return [];
-    if (!searchQuery.trim()) return catalog.modules;
+    const modules = catalog?.modules ?? [];
+    if (!searchQuery.trim()) return modules;
 
     const q = searchQuery.toLowerCase();
-    return catalog.modules
+    return modules
       .map((mod) => ({
         ...mod,
-        reports: mod.reports.filter(
-          (r) => r.label.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
+        reports: (mod.reports ?? []).filter(
+          (r) => r?.label?.toLowerCase().includes(q) || r?.description?.toLowerCase().includes(q)
         ),
       }))
-      .filter((mod) => mod.reports.length > 0);
+      .filter((mod) => (mod.reports?.length ?? 0) > 0);
   }, [catalog, searchQuery]);
 
   // Toplam rapor sayısı
   const totalReports = useMemo(() => {
-    return filteredModules.reduce((sum, m) => sum + m.reports.length, 0);
+    return (filteredModules ?? []).reduce((sum, m) => sum + (m.reports?.length ?? 0), 0);
   }, [filteredModules]);
 
   // Tüm raporları seç/kaldır
@@ -137,8 +137,8 @@ export default function RaporMerkeziModal({ opened, onClose, module, context = {
       setSelectedReports(new Set());
     } else {
       const all = new Set<string>();
-      for (const m of filteredModules) {
-        for (const r of m.reports) {
+      for (const m of filteredModules ?? []) {
+        for (const r of m.reports ?? []) {
           all.add(r.id);
         }
       }
@@ -617,8 +617,8 @@ export default function RaporMerkeziModal({ opened, onClose, module, context = {
               {/* Rapor listesi */}
               <ScrollArea style={{ flex: 1 }} p="xs">
                 <Stack gap="xs">
-                  {filteredModules.map(renderModuleGroup)}
-                  {filteredModules.length === 0 && (
+                  {(filteredModules ?? []).map(renderModuleGroup)}
+                  {(filteredModules ?? []).length === 0 && (
                     <Text size="sm" c="dimmed" ta="center" py="xl">
                       Rapor bulunamadı
                     </Text>

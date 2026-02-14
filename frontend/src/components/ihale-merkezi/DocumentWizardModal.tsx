@@ -146,6 +146,7 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
 
   // Step statuses (2 steps: Download, Analyze)
   const [step1Status, setStep1Status] = useState<StepStatus>({ status: 'idle' }); // Download
+  const [step1FailedDetails, setStep1FailedDetails] = useState<Array<{ docType: string; error: string }>>([]);
   const [step2Status, setStep2Status] = useState<StepStatus>({ status: 'idle' }); // Analyze
 
   // Analysis progress (basit - backward compat)
@@ -234,6 +235,7 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
     if (!opened) {
       setActiveStep(0);
       setStep1Status({ status: 'idle' }); // Download
+      setStep1FailedDetails([]);
       setStep2Status({ status: 'idle' }); // Analyze
       setSelectedForAnalysis(new Set());
       setAnalysisProgress(null);
@@ -245,6 +247,7 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
   // ========== STEP 1: DOWNLOAD DOCUMENTS ==========
 
   const handleDownloadDocuments = async () => {
+    setStep1FailedDetails([]);
     setStep1Status({ status: 'loading', message: 'Site içerikleri çekiliyor... (bu işlem birkaç dakika sürebilir)' });
 
     // Scraper işlemi uzun sürebilir (5-10 dk), 10 dakika timeout
@@ -280,34 +283,65 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
       const result = await tendersAPI.downloadTenderDocuments(tenderId);
 
       if (result.success) {
-        const downloadedCount = result.data?.totalDownloaded || 0;
-        const skippedCount = result.data?.skipped?.length || 0;
-        const successCount = result.data?.success?.length || 0;
+        const data = result.data || {};
+        // merkezScraper returns: downloaded[], contentScraped[], failed[], skipped[]
+        const downloadedCount = data.downloaded?.length ?? data.totalDownloaded ?? 0;
+        const contentCount = data.contentScraped?.length ?? 0;
+        const skippedCount = data.skipped?.length ?? 0;
+        const failedCount = data.failed?.length ?? 0;
 
         // Refresh documents first to get accurate count
         await fetchAllDocuments();
 
         // Build message
         let message = '';
-        if (downloadedCount > 0) {
-          message = `${downloadedCount} yeni döküman indirildi`;
+        if (downloadedCount > 0 || contentCount > 0) {
+          const parts = [];
+          if (downloadedCount > 0) parts.push(`${downloadedCount} dosya indirildi`);
+          if (contentCount > 0) parts.push(`${contentCount} içerik alındı`);
+          message = parts.join(', ');
+          if (failedCount > 0) {
+            message += ` • ${failedCount} döküman indirilemedi`;
+          }
         } else if (skippedCount > 0) {
-          message = `Dökümanlar zaten mevcut (${skippedCount} dosya)`;
-        } else if (successCount > 0) {
-          message = `${successCount} döküman grubu işlendi`;
+          message = `Dökümanlar zaten mevcut (${skippedCount} atlandı)`;
+          if (failedCount > 0) {
+            message += ` • ${failedCount} başarısız`;
+          }
+        } else if (failedCount > 0) {
+          message = `${failedCount} döküman indirilemedi. Lütfen tekrar deneyin veya manuel ekleyin.`;
+        } else if (data.message === 'Buton linki bulunamadı') {
+          message = 'Bu ihale için döküman linki bulunamadı. Manuel döküman ekleyebilirsiniz.';
         } else {
           message = 'İşlem tamamlandı';
         }
 
-        setStep1Status({
-          status: 'success',
-          message,
-        });
+        const stepStatus =
+          data.message === 'Buton linki bulunamadı' ||
+          (failedCount > 0 && downloadedCount === 0 && contentCount === 0)
+            ? 'error'
+            : 'success';
 
+        setStep1FailedDetails(
+          (data.failed ?? []).map((f: { docType?: string; error?: string }) => ({
+            docType: f.docType ?? 'unknown',
+            error: f.error ?? 'Bilinmeyen hata',
+          }))
+        );
+        setStep1Status({ status: stepStatus, message });
+
+        const hasSuccess = downloadedCount > 0 || contentCount > 0 || skippedCount > 0;
         notifications.show({
-          title: 'İndirme Tamamlandı',
-          message: downloadedCount > 0 ? `${downloadedCount} döküman başarıyla indirildi` : 'Dökümanlar zaten mevcut',
-          color: 'green',
+          title: failedCount > 0 ? (hasSuccess ? 'Kısmi İndirme' : 'İndirme Başarısız') : 'İndirme Tamamlandı',
+          message:
+            failedCount > 0
+              ? hasSuccess
+                ? `${downloadedCount + contentCount} işlendi, ${failedCount} başarısız`
+                : `${failedCount} döküman indirilemedi`
+              : downloadedCount > 0 || contentCount > 0
+                ? `${downloadedCount + contentCount} döküman başarıyla işlendi`
+                : 'Dökümanlar zaten mevcut',
+          color: failedCount > 0 ? (hasSuccess ? 'yellow' : 'red') : 'green',
         });
       } else {
         throw new Error(result.error || 'Bilinmeyen hata');
@@ -1053,6 +1087,18 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
                           {step1Status.message}
                         </Text>
                       </Group>
+                    )}
+                    {step1FailedDetails.length > 0 && (
+                      <Stack gap={4} mt="xs">
+                        <Text size="xs" c="red" fw={500}>
+                          Hata detayı (log):
+                        </Text>
+                        {step1FailedDetails.map((f, i) => (
+                          <Text key={`${f.docType}-${f.error.slice(0, 40)}-${i}`} size="xs" c="dimmed" component="div">
+                            • {getDocTypeLabel(f.docType)}: {f.error}
+                          </Text>
+                        ))}
+                      </Stack>
                     )}
                   </Stack>
                 </Paper>

@@ -211,11 +211,22 @@ export function LeftPanel({
           width: 50,
           paddingTop: 8,
           gap: 8,
+          cursor: 'pointer',
         }}
+        onClick={() => onToggleCollapse?.()}
       >
         {/* Toggle expand button */}
         <Tooltip label="Paneli Aç" position="right" withArrow>
-          <ActionIcon variant="subtle" color="gray" size="lg" onClick={onToggleCollapse} style={{ borderRadius: 8 }}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse?.();
+            }}
+            style={{ borderRadius: 8 }}
+          >
             <IconChevronRight size={18} />
           </ActionIcon>
         </Tooltip>
@@ -226,7 +237,8 @@ export function LeftPanel({
             variant="subtle"
             color="gray"
             size="lg"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onToggleCollapse?.();
             }}
             style={{ borderRadius: 8 }}
@@ -244,7 +256,8 @@ export function LeftPanel({
               color="blue"
               circle
               style={{ cursor: 'pointer' }}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onToggleCollapse?.();
                 onStateChange({ activeTab: 'tracked' });
               }}
@@ -256,7 +269,16 @@ export function LeftPanel({
 
         {/* Refresh icon */}
         <Tooltip label="Yenile" position="right" withArrow>
-          <ActionIcon variant="subtle" color="gray" size="lg" onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRefresh();
+            }}
+            style={{ borderRadius: 8 }}
+          >
             <IconRefresh size={16} />
           </ActionIcon>
         </Tooltip>
@@ -309,7 +331,7 @@ export function LeftPanel({
         backdropFilter: 'blur(8px)',
       }}
     >
-      {/* Collapse button (shown when panel is open) */}
+      {/* Collapse bar (shown when panel is open) - tıklanınca panel kapanır */}
       {!isMobile && onToggleCollapse && (
         <Box
           p={4}
@@ -317,10 +339,12 @@ export function LeftPanel({
             borderBottom: '1px solid var(--mantine-color-default-border)',
             display: 'flex',
             justifyContent: 'flex-end',
+            cursor: 'pointer',
           }}
+          onClick={() => onToggleCollapse?.()}
         >
           <Tooltip label="Paneli Kapat" position="left" withArrow>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={onToggleCollapse}>
+            <ActionIcon variant="subtle" color="gray" size="sm" component="div">
               <IconChevronLeft size={14} />
             </ActionIcon>
           </Tooltip>
