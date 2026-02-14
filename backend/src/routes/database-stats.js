@@ -78,12 +78,12 @@ router.get('/admin-stats', async (_req, res) => {
 
     const tableQueries = [
       { ad: 'cariler', sql: 'SELECT COUNT(*) as c FROM cariler' },
-      { ad: 'personel', sql: 'SELECT COUNT(*) as c FROM personel' },
+      { ad: 'personeller', sql: 'SELECT COUNT(*) as c FROM personeller' },
       { ad: 'invoices', sql: 'SELECT COUNT(*) as c FROM invoices' },
       { ad: 'tenders', sql: 'SELECT COUNT(*) as c FROM tenders' },
       { ad: 'stok_kartlari', sql: 'SELECT COUNT(*) as c FROM stok_kartlari' },
-      { ad: 'kasa_banka', sql: 'SELECT COUNT(*) as c FROM kasa_banka' },
-      { ad: 'demirbas', sql: 'SELECT COUNT(*) as c FROM demirbas' },
+      { ad: 'kasa_banka_hesaplari', sql: 'SELECT COUNT(*) as c FROM kasa_banka_hesaplari' },
+      { ad: 'demirbaslar', sql: 'SELECT COUNT(*) as c FROM demirbaslar' },
       { ad: 'users', sql: 'SELECT COUNT(*) as c FROM users' },
     ];
 
@@ -130,7 +130,7 @@ router.get('/admin-stats', async (_req, res) => {
     const todayCari = await safeQuery(`SELECT COUNT(*) as c FROM cariler WHERE DATE(created_at) = CURRENT_DATE`, [
       { c: 0 },
     ]);
-    const todayPersonel = await safeQuery(`SELECT COUNT(*) as c FROM personel WHERE DATE(created_at) = CURRENT_DATE`, [
+    const todayPersonel = await safeQuery(`SELECT COUNT(*) as c FROM personeller WHERE DATE(created_at) = CURRENT_DATE`, [
       { c: 0 },
     ]);
 

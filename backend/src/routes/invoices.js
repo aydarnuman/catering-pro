@@ -19,7 +19,7 @@ const router = express.Router();
  * GET /api/invoices/stats
  * Dashboard widget için fatura istatistikleri
  */
-router.get('/stats', async (_req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const result = await query(`
       SELECT 

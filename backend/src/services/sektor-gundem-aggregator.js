@@ -147,27 +147,27 @@ const ISTIHBARAT_KATEGORILERI = [
     },
     db: {
       query: `SELECT
-                urun_adi, birim, fiyat, kaynak, tarih
+                urun_adi, birim_tipi, piyasa_fiyat_ort, kaynaklar, arastirma_tarihi
               FROM piyasa_fiyat_gecmisi
-              WHERE tarih > NOW() - INTERVAL '7 days'
-              ORDER BY tarih DESC LIMIT 15`,
+              WHERE arastirma_tarihi > NOW() - INTERVAL '7 days'
+              ORDER BY arastirma_tarihi DESC LIMIT 15`,
       mapFn: (rows) => {
         if (!rows.length) return [];
         // Fiyat verilerini özet olarak döndür
         const urunSayisi = new Set(rows.map((r) => r.urun_adi)).size;
-        const kaynaklar = [...new Set(rows.map((r) => r.kaynak))];
+        const kaynaklar = [...new Set(rows.map((r) => r.kaynaklar).filter(Boolean))];
         return [
           {
             baslik: 'Güncel Piyasa Fiyatları (DB)',
             url: '',
             ozet: `Son 7 günde ${urunSayisi} farklı üründe fiyat verisi mevcut. Kaynaklar: ${kaynaklar.join(', ')}`,
-            tarih: rows[0]?.tarih,
+            tarih: rows[0]?.arastirma_tarihi,
             kaynak_tipi: 'db',
             ekVeri: rows.slice(0, 10).map((r) => ({
               urun: r.urun_adi,
-              fiyat: r.fiyat,
-              birim: r.birim,
-              kaynak: r.kaynak,
+              fiyat: r.piyasa_fiyat_ort,
+              birim: r.birim_tipi,
+              kaynak: r.kaynaklar,
             })),
           },
         ];

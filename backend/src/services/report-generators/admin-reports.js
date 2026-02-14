@@ -116,7 +116,7 @@ async function sistemRaporu(_ctx, _format) {
     stats.urun = 'N/A';
   }
   try {
-    const r = await query('SELECT COUNT(*) as c FROM personel');
+    const r = await query('SELECT COUNT(*) as c FROM personeller');
     stats.personel = r.rows[0]?.c || 0;
   } catch {
     stats.personel = 'N/A';
