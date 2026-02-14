@@ -829,11 +829,15 @@ ${fullJsonSchema}`;
     try {
       const response = await anthropic.messages.create({
         model: aiConfig.claude.analysisModel, // Opus 4 - derin belge analizi için
-        max_tokens: 8192, // 4K -> 8K (daha detaylı JSON çıktısı için)
+        max_tokens: 16384, // 8K -> 16K (190K+ char input için 8K yetersizdi, stopReason: max_tokens)
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const content = response.content[0]?.text || '{}';
+      // Markdown fence temizliği (Claude bazen ```json ... ``` içinde döner)
+      let content = response.content[0]?.text || '{}';
+      content = content.replace(/^[\s\S]*?```json\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+      if (!content.startsWith('{') && !content.startsWith('[')) content = '{}';
+
       const parsed = safeJsonParse(content);
       if (parsed) return parsed;
 
