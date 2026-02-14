@@ -183,17 +183,17 @@ const ISTIHBARAT_KATEGORILERI = [
       days: 14,
     },
     db: {
-      query: `SELECT y.unvan, y.toplam_sozlesme_tutari, y.kazanma_orani, y.durum_puani
+      query: `SELECT y.unvan, y.toplam_sozlesme_bedeli, y.kazanma_orani, y.puan
               FROM yukleniciler y
               WHERE y.updated_at > NOW() - INTERVAL '14 days'
-              ORDER BY y.toplam_sozlesme_tutari DESC NULLS LAST LIMIT 5`,
+              ORDER BY y.toplam_sozlesme_bedeli DESC NULLS LAST LIMIT 5`,
       mapFn: (rows) =>
         rows.map((r) => ({
           baslik: `${r.unvan} - Son güncelleme`,
           url: '',
-          ozet: r.toplam_sozlesme_tutari
-            ? `Toplam sözleşme: ${Number(r.toplam_sozlesme_tutari).toLocaleString('tr-TR')} TL, Kazanma: %${r.kazanma_orani || 0}`
-            : `Durum puanı: ${r.durum_puani || '-'}`,
+          ozet: r.toplam_sozlesme_bedeli
+            ? `Toplam sözleşme: ${Number(r.toplam_sozlesme_bedeli).toLocaleString('tr-TR')} TL, Kazanma: %${r.kazanma_orani || 0}`
+            : `Puan: ${r.puan || '-'}`,
           tarih: null,
           kaynak_tipi: 'db',
         })),
