@@ -23,7 +23,8 @@ class DocumentDownloadService {
    * @returns {Buffer} - İndirilen dosya buffer'ı
    */
   async downloadDocument(documentUrl, _retryCount = 0) {
-    logger.info(`Döküman indiriliyor: ${documentUrl}`);
+    const safeUrlHint = documentUrl.replace(/\?.*$/, '').slice(-80);
+    logger.info('Döküman indirme başlatıldı', { urlHint: safeUrlHint });
 
     try {
       // Session cookie'lerini al (varsa)
@@ -73,7 +74,9 @@ class DocumentDownloadService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const buffer = await response.buffer();
+      // Node 18+ native fetch: Response has arrayBuffer(), not buffer()
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
       // === LOGIN REDIRECT ALGILAMA ===
       // HTML içerik döndüyse ve login sayfası gibi görünüyorsa re-login
@@ -94,10 +97,16 @@ class DocumentDownloadService {
         }
       }
 
-      logger.info(`Döküman indirildi: ${buffer.length} bytes`);
+      logger.info('Döküman indirme başarılı', {
+        sizeBytes: buffer.length,
+        contentType: (response.headers.get('content-type') || '').split(';')[0].trim(),
+      });
       return buffer;
     } catch (error) {
-      logger.error('Döküman indirme hatası', { error: error.message, url: documentUrl });
+      logger.error('Döküman indirme hatası', {
+        error: error.message,
+        urlHint: documentUrl.replace(/\?.*$/, '').slice(-80),
+      });
       throw error;
     }
   }
