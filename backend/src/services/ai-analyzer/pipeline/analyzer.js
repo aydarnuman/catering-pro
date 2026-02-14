@@ -520,15 +520,14 @@ Notlar: ${JSON.stringify(data.onemli_notlar || [])}
 
     const responseText = response.content[0]?.text || '{}';
 
-    // JSON parse et
-    let finalAnalysis = {};
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        finalAnalysis = JSON.parse(jsonMatch[0]);
-      }
-    } catch {
-      logger.warn('Stage 2 JSON parse failed');
+    // JSON parse et (safeJsonParse: trailing comma, truncation, range repair)
+    let finalAnalysis = safeJsonParse(responseText);
+    if (!finalAnalysis) {
+      logger.warn('Stage 2 JSON parse failed (safeJsonParse returned null)', {
+        responseLength: responseText.length,
+        snippet: responseText.slice(0, 200),
+        stopReason: response.stop_reason,
+      });
       finalAnalysis = {
         ozet: responseText.slice(0, 500),
         parse_error: true,

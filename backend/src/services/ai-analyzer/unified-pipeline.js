@@ -414,6 +414,23 @@ async function enhanceWithClaude(azureResult, documentId, _onProgress) {
   // Claude ile semantic analiz
   const claudeAnalysis = await runClaudeAnalysis(preparedData);
 
+  // Claude sonucu boşsa logla (JSON parse + retry başarısız)
+  const claudeFieldCount = Object.keys(claudeAnalysis).length;
+  if (claudeFieldCount === 0) {
+    logger.warn('Claude analysis returned empty - using Azure-only results as fallback', {
+      module: 'unified-pipeline',
+      documentId,
+      azureFieldCount: Object.keys(azureResult.fields || {}).length,
+      azureTableCount: azureResult.tables?.length || 0,
+    });
+  } else {
+    logger.info('Claude analysis merged with Azure results', {
+      module: 'unified-pipeline',
+      claudeFieldCount,
+      azureFieldCount: Object.keys(azureResult.fields || {}).length,
+    });
+  }
+
   // Sonuçları birleştir
   const mergedAnalysis = mergeResults(azureResult, claudeAnalysis);
 
@@ -744,20 +761,47 @@ Aşağıdaki JSON formatında yanıt ver (sadece bulunan değerleri doldur):
 ${fullJsonSchema}`;
   }
 
-  try {
-    const response = await anthropic.messages.create({
-      model: aiConfig.claude.analysisModel, // Opus 4 - derin belge analizi için
-      max_tokens: 8192, // 4K -> 8K (daha detaylı JSON çıktısı için)
-      messages: [{ role: 'user', content: prompt }],
-    });
+  const MAX_ATTEMPTS = 2; // 1 deneme + 1 retry
 
-    const content = response.content[0]?.text || '{}';
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-  } catch (err) {
-    logger.warn('Claude analysis failed', { error: err.message });
-    return {};
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: aiConfig.claude.analysisModel, // Opus 4 - derin belge analizi için
+        max_tokens: 8192, // 4K -> 8K (daha detaylı JSON çıktısı için)
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const content = response.content[0]?.text || '{}';
+      const parsed = safeJsonParse(content);
+      if (parsed) return parsed;
+
+      // safeJsonParse null döndü - JSON tamir edilemedi
+      logger.warn(`Claude analysis JSON repair failed (attempt ${attempt}/${MAX_ATTEMPTS})`, {
+        responseLength: content.length,
+        snippet: content.slice(0, 200),
+        stopReason: response.stop_reason,
+      });
+
+      // Son deneme ise boş dön, değilse retry
+      if (attempt >= MAX_ATTEMPTS) {
+        logger.warn('Claude analysis JSON parse exhausted all retries, returning empty result');
+        return {};
+      }
+
+      // Retry öncesi kısa bekleme (2s)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      logger.info('Retrying Claude analysis due to JSON parse failure...');
+    } catch (err) {
+      logger.warn(`Claude analysis failed (attempt ${attempt}/${MAX_ATTEMPTS})`, { error: err.message });
+
+      if (attempt >= MAX_ATTEMPTS) return {};
+
+      // API hatası için de retry (rate limit vb.)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
   }
+
+  return {};
 }
 
 // mergeResults, detectTableType, extractGramajData, extractPersonnelData, calculateCompleteness

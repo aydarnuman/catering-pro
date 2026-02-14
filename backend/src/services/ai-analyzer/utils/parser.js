@@ -2,11 +2,96 @@
  * Parser Utils - JSON parse ve merge helpers
  *
  * safeJsonParse: LLM çıktılarını güvenli parse eder (aralık değerleri, markdown temizliği)
+ * repairTruncatedJson: Kesilmiş JSON yanıtlarını tamir eder (kapanmamış bracket/brace tamamlama)
  */
 
 /**
+ * Kesilmiş (truncated) JSON string'ini tamir eder.
+ * Claude büyük belgeler için max_tokens'a ulaşıp JSON'u yarıda bırakabilir.
+ * Bu fonksiyon:
+ *  - Yarım kalmış string değerini kapatır
+ *  - Açık kalmış bracket/brace'leri kapatır
+ *  - Son geçerli JSON noktasına kadar kırpar
+ * @param {string} json - Bozuk/kesilmiş JSON string
+ * @returns {string} Tamir edilmiş JSON string
+ */
+export function repairTruncatedJson(json) {
+  if (!json) return json;
+
+  let repaired = json;
+
+  // 1. Yarım kalmış string değerini kapat
+  //    Son kapanmamış çift tırnak varsa kapat
+  let inString = false;
+  let lastStringStart = -1;
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (ch === '\\') {
+      i++; // escape karakter, sonrakini atla
+      continue;
+    }
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        lastStringStart = i;
+      } else {
+        inString = false;
+        lastStringStart = -1;
+      }
+    }
+  }
+
+  if (inString && lastStringStart !== -1) {
+    // String değeri yarıda kesilmiş - kapat
+    // Sondaki escape backslash varsa temizle (bozuk escape önleme)
+    if (repaired.endsWith('\\')) {
+      repaired = repaired.slice(0, -1);
+    }
+    repaired += '"';
+  }
+
+  // 2. Son trailing virgül temizle (kapama öncesi)
+  repaired = repaired.replace(/,\s*$/, '');
+
+  // 3. Sondaki yarım key-value temizle (ör: "key": veya "key":  )
+  //    Son virgülden sonra yarım kalmış key:value varsa at
+  repaired = repaired.replace(/,\s*"[^"]*"\s*:\s*$/, '');
+
+  // 4. Açık kalmış bracket/brace'leri say ve kapat
+  const stack = [];
+  inString = false;
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (ch === '\\' && inString) {
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') {
+      if (stack.length > 0 && stack[stack.length - 1] === ch) {
+        stack.pop();
+      }
+    }
+  }
+
+  // Kalan açık parantezleri ters sırada kapat
+  while (stack.length > 0) {
+    repaired += stack.pop();
+  }
+
+  return repaired;
+}
+
+/**
  * AI çıktılarını güvenli bir şekilde parse eder.
- * Yaygın LLM hatalarını (aralık değerleri, yorumlar, markdown) temizler.
+ * Yaygın LLM hatalarını (aralık değerleri, yorumlar, markdown, kesilmiş JSON) temizler.
  * @param {string} text - Claude yanıtı
  * @returns {Object|null} Parse edilmiş JSON veya null
  */
@@ -52,13 +137,20 @@ export function safeJsonParse(text) {
       cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
       return JSON.parse(cleaned);
     } catch {
-      // 6. Son çare: Tek tırnakları çift tırnağa çevir
+      // 6. Tek tırnakları çift tırnağa çevir
       try {
         cleaned = cleaned.replace(/'/g, '"');
         return JSON.parse(cleaned);
       } catch {
-        // JSON tamir edilemedi, null dön (çağıran fonksiyon hatayı yönetsin)
-        return null;
+        // 7. Son çare: Kesilmiş JSON tamiri (truncated response)
+        //    Claude max_tokens'a ulaşıp JSON'u yarıda bırakabilir
+        try {
+          const repaired = repairTruncatedJson(cleaned);
+          return JSON.parse(repaired);
+        } catch {
+          // JSON tamir edilemedi, null dön (çağıran fonksiyon hatayı yönetsin)
+          return null;
+        }
       }
     }
   }
