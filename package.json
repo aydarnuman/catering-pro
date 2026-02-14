@@ -43,7 +43,12 @@
     "test:backend": "npm run test --workspace=backend",
     "test:frontend": "npm run test --workspace=frontend",
     "test": "npm run test:backend && npm run test:frontend",
-    "test:coverage": "npm run test:coverage --workspace=backend && npm run test:coverage --workspace=frontend"
+    "test:coverage": "npm run test:coverage --workspace=backend && npm run test:coverage --workspace=frontend",
+    "logs": "tail -f backend/logs/app-$(date +%Y-%m-%d).log 2>/dev/null || echo 'Log dosyası yok. Backend çalıştırıldığında oluşur.'",
+    "logs:error": "tail -f backend/logs/error-$(date +%Y-%m-%d).log 2>/dev/null || echo 'Hata logu yok.'",
+    "logs:api": "tail -f backend/logs/app-$(date +%Y-%m-%d).log 2>/dev/null | grep --line-buffered 'HTTP Request' || echo 'Log dosyası yok.'",
+    "logs:db": "tail -f backend/logs/app-$(date +%Y-%m-%d).log 2>/dev/null | grep --line-buffered 'DB:' || echo 'Log dosyası yok.'",
+    "logs:clear": "rm -f backend/logs/app-*.log backend/logs/error-*.log && echo 'Log dosyaları temizlendi.'"
   },
   "keywords": [
     "catering",
