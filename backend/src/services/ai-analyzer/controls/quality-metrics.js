@@ -280,12 +280,15 @@ export class PipelineMonitor {
     };
 
     // Log özet
+    const chunkLine =
+      this.metrics.total_chunks > 0
+        ? `${this.metrics.processed_chunks}/${this.metrics.total_chunks} başarılı`
+        : 'N/A (chunk bilgisi yok)';
+
     logger.info('═══════════════════════════════════════════════════════════', { module: 'pipeline-monitor' });
     logger.info(`📊 PIPELINE RAPORU - ${this.documentId}`, { module: 'pipeline-monitor' });
     logger.info(`   Toplam Süre: ${report.total_duration_readable}`, { module: 'pipeline-monitor' });
-    logger.info(`   Chunks: ${this.metrics.processed_chunks}/${this.metrics.total_chunks} başarılı`, {
-      module: 'pipeline-monitor',
-    });
+    logger.info(`   Chunks: ${chunkLine}`, { module: 'pipeline-monitor' });
     logger.info(`   API Çağrıları: Azure=${this.metrics.api_calls.azure}, Claude=${this.metrics.api_calls.claude}`, {
       module: 'pipeline-monitor',
     });

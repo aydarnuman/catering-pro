@@ -388,9 +388,30 @@ export async function analyzeDocument(filePath, options = {}) {
     monitor.endStage({ overall_confidence: overallConfidence });
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 7: PIPELINE RAPORU
+    // STEP 7: CHUNK METRİKLERİ & PIPELINE RAPORU
     // ═══════════════════════════════════════════════════════════════════
+
+    // Chunk success tracking — result'tan chunk bilgisini monitor'a aktar
+    const chunkCount = result.stats?.chunkCount || result.chunks?.length || 0;
+    if (chunkCount > 0) {
+      // Fallback pipeline chunks array'i döndürür, her biri success kabul edilir
+      // Eğer analysis.meta'da hata bilgisi varsa failed_chunks ayrıştırılır
+      const failedChunks = result.analysis?.meta?.failedChunks || 0;
+      const successfulChunks = chunkCount - failedChunks;
+      for (let i = 0; i < successfulChunks; i++) {
+        monitor.recordChunkProcessed(true);
+      }
+      for (let i = 0; i < failedChunks; i++) {
+        monitor.recordChunkProcessed(false);
+      }
+    }
+
     const pipelineReport = monitor.generateReport();
+
+    // Completeness metrikleri:
+    // 1. overallCompleteness: 21 alanlık ağırlıklı puan (100 üzerinden) — table-helpers calculateCompleteness
+    // 2. criticalFieldsCompleteness: 5 kritik catering alanı (iletisim, teminat, servis_saatleri vb.) — field-validator
+    const overallCompletenessRaw = result.validation?.completeness_score || 0;
 
     // Meta bilgi ekle
     result.meta = {
@@ -403,7 +424,10 @@ export async function analyzeDocument(filePath, options = {}) {
         size_kb: fileSizeKB,
         type: ext.replace('.', ''),
       },
-      critical_fields_completeness: criticalValidation.completeness,
+      completeness: {
+        overall: `${overallCompletenessRaw}%`,
+        critical_fields: `${(criticalValidation.completeness * 100).toFixed(1)}%`,
+      },
       performance: pipelineReport,
     };
 
@@ -413,8 +437,9 @@ export async function analyzeDocument(filePath, options = {}) {
       module: 'unified-pipeline',
       provider: usedProvider,
       duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-      completeness: result.validation?.completeness_score || 0,
+      overallCompleteness: `${overallCompletenessRaw}%`,
       criticalFieldsCompleteness: `${(criticalValidation.completeness * 100).toFixed(1)}%`,
+      chunks: `${monitor.metrics.processed_chunks}/${monitor.metrics.total_chunks} başarılı`,
       overallConfidence: `${(overallConfidence * 100).toFixed(1)}%`,
     });
 
