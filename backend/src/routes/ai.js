@@ -19,9 +19,9 @@ import {
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import SettingsVersionService from '../services/settings-version-service.js';
 import logger from '../utils/logger.js';
-import ihaleMasasiRouter from './ai-ihale-masasi.js';
 import analysisRouter from './ai-analysis.js';
 import godModeRouter from './ai-god-mode.js';
+import ihaleMasasiRouter from './ai-ihale-masasi.js';
 
 const router = express.Router();
 
@@ -645,7 +645,11 @@ router.post('/analyze-products-batch', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error('[Batch Analysis] Hata', { error: error.message, stack: error.stack, itemCount: req.body?.items?.length });
+    logger.error('[Batch Analysis] Hata', {
+      error: error.message,
+      stack: error.stack,
+      itemCount: req.body?.items?.length,
+    });
     return res.status(500).json({
       success: false,
       error: 'Toplu ürün analizi yapılamadı',
@@ -2035,7 +2039,6 @@ router.use('/god-mode', godModeRouter);
 // ============================================
 router.use('/', analysisRouter);
 
-
 // ==========================================
 // CROSS-AGENT LEARNING
 // ==========================================
@@ -2102,6 +2105,5 @@ router.get('/shared-learnings/:agentId', authenticate, async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
-
 
 export default router;
