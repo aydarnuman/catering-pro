@@ -644,7 +644,7 @@ router.post('/analyze-products-batch', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error('[Batch Analysis] Hata', { error: error.message, stack: error.stack, itemCount: items.length });
+    logger.error('[Batch Analysis] Hata', { error: error.message, stack: error.stack, itemCount: req.body?.items?.length });
     return res.status(500).json({
       success: false,
       error: 'Toplu ürün analizi yapılamadı',
@@ -2686,9 +2686,10 @@ router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) =
         id,
         session_id,
         user_id,
-        message,
-        response,
+        role,
+        content,
         tools_used,
+        metadata,
         created_at
       FROM ai_conversations
       WHERE session_id LIKE 'god-mode-%'
@@ -3545,7 +3546,7 @@ router.get('/ihale-masasi/outcomes', authenticate, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 router.post('/card-transform', authenticate, async (req, res) => {
   try {
-    const { text, transform_type, tender_id } = req.body;
+    const { text, transform_type, tender_id, card_type } = req.body;
 
     if (!text || !transform_type) {
       return res.status(400).json({ success: false, error: 'text ve transform_type zorunlu' });
@@ -3596,11 +3597,11 @@ Sadece JSON döndür, başka bir şey yazma.`,
       // ─── Yeni Transform Tipleri (AnalysisDetailModal) ───────────
       summarize: `Aşağıdaki ihale dokümanı içeriğini 2-3 cümle ile özetle. Türkçe yaz.
 Kritik sayısal verileri (kişi sayısı, tutar, süre) mutlaka dahil et.
+Özeti markdown formatında yaz (kalın metin, madde işaretleri kullanabilirsin).
 JSON formatında döndür:
 {
-  "card_type": "text",
   "title": "İçerik Özeti",
-  "content": "2-3 cümlelik özet metni"
+  "content": "2-3 cümlelik özet metni (markdown)"
 }
 Sadece JSON döndür.`,
 
@@ -3640,11 +3641,119 @@ Sadece JSON döndür.`,
 - Mantıksal çelişkiler
 - Eksik veya şüpheli bilgiler
 - Olası yazım/veri hataları
-Türkçe yaz. JSON formatında döndür:
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
 {
-  "card_type": "text",
   "title": "Doğrulama Raporu",
-  "content": "Bulgular ve öneriler"
+  "content": "Markdown formatında bulgular ve öneriler"
+}
+Sadece JSON döndür.`,
+
+      // ─── Kart-Spesifik Transform Tipleri ──────────────────────────
+
+      find_duplicates: `Aşağıdaki ihale dokümanı maddelerini incele ve benzer/tekrar eden içerikleri tespit et.
+- Aynı konuyu farklı ifadelerle anlatan maddeler
+- Birbiriyle çelişen maddeler
+- Gereksiz tekrarlar
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Benzerlik Analizi",
+  "content": "Markdown formatında benzerlik raporu"
+}
+Sadece JSON döndür.`,
+
+      extract_risks: `Aşağıdaki ihale dokümanı içeriğinden risk, uyarı ve kısıtlama maddelerini çıkar.
+Her risk için:
+- Risk açıklaması
+- Olası etki (düşük/orta/yüksek)
+- Öneri
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Risk Analizi",
+  "content": "Markdown formatında risk raporu",
+  "risk_level": "low|medium|high"
+}
+Sadece JSON döndür.`,
+
+      find_gaps: `Aşağıdaki teknik şartname içeriğini incele ve potansiyel eksikleri tespit et.
+Kontrol edilecekler:
+- Belirsiz veya muğlak ifadeler
+- Eksik teknik detaylar (ölçü, standart, tolerans vb.)
+- Referans verilmemiş standartlar
+- Tanımlanmamış test/kabul kriterleri
+- Eksik süre/miktar/kapasite bilgileri
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Eksik Gereksinim Raporu",
+  "content": "Markdown formatında eksiklik raporu",
+  "risk_level": "low|medium|high"
+}
+Sadece JSON döndür.`,
+
+      price_check: `Aşağıdaki birim fiyat verilerini analiz et.
+- Her kalemin birim fiyatının makul olup olmadığını değerlendir
+- Aşırı düşük veya yüksek fiyatları işaretle
+- Genel bilgi olarak Türkiye kamu ihale piyasası birim fiyatlarıyla karşılaştır
+- Toplam tutarın tutarlılığını kontrol et
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Fiyat Analizi",
+  "content": "Markdown formatında fiyat raporu",
+  "risk_level": "low|medium|high"
+}
+Sadece JSON döndür.`,
+
+      regulation_check: `Aşağıdaki ihale verilerini 4734 sayılı Kamu İhale Kanunu ve ilgili mevzuat çerçevesinde değerlendir.
+Kontrol edilecekler:
+- Teminat oranlarının yasal sınırlara uygunluğu (geçici teminat %3, kesin teminat %6)
+- Mali yeterlilik kriterlerinin KİK mevzuatına uygunluğu
+- İş deneyim belgesi oranlarının yasal aralıkta olup olmadığı
+- Bilanço kriterlerinin uygunluğu
+- Aşırı kısıtlayıcı şartlar olup olmadığı
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Mevzuat Uygunluk Raporu",
+  "content": "Markdown formatında mevzuat raporu",
+  "risk_level": "low|medium|high"
+}
+Sadece JSON döndür.`,
+
+      penalty_analysis: `Aşağıdaki ceza koşullarını analiz et.
+Kontrol edilecekler:
+- Ceza oranlarının makul olup olmadığı
+- Sözleşme bedeliyle orantılılık
+- Kamu İhale Sözleşmeleri Kanunu çerçevesinde yasal sınırlar
+- Kümülatif ceza üst limiti
+- Belirsiz veya ölçülemeyen ceza kriterleri
+- Tek taraflı fesih riski oluşturan maddeler
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "Ceza Riski Raporu",
+  "content": "Markdown formatında ceza analizi",
+  "risk_level": "low|medium|high"
+}
+Sadece JSON döndür.`,
+
+      labor_cost_check: `Aşağıdaki personel verilerini analiz et.
+Kontrol edilecekler:
+- Personel sayısının hizmet kapsamıyla orantılılığı
+- Pozisyon bazlı ücret seviyelerinin güncel asgari ücret ve sektör ortalamasıyla karşılaştırması
+- Vardiya düzeninin yasal çalışma sürelerine uygunluğu
+- Toplam işçilik maliyeti tahmini
+- SGK ve diğer yasal yükümlülükler dahil maliyet
+- Fazla mesai ve resmi tatil maliyeti riskleri
+Türkçe yaz. Markdown formatında yaz (başlıklar, madde işaretleri, kalın metin).
+JSON formatında döndür:
+{
+  "title": "İşçilik Maliyet Raporu",
+  "content": "Markdown formatında maliyet analizi",
+  "risk_level": "low|medium|high"
 }
 Sadece JSON döndür.`,
     };
@@ -3663,7 +3772,12 @@ Sadece JSON döndür.`,
       max_tokens: 2048,
       temperature: 0.1,
       system: systemPrompt,
-      messages: [{ role: 'user', content: text.substring(0, 4000) }],
+      messages: [
+        {
+          role: 'user',
+          content: card_type ? `[Kart: ${card_type}]\n\n${text.substring(0, 4000)}` : text.substring(0, 4000),
+        },
+      ],
     });
 
     const responseText = aiResponse.content?.[0]?.type === 'text' ? aiResponse.content[0].text : '';
@@ -3693,7 +3807,7 @@ Sadece JSON döndür.`,
     logger.info('[Card Transform] AI dönüşümü tamamlandı', {
       tender_id,
       transform_type,
-      card_type: parsed.card_type,
+      card_type: card_type || parsed.card_type,
     });
 
     return res.json({ success: true, data: parsed });
@@ -3749,9 +3863,11 @@ ${JSON.stringify(analysis_summary, null, 2)}
 
 Lütfen bu verileri çapraz kontrol et ve bulgularını raporla.`;
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const aiClient = new (await import('@anthropic-ai/sdk')).default({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
 
-    const message = await anthropic.messages.create({
+    const message = await aiClient.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       system: systemPrompt,
