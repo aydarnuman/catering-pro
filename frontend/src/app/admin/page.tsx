@@ -93,9 +93,38 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchData();
-    // Her 30 saniyede yenile
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    // Her 60 saniyede yenile — tab görünür değilse polling'i duraklat
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (!interval) {
+        interval = setInterval(fetchData, 60000);
+      }
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchData();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchData]);
 
   // Kategorize edilmiş admin modülleri

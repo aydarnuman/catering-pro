@@ -217,7 +217,7 @@ export default function AnalizKuyrugu() {
       });
       return res.json();
     },
-    refetchInterval: 10000, // Her 10 saniyede yenile
+    refetchInterval: 30000, // Her 30 saniyede yenile
   });
 
   const dashboard = data?.data;
