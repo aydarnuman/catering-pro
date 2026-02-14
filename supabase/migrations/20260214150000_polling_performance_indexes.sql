@@ -1,4 +1,4 @@
--- Migration: 20260214000001_polling_performance_indexes.sql
+-- Migration: 20260214150000_polling_performance_indexes.sql
 -- Tarih: 2026-02-14
 -- Açıklama: Admin dashboard ve polling sorgularının performansı için ek index'ler
 --
@@ -58,4 +58,4 @@ BEGIN
 END $$;
 
 -- Migration tamamlandı
-DO $$ BEGIN RAISE NOTICE 'Migration 20260214000001_polling_performance_indexes.sql tamamlandı'; END $$;
+DO $$ BEGIN RAISE NOTICE 'Migration 20260214150000_polling_performance_indexes.sql tamamlandı'; END $$;
