@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconClipboardList, IconCopy, IconCurrencyLira, IconFileText } from '@tabler/icons-react';
 import type { AnalysisData } from '../types';
-import { getTeknikSartTextFromItem } from './OzetCards';
+import { getTeknikSartTextFromItem } from './cards';
 
 // ─── Teknik Şartlar Modal ──────────────────────────────────────────
 

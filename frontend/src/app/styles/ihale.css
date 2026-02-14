@@ -316,3 +316,63 @@
 .status-badge-gradient.active {
   animation: statusPulse 2s ease-in-out infinite;
 }
+
+/* ===== REACT-PDF TEXT LAYER FIX (Dark Mode) ===== */
+/* Text layer'ın canvas üzerinde seçilebilir olmasını sağla */
+.react-pdf__Page {
+  position: relative;
+}
+
+.react-pdf__Page__textContent {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.react-pdf__Page__textContent span {
+  opacity: 0.3;
+  color: transparent;
+}
+
+.react-pdf__Page__textContent span::selection {
+  background: rgba(59, 130, 246, 0.4);
+  color: transparent;
+}
+
+.react-pdf__Page__textContent span::-moz-selection {
+  background: rgba(59, 130, 246, 0.4);
+  color: transparent;
+}
+
+/* ===== CATERING DETAIL ROW HOVER ===== */
+.catering-detail-row-hover:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ===== PDF SELECTION FLOATING TOOLBAR ===== */
+.pdf-selection-toolbar {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(30, 30, 35, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: selectionToolbarIn 0.15s ease-out;
+  pointer-events: auto;
+}
+
+@keyframes selectionToolbarIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

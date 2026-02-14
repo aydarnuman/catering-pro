@@ -258,6 +258,9 @@ import aiRouter from './routes/ai.js';
 import aiMemoryRouter from './routes/ai-memory.js';
 import analysisCorrectionsRouter from './routes/analysis-corrections.js';
 import auditLogsRouter from './routes/audit-logs.js';
+import documentAnnotationsRouter from './routes/document-annotations.js';
+import masaPaketleriRouter from './routes/masa-paketleri.js';
+import tenderCardsRouter from './routes/tender-cards.js';
 import authRouter from './routes/auth.js';
 import bordroRouter from './routes/bordro.js';
 import bordroImportRouter from './routes/bordro-import.js';
@@ -382,6 +385,9 @@ app.use('/api/system', adminLimiter, systemRouter);
 app.use('/api/prompt-builder', promptBuilderRouter);
 app.use('/api/preferences', preferencesRouter);
 app.use('/api/analysis-corrections', analysisCorrectionsRouter);
+app.use('/api/tender-cards', tenderCardsRouter);
+app.use('/api/masa-paketleri', masaPaketleriRouter);
+app.use('/api/document-annotations', documentAnnotationsRouter);
 
 // --- Rapor Merkezi Generator'ları Kaydet ---
 import('./services/report-generators/ihale-reports.js').catch((err) =>

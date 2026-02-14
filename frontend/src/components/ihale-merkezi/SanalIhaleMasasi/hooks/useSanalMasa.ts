@@ -1,5 +1,6 @@
 import { notifications } from '@mantine/notifications';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MasaVeriPaketi } from '@/hooks/useMasaVeriPaketi';
 import type { AgentAnalysisResult } from '@/lib/api/services/ai';
 import { aiAPI } from '@/lib/api/services/ai';
 import type { SavedTender } from '../../types';
@@ -17,7 +18,7 @@ import { AGENT_WEIGHTS, generateCrossReferences, generateVerdict } from './verdi
 
 // ─── Hook ────────────────────────────────────────────────────
 
-export function useSanalMasa(tender: SavedTender) {
+export function useSanalMasa(tender: SavedTender, masaPaketi?: MasaVeriPaketi) {
   const [viewMode, setViewMode] = useState<ViewMode>('ORBIT');
   const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null);
   const [verdictData, setVerdictData] = useState<VerdictData | null>(null);
@@ -30,12 +31,32 @@ export function useSanalMasa(tender: SavedTender) {
   // Track tender ID to avoid duplicate calls
   const analyzedTenderRef = useRef<number | null>(null);
 
-  // ─── AI Analysis: Load from cache or trigger new analysis ──
+  // ─── AI Analysis: Load from package, cache, or trigger new ──
   useEffect(() => {
     const tenderId = parseTenderId(tender);
     if (!tenderId) return;
     if (analyzedTenderRef.current === tenderId) return;
     analyzedTenderRef.current = tenderId;
+
+    // 0. Paketten önceden yüklenmiş ajan verisi varsa kullan
+    if (masaPaketi?.agent_analyses && Object.keys(masaPaketi.agent_analyses).length > 0) {
+      const paketData = masaPaketi.agent_analyses as Record<string, AgentAnalysisResult>;
+      setAgentAnalyses(
+        AGENTS.map((agent) => {
+          const result = paketData[agent.id];
+          return result
+            ? mapBackendToAgentAnalysis(agent.id, result)
+            : createNoDataAnalysis(agent.id, 'Analiz yapilmamis');
+        })
+      );
+      // Verdict varsa onu da yükle
+      if (masaPaketi.verdict_data) {
+        setVerdictData(masaPaketi.verdict_data as unknown as VerdictData);
+        setViewMode('ASSEMBLE');
+      }
+      setIsAnalyzing(false);
+      return;
+    }
 
     (async () => {
       setIsAnalyzing(true);
@@ -88,7 +109,7 @@ export function useSanalMasa(tender: SavedTender) {
         setIsAnalyzing(false);
       }
     })();
-  }, [tender]);
+  }, [tender, masaPaketi]);
 
   // ─── Re-analyze single agent ──────────────────────────────
   const reanalyzeAgent = useCallback(

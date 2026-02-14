@@ -55,6 +55,19 @@ export interface DocumentDetail {
   doc_type: string;
 }
 
+// Döküman bilgisi (context'te yönetilen, sol panel + merkez panelde kullanılan)
+export interface DocumentInfo {
+  id: number;
+  original_filename: string;
+  file_type: string;
+  doc_type: string;
+  source_type: 'content' | 'download' | 'upload';
+  processing_status: string;
+  storage_url?: string;
+  content_text?: string;
+  extracted_text?: string;
+}
+
 // Gramaj grubu (yemek bazlı gruplanmış)
 export interface GramajMalzeme {
   item: string;
@@ -75,6 +88,7 @@ export interface PersonelDetay {
   pozisyon: string;
   adet: number;
   ucret_orani?: string;
+  sure?: string; // "6 AY", "12 AY" gibi
 }
 
 // Öğün bilgisi (flat format veya tablo format)
@@ -357,16 +371,28 @@ export interface IhaleMerkeziState {
   showStats: 'new' | 'updated' | false;
   leftPanelCollapsed: boolean;
 
-  // Orta panel
+  // Orta panel (Dokuman Calisma Alani)
   detailExpanded: boolean;
   aiChatExpanded: boolean;
-  activeDetailTab: 'ozet' | 'notlar';
+  selectedDocumentId: number | null;
   dilekceType: string | null;
 
-  // Sag panel
-  activeRightTab: 'dilekce' | 'teklif' | 'araclar' | 'kontrol';
+  // Dokuman yonetimi (context'te)
+  documents: DocumentInfo[];
+  documentsLoading: boolean;
+  signedUrl: string | null;
+  signedUrlLoading: boolean;
+
+  // Sag panel (Veri Paketi)
+  veriPaketiSections: Set<string>; // Acik olan accordion bolumleri
   expandedSections: Set<string>;
   selectedFirmaId: number | null;
+
+  // Eski uyumluluk (deprecating)
+  /** @deprecated Artik kullanilmiyor - center panel tab'siz */
+  activeDetailTab?: 'ozet' | 'analiz' | 'dokumanlar' | 'notlar';
+  /** @deprecated Artik kullanilmiyor - right panel accordion */
+  activeRightTab?: 'dilekce' | 'teklif' | 'araclar' | 'kontrol';
 
   // Data
   allTenders: Tender[];

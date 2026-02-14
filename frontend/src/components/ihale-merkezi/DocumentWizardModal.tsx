@@ -1070,7 +1070,7 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
                     </Box>
                     <FileButton
                       onChange={(files) => files && handleManualUpload(files)}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv"
+                      accept=".pdf,.doc,.docx,.rtf,.odt,.xls,.xlsx,.ods,.csv,.pptx,.ppt,.odp,.txt,.xml,.json,.png,.jpg,.jpeg,.webp,.gif,.tiff,.tif,.bmp,.zip,.rar"
                       multiple
                     >
                       {(props) => (

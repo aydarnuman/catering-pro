@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { AnalysisData } from '../types';
-import { isRealPersonelPosition } from './OzetCards';
+import { isRealPersonelPosition } from './cards';
 
 interface SartnameGramajModalProps {
   opened: boolean;

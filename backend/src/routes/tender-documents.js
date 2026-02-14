@@ -3,8 +3,14 @@
  * İhale dökümanlarını Supabase Storage'a indirme ve yönetme endpoint'leri
  */
 
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import express from 'express';
+import mammoth from 'mammoth';
 import { pool } from '../database.js';
+import supabase from '../supabase.js';
 import documentStorageService from '../services/document-storage.js';
 
 const router = express.Router();
@@ -165,6 +171,181 @@ router.get('/documents/:documentId/url', async (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+});
+
+/**
+ * DOC/DOCX dosyasını HTML'e dönüştür (önizleme için)
+ * GET /api/tender-docs/documents/:documentId/convert
+ *
+ * DOCX → mammoth ile HTML'e
+ * DOC  → mammoth dener, başarısız olursa LibreOffice → HTML, son çare text'e çevirir
+ * Sonuç ayrıca extracted_text alanına kaydedilir (cache)
+ */
+router.get('/documents/:documentId/convert', async (req, res) => {
+  const tmpFiles = [];
+  try {
+    const { documentId } = req.params;
+    const docId = parseInt(documentId, 10);
+
+    // 1. Döküman bilgisini al
+    const docResult = await pool.query(
+      'SELECT id, storage_path, file_type, original_filename, extracted_text, content_text FROM documents WHERE id = $1',
+      [docId]
+    );
+    if (docResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
+    }
+
+    const doc = docResult.rows[0];
+    const fileType = (doc.file_type || '').toLowerCase();
+    const fileName = doc.original_filename || '';
+
+    // 2. Zaten extracted_text veya content_text varsa direkt döndür
+    if (doc.extracted_text && doc.extracted_text.trim().length > 50) {
+      return res.json({
+        success: true,
+        data: {
+          html: null,
+          text: doc.extracted_text,
+          format: 'text',
+          cached: true,
+        },
+      });
+    }
+    if (doc.content_text && doc.content_text.trim().length > 50) {
+      return res.json({
+        success: true,
+        data: {
+          html: doc.content_text,
+          text: null,
+          format: /<[a-z][\s\S]*>/i.test(doc.content_text) ? 'html' : 'text',
+          cached: true,
+        },
+      });
+    }
+
+    // 3. storage_path gerekiyor
+    if (!doc.storage_path) {
+      return res.status(400).json({ success: false, error: 'Dosya storage_path bulunamadı' });
+    }
+
+    // 4. Dosyayı Supabase'den indir
+    const { data: fileData, error: dlError } = await supabase.storage
+      .from('tender-documents')
+      .download(doc.storage_path);
+    if (dlError || !fileData) {
+      return res.status(500).json({ success: false, error: `Dosya indirilemedi: ${dlError?.message || 'Veri yok'}` });
+    }
+
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+    const ext = path.extname(fileName).toLowerCase() || `.${fileType}`;
+
+    // 5. Dönüştürme dene
+    let html = '';
+    let text = '';
+    let format = 'text';
+
+    // 5a. DOCX → mammoth
+    if (ext === '.docx' || fileType === 'docx') {
+      try {
+        const result = await mammoth.convertToHtml({ buffer });
+        html = result.value;
+        format = 'html';
+        const textResult = await mammoth.extractRawText({ buffer });
+        text = textResult.value;
+      } catch {
+        // mammoth başarısız — aşağıda fallback denenecek
+      }
+    }
+
+    // 5b. DOC veya mammoth başarısız → mammoth ile dene (bazen eski .doc'ları da açar)
+    if (!html && !text) {
+      try {
+        const result = await mammoth.convertToHtml({ buffer });
+        html = result.value;
+        format = 'html';
+        const textResult = await mammoth.extractRawText({ buffer });
+        text = textResult.value;
+      } catch {
+        // mammoth açamadı — LibreOffice dene
+      }
+    }
+
+    // 5c. LibreOffice fallback (DOC → HTML)
+    if (!html && !text) {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'doc-convert-'));
+      const tmpFile = path.join(tmpDir, `input${ext || '.doc'}`);
+      fs.writeFileSync(tmpFile, buffer);
+      tmpFiles.push(tmpDir);
+
+      try {
+        // Önce HTML'e çevir
+        execSync(`soffice --headless --convert-to html --outdir "${tmpDir}" "${tmpFile}"`, {
+          timeout: 30000,
+          stdio: 'pipe',
+        });
+        const htmlFile = path.join(tmpDir, 'input.html');
+        if (fs.existsSync(htmlFile)) {
+          html = fs.readFileSync(htmlFile, 'utf-8');
+          // HTML body içeriğini al
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          if (bodyMatch) html = bodyMatch[1];
+          format = 'html';
+        }
+      } catch {
+        // HTML başarısız — text'e çevir
+        try {
+          execSync(`soffice --headless --convert-to txt:Text --outdir "${tmpDir}" "${tmpFile}"`, {
+            timeout: 30000,
+            stdio: 'pipe',
+          });
+          const txtFile = path.join(tmpDir, 'input.txt');
+          if (fs.existsSync(txtFile)) {
+            text = fs.readFileSync(txtFile, 'utf-8');
+            format = 'text';
+          }
+        } catch {
+          // Son çare başarısız
+        }
+      }
+    }
+
+    // 6. Sonuç var mı?
+    const resultContent = html || text;
+    if (!resultContent || resultContent.trim().length < 10) {
+      return res.status(422).json({
+        success: false,
+        error: 'Dosya dönüştürülemedi. Desteklenmeyen format olabilir.',
+      });
+    }
+
+    // 7. Sonucu extracted_text'e kaydet (cache)
+    const textToSave = text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (textToSave.length > 50) {
+      pool.query('UPDATE documents SET extracted_text = $1 WHERE id = $2', [textToSave, docId]).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      data: {
+        html: format === 'html' ? html : null,
+        text: format === 'text' ? text : (text || null),
+        format,
+        cached: false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    // Temp dosyaları temizle
+    for (const tmp of tmpFiles) {
+      try {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      } catch {
+        // Temizlik hatası ihmal
+      }
+    }
   }
 });
 

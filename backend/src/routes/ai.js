@@ -3539,4 +3539,168 @@ router.get('/ihale-masasi/outcomes', authenticate, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// POST /api/ai/card-transform
+// Seçilen metni AI ile farklı kart formatlarına dönüştür
+// ═══════════════════════════════════════════════════════════════
+router.post('/card-transform', authenticate, async (req, res) => {
+  try {
+    const { text, transform_type, tender_id } = req.body;
+
+    if (!text || !transform_type) {
+      return res.status(400).json({ success: false, error: 'text ve transform_type zorunlu' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ success: false, error: 'AI servisi yapılandırılmamış' });
+    }
+
+    const prompts = {
+      table: `Aşağıdaki metni bir tabloya dönüştür. JSON formatında döndür:
+{
+  "card_type": "table",
+  "title": "Kısa açıklayıcı başlık",
+  "content": { "headers": ["Sütun1", "Sütun2", ...], "rows": [["değer1", "değer2", ...], ...] },
+  "category": "operasyonel|mali|teknik|belgeler|diger"
+}
+Sadece JSON döndür, başka bir şey yazma.`,
+
+      summary: `Aşağıdaki metni kısa ve öz bir şekilde özetle. JSON formatında döndür:
+{
+  "card_type": "text",
+  "title": "Kısa başlık (max 80 karakter)",
+  "content": { "text": "Özet metin" },
+  "category": "operasyonel|mali|teknik|belgeler|diger"
+}
+Sadece JSON döndür, başka bir şey yazma.`,
+
+      extract: `Aşağıdaki metinden yapısal verileri çıkar (tarih, tutar, oran, miktar, süre vb.). Birden fazla veri varsa list formatı, tek veri varsa number formatı kullan. JSON formatında döndür:
+
+Tek veri için:
+{
+  "card_type": "number",
+  "title": "Veri açıklaması",
+  "content": { "label": "Etiket", "value": 123, "unit": "birim" },
+  "category": "operasyonel|mali|teknik|belgeler|diger"
+}
+
+Birden fazla veri için:
+{
+  "card_type": "list",
+  "title": "Çıkarılan veriler",
+  "content": { "items": ["Veri 1: değer", "Veri 2: değer", ...] },
+  "category": "operasyonel|mali|teknik|belgeler|diger"
+}
+Sadece JSON döndür, başka bir şey yazma.`,
+
+      // ─── Yeni Transform Tipleri (AnalysisDetailModal) ───────────
+      summarize: `Aşağıdaki ihale dokümanı içeriğini 2-3 cümle ile özetle. Türkçe yaz.
+Kritik sayısal verileri (kişi sayısı, tutar, süre) mutlaka dahil et.
+JSON formatında döndür:
+{
+  "card_type": "text",
+  "title": "İçerik Özeti",
+  "content": "2-3 cümlelik özet metni"
+}
+Sadece JSON döndür.`,
+
+      reformat: `Aşağıdaki metni daha okunabilir bir formata yeniden düzenle.
+- Yapısal veriler varsa grupla
+- Sayısal değerleri vurgula
+- Önemli kısımları ayrı maddeler halinde listele
+Türkçe yaz. JSON formatında döndür:
+{
+  "card_type": "text",
+  "title": "Yeniden Formatlanmış İçerik",
+  "content": "Formatlanmış metin"
+}
+Sadece JSON döndür.`,
+
+      to_list: `Aşağıdaki metin/paragrafı maddeli listeye dönüştür.
+Her madde ayrı bir satırda, kısa ve net olsun.
+Türkçe yaz. JSON formatında döndür:
+{
+  "card_type": "list",
+  "title": "Maddeler",
+  "content": { "items": ["Madde 1", "Madde 2", "Madde 3", ...] }
+}
+Sadece JSON döndür.`,
+
+      to_table: `Aşağıdaki metni/listeyi tabloya dönüştür. Uygun sütun başlıkları belirle.
+Türkçe yaz. JSON formatında döndür:
+{
+  "card_type": "table",
+  "title": "Tablo",
+  "content": { "headers": ["Sütun1", "Sütun2", ...], "rows": [["değer1", "değer2", ...], ...] }
+}
+Sadece JSON döndür.`,
+
+      validate: `Aşağıdaki ihale dokümanı verisini analiz et ve olası tutarsızlıkları, eksiklikleri ve hataları tespit et.
+- Sayısal tutarsızlıklar (toplam uyuşmazlığı vb.)
+- Mantıksal çelişkiler
+- Eksik veya şüpheli bilgiler
+- Olası yazım/veri hataları
+Türkçe yaz. JSON formatında döndür:
+{
+  "card_type": "text",
+  "title": "Doğrulama Raporu",
+  "content": "Bulgular ve öneriler"
+}
+Sadece JSON döndür.`,
+    };
+
+    const systemPrompt = prompts[transform_type];
+    if (!systemPrompt) {
+      return res.status(400).json({ success: false, error: 'Geçersiz transform_type' });
+    }
+
+    const aiClient = new (await import('@anthropic-ai/sdk')).default({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    const aiResponse = await aiClient.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      temperature: 0.1,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: text.substring(0, 4000) }],
+    });
+
+    const responseText = aiResponse.content?.[0]?.type === 'text' ? aiResponse.content[0].text : '';
+
+    // JSON parse
+    let parsed;
+    try {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch {
+      parsed = null;
+    }
+
+    if (!parsed) {
+      // Fallback: metin kartı olarak döndür
+      return res.json({
+        success: true,
+        data: {
+          card_type: 'text',
+          title: `AI ${transform_type === 'table' ? 'Tablo' : transform_type === 'summary' ? 'Özet' : 'Veri'} Çıkarımı`,
+          content: { text: responseText },
+          category: 'diger',
+        },
+      });
+    }
+
+    logger.info('[Card Transform] AI dönüşümü tamamlandı', {
+      tender_id,
+      transform_type,
+      card_type: parsed.card_type,
+    });
+
+    return res.json({ success: true, data: parsed });
+  } catch (error) {
+    logger.error('[Card Transform] Hata', { error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

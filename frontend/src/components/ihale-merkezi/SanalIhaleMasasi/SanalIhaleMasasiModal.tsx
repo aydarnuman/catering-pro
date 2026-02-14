@@ -14,6 +14,8 @@ const TeklifMerkeziModal = dynamic(
   { ssr: false, loading: () => null }
 );
 
+import type { MasaVeriPaketi } from '@/hooks/useMasaVeriPaketi';
+import { useUpdateMasaPaketi } from '@/hooks/useMasaVeriPaketi';
 import { AgentCard } from './components/AgentCard';
 import { AgentDetailPanel } from './components/AgentDetailPanel';
 import { AssembleButton } from './components/AssembleButton';
@@ -47,10 +49,15 @@ interface SanalIhaleMasasiContentProps {
   onClose: () => void;
   /** Whether hooks should be active. Defaults to true (always active for page). Modal passes `opened`. */
   enabled?: boolean;
+  /** Veri paketi — sağ panelden gelen süzülmüş veri. Varsa tek kaynak budur. */
+  masaPaketi?: MasaVeriPaketi | null;
 }
 
-export function SanalIhaleMasasiContent({ tender, onClose, enabled = true }: SanalIhaleMasasiContentProps) {
+export function SanalIhaleMasasiContent({ tender, onClose, enabled = true, masaPaketi }: SanalIhaleMasasiContentProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // Ajan sonuçlarını pakete geri yazma mutation'ı
+  const { mutate: updatePaket } = useUpdateMasaPaketi();
 
   const {
     viewMode,
@@ -70,7 +77,7 @@ export function SanalIhaleMasasiContent({ tender, onClose, enabled = true }: San
     reanalyzeAgent,
     handleOpenTeklif,
     handleCloseTeklif,
-  } = useSanalMasa(tender);
+  } = useSanalMasa(tender, masaPaketi ?? undefined);
 
   // Fetch agents from registry (DB) with fallback to hardcoded constants
   const { agents } = useAgentRegistry({
@@ -99,6 +106,43 @@ export function SanalIhaleMasasiContent({ tender, onClose, enabled = true }: San
       fetchAttachments();
     }
   }, [enabled, tender?.id, fetchAttachments]);
+
+  // Ajan analizleri tamamlandığında pakete geri yaz
+  // Guard: paketten yüklenen veriyi geri yazmayı önle, sadece yeni analiz sonuçlarını yaz
+  const allDone = agentAnalyses.every((a) => a.status !== 'analyzing');
+  const agentWrittenRef = useRef(false);
+  const loadedFromPaketRef = useRef(!!masaPaketi?.agent_analyses);
+  useEffect(() => {
+    if (!masaPaketi || !allDone || agentWrittenRef.current) return;
+    // Paketten yüklendiyse ilk seferi atla (aynı veriyi geri yazma)
+    if (loadedFromPaketRef.current) {
+      loadedFromPaketRef.current = false;
+      agentWrittenRef.current = true;
+      return;
+    }
+    agentWrittenRef.current = true;
+    const serialized: Record<string, unknown> = {};
+    for (const a of agentAnalyses) {
+      serialized[a.agentId] = { status: a.status, riskScore: a.riskScore, summary: a.summary, findings: a.findings };
+    }
+    updatePaket({ tenderId: masaPaketi.tender_id, agent_analyses: serialized });
+  }, [masaPaketi, allDone, agentAnalyses, updatePaket]);
+
+  // Verdict tamamlandığında pakete geri yaz
+  // Guard: sonsuz döngüyü önle — sadece yeni verdict yazılır, paketten yüklenen tekrar yazılmaz
+  const verdictWrittenRef = useRef(false);
+  const prevVerdictRef = useRef<unknown>(masaPaketi?.verdict_data ?? null);
+  useEffect(() => {
+    if (!masaPaketi || !verdictData || verdictWrittenRef.current) return;
+    // Paketten yüklenmiş verdict ile aynıysa yazma
+    if (prevVerdictRef.current) {
+      prevVerdictRef.current = null;
+      verdictWrittenRef.current = true;
+      return;
+    }
+    verdictWrittenRef.current = true;
+    updatePaket({ tenderId: masaPaketi.tender_id, verdict_data: verdictData as unknown as Record<string, unknown> });
+  }, [masaPaketi, verdictData, updatePaket]);
 
   // Agent tool → auto-attach
   const { addFromToolResult } = att;

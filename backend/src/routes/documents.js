@@ -1,13 +1,33 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
 import { query } from '../database.js';
-// v9.0: UNIFIED PIPELINE - TEK MERKEZİ SİSTEM
-import { getFileType, SUPPORTED_FORMATS } from '../services/ai-analyzer/index.js';
+import { detectDocTypeFromFilename } from '../services/ai-analyzer/prompts/doc-type/index.js';
+// v9.0: UNIFIED PIPELINE - TEK MERKEZİ SİSTEM (DİĞER PİPELINE DOSYALARINI KULLANMA!)
+import { SUPPORTED_FORMATS, getFileType } from '../services/ai-analyzer/index.js';
 import { analyzeDocument } from '../services/ai-analyzer/unified-pipeline.js';
-// DİĞER PİPELINE DOSYALARINI KULLANMA!
 import { processDocument } from '../services/document.js';
+import { supabase } from '../supabase.js';
+
+// Storage bucket name
+const BUCKET_NAME = 'tender-documents';
+
+// Content-Type mapping
+const CONTENT_TYPES = {
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+};
 
 const router = express.Router();
 
@@ -32,7 +52,9 @@ const allSupportedExtensions = [
   ...SUPPORTED_FORMATS.image,
   ...SUPPORTED_FORMATS.document,
   ...SUPPORTED_FORMATS.spreadsheet,
+  ...SUPPORTED_FORMATS.presentation,
   ...SUPPORTED_FORMATS.text,
+  ...SUPPORTED_FORMATS.archive,
 ];
 
 const upload = multer({
@@ -57,6 +79,68 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const { tender_id, uploaded_by } = req.body;
 
+    // Check for duplicate filename and add timestamp if needed
+    let originalFilename = req.file.originalname;
+    if (tender_id) {
+      const existingDoc = await query(
+        'SELECT id FROM documents WHERE tender_id = $1 AND original_filename = $2',
+        [tender_id, originalFilename]
+      );
+      if (existingDoc.rows.length > 0) {
+        // Add timestamp to filename to make it unique
+        const ext = path.extname(originalFilename);
+        const baseName = path.basename(originalFilename, ext);
+        const timestamp = Date.now();
+        originalFilename = `${baseName}_${timestamp}${ext}`;
+      }
+    }
+
+    // AI ile döküman tipini tespit et
+    const detectedDocType = detectDocTypeFromFilename(originalFilename) || 'other';
+    const fileExt = path.extname(req.file.originalname).toLowerCase();
+
+    // Görsel dosya mı kontrol et
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.tiff', '.tif', '.webp'].includes(fileExt);
+
+    // Supabase Storage'a yükle (tender_id olsun olmasın, her zaman yükle)
+    let storageUrl = null;
+    let storagePath = null;
+
+    if (supabase?.storage) {
+      try {
+        const uniqueId = crypto.randomBytes(4).toString('hex');
+        const timestamp = Date.now();
+        const safeFileName = originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storageFileName = `${timestamp}-${uniqueId}-${safeFileName}`;
+        // tender_id yoksa 'uploads' klasörüne koy
+        const folder = tender_id ? `tenders/${tender_id}/${detectedDocType}` : 'uploads';
+        storagePath = `${folder}/${storageFileName}`;
+
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const contentType = CONTENT_TYPES[fileExt] || 'application/octet-stream';
+
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(storagePath, fileBuffer, {
+            contentType,
+            upsert: false,
+          });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+          storageUrl = urlData?.publicUrl || null;
+          console.log(`[Upload] Supabase Storage'a yüklendi: ${storagePath}`);
+        } else {
+          console.error('[Upload] Supabase Storage hatası:', uploadError.message);
+        }
+      } catch (storageErr) {
+        console.error('[Upload] Supabase Storage yükleme hatası:', storageErr.message);
+      }
+    }
+
+    // Görsel dosyalar için status 'completed' (AI analizi gerekmez, hemen görüntülenebilir)
+    const initialStatus = isImage ? 'completed' : 'processing';
+
     // Dökümanı veritabanına kaydet
     const docResult = await query(
       `
@@ -67,25 +151,43 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         file_type, 
         file_size, 
         file_path,
+        storage_path,
+        storage_url,
         uploaded_by,
-        processing_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'processing')
+        processing_status,
+        source_type,
+        doc_type
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'upload', $11)
       RETURNING *
     `,
       [
         tender_id || null,
         req.file.filename,
-        req.file.originalname,
-        path.extname(req.file.originalname).toLowerCase(),
+        originalFilename,
+        fileExt,
         req.file.size,
         req.file.path,
+        storagePath,
+        storageUrl,
         uploaded_by || 'anonymous',
+        initialStatus,
+        detectedDocType,
       ]
     );
 
     const document = docResult.rows[0];
 
-    // Arka planda işle
+    // Görsel dosyalar için AI işleme yapma, sadece döndür (zaten 'completed' olarak kaydedildi)
+    if (isImage) {
+      res.json({
+        success: true,
+        message: 'Görsel yüklendi',
+        data: document,
+      });
+      return;
+    }
+
+    // Diğer dosyalar için arka planda işle
     processDocument(document.id, req.file.path, req.file.originalname)
       .then(async (result) => {
         await query(
@@ -341,6 +443,99 @@ router.get('/:id', async (req, res) => {
     res.json({
       success: true,
       data: result.rows[0],
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Eksik storage_url olan dökümanları Supabase'e yükle
+router.post('/fix-storage', async (req, res) => {
+  try {
+    const { document_ids } = req.body;
+
+    // storage_url null olup file_path olan dökümanları bul
+    let docsToFix;
+    if (document_ids && Array.isArray(document_ids) && document_ids.length > 0) {
+      const result = await query(
+        `SELECT id, tender_id, original_filename, file_path, file_type, doc_type 
+         FROM documents 
+         WHERE id = ANY($1) AND storage_url IS NULL AND file_path IS NOT NULL`,
+        [document_ids]
+      );
+      docsToFix = result.rows;
+    } else {
+      const result = await query(
+        `SELECT id, tender_id, original_filename, file_path, file_type, doc_type 
+         FROM documents 
+         WHERE storage_url IS NULL AND file_path IS NOT NULL
+         ORDER BY created_at DESC
+         LIMIT 50`
+      );
+      docsToFix = result.rows;
+    }
+
+    if (docsToFix.length === 0) {
+      return res.json({ success: true, message: 'Düzeltilecek döküman bulunamadı', fixed: 0 });
+    }
+
+    const results = [];
+    for (const doc of docsToFix) {
+      try {
+        // Dosya var mı kontrol et
+        if (!fs.existsSync(doc.file_path)) {
+          results.push({ id: doc.id, status: 'error', message: 'Dosya bulunamadı' });
+          continue;
+        }
+
+        // Supabase'e yükle
+        const fileBuffer = fs.readFileSync(doc.file_path);
+        const fileExt = (doc.file_type || path.extname(doc.original_filename)).toLowerCase();
+        const contentType = CONTENT_TYPES[fileExt] || 'application/octet-stream';
+
+        const uniqueId = crypto.randomBytes(4).toString('hex');
+        const timestamp = Date.now();
+        const safeFileName = (doc.original_filename || 'file').replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storageFileName = `${timestamp}-${uniqueId}-${safeFileName}`;
+        const storagePath = `tenders/${doc.tender_id || 'unknown'}/${doc.doc_type || 'other'}/${storageFileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(storagePath, fileBuffer, {
+            contentType,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          results.push({ id: doc.id, status: 'error', message: uploadError.message });
+          continue;
+        }
+
+        // Public URL al
+        const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+        const storageUrl = urlData?.publicUrl || null;
+
+        // Database'i güncelle
+        await query(
+          'UPDATE documents SET storage_path = $1, storage_url = $2 WHERE id = $3',
+          [storagePath, storageUrl, doc.id]
+        );
+
+        results.push({ id: doc.id, status: 'fixed', storage_url: storageUrl });
+      } catch (err) {
+        results.push({ id: doc.id, status: 'error', message: err.message });
+      }
+    }
+
+    const fixed = results.filter((r) => r.status === 'fixed').length;
+    const errors = results.filter((r) => r.status === 'error').length;
+
+    res.json({
+      success: true,
+      message: `${fixed} döküman düzeltildi, ${errors} hata`,
+      fixed,
+      errors,
+      results,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

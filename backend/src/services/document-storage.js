@@ -1355,7 +1355,7 @@ class DocumentStorageService {
         is_extracted, parent_doc_id, processing_status, created_at,
         analysis_result, extracted_text
        FROM documents 
-       WHERE tender_id = $1 AND source_type IN ('download', 'content')
+       WHERE tender_id = $1 AND (source_type IN ('download', 'content', 'upload') OR source_type IS NULL)
        ORDER BY source_type, doc_type, is_extracted, created_at`,
       [tenderId]
     );

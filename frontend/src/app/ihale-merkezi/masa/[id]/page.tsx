@@ -4,15 +4,39 @@ import { Box, Button, Center, Group, Loader, Paper, Stack, Text, ThemeIcon, Titl
 import { IconAlertTriangle, IconArrowLeft, IconFileAnalytics } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { SanalIhaleMasasiContent } from '@/components/ihale-merkezi/SanalIhaleMasasi';
-import { useTrackedTenderDetail } from '@/hooks/useIhaleMerkeziData';
+import type { AnalysisData, SavedTender } from '@/components/ihale-merkezi/types';
+import { useMasaVeriPaketi } from '@/hooks/useMasaVeriPaketi';
 
 export default function IhaleMasasiPage() {
   const params = useParams();
   const router = useRouter();
   const tenderId = params?.id ? Number(params.id) : null;
 
-  const { data: tender, isLoading, error } = useTrackedTenderDetail(tenderId);
+  // Tek veri kaynağı: sağ panelden gönderilen veri paketi
+  const { data: masaPaketi, isLoading, error } = useMasaVeriPaketi(tenderId);
+
+  // Paketten SavedTender-uyumlu obje oluştur (SanalIhaleMasasiContent bunu bekliyor)
+  const tenderFromPaket: SavedTender | null = useMemo(() => {
+    if (!masaPaketi) return null;
+    return {
+      id: String(masaPaketi.id),
+      tender_id: masaPaketi.tender_id,
+      ihale_basligi: masaPaketi.tender_title || '',
+      kurum: masaPaketi.kurum || '',
+      tarih: masaPaketi.tarih || '',
+      bedel: masaPaketi.bedel || '',
+      sure: masaPaketi.sure || undefined,
+      status: 'inceleniyor' as const,
+      notes: '',
+      created_at: masaPaketi.created_at,
+      dokuman_sayisi: 0,
+      teknik_sart_sayisi: 0,
+      birim_fiyat_sayisi: 0,
+      analysis_summary: masaPaketi.analysis_cards as unknown as AnalysisData,
+    };
+  }, [masaPaketi]);
 
   // Loading state
   if (isLoading) {
@@ -28,8 +52,8 @@ export default function IhaleMasasiPage() {
     );
   }
 
-  // Error / not found state
-  if (error || !tender) {
+  // Error / not found — paket yok demek masaya gönderilmemiş
+  if (error || !masaPaketi || !tenderFromPaket) {
     return (
       <Center h="100vh" bg="#0a0a14">
         <Paper
@@ -44,10 +68,11 @@ export default function IhaleMasasiPage() {
               <IconAlertTriangle size={32} />
             </ThemeIcon>
             <Title order={3} c="white" ta="center">
-              Ihale Bulunamadi
+              Veri Paketi Bulunamadi
             </Title>
             <Text c="dimmed" ta="center" size="sm">
-              Bu ihale takip listenizde bulunamadi veya henuz takip listesine eklenmemis.
+              Bu ihale icin henuz veri paketi olusturulmamis. Ihale merkezinde sag panelden &quot;Masaya Gonder&quot;
+              butonuyla veri paketini gondermeniz gerekiyor.
             </Text>
             <Group gap="sm">
               <Button
@@ -64,7 +89,7 @@ export default function IhaleMasasiPage() {
                 variant="gradient"
                 gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
               >
-                Takip Listesine Git
+                Ihale Merkezine Git
               </Button>
             </Group>
           </Stack>
@@ -73,8 +98,10 @@ export default function IhaleMasasiPage() {
     );
   }
 
-  // analysis_summary guard — tender exists but no analysis yet
-  if (!tender.analysis_summary) {
+  // analysis_cards guard — paket var ama analiz boş
+  const hasAnalysis = masaPaketi.analysis_cards && Object.keys(masaPaketi.analysis_cards).length > 0;
+
+  if (!hasAnalysis) {
     return (
       <Center h="100vh" bg="#0a0a14">
         <Paper
@@ -92,11 +119,8 @@ export default function IhaleMasasiPage() {
               Dokuman Analizi Gerekli
             </Title>
             <Text c="dimmed" ta="center" size="sm">
-              Bu ihale icin henuz dokuman analizi yapilmamis. Ihale masasini kullanabilmek icin once dokumanlarin analiz
-              edilmesi gerekiyor.
-            </Text>
-            <Text c="dimmed" ta="center" size="xs">
-              {tender.ihale_basligi}
+              Veri paketi olusturulmus ancak analiz verisi bos. Once ihale merkezinde dokumanlarin analiz edilmesi
+              gerekiyor.
             </Text>
             <Group gap="sm">
               <Button
@@ -109,7 +133,7 @@ export default function IhaleMasasiPage() {
               </Button>
               <Button
                 component={Link}
-                href={`/ihale-merkezi?tab=tracked&tender=${tender.tender_id}`}
+                href={`/ihale-merkezi?tab=tracked&tender=${tenderId}`}
                 variant="gradient"
                 gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
                 leftSection={<IconFileAnalytics size={16} />}
@@ -123,10 +147,10 @@ export default function IhaleMasasiPage() {
     );
   }
 
-  // Main content — standalone page version of Sanal Ihale Masasi
+  // Main content — masaya gelen paket verisiyle beslenen ihale masası
   return (
     <Box style={{ height: '100vh', overflow: 'hidden' }}>
-      <SanalIhaleMasasiContent tender={tender} onClose={() => router.back()} enabled />
+      <SanalIhaleMasasiContent tender={tenderFromPaket} onClose={() => router.back()} enabled masaPaketi={masaPaketi} />
     </Box>
   );
 }

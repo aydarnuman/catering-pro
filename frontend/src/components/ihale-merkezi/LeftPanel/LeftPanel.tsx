@@ -32,7 +32,8 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { Tender } from '@/types/api';
-import type { IhaleMerkeziState, SavedTender } from '../types';
+import type { DocumentInfo, IhaleMerkeziState, SavedTender } from '../types';
+import { DocumentListPanel } from './DocumentListPanel';
 import { TenderListItem } from './TenderListItem';
 
 interface LeftPanelProps {
@@ -42,7 +43,11 @@ interface LeftPanelProps {
   totalCount: number;
   onStateChange: (updates: Partial<IhaleMerkeziState>) => void;
   onSelectTender: (tender: Tender | SavedTender | null) => void;
+  onSelectDocument?: (doc: DocumentInfo) => void;
+  onDeselectTender?: () => void;
+  onOpenDocumentWizard?: () => void;
   onRefresh: () => void;
+  onRefreshDocuments?: () => void;
   onToggleTracking?: (tenderId: number, isCurrentlyTracked: boolean) => void;
   isMobile?: boolean;
   collapsed?: boolean;
@@ -56,7 +61,11 @@ export function LeftPanel({
   totalCount,
   onStateChange,
   onSelectTender,
+  onSelectDocument,
+  onDeselectTender,
+  onOpenDocumentWizard,
   onRefresh,
+  onRefreshDocuments,
   onToggleTracking,
   isMobile = false,
   collapsed = false,
@@ -255,7 +264,38 @@ export function LeftPanel({
     );
   }
 
-  // ========== EXPANDED VIEW ==========
+  // ========== MODE B: DOCUMENT LIST (when a saved tender is selected) ==========
+  const isSavedTender = state.selectedTender && 'tender_id' in state.selectedTender;
+  if (isSavedTender && !isMobile && onDeselectTender && onSelectDocument) {
+    const savedTender = state.selectedTender as SavedTender;
+    return (
+      <Box
+        style={{
+          borderRight: '1px solid var(--mantine-color-default-border)',
+          height: '100%',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'rgba(24, 24, 27, 0.85)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <DocumentListPanel
+          tender={savedTender}
+          documents={state.documents}
+          documentsLoading={state.documentsLoading}
+          selectedDocumentId={state.selectedDocumentId}
+          onSelectDocument={onSelectDocument}
+          onDeselectTender={onDeselectTender}
+          onOpenDocumentWizard={onOpenDocumentWizard || (() => {})}
+          onRefreshDocuments={onRefreshDocuments}
+        />
+      </Box>
+    );
+  }
+
+  // ========== MODE A: TENDER LIST (default expanded view) ==========
   return (
     <Box
       style={{

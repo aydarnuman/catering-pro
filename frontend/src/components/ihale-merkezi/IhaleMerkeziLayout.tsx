@@ -60,19 +60,32 @@ function IhaleMerkeziLayoutInner() {
     totalCount,
     updateState,
     selectTender,
+    selectDocument,
+    deselectTender,
     toggleSection,
     toggleTracking,
     toggleLeftPanel,
     updateTenderStatus,
     refreshAll,
     refreshTracked,
+    refreshDocuments,
     refreshAndUpdateSelected,
+    openDocumentWizard,
   } = useIhaleMerkezi();
 
   // Mobile detection
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [mobileActiveTab, setMobileActiveTab] = useState<'tools' | 'notes'>('tools');
+
+  // Cross-panel text selection (Center → Right)
+  const [selectedText, setSelectedText] = useState('');
+  const [selectedTextDocId, setSelectedTextDocId] = useState<number | undefined>();
+
+  const handleTextSelect = useCallback((text: string, documentId?: number) => {
+    setSelectedText(text);
+    setSelectedTextDocId(documentId);
+  }, []);
 
   // Mobile back handler
   const handleMobileBack = useCallback(() => {
@@ -102,7 +115,11 @@ function IhaleMerkeziLayoutInner() {
               totalCount={totalCount}
               onStateChange={updateState}
               onSelectTender={selectTender}
+              onSelectDocument={selectDocument}
+              onDeselectTender={deselectTender}
+              onOpenDocumentWizard={openDocumentWizard}
               onRefresh={refreshAll}
+              onRefreshDocuments={refreshDocuments}
               onToggleTracking={toggleTracking}
               isMobile
             />
@@ -139,6 +156,7 @@ function IhaleMerkeziLayoutInner() {
                 onSelectTender={selectTender}
                 onUpdateStatus={updateTenderStatus}
                 onRefreshData={refreshAndUpdateSelected}
+                onTextSelect={handleTextSelect}
                 isMobile
               />
             </Box>
@@ -208,6 +226,8 @@ function IhaleMerkeziLayoutInner() {
             onRefreshData={() => {
               refreshTracked();
             }}
+            selectedText={selectedText}
+            selectedTextDocId={selectedTextDocId}
             mobileActiveTab={mobileActiveTab}
           />
         </Drawer>
@@ -238,7 +258,12 @@ function IhaleMerkeziLayoutInner() {
   }
 
   // ========== DESKTOP LAYOUT ==========
-  const leftWidth = state.leftPanelCollapsed ? PANEL_WIDTHS.leftCollapsed : PANEL_WIDTHS.left;
+  const isSavedTenderSelected = state.selectedTender && 'tender_id' in state.selectedTender;
+  const leftWidth = state.leftPanelCollapsed
+    ? PANEL_WIDTHS.leftCollapsed
+    : isSavedTenderSelected
+      ? 280
+      : PANEL_WIDTHS.left;
 
   return (
     <Box
@@ -261,22 +286,27 @@ function IhaleMerkeziLayoutInner() {
         totalCount={totalCount}
         onStateChange={updateState}
         onSelectTender={selectTender}
+        onSelectDocument={selectDocument}
+        onDeselectTender={deselectTender}
+        onOpenDocumentWizard={openDocumentWizard}
         onRefresh={refreshAll}
+        onRefreshDocuments={refreshDocuments}
         onToggleTracking={toggleTracking}
         collapsed={state.leftPanelCollapsed}
         onToggleCollapse={toggleLeftPanel}
       />
 
-      {/* Orta Panel */}
+      {/* Orta Panel — Döküman Çalışma Alanı */}
       <CenterPanel
         state={state}
         onStateChange={updateState}
         onSelectTender={selectTender}
         onUpdateStatus={updateTenderStatus}
         onRefreshData={refreshAndUpdateSelected}
+        onTextSelect={handleTextSelect}
       />
 
-      {/* Sag Panel */}
+      {/* Sağ Panel — Veri Paketi */}
       <RightPanel
         state={state}
         onToggleSection={toggleSection}
@@ -284,6 +314,8 @@ function IhaleMerkeziLayoutInner() {
         onRefreshData={() => {
           refreshTracked();
         }}
+        selectedText={selectedText}
+        selectedTextDocId={selectedTextDocId}
       />
 
       {/* Modals */}

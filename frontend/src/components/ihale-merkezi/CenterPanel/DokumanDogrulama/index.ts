@@ -1,0 +1,1 @@
+export { DokumanDogrulamaPanel } from './DokumanDogrulamaPanel';

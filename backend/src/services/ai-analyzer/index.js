@@ -30,6 +30,7 @@ export const SUPPORTED_FORMATS = {
   spreadsheet: ['.xlsx', '.xls', '.ods', '.csv'],
   presentation: ['.pptx', '.ppt', '.odp'],
   text: ['.txt', '.xml', '.json'],
+  archive: ['.zip', '.rar'],
 };
 
 /**
@@ -46,6 +47,7 @@ export function getFileType(filename) {
   if (SUPPORTED_FORMATS.spreadsheet.includes(ext)) return 'spreadsheet';
   if (SUPPORTED_FORMATS.presentation.includes(ext)) return 'presentation';
   if (SUPPORTED_FORMATS.text.includes(ext)) return 'text';
+  if (SUPPORTED_FORMATS.archive.includes(ext)) return 'archive';
 
   return 'unknown';
 }

@@ -48,11 +48,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Kullanıcı bilgisini API'den al
   const fetchUser = useCallback(async (): Promise<AppUser | null> => {
     try {
+      const baseUrl = getApiUrl();
+      // SSR veya URL yoksa atla
+      if (typeof window === 'undefined' || !baseUrl) {
+        return null;
+      }
+
       // Timeout ile fetch - 3 saniye içinde cevap gelmezse null döndür
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const response = await fetch(`${getApiUrl()}/api/auth/me`, {
+      // Aynı origin'de relative URL daha güvenilir (CORS/SSL sorunlarını önler)
+      const apiUrl = baseUrl.startsWith(window.location.origin)
+        ? '/api/auth/me'
+        : `${baseUrl}/api/auth/me`;
+
+      const response = await fetch(apiUrl, {
         method: 'GET',
         credentials: 'include', // Cookie'leri gönder
         headers: {
@@ -79,10 +90,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return null;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('Auth check timeout - API yanıt vermedi');
-      } else {
-        console.error('Fetch user error:', error);
+      // Network hataları sessizce ele al — backend henüz hazır olmayabilir
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.warn('[Auth] Timeout — API yanıt vermedi, tekrar denenecek');
+        } else if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
+          console.warn('[Auth] Backend bağlantı hatası — backend çalışıyor mu?');
+        } else {
+          console.warn('[Auth] Kullanıcı bilgisi alınamadı:', error.message);
+        }
       }
       return null;
     }

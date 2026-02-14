@@ -9,7 +9,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import type React from 'react';
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import {
   useAllTenders,
@@ -20,9 +20,11 @@ import {
   useTrackedTenders,
   useUpdateTenderStatus,
 } from '@/hooks/useIhaleMerkeziData';
+import { api } from '@/lib/api';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { getApiUrl } from '@/lib/config';
 import type { Tender } from '@/types/api';
-import type { IhaleMerkeziState, SavedTender, TenderStatus } from './types';
+import type { DocumentInfo, IhaleMerkeziState, SavedTender, TenderStatus } from './types';
 
 // ─── Context Value Type ────────────────────────────────────────
 
@@ -39,6 +41,10 @@ interface IhaleMerkeziContextValue {
   // Actions
   updateState: (updates: Partial<IhaleMerkeziState>) => void;
   selectTender: (tender: Tender | SavedTender | null) => void;
+  /** Select a document and fetch its signed URL */
+  selectDocument: (doc: DocumentInfo) => void;
+  /** Deselect tender and go back to tender list (left panel Mod A) */
+  deselectTender: () => void;
   toggleSection: (sectionId: string) => void;
   toggleTracking: (tenderId: number, isCurrentlyTracked: boolean) => void;
   updateTenderStatus: (tenderId: string, newStatus: string) => void;
@@ -48,8 +54,12 @@ interface IhaleMerkeziContextValue {
   refreshAll: () => void;
   /** Refresh tracked tenders and return fresh list */
   refreshTracked: () => Promise<SavedTender[]>;
+  /** Refresh documents for selected tender */
+  refreshDocuments: () => void;
   /** Refresh data and update selected tender */
   refreshAndUpdateSelected: () => Promise<void>;
+  /** Open document wizard modal */
+  openDocumentWizard: () => void;
 }
 
 const IhaleMerkeziContext = createContext<IhaleMerkeziContextValue | null>(null);
@@ -70,14 +80,20 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     showStats: false as IhaleMerkeziState['showStats'],
     leftPanelCollapsed: false,
 
-    // Orta panel
+    // Orta panel (Dokuman Calisma Alani)
     detailExpanded: !!searchParams.get('tender'),
     aiChatExpanded: true,
-    activeDetailTab: 'ozet' as IhaleMerkeziState['activeDetailTab'],
+    selectedDocumentId: null as number | null,
     dilekceType: null as string | null,
 
-    // Sag panel
-    activeRightTab: 'kontrol' as IhaleMerkeziState['activeRightTab'],
+    // Dokuman yonetimi
+    documents: [] as DocumentInfo[],
+    documentsLoading: false,
+    signedUrl: null as string | null,
+    signedUrlLoading: false,
+
+    // Sag panel (Veri Paketi)
+    veriPaketiSections: new Set(['analiz']),
     expandedSections: new Set(['notes']),
     selectedFirmaId: null as number | null,
 
@@ -130,6 +146,71 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     invalidateStats();
   });
 
+  // ========== DOCUMENT FETCHING ==========
+
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const fetchSignedUrl = useCallback(async (doc: DocumentInfo) => {
+    if (doc.source_type === 'content') {
+      setUiState((prev) => ({ ...prev, signedUrl: null, signedUrlLoading: false }));
+      return;
+    }
+    if (!doc.storage_url) {
+      setUiState((prev) => ({ ...prev, signedUrl: null, signedUrlLoading: false }));
+      return;
+    }
+    setUiState((prev) => ({ ...prev, signedUrlLoading: true, signedUrl: null }));
+    try {
+      const res = await api.get(getApiUrl(`/api/tender-docs/documents/${doc.id}/url`));
+      setUiState((prev) => ({
+        ...prev,
+        signedUrl: res.data?.data?.signedUrl || null,
+        signedUrlLoading: false,
+      }));
+    } catch {
+      setUiState((prev) => ({ ...prev, signedUrl: null, signedUrlLoading: false }));
+    }
+  }, []);
+
+  const fetchDocuments = useCallback(
+    async (tId: number) => {
+      // Cancel previous fetch
+      fetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      fetchAbortRef.current = controller;
+
+      setUiState((prev) => ({ ...prev, documentsLoading: true }));
+      try {
+        const res = await api.get(getApiUrl(`/api/tender-docs/${tId}/downloaded-documents`), {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        const grouped = res.data?.data?.documents || [];
+        const flat: DocumentInfo[] = [];
+        for (const group of grouped) {
+          for (const file of group.files || []) {
+            flat.push(file);
+          }
+        }
+        setUiState((prev) => ({
+          ...prev,
+          documents: flat,
+          documentsLoading: false,
+          // Auto-select first if nothing selected
+          selectedDocumentId: flat.length > 0 ? flat[0].id : null,
+        }));
+        // Auto-fetch signed URL for first doc
+        if (flat.length > 0) {
+          fetchSignedUrl(flat[0]);
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        setUiState((prev) => ({ ...prev, documents: [], documentsLoading: false }));
+      }
+    },
+    [fetchSignedUrl]
+  );
+
   // ========== ACTIONS ==========
 
   const updateState = useCallback((updates: Partial<IhaleMerkeziState>) => {
@@ -138,82 +219,114 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     setUiState((prev) => ({ ...prev, ...uiUpdates }));
   }, []);
 
-  const selectTender = useCallback(async (tender: Tender | SavedTender | null) => {
-    setUiState((prev) => ({
-      ...prev,
-      selectedTender: tender,
-      selectedTenderId: tender ? ('tender_id' in tender ? tender.tender_id : tender.id) : null,
-      detailExpanded: !!tender,
-      // Auto-collapse left panel when a tender is selected
-      leftPanelCollapsed: !!tender,
-    }));
+  const selectDocument = useCallback(
+    (doc: DocumentInfo) => {
+      setUiState((prev) => ({ ...prev, selectedDocumentId: doc.id }));
+      fetchSignedUrl(doc);
+    },
+    [fetchSignedUrl]
+  );
 
-    // Update URL
-    if (tender) {
-      const id = 'tender_id' in tender ? tender.tender_id : tender.id;
-      const url = new URL(window.location.href);
-      url.searchParams.set('tender', String(id));
-      window.history.replaceState({}, '', url.toString());
+  const selectTender = useCallback(
+    async (tender: Tender | SavedTender | null) => {
+      setUiState((prev) => ({
+        ...prev,
+        selectedTender: tender,
+        selectedTenderId: tender ? ('tender_id' in tender ? tender.tender_id : tender.id) : null,
+        detailExpanded: !!tender,
+        // Do NOT auto-collapse — left panel switches to document list mode
+        leftPanelCollapsed: false,
+        // Reset document state
+        documents: [],
+        documentsLoading: false,
+        selectedDocumentId: null,
+        signedUrl: null,
+        signedUrlLoading: false,
+      }));
 
-      // Global AI Asistana context gönder
-      const isSaved = 'tender_id' in tender;
-      window.dispatchEvent(
-        new CustomEvent('ai-context-update', {
-          detail: {
-            type: 'tender',
-            id: id,
-            title: isSaved ? tender.ihale_basligi : tender.title,
-            pathname: '/ihale-merkezi',
-            department: 'İHALE',
-            data: {
+      // Update URL
+      if (tender) {
+        const id = 'tender_id' in tender ? tender.tender_id : tender.id;
+        const url = new URL(window.location.href);
+        url.searchParams.set('tender', String(id));
+        window.history.replaceState({}, '', url.toString());
+
+        // Global AI Asistana context gönder
+        const isSaved = 'tender_id' in tender;
+        window.dispatchEvent(
+          new CustomEvent('ai-context-update', {
+            detail: {
+              type: 'tender',
+              id: id,
               title: isSaved ? tender.ihale_basligi : tender.title,
-              organization: isSaved ? tender.kurum : tender.organization,
-              city: tender.city,
-              external_id: isSaved ? tender.external_id : tender.external_id,
-              deadline: isSaved ? tender.tarih : tender.deadline,
-              estimated_cost: isSaved ? tender.yaklasik_maliyet : tender.estimated_cost,
-              ...(isSaved && {
-                dokuman_sayisi: tender.dokuman_sayisi,
-                teknik_sart_sayisi: tender.teknik_sart_sayisi,
-                birim_fiyat_sayisi: tender.birim_fiyat_sayisi,
-                status: tender.status,
-              }),
+              pathname: '/ihale-merkezi',
+              department: 'İHALE',
+              data: {
+                title: isSaved ? tender.ihale_basligi : tender.title,
+                organization: isSaved ? tender.kurum : tender.organization,
+                city: tender.city,
+                external_id: isSaved ? tender.external_id : tender.external_id,
+                deadline: isSaved ? tender.tarih : tender.deadline,
+                estimated_cost: isSaved ? tender.yaklasik_maliyet : tender.estimated_cost,
+                ...(isSaved && {
+                  dokuman_sayisi: tender.dokuman_sayisi,
+                  teknik_sart_sayisi: tender.teknik_sart_sayisi,
+                  birim_fiyat_sayisi: tender.birim_fiyat_sayisi,
+                  status: tender.status,
+                }),
+              },
             },
-          },
-        })
-      );
+          })
+        );
 
-      // On-demand döküman çekme
-      const dokumanSayisi = isSaved ? tender.dokuman_sayisi : 0;
-      if (dokumanSayisi === 0) {
-        try {
-          tendersAPI.scrapeDocumentsForTender(String(id)).catch(() => {});
-        } catch {
-          // Ignore
+        // On-demand döküman çekme (scrape if no docs yet)
+        const dokumanSayisi = isSaved ? tender.dokuman_sayisi : 0;
+        if (isSaved && dokumanSayisi === 0) {
+          try {
+            tendersAPI.scrapeDocumentsForTender(String(id)).catch(() => {});
+          } catch {
+            // Ignore
+          }
         }
-      }
-    } else {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('tender');
-      window.history.replaceState({}, '', url.toString());
 
-      window.dispatchEvent(
-        new CustomEvent('ai-context-update', {
-          detail: {
-            type: 'tender',
-            pathname: '/ihale-merkezi',
-            department: 'İHALE',
-          },
-        })
-      );
-    }
-  }, []);
+        // Always fetch documents for saved tenders
+        // (dokuman_sayisi may be stale/zero even when documents exist)
+        if (isSaved) {
+          fetchDocuments(id as number);
+        }
+      } else {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tender');
+        window.history.replaceState({}, '', url.toString());
+
+        window.dispatchEvent(
+          new CustomEvent('ai-context-update', {
+            detail: {
+              type: 'tender',
+              pathname: '/ihale-merkezi',
+              department: 'İHALE',
+            },
+          })
+        );
+      }
+    },
+    [fetchDocuments]
+  );
 
   const toggleLeftPanel = useCallback(() => {
     setUiState((prev) => ({
       ...prev,
       leftPanelCollapsed: !prev.leftPanelCollapsed,
     }));
+  }, []);
+
+  const deselectTender = useCallback(() => {
+    selectTender(null);
+  }, [selectTender]);
+
+  const openDocumentWizard = useCallback(() => {
+    // Dispatch a custom event that CenterPanel listens to
+    window.dispatchEvent(new CustomEvent('open-document-wizard'));
   }, []);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -308,6 +421,13 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     }
   }, [refetchTracked, uiState.selectedTender, selectTender]);
 
+  const refreshDocuments = useCallback(() => {
+    if (uiState.selectedTender && 'tender_id' in uiState.selectedTender) {
+      const tenderId = (uiState.selectedTender as SavedTender).tender_id;
+      fetchDocuments(tenderId);
+    }
+  }, [uiState.selectedTender, fetchDocuments]);
+
   const value: IhaleMerkeziContextValue = {
     state,
     loading,
@@ -315,13 +435,17 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     totalCount,
     updateState,
     selectTender,
+    selectDocument,
+    deselectTender,
     toggleSection,
     toggleTracking,
     updateTenderStatus,
     toggleLeftPanel,
     refreshAll,
     refreshTracked,
+    refreshDocuments,
     refreshAndUpdateSelected,
+    openDocumentWizard,
   };
 
   return <IhaleMerkeziContext.Provider value={value}>{children}</IhaleMerkeziContext.Provider>;
