@@ -5,42 +5,55 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
+  Collapse,
   CopyButton,
   Divider,
   Group,
   List,
   Loader,
   Modal,
+  Paper,
   ScrollArea,
   SimpleGrid,
   Stack,
   Table,
-  Tabs,
   Text,
   Textarea,
+  TextInput,
   ThemeIcon,
   Tooltip,
+  UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
-  IconBrain,
+  IconAlertTriangle,
   IconCheck,
   IconClipboard,
   IconCopy,
   IconEdit,
   IconExternalLink,
   IconFileText,
+  IconInfoCircle,
   IconList,
-  IconListCheck,
-  IconRobot,
+  IconPlus,
+  IconSearch,
   IconSparkles,
-  IconTable,
   IconTableExport,
-  IconTransform,
+  IconTrash,
+  IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { type ContentType, detectContentType, splitContentToItems } from '../normalizeAnalysis';
+
+// Hücre değerini formatla
+function formatCellValue(value: unknown): string {
+  if (value === null || value === undefined) return '-';
+  if (typeof value === 'number') return value.toLocaleString('tr-TR');
+  if (typeof value === 'boolean') return value ? 'Evet' : 'Hayır';
+  return String(value);
+}
 
 // ─── Kart Tipi Tanimlari ────────────────────────────────────────
 
@@ -102,14 +115,14 @@ function highlightNumbers(text: string): React.ReactNode {
   const parts = text.split(
     /(\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?)/gi
   );
-  return parts.map((part) => {
+  return parts.map((part, idx) => {
     if (
       /^\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?$/i.test(
         part
       )
     ) {
       return (
-        <Text key={`hl-${part}`} component="span" fw={700} c="blue">
+        <Text key={`hl-${part.slice(0, 10)}-${idx}`} component="span" fw={700} c="blue">
           {part}
         </Text>
       );
@@ -131,20 +144,13 @@ function dataToString(data: unknown, _cardType: AnalysisCardType): string {
         if (typeof item === 'string') return `${i + 1}. ${item}`;
         if (typeof item === 'object' && item !== null) {
           const obj = item as Record<string, unknown>;
-          // Teknik sart
           if (obj.madde || obj.text || obj.description) return `${i + 1}. ${obj.madde || obj.text || obj.description}`;
-          // Onemli not
           if (obj.not) return `${i + 1}. ${obj.not}`;
-          // Birim fiyat
           if (obj.kalem)
             return `${obj.kalem}: ${obj.miktar || ''} ${obj.birim || ''} ${obj.fiyat ? `- ${obj.fiyat} TL` : ''}`;
-          // Personel
           if (obj.pozisyon) return `${obj.pozisyon}: ${obj.adet || ''} kişi`;
-          // Takvim
           if (obj.olay) return `${obj.olay}: ${obj.tarih || ''}`;
-          // Ceza
           if (obj.tur && obj.oran) return `${obj.tur}: ${obj.oran}`;
-          // Belge
           if (obj.belge) return `${obj.belge}${obj.zorunlu ? ' (zorunlu)' : ''}`;
           return JSON.stringify(item);
         }
@@ -163,38 +169,6 @@ function dataToString(data: unknown, _cardType: AnalysisCardType): string {
   return String(data);
 }
 
-// ─── Icerik Tab: Akilli Render ──────────────────────────────────
-
-function ContentTab({ data, cardType }: { data: unknown; cardType: AnalysisCardType }) {
-  const renderMode = getDataRenderMode(cardType);
-
-  // String veri -> otomatik tespit
-  if (typeof data === 'string') {
-    const ct = detectContentType(data);
-    return <SmartStringRenderer value={data} contentType={ct} />;
-  }
-
-  // Array veri
-  if (Array.isArray(data)) {
-    if (renderMode === 'table') {
-      return <ArrayTableRenderer items={data} cardType={cardType} />;
-    }
-    return <ArrayListRenderer items={data} cardType={cardType} />;
-  }
-
-  // Object veri (key-value)
-  if (typeof data === 'object' && data !== null) {
-    return <ObjectKeyValueRenderer obj={data as Record<string, unknown>} />;
-  }
-
-  // Fallback
-  return (
-    <Text size="sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-      {String(data)}
-    </Text>
-  );
-}
-
 function SmartStringRenderer({ value, contentType }: { value: string; contentType: ContentType }) {
   if (contentType === 'list') {
     const items = splitContentToItems(value);
@@ -208,8 +182,8 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
           </ThemeIcon>
         }
       >
-        {items.map((item) => (
-          <List.Item key={`sli-${item.slice(0, 30)}`}>
+        {items.map((item, idx) => (
+          <List.Item key={`sli-${item.slice(0, 20)}-${idx}`}>
             <Text size="sm" style={{ lineHeight: 1.5 }}>
               {highlightNumbers(item)}
             </Text>
@@ -236,16 +210,16 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
       <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
         <Table.Thead>
           <Table.Tr>
-            {headers.map((h) => (
-              <Table.Th key={`sth-${h.slice(0, 20)}`}>{h}</Table.Th>
+            {headers.map((h, hi) => (
+              <Table.Th key={`sth-${h.slice(0, 10)}-${hi}`}>{h}</Table.Th>
             ))}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {dataRows.map((row) => (
-            <Table.Tr key={`str-${(row[0] || '').slice(0, 15)}`}>
-              {row.map((cell) => (
-                <Table.Td key={`std-${cell.slice(0, 20)}`}>{highlightNumbers(cell)}</Table.Td>
+          {dataRows.map((row, ri) => (
+            <Table.Tr key={`str-${(row[0] || '').slice(0, 10)}-${ri}`}>
+              {row.map((cell, ci) => (
+                <Table.Td key={`std-${cell.slice(0, 10)}-${ri}-${ci}`}>{highlightNumbers(cell)}</Table.Td>
               ))}
             </Table.Tr>
           ))}
@@ -257,8 +231,8 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
   const paragraphs = value.split(/\n\n+/).filter((p) => p.trim());
   return (
     <Stack gap="sm">
-      {paragraphs.map((p) => (
-        <Text key={`sp-${p.slice(0, 25)}`} size="sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+      {paragraphs.map((p, pi) => (
+        <Text key={`sp-${p.slice(0, 15)}-${pi}`} size="sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
           {highlightNumbers(p.trim())}
         </Text>
       ))}
@@ -266,7 +240,7 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
   );
 }
 
-function ArrayListRenderer({ items, cardType }: { items: unknown[]; cardType: AnalysisCardType }) {
+function _ArrayListRenderer({ items, cardType }: { items: unknown[]; cardType: AnalysisCardType }) {
   return (
     <Stack gap="xs">
       {items.map((item, i) => {
@@ -288,43 +262,12 @@ function ArrayListRenderer({ items, cardType }: { items: unknown[]; cardType: An
           </Group>
         );
       })}
+      {items.length === 0 && (
+        <Text size="sm" c="dimmed" ta="center" py="md">
+          Filtre kriterlerine uygun öğe bulunamadı.
+        </Text>
+      )}
     </Stack>
-  );
-}
-
-function ArrayTableRenderer({ items, cardType }: { items: unknown[]; cardType: AnalysisCardType }) {
-  const columns = getTableColumns(cardType);
-  if (!columns) {
-    // Fallback to list
-    return <ArrayListRenderer items={items} cardType={cardType} />;
-  }
-
-  return (
-    <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
-      <Table.Thead>
-        <Table.Tr>
-          {columns.map((col) => (
-            <Table.Th key={`ath-${col.key}`} style={col.align ? { textAlign: col.align } : undefined}>
-              {col.label}
-            </Table.Th>
-          ))}
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {items.map((item, i) => {
-          const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
-          return (
-            <Table.Tr key={`atr-${String(obj[columns[0]?.key] || i).slice(0, 20)}`}>
-              {columns.map((col) => (
-                <Table.Td key={`atd-${col.key}-${i}`} style={col.align ? { textAlign: col.align } : undefined}>
-                  {highlightNumbers(String(obj[col.key] ?? ''))}
-                </Table.Td>
-              ))}
-            </Table.Tr>
-          );
-        })}
-      </Table.Tbody>
-    </Table>
   );
 }
 
@@ -373,10 +316,20 @@ function getItemBadge(item: unknown, cardType: AnalysisCardType): { text: string
   if (typeof item !== 'object' || item === null) return null;
   const obj = item as Record<string, unknown>;
   if (cardType === 'onemli_notlar' && obj.tur) {
-    const colors: Record<string, string> = { uyari: 'red', gereklilik: 'blue', bilgi: 'gray' };
-    return { text: String(obj.tur), color: colors[String(obj.tur)] || 'gray' };
+    const colors: Record<string, string> = {
+      uyari: 'red',
+      gereklilik: 'blue',
+      bilgi: 'gray',
+      kisitlama: 'orange',
+      sure: 'cyan',
+      mali: 'green',
+    };
+    return { text: String(obj.tur).toUpperCase(), color: colors[String(obj.tur).toLowerCase()] || 'gray' };
   }
-  if (cardType === 'gerekli_belgeler' && obj.zorunlu) return { text: 'Zorunlu', color: 'red' };
+  if (cardType === 'gerekli_belgeler') {
+    if (obj.zorunlu) return { text: 'Zorunlu', color: 'red' };
+    return { text: 'Opsiyonel', color: 'gray' };
+  }
   if (obj.miktar) return { text: `${obj.miktar} ${obj.birim || ''}`.trim(), color: 'blue' };
   if (obj.adet) return { text: `${obj.adet} kişi`, color: 'indigo' };
   if (obj.oran) return { text: String(obj.oran), color: 'red' };
@@ -404,6 +357,19 @@ function getTableColumns(cardType: AnalysisCardType): TableColumn[] | null {
         { key: 'adet', label: 'Adet', align: 'right' },
         { key: 'ucret_orani', label: 'Ücret Oranı' },
       ];
+    case 'ogun_bilgileri':
+      return [
+        { key: 'tur', label: 'Öğün Türü' },
+        { key: 'miktar', label: 'Miktar', align: 'right' },
+        { key: 'birim', label: 'Birim' },
+      ];
+    case 'gramaj_gruplari':
+      return [
+        { key: 'grup', label: 'Grup' },
+        { key: 'yas_araligi', label: 'Yaş Aralığı' },
+        { key: 'kisi_sayisi', label: 'Kişi', align: 'right' },
+        { key: 'gramaj', label: 'Gramaj' },
+      ];
     case 'takvim':
       return [
         { key: 'olay', label: 'Olay' },
@@ -429,153 +395,527 @@ interface AIAction {
   description: string;
   icon: React.ReactNode;
   transformType: string;
+  category: 'core' | 'transform' | 'analysis' | 'card_specific';
 }
 
-const AI_ACTIONS: AIAction[] = [
-  {
-    id: 'summarize',
-    label: 'Özetle',
-    description: 'İçeriği 2-3 cümleye indir',
-    icon: <IconSparkles size={16} />,
-    transformType: 'summarize',
-  },
-  {
-    id: 'reformat',
-    label: 'Yeniden Formatla',
-    description: 'Düz metni yapılandırılmış formata çevir',
-    icon: <IconTransform size={16} />,
-    transformType: 'reformat',
-  },
-  {
-    id: 'to_list',
-    label: 'Maddelere Ayır',
-    description: 'Paragraf metni maddeli listeye çevir',
-    icon: <IconListCheck size={16} />,
-    transformType: 'to_list',
-  },
-  {
-    id: 'to_table',
-    label: 'Tablo Yap',
-    description: 'Liste veya metni tablo formatına çevir',
-    icon: <IconTable size={16} />,
-    transformType: 'to_table',
-  },
-  {
-    id: 'validate',
-    label: 'Doğrula',
-    description: 'AI ile tutarsızlık ve hata kontrolü yap',
-    icon: <IconAlertCircle size={16} />,
-    transformType: 'validate',
-  },
-];
+// Kart tipine ozel aksiyonlar
+function getCardSpecificActions(cardType: AnalysisCardType): AIAction[] {
+  const actions: AIAction[] = [];
 
-function AIActionsTab({ data, cardType, tenderId }: { data: unknown; cardType: AnalysisCardType; tenderId?: number }) {
+  switch (cardType) {
+    case 'onemli_notlar':
+      actions.push({
+        id: 'extract_risks',
+        label: 'Risk Analizi',
+        description: 'Uyarı, kısıtlama ve risk maddelerini öne çıkar',
+        icon: <IconAlertTriangle size={16} />,
+        transformType: 'extract_risks',
+        category: 'card_specific',
+      });
+      break;
+    case 'teknik_sartlar':
+      actions.push({
+        id: 'find_gaps',
+        label: 'Eksik Gereksinim Analizi',
+        description: 'Şartnamedeki potansiyel eksikleri tespit et',
+        icon: <IconSearch size={16} />,
+        transformType: 'find_gaps',
+        category: 'card_specific',
+      });
+      break;
+    case 'birim_fiyatlar':
+      actions.push({
+        id: 'price_check',
+        label: 'Piyasa Karşılaştırması',
+        description: 'Birim fiyatları piyasa ortalamasıyla karşılaştır',
+        icon: <IconInfoCircle size={16} />,
+        transformType: 'price_check',
+        category: 'card_specific',
+      });
+      break;
+    case 'mali_kriterler':
+    case 'teminat_oranlari':
+      actions.push({
+        id: 'regulation_check',
+        label: 'Mevzuat Uygunluğu',
+        description: 'Kamu İhale Kanunu sınırlarına uygunluk kontrolü',
+        icon: <IconCheck size={16} />,
+        transformType: 'regulation_check',
+        category: 'card_specific',
+      });
+      break;
+    case 'ceza_kosullari':
+      actions.push({
+        id: 'penalty_analysis',
+        label: 'Ceza Riski Analizi',
+        description: 'Ceza oranlarının makullüğünü ve yasal sınırları kontrol et',
+        icon: <IconAlertCircle size={16} />,
+        transformType: 'penalty_analysis',
+        category: 'card_specific',
+      });
+      break;
+    case 'personel_detaylari':
+      actions.push({
+        id: 'labor_cost_check',
+        label: 'İşçilik Maliyet Kontrolü',
+        description: 'Personel sayısı ve ücret oranlarını kontrol et',
+        icon: <IconInfoCircle size={16} />,
+        transformType: 'labor_cost_check',
+        category: 'card_specific',
+      });
+      break;
+  }
+
+  return actions;
+}
+
+// ─── Düzenlenebilir İçerik Alanı ─────────────────────────────────
+
+function EditableContentArea({
+  data,
+  cardType,
+  selectedItems,
+  onToggleSelect,
+  editingItem,
+  onEditItem,
+  onUpdateItem,
+  editable,
+}: {
+  data: unknown;
+  cardType: AnalysisCardType;
+  selectedItems: Set<number>;
+  onToggleSelect: (index: number) => void;
+  editingItem: number | null;
+  onEditItem: (index: number | null) => void;
+  onUpdateItem: (index: number, newValue: unknown) => void;
+  editable: boolean;
+}) {
+  const renderMode = getDataRenderMode(cardType);
+
+  // String data
+  if (typeof data === 'string') {
+    return <SmartStringRenderer value={data} contentType={detectContentType(data)} />;
+  }
+
+  // Array data (list veya table)
+  if (Array.isArray(data)) {
+    if (renderMode === 'table') {
+      return (
+        <EditableTableRenderer
+          items={data}
+          cardType={cardType}
+          selectedItems={selectedItems}
+          onToggleSelect={onToggleSelect}
+          editingItem={editingItem}
+          onEditItem={onEditItem}
+          onUpdateItem={onUpdateItem}
+          editable={editable}
+        />
+      );
+    }
+    return (
+      <EditableListRenderer
+        items={data}
+        cardType={cardType}
+        selectedItems={selectedItems}
+        onToggleSelect={onToggleSelect}
+        editingItem={editingItem}
+        onEditItem={onEditItem}
+        onUpdateItem={onUpdateItem}
+        editable={editable}
+      />
+    );
+  }
+
+  // Object data (key-value)
+  if (typeof data === 'object' && data !== null) {
+    return <ObjectKeyValueRenderer obj={data as Record<string, unknown>} />;
+  }
+
+  return (
+    <Text size="sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+      {String(data)}
+    </Text>
+  );
+}
+
+function EditableListRenderer({
+  items,
+  cardType,
+  selectedItems,
+  onToggleSelect,
+  editingItem,
+  onEditItem,
+  onUpdateItem,
+  editable,
+}: {
+  items: unknown[];
+  cardType: AnalysisCardType;
+  selectedItems: Set<number>;
+  onToggleSelect: (index: number) => void;
+  editingItem: number | null;
+  onEditItem: (index: number | null) => void;
+  onUpdateItem: (index: number, newValue: unknown) => void;
+  editable: boolean;
+}) {
+  const [editValue, setEditValue] = useState('');
+
+  const startEdit = (index: number, item: unknown) => {
+    const text = getItemDisplayText(item, cardType);
+    setEditValue(text);
+    onEditItem(index);
+  };
+
+  const saveEdit = (index: number) => {
+    onUpdateItem(index, editValue);
+  };
+
+  const cancelEdit = () => {
+    onEditItem(null);
+    setEditValue('');
+  };
+
+  return (
+    <Stack gap={4}>
+      {items.map((item, i) => {
+        const text = getItemDisplayText(item, cardType);
+        const badge = getItemBadge(item, cardType);
+        const isSelected = selectedItems.has(i);
+        const isEditing = editingItem === i;
+
+        return (
+          <Paper
+            key={`eli-${text.slice(0, 20)}-${i}`}
+            p="xs"
+            withBorder
+            style={{
+              background: isSelected ? 'var(--mantine-color-dark-6)' : 'transparent',
+              borderColor: isSelected ? 'var(--mantine-color-blue-7)' : 'var(--mantine-color-dark-5)',
+              cursor: editable ? 'pointer' : 'default',
+            }}
+          >
+            {isEditing ? (
+              <Stack gap="xs">
+                <Textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  autosize
+                  minRows={2}
+                  maxRows={6}
+                  autoFocus
+                  styles={{ input: { fontSize: 13 } }}
+                />
+                <Group gap="xs" justify="flex-end">
+                  <Button size="xs" variant="subtle" color="gray" onClick={cancelEdit}>
+                    İptal
+                  </Button>
+                  <Button size="xs" variant="filled" color="green" onClick={() => saveEdit(i)}>
+                    Tamam
+                  </Button>
+                </Group>
+              </Stack>
+            ) : (
+              <Group gap="xs" wrap="nowrap" align="flex-start">
+                {editable && (
+                  <Checkbox
+                    size="xs"
+                    checked={isSelected}
+                    onChange={() => onToggleSelect(i)}
+                    style={{ marginTop: 3 }}
+                  />
+                )}
+                <Badge size="xs" variant="filled" color="blue" circle style={{ flexShrink: 0, marginTop: 3 }}>
+                  {i + 1}
+                </Badge>
+                <Text size="sm" style={{ flex: 1, lineHeight: 1.5 }}>
+                  {highlightNumbers(text)}
+                </Text>
+                {badge && (
+                  <Badge size="xs" variant="light" color={badge.color} style={{ flexShrink: 0 }}>
+                    {badge.text}
+                  </Badge>
+                )}
+                {editable && (
+                  <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => startEdit(i, item)}>
+                    <IconEdit size={12} />
+                  </ActionIcon>
+                )}
+              </Group>
+            )}
+          </Paper>
+        );
+      })}
+      {items.length === 0 && (
+        <Text size="sm" c="dimmed" ta="center" py="md">
+          Henüz öğe yok
+        </Text>
+      )}
+    </Stack>
+  );
+}
+
+function EditableTableRenderer({
+  items,
+  cardType,
+  selectedItems,
+  onToggleSelect,
+  editingItem: _editingItem,
+  onEditItem: _onEditItem,
+  onUpdateItem: _onUpdateItem,
+  editable,
+}: {
+  items: unknown[];
+  cardType: AnalysisCardType;
+  selectedItems: Set<number>;
+  onToggleSelect: (index: number) => void;
+  editingItem: number | null;
+  onEditItem: (index: number | null) => void;
+  onUpdateItem: (index: number, newValue: unknown) => void;
+  editable: boolean;
+}) {
+  // items boş ise
+  if (items.length === 0) {
+    return (
+      <Text size="sm" c="dimmed" ta="center" py="md">
+        Henüz öğe yok
+      </Text>
+    );
+  }
+
+  // Column tanımı yoksa, ilk item'dan dinamik olarak oluştur
+  const predefinedColumns = getTableColumns(cardType);
+  const columns: TableColumn[] = predefinedColumns || (() => {
+    const firstItem = items[0];
+    if (typeof firstItem === 'object' && firstItem !== null) {
+      return Object.keys(firstItem as Record<string, unknown>)
+        .filter(key => key !== 'id' && !key.startsWith('_'))
+        .map(key => ({
+          key,
+          label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        }));
+    }
+    return [{ key: 'value', label: 'Değer' }];
+  })();
+
+  return (
+    <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+      <Table.Thead>
+        <Table.Tr>
+          {editable && <Table.Th w={40}></Table.Th>}
+          <Table.Th w={40}>#</Table.Th>
+          {columns.map((col) => (
+            <Table.Th key={col.key} style={{ textAlign: col.align || 'left' }}>
+              {col.label}
+            </Table.Th>
+          ))}
+          {editable && <Table.Th w={60}></Table.Th>}
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {items.map((item, i) => {
+          const isSelected = selectedItems.has(i);
+          const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+          const rowKey = obj.id ? String(obj.id) : `row-${JSON.stringify(Object.values(obj).slice(0, 3)).slice(0, 50)}`;
+          return (
+            <Table.Tr
+              key={`etr-${rowKey}`}
+              style={{ background: isSelected ? 'var(--mantine-color-dark-6)' : undefined }}
+            >
+              {editable && (
+                <Table.Td>
+                  <Checkbox size="xs" checked={isSelected} onChange={() => onToggleSelect(i)} />
+                </Table.Td>
+              )}
+              <Table.Td>
+                <Badge size="xs" variant="light" color="gray">
+                  {i + 1}
+                </Badge>
+              </Table.Td>
+              {columns.map((col) => (
+                <Table.Td key={`${rowKey}-${col.key}`} style={{ textAlign: col.align || 'left' }}>
+                  {formatCellValue(obj[col.key])}
+                </Table.Td>
+              ))}
+              {editable && (
+                <Table.Td>
+                  <ActionIcon size="xs" variant="subtle" color="gray">
+                    <IconEdit size={12} />
+                  </ActionIcon>
+                </Table.Td>
+              )}
+            </Table.Tr>
+          );
+        })}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+// ─── Kompakt AI Panel ────────────────────────────────────────────
+
+function CompactAIPanel({
+  data,
+  cardType,
+  selectedItems,
+  tenderId,
+  onApplyResult: _onApplyResult,
+}: {
+  data: unknown;
+  cardType: AnalysisCardType;
+  selectedItems: Set<number>;
+  tenderId?: number;
+  onApplyResult?: (result: unknown) => void;
+}) {
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ action: string; content: string } | null>(null);
 
-  const textData = useMemo(() => dataToString(data, cardType), [data, cardType]);
+  const textData = useMemo(() => {
+    if (selectedItems.size > 0 && Array.isArray(data)) {
+      const selectedData = data.filter((_, i) => selectedItems.has(i));
+      return dataToString(selectedData, cardType);
+    }
+    return dataToString(data, cardType);
+  }, [data, cardType, selectedItems]);
 
-  const handleAction = useCallback(
-    async (action: AIAction) => {
-      if (!textData.trim()) {
-        notifications.show({ title: 'Hata', message: 'İçerik boş', color: 'red' });
-        return;
+  const cardSpecificActions = useMemo(() => getCardSpecificActions(cardType), [cardType]);
+
+  const coreActions: { id: string; label: string; icon: React.ReactNode; transformType: string }[] = [
+    { id: 'summarize', label: 'Özetle', icon: <IconSparkles size={14} />, transformType: 'summarize' },
+    { id: 'validate', label: 'Tutarlılık Kontrolü', icon: <IconAlertCircle size={14} />, transformType: 'validate' },
+    { id: 'find_duplicates', label: 'Benzer Bul', icon: <IconSearch size={14} />, transformType: 'find_duplicates' },
+  ];
+
+  const handleAction = async (actionId: string, transformType: string, label: string) => {
+    if (!textData.trim()) {
+      notifications.show({ title: 'Hata', message: 'İçerik boş', color: 'red' });
+      return;
+    }
+    setLoading(actionId);
+    setResult(null);
+    try {
+      const { api } = await import('@/lib/api');
+      const { getApiUrl } = await import('@/lib/config');
+      const res = await api.post(getApiUrl('/api/ai/card-transform'), {
+        text: textData,
+        transform_type: transformType,
+        card_type: cardType,
+        tender_id: tenderId,
+      });
+      const aiResult = res.data?.data;
+      if (aiResult) {
+        setResult({ action: label, content: aiResult.result || aiResult.text || JSON.stringify(aiResult) });
       }
-      setLoading(action.id);
-      setResult(null);
-      try {
-        const { api } = await import('@/lib/api');
-        const { getApiUrl } = await import('@/lib/config');
-        const res = await api.post(getApiUrl('/api/ai/card-transform'), {
-          text: textData,
-          transform_type: action.transformType,
-          tender_id: tenderId,
-        });
-        const aiResult = res.data?.data;
-        if (aiResult) {
-          setResult({
-            action: action.label,
-            content:
-              typeof aiResult.content === 'string' ? aiResult.content : JSON.stringify(aiResult.content, null, 2),
-          });
-        }
-      } catch (err) {
-        notifications.show({ title: 'AI Hatası', message: String(err), color: 'red' });
-      } finally {
-        setLoading(null);
-      }
-    },
-    [textData, tenderId]
-  );
+    } catch {
+      notifications.show({ title: 'Hata', message: 'AI işlemi başarısız', color: 'red' });
+    } finally {
+      setLoading(null);
+    }
+  };
 
   return (
-    <Stack gap="md">
-      <SimpleGrid cols={2} spacing="sm">
-        {AI_ACTIONS.map((action) => (
-          <Button
-            key={action.id}
-            variant="light"
-            color="violet"
-            leftSection={action.icon}
-            onClick={() => handleAction(action)}
-            loading={loading === action.id}
-            disabled={!!loading}
-            styles={{
-              root: { height: 'auto', padding: '10px 14px' },
-              inner: { justifyContent: 'flex-start' },
-              label: { whiteSpace: 'normal' },
-            }}
-          >
-            <Box>
-              <Text size="sm" fw={600}>
-                {action.label}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {action.description}
-              </Text>
-            </Box>
-          </Button>
-        ))}
-      </SimpleGrid>
-
-      {loading && (
-        <Group gap="xs" justify="center" py="md">
-          <Loader size="sm" color="violet" />
-          <Text size="sm" c="dimmed">
-            AI işliyor...
+    <Stack gap={0} h="100%">
+      {/* Header */}
+      <Box p="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}>
+        <Group gap="xs">
+          <IconSparkles size={16} color="var(--mantine-color-violet-5)" />
+          <Text size="sm" fw={600}>
+            AI Yardımcı
           </Text>
         </Group>
-      )}
+        {selectedItems.size > 0 && (
+          <Text size="xs" c="dimmed" mt={4}>
+            {selectedItems.size} öğe seçili
+          </Text>
+        )}
+      </Box>
 
-      {result && (
-        <Box>
-          <Divider my="sm" />
-          <Group justify="space-between" mb="xs">
-            <Group gap="xs">
-              <IconRobot size={14} />
-              <Text size="sm" fw={600}>
-                {result.action} Sonucu
+      {/* Actions */}
+      <ScrollArea.Autosize mah={200} p="sm">
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed" fw={600} mb={4}>
+            Genel
+          </Text>
+          {coreActions.map((action) => (
+            <UnstyledButton
+              key={action.id}
+              onClick={() => handleAction(action.id, action.transformType, action.label)}
+              disabled={loading !== null}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 8px',
+                borderRadius: 6,
+                background: loading === action.id ? 'var(--mantine-color-dark-5)' : 'transparent',
+                opacity: loading && loading !== action.id ? 0.5 : 1,
+              }}
+            >
+              {loading === action.id ? <Loader size={14} /> : action.icon}
+              <Text size="xs">{action.label}</Text>
+            </UnstyledButton>
+          ))}
+
+          {cardSpecificActions.length > 0 && (
+            <>
+              <Divider my="xs" />
+              <Text size="xs" c="dimmed" fw={600} mb={4}>
+                Bu Kart İçin
               </Text>
-            </Group>
+              {cardSpecificActions.map((action) => (
+                <UnstyledButton
+                  key={action.id}
+                  onClick={() => handleAction(action.id, action.transformType, action.label)}
+                  disabled={loading !== null}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 8px',
+                    borderRadius: 6,
+                    background: loading === action.id ? 'var(--mantine-color-dark-5)' : 'transparent',
+                    opacity: loading && loading !== action.id ? 0.5 : 1,
+                  }}
+                >
+                  {loading === action.id ? <Loader size={14} /> : action.icon}
+                  <Text size="xs">{action.label}</Text>
+                </UnstyledButton>
+              ))}
+            </>
+          )}
+        </Stack>
+      </ScrollArea.Autosize>
+
+      {/* Result */}
+      {result && (
+        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-5)', flex: 1 }}>
+          <Group justify="space-between" mb="xs">
+            <Text size="xs" fw={600} c="violet">
+              {result.action}
+            </Text>
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setResult(null)}>
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+          <ScrollArea.Autosize mah={200}>
+            <Text size="xs" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {result.content}
+            </Text>
+          </ScrollArea.Autosize>
+          <Group gap="xs" mt="sm">
             <CopyButton value={result.content}>
               {({ copied, copy }) => (
                 <Button
-                  size="compact-xs"
+                  size="xs"
                   variant="light"
                   color={copied ? 'green' : 'gray'}
                   onClick={copy}
-                  leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                  leftSection={<IconCopy size={12} />}
                 >
                   {copied ? 'Kopyalandı' : 'Kopyala'}
                 </Button>
               )}
             </CopyButton>
           </Group>
-          <ScrollArea.Autosize mah={300}>
-            <Text size="sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-              {result.content}
-            </Text>
-          </ScrollArea.Autosize>
         </Box>
       )}
     </Stack>
@@ -587,11 +927,32 @@ function AIActionsTab({ data, cardType, tenderId }: { data: unknown; cardType: A
 function SourceTab({
   sourceDocumentName,
   rawText,
+  cardType,
 }: {
   sourceDocumentId?: number;
   sourceDocumentName?: string;
   rawText?: string;
+  cardType: AnalysisCardType;
 }) {
+  const cardTypeLabels: Record<string, string> = {
+    teknik_sartlar: 'Teknik Şartname',
+    onemli_notlar: 'İdari + Teknik Şartname',
+    birim_fiyatlar: 'Birim Fiyat Cetveli',
+    personel_detaylari: 'Teknik Şartname / Personel',
+    mali_kriterler: 'İdari Şartname / Mali Yeterlilik',
+    teminat_oranlari: 'İdari Şartname / Teminat',
+    ceza_kosullari: 'Sözleşme Tasarısı',
+    takvim: 'İhale İlanı + İdari Şartname',
+    gerekli_belgeler: 'İdari Şartname / Belgeler',
+    iletisim: 'İhale İlanı',
+    servis_saatleri: 'Teknik Şartname / Servis',
+    ogun_bilgileri: 'Teknik Şartname / Öğün',
+    gramaj_gruplari: 'Teknik Şartname / Gramaj',
+    fiyat_farki: 'İdari Şartname / Fiyat Farkı',
+    eksik_bilgiler: 'Genel Analiz',
+    is_yerleri: 'Teknik Şartname / Lokasyonlar',
+  };
+
   return (
     <Stack gap="md">
       {sourceDocumentName ? (
@@ -604,9 +965,32 @@ function SourceTab({
           </Text>
         </Group>
       ) : (
-        <Text size="sm" c="dimmed">
-          Kaynak doküman bilgisi mevcut değil.
-        </Text>
+        <Box
+          p="sm"
+          style={{
+            background: 'var(--mantine-color-dark-7)',
+            borderRadius: 8,
+            border: '1px solid var(--mantine-color-dark-5)',
+          }}
+        >
+          <Group gap="xs" mb="xs">
+            <ThemeIcon size="sm" variant="light" color="gray">
+              <IconFileText size={12} />
+            </ThemeIcon>
+            <Text size="sm" fw={500}>
+              Olası Kaynak
+            </Text>
+          </Group>
+          <Text size="xs" c="dimmed">
+            Bu verinin kaynağı:{' '}
+            <Text component="span" fw={600} c="blue">
+              {cardTypeLabels[cardType] || 'Genel Analiz'}
+            </Text>
+          </Text>
+          <Text size="xs" c="dimmed" mt={4}>
+            AI analizi sırasında dokümanlardan çıkarılmıştır. Kesin kaynak eşleştirmesi henüz mevcut değil.
+          </Text>
+        </Box>
       )}
 
       {rawText ? (
@@ -630,9 +1014,18 @@ function SourceTab({
           </Box>
         </Box>
       ) : (
-        <Text size="sm" c="dimmed" fs="italic">
-          Orijinal metin alıntısı mevcut değil.
-        </Text>
+        <Box
+          p="sm"
+          style={{
+            background: 'var(--mantine-color-dark-8)',
+            borderRadius: 8,
+            border: '1px dashed var(--mantine-color-dark-4)',
+          }}
+        >
+          <Text size="xs" c="dimmed" fs="italic">
+            Orijinal metin alıntısı henüz mevcut değil. İleride doküman-analiz eşleştirmesi eklenecek.
+          </Text>
+        </Box>
       )}
     </Stack>
   );
@@ -671,7 +1064,62 @@ export function AnalysisDetailModal({
   isCorrected,
   tenderId,
 }: AnalysisDetailModalProps) {
-  const textData = useMemo(() => dataToString(data, cardType), [data, cardType]);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showSourcePanel, setShowSourcePanel] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [editingItem, setEditingItem] = useState<number | null>(null);
+  const [localData, setLocalData] = useState<unknown>(data);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Data değiştiğinde local state'i güncelle
+  useMemo(() => {
+    setLocalData(data);
+    setHasChanges(false);
+    setSelectedItems(new Set());
+    setSearchQuery('');
+  }, [data]);
+
+  // Filtrelenmiş veriyi hesapla
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return localData;
+    const query = searchQuery.toLowerCase().trim();
+    
+    if (Array.isArray(localData)) {
+      return localData.filter((item) => {
+        const text = getItemDisplayText(item, cardType).toLowerCase();
+        // Obje içindeki tüm değerleri de kontrol et
+        if (typeof item === 'object' && item !== null) {
+          const objValues = Object.values(item as Record<string, unknown>)
+            .filter(v => v != null)
+            .map(v => String(v).toLowerCase())
+            .join(' ');
+          return text.includes(query) || objValues.includes(query);
+        }
+        return text.includes(query);
+      });
+    }
+    
+    if (typeof localData === 'string') {
+      return localData.toLowerCase().includes(query) ? localData : '';
+    }
+    
+    if (typeof localData === 'object' && localData !== null) {
+      const matches = Object.entries(localData as Record<string, unknown>)
+        .filter(([k, v]) => {
+          const keyMatch = k.toLowerCase().includes(query);
+          const valueMatch = v != null && String(v).toLowerCase().includes(query);
+          return keyMatch || valueMatch;
+        });
+      if (matches.length === 0) return null;
+      return Object.fromEntries(matches);
+    }
+    
+    return localData;
+  }, [localData, searchQuery, cardType]);
+
+  const textData = useMemo(() => dataToString(localData, cardType), [localData, cardType]);
+  const itemCount = Array.isArray(localData) ? localData.length : 0;
 
   const handleCopyPlain = useCallback(() => {
     navigator.clipboard.writeText(textData);
@@ -679,7 +1127,6 @@ export function AnalysisDetailModal({
   }, [textData]);
 
   const handleCopyExcel = useCallback(() => {
-    // Tab-separated format for Excel
     const lines = textData.split('\n');
     const excelText = lines.map((l) => l.replace(/:\s+/g, '\t')).join('\n');
     navigator.clipboard.writeText(excelText);
@@ -691,11 +1138,74 @@ export function AnalysisDetailModal({
     });
   }, [textData]);
 
+  // Seçim işlemleri
+  const toggleSelect = (index: number) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (Array.isArray(localData)) {
+      setSelectedItems(new Set(localData.map((_, i) => i)));
+    }
+  };
+
+  const clearSelection = () => setSelectedItems(new Set());
+
+  // Öğe silme
+  const handleDeleteSelected = () => {
+    if (!Array.isArray(localData)) return;
+    const newData = localData.filter((_, i) => !selectedItems.has(i));
+    setLocalData(newData);
+    setHasChanges(true);
+    setSelectedItems(new Set());
+  };
+
+  // Öğe düzenleme
+  const handleUpdateItem = (index: number, newValue: unknown) => {
+    if (!Array.isArray(localData)) return;
+    const newData = [...localData];
+    newData[index] = newValue;
+    setLocalData(newData);
+    setHasChanges(true);
+    setEditingItem(null);
+  };
+
+  // Yeni öğe ekleme
+  const handleAddItem = () => {
+    if (!Array.isArray(localData)) return;
+    const newItem = typeof localData[0] === 'object' ? {} : '';
+    setLocalData([...localData, newItem]);
+    setHasChanges(true);
+    setEditingItem(localData.length);
+  };
+
+  // Kaydet
+  const handleSave = () => {
+    if (onSave) {
+      onSave(cardType, data, localData);
+      setHasChanges(false);
+      notifications.show({ title: 'Kaydedildi', message: 'Değişiklikler kaydedildi', color: 'green', autoClose: 2000 });
+    }
+  };
+
+  // İptal
+  const handleCancel = () => {
+    setLocalData(data);
+    setHasChanges(false);
+    setSelectedItems(new Set());
+    setEditingItem(null);
+  };
+
   return (
     <Modal
       opened={opened}
       onClose={onClose}
-      size="xl"
+      size={showAIPanel ? '80rem' : 'xl'}
       radius="lg"
       padding={0}
       title={
@@ -713,9 +1223,14 @@ export function AnalysisDetailModal({
                   Düzeltildi
                 </Badge>
               )}
-              {Array.isArray(data) && (
+              {itemCount > 0 && (
                 <Badge size="xs" variant="light" color="gray">
-                  {data.length} öğe
+                  {itemCount} öğe
+                </Badge>
+              )}
+              {hasChanges && (
+                <Badge size="xs" variant="filled" color="yellow">
+                  Değişiklik var
                 </Badge>
               )}
             </Group>
@@ -727,127 +1242,188 @@ export function AnalysisDetailModal({
         body: { padding: 0 },
       }}
     >
-      <Tabs defaultValue="content" keepMounted={false}>
-        <Tabs.List px="lg">
-          <Tabs.Tab value="content" leftSection={<IconFileText size={14} />}>
-            İçerik
-          </Tabs.Tab>
-          {onSave && (
-            <Tabs.Tab value="edit" leftSection={<IconEdit size={14} />}>
-              Düzenle
-            </Tabs.Tab>
+      {/* Üst araç çubuğu */}
+      <Group justify="space-between" px="lg" py="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}>
+        <Group gap="xs">
+          <TextInput
+            placeholder="Ara..."
+            size="xs"
+            leftSection={<IconSearch size={14} />}
+            rightSection={searchQuery && (
+              <ActionIcon size="xs" variant="subtle" onClick={() => setSearchQuery('')}>
+                <IconX size={12} />
+              </ActionIcon>
+            )}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            w={200}
+            styles={{
+              input: { background: 'var(--mantine-color-dark-7)', border: '1px solid var(--mantine-color-dark-5)' },
+            }}
+          />
+          {searchQuery && (
+            <Badge size="xs" variant="light" color="blue">
+              {Array.isArray(filteredData) ? `${filteredData.length} sonuç` : filteredData ? '1 sonuç' : '0 sonuç'}
+            </Badge>
           )}
-          <Tabs.Tab value="ai" leftSection={<IconBrain size={14} />}>
-            AI
-          </Tabs.Tab>
-          <Tabs.Tab value="source" leftSection={<IconExternalLink size={14} />}>
-            Kaynak
-          </Tabs.Tab>
-        </Tabs.List>
-
-        <Box px="lg" py="md">
-          <Tabs.Panel value="content">
-            <ScrollArea.Autosize mah="60vh">
-              <ContentTab data={data} cardType={cardType} />
-            </ScrollArea.Autosize>
-          </Tabs.Panel>
-
-          {onSave && (
-            <Tabs.Panel value="edit">
-              <ScrollArea.Autosize mah="60vh">
-                <EditTab data={data} cardType={cardType} fieldPath={cardType} onSave={onSave} />
-              </ScrollArea.Autosize>
-            </Tabs.Panel>
+          {onSave && Array.isArray(localData) && (
+            <>
+              <Button
+                size="xs"
+                variant="light"
+                color="green"
+                leftSection={<IconPlus size={14} />}
+                onClick={handleAddItem}
+              >
+                Yeni Ekle
+              </Button>
+              <Button size="xs" variant="subtle" color="gray" onClick={selectAll}>
+                Tümünü Seç
+              </Button>
+            </>
           )}
+        </Group>
+        <Group gap="xs">
+          {selectedItems.size > 0 && onSave && (
+            <>
+              <Text size="xs" c="dimmed">
+                {selectedItems.size} seçili
+              </Text>
+              <Button
+                size="xs"
+                variant="light"
+                color="red"
+                leftSection={<IconTrash size={14} />}
+                onClick={handleDeleteSelected}
+              >
+                Sil
+              </Button>
+              <Button size="xs" variant="subtle" color="gray" onClick={clearSelection}>
+                Temizle
+              </Button>
+            </>
+          )}
+          <Tooltip label="AI Yardımcı">
+            <ActionIcon
+              variant={showAIPanel ? 'filled' : 'light'}
+              color="violet"
+              onClick={() => setShowAIPanel(!showAIPanel)}
+            >
+              <IconSparkles size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Kaynak Bilgisi">
+            <ActionIcon
+              variant={showSourcePanel ? 'filled' : 'light'}
+              color="blue"
+              onClick={() => setShowSourcePanel(!showSourcePanel)}
+            >
+              <IconExternalLink size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Düz metin kopyala">
+            <ActionIcon variant="subtle" color="gray" onClick={handleCopyPlain}>
+              <IconClipboard size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Excel formatında kopyala">
+            <ActionIcon variant="subtle" color="gray" onClick={handleCopyExcel}>
+              <IconTableExport size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
 
-          <Tabs.Panel value="ai">
-            <ScrollArea.Autosize mah="60vh">
-              <AIActionsTab data={data} cardType={cardType} tenderId={tenderId} />
-            </ScrollArea.Autosize>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="source">
-            <ScrollArea.Autosize mah="60vh">
-              <SourceTab
-                sourceDocumentId={sourceDocumentId}
-                sourceDocumentName={sourceDocumentName}
-                rawText={rawText}
+      {/* Ana içerik alanı */}
+      <Box style={{ display: 'flex', minHeight: 400 }}>
+        {/* Sol: İçerik */}
+        <Box style={{ flex: 1, borderRight: showAIPanel ? '1px solid var(--mantine-color-dark-5)' : 'none' }}>
+          <ScrollArea.Autosize mah="60vh" p="md">
+            {filteredData === null || (Array.isArray(filteredData) && filteredData.length === 0) ? (
+              <Stack align="center" py="xl">
+                <ThemeIcon size="xl" variant="light" color="gray" radius="xl">
+                  <IconSearch size={24} />
+                </ThemeIcon>
+                <Text size="sm" c="dimmed" ta="center">
+                  &quot;{searchQuery}&quot; için sonuç bulunamadı
+                </Text>
+                <Button size="xs" variant="subtle" color="gray" onClick={() => setSearchQuery('')}>
+                  Aramayı Temizle
+                </Button>
+              </Stack>
+            ) : (
+              <EditableContentArea
+                data={searchQuery ? filteredData : localData}
+                cardType={cardType}
+                selectedItems={selectedItems}
+                onToggleSelect={toggleSelect}
+                editingItem={editingItem}
+                onEditItem={setEditingItem}
+                onUpdateItem={handleUpdateItem}
+                editable={!!onSave && !searchQuery}
               />
-            </ScrollArea.Autosize>
-          </Tabs.Panel>
+            )}
+          </ScrollArea.Autosize>
         </Box>
-      </Tabs>
+
+        {/* Sağ: AI Panel */}
+        {showAIPanel && (
+          <Box w={280} style={{ background: 'var(--mantine-color-dark-7)' }}>
+            <CompactAIPanel
+              data={localData}
+              cardType={cardType}
+              selectedItems={selectedItems}
+              tenderId={tenderId}
+              onApplyResult={(result) => {
+                // AI sonucunu uygula
+                if (result && onSave) {
+                  setLocalData(result);
+                  setHasChanges(true);
+                }
+              }}
+            />
+          </Box>
+        )}
+      </Box>
+
+      {/* Kaynak paneli (collapse) */}
+      <Collapse in={showSourcePanel}>
+        <Box
+          px="lg"
+          py="md"
+          style={{ borderTop: '1px solid var(--mantine-color-dark-5)', background: 'var(--mantine-color-dark-7)' }}
+        >
+          <SourceTab
+            sourceDocumentId={sourceDocumentId}
+            sourceDocumentName={sourceDocumentName}
+            rawText={rawText}
+            cardType={cardType}
+          />
+        </Box>
+      </Collapse>
 
       {/* Alt bar */}
       <Divider />
-      <Group justify="flex-end" gap="xs" px="lg" py="sm">
-        <Tooltip label="Düz metin olarak kopyala">
-          <ActionIcon variant="subtle" color="gray" onClick={handleCopyPlain}>
-            <IconClipboard size={16} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Excel formatında kopyala">
-          <ActionIcon variant="subtle" color="gray" onClick={handleCopyExcel}>
-            <IconTableExport size={16} />
-          </ActionIcon>
-        </Tooltip>
+      <Group justify="space-between" px="lg" py="sm">
+        <Text size="xs" c="dimmed">
+          {hasChanges ? 'Kaydedilmemiş değişiklikler var' : 'Tüm değişiklikler kaydedildi'}
+        </Text>
+        <Group gap="xs">
+          <Button size="sm" variant="subtle" color="gray" onClick={handleCancel} disabled={!hasChanges}>
+            İptal
+          </Button>
+          <Button
+            size="sm"
+            variant="filled"
+            color="green"
+            onClick={handleSave}
+            disabled={!hasChanges || !onSave}
+            leftSection={<IconCheck size={14} />}
+          >
+            Kaydet
+          </Button>
+        </Group>
       </Group>
     </Modal>
-  );
-}
-
-// ─── Edit Tab (Basit Metin Duzenleme) ───────────────────────────
-
-function EditTab({
-  data,
-  cardType,
-  fieldPath,
-  onSave,
-}: {
-  data: unknown;
-  cardType: AnalysisCardType;
-  fieldPath: string;
-  onSave: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
-}) {
-  const textValue = useMemo(() => dataToString(data, cardType), [data, cardType]);
-  const [editText, setEditText] = useState(textValue);
-  const isModified = editText !== textValue;
-
-  const handleSave = () => {
-    onSave(fieldPath, data, editText);
-    notifications.show({ title: 'Kaydedildi', message: 'Değişiklikler kaydedildi', color: 'green', autoClose: 2000 });
-  };
-
-  return (
-    <Stack gap="md">
-      <Textarea
-        value={editText}
-        onChange={(e) => setEditText(e.target.value)}
-        minRows={8}
-        maxRows={20}
-        autosize
-        styles={{ input: { fontFamily: 'monospace', fontSize: 13 } }}
-      />
-      <Group justify="flex-end" gap="xs">
-        <Button size="sm" variant="light" color="gray" onClick={() => setEditText(textValue)} disabled={!isModified}>
-          Sıfırla
-        </Button>
-        <Button
-          size="sm"
-          variant="filled"
-          color="green"
-          onClick={handleSave}
-          disabled={!isModified}
-          leftSection={<IconCheck size={14} />}
-        >
-          Kaydet
-        </Button>
-      </Group>
-      {isModified && (
-        <Text size="xs" c="yellow">
-          Kaydedilmemiş değişiklikler var.
-        </Text>
-      )}
-    </Stack>
   );
 }
