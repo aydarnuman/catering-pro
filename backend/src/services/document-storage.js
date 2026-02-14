@@ -926,6 +926,14 @@ class DocumentStorageService {
         skipped: results.skipped.length,
       });
 
+      if (results.failed.length > 0) {
+        logger.warn('[MERKEZ-SCRAPER] Başarısız indirmeler (hata detayı)', {
+          tenderId,
+          failedCount: results.failed.length,
+          details: results.failed.map((f) => ({ docType: f.docType, error: f.error })),
+        });
+      }
+
       return results;
     } catch (error) {
       logger.error(`[MERKEZ-SCRAPER] İhale ${tenderId} genel hata`, { error: error.message, stack: error.stack });
@@ -938,6 +946,14 @@ class DocumentStorageService {
    * @param {string} hintExtension - fileName'den çıkarılan uzantı ipucu (opsiyonel)
    */
   async downloadAndStore(tenderId, docType, url, displayName = null, hintExtension = null) {
+    const safeUrlHint = url.replace(/\?.*$/, '').slice(-80);
+    logger.info('İndirme başlatıldı', {
+      tenderId,
+      docType,
+      displayName: displayName || null,
+      urlHint: safeUrlHint,
+    });
+
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tender-doc-'));
 
     try {
@@ -993,12 +1009,27 @@ class DocumentStorageService {
         uploadResults = [result];
       }
 
+      const totalSize = uploadResults.reduce((sum, r) => sum + (r.fileSize || 0), 0);
+      logger.info('İndirme başarılı', {
+        tenderId,
+        docType,
+        filesCount: uploadResults.length,
+        totalSizeBytes: totalSize,
+      });
       return {
         docType,
         filesCount: uploadResults.length,
-        totalSize: uploadResults.reduce((sum, r) => sum + (r.fileSize || 0), 0),
+        totalSize,
         files: uploadResults,
       };
+    } catch (err) {
+      logger.error('İndirme başarısız', {
+        tenderId,
+        docType,
+        error: err.message,
+        urlHint: safeUrlHint,
+      });
+      throw err;
     } finally {
       // Temp klasörü temizle
       try {
