@@ -10,6 +10,22 @@ import tenderContentService from '../services/tender-content-service.js';
 const router = express.Router();
 
 /**
+ * storage_path'ten docType çıkar
+ * Örn: "tenders/11231/tech_spec/dosya.pdf" → "tech_spec"
+ * @param {string|null} storagePath
+ * @returns {string|null}
+ */
+function extractDocTypeFromPath(storagePath) {
+  if (!storagePath) return null;
+  const parts = storagePath.split('/');
+  // Pattern: tenders/<id>/<docType>/...
+  if (parts.length >= 3 && parts[0] === 'tenders') {
+    return parts[2] || null;
+  }
+  return null;
+}
+
+/**
  * İhale içeriklerini documents tablosuna kaydet
  * POST /api/tender-content/:tenderId/create-documents
  */
@@ -203,9 +219,13 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
 
     // Dosya varsa unified-pipeline kullan, content varsa text-based analiz
     if (doc.file_path || doc.storage_path) {
+      // docType: DB'den al, yoksa storage_path'ten çıkar
+      const docType = doc.doc_type || extractDocTypeFromPath(doc.storage_path) || undefined;
+
       // v9.0: UNIFIED PIPELINE
       const result = await analyzeDocument(doc.file_path || doc.storage_path, {
         onProgress: (progress) => sendEvent(progress),
+        docType,
       });
 
       await pool.query(
@@ -406,6 +426,9 @@ router.post('/analyze-batch', async (req, res) => {
             localFilePath = storagePath;
           }
 
+          // docType: DB'den al, yoksa storage_path'ten çıkar
+          const docType = doc.doc_type || extractDocTypeFromPath(doc.storage_path) || undefined;
+
           // TÜM dosya tabanlı dokümanlar → UNIFIED PIPELINE
           // PDF: Azure Custom Model + Claude Enhancement
           // DOC/DOCX/XLSX: Yerel extract + Zero-Loss Pipeline (chunker → Haiku → Sonnet)
@@ -418,6 +441,7 @@ router.post('/analyze-batch', async (req, res) => {
                 progress: progress.progress,
               });
             },
+            docType,
           });
 
           if (!result.success) throw new Error(result.error || 'Pipeline hatası');

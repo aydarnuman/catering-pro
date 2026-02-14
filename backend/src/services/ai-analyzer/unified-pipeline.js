@@ -145,7 +145,7 @@ export async function analyzeDocument(filePath, options = {}) {
         monitor.startStage('claude_semantic');
         progress('claude', 'Claude analiz yapıyor...', 50);
 
-        result = await runFallbackPipeline(filePath, { onProgress });
+        result = await runFallbackPipeline(filePath, { onProgress, docType });
         monitor.recordApiCall('claude');
         usedProvider = `local-extract(${extraction.type})+claude`;
         monitor.endStage({ success: !!result, provider: usedProvider });
@@ -159,7 +159,7 @@ export async function analyzeDocument(filePath, options = {}) {
         // Fallback: Zero-Loss pipeline kendi extractor'ını kullanır
         monitor.startStage('claude_semantic');
         progress('fallback', 'Fallback pipeline çalışıyor...', 60);
-        result = await runFallbackPipeline(filePath, { onProgress });
+        result = await runFallbackPipeline(filePath, { onProgress, docType });
         monitor.recordApiCall('claude');
         usedProvider = 'claude-fallback';
         monitor.endStage({ success: !!result, provider: usedProvider });
@@ -242,7 +242,7 @@ export async function analyzeDocument(filePath, options = {}) {
       } else if (provider === 'auto' || provider === 'claude') {
         // Azure başarısız - Fallback: Pure Claude analizi
         progress('fallback', 'Fallback pipeline çalışıyor...', 60);
-        result = await runFallbackPipeline(filePath, { onProgress });
+        result = await runFallbackPipeline(filePath, { onProgress, docType });
         monitor.recordApiCall('claude');
         usedProvider = 'claude-fallback';
         monitor.endStage({ success: !!result, provider: usedProvider });
