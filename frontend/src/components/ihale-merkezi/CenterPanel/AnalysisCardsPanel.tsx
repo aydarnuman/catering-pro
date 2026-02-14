@@ -1,10 +1,10 @@
 'use client';
 
-import { Box, Paper, SegmentedControl, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Box, Checkbox, Group as MantineGroup, Paper, SegmentedControl, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconBuildingBank, IconClipboardList, IconFolder, IconSettings } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import type { AnalysisData } from '../types';
-import { normalizeAnalysisData } from './normalizeAnalysis';
+import { getAnalysisCardsForCategory } from '../utils/selection-helpers';
 import {
   BenzerIsTanimiCard,
   BirimFiyatlarCard,
@@ -25,6 +25,7 @@ import {
   TeknikSartlarCard,
   TeminatOranlariCard,
 } from './cards';
+import { normalizeAnalysisData } from './normalizeAnalysis';
 
 // ─── Category Types ────────────────────────────────────────────
 type CategoryTab = 'tumu' | 'operasyonel' | 'mali' | 'teknik' | 'belgeler';
@@ -37,6 +38,11 @@ interface AnalysisCardsPanelProps {
   saveCorrection: (data: { field_path: string; old_value: unknown; new_value: unknown }) => Promise<boolean>;
   getCorrectionForField: (field: string) => unknown;
   onRefreshData?: () => void;
+  // Checkbox selection system
+  selectedCards?: Set<string>;
+  onToggleCard?: (fieldPath: string) => void;
+  onToggleCategory?: (category: string) => void;
+  showCheckboxes?: boolean;
 }
 
 /**
@@ -157,6 +163,10 @@ export function AnalysisCardsPanel({
   saveCorrection,
   getCorrectionForField,
   onRefreshData,
+  selectedCards,
+  onToggleCard,
+  onToggleCategory,
+  showCheckboxes = false,
 }: AnalysisCardsPanelProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('tumu');
 
@@ -213,6 +223,45 @@ export function AnalysisCardsPanel({
   }, [analysisSummary]);
 
   const showCategory = (cat: CategoryTab) => activeCategory === 'tumu' || activeCategory === cat;
+
+  // Category header with optional master checkbox
+  const CategoryHeader = ({ category, icon, label }: { category: string; icon: React.ReactNode; label: string }) => {
+    if (!showCheckboxes || !onToggleCategory) return null;
+
+    const categoryCards = getAnalysisCardsForCategory(analysisSummary, category);
+    if (categoryCards.length === 0) return null;
+
+    const allSelected = selectedCards ? categoryCards.every((path) => selectedCards.has(path)) : false;
+    const someSelected = selectedCards ? categoryCards.some((path) => selectedCards.has(path)) : false;
+
+    return (
+      <Paper p="xs" mb="sm" withBorder style={{ background: 'rgba(255, 255, 255, 0.02)' }}>
+        <MantineGroup gap="xs">
+          <Checkbox
+            checked={allSelected}
+            indeterminate={someSelected && !allSelected}
+            onChange={() => onToggleCategory(category)}
+          />
+          <ThemeIcon size="sm" variant="light" color={getCategoryColor(category)}>
+            {icon}
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            {label} ({categoryCards.length})
+          </Text>
+        </MantineGroup>
+      </Paper>
+    );
+  };
+
+  function getCategoryColor(category: string) {
+    const colors: Record<string, string> = {
+      operasyonel: 'blue',
+      mali: 'green',
+      teknik: 'yellow',
+      belgeler: 'violet',
+    };
+    return colors[category] || 'gray';
+  }
 
   const makeSaveHandler = (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
     await saveCorrection({
@@ -308,8 +357,14 @@ export function AnalysisCardsPanel({
       {/* ─── OPERASYONEL ──────────────────────────────────────────── */}
       {showCategory('operasyonel') && (
         <>
+          <CategoryHeader category="operasyonel" icon={<IconSettings size={14} />} label="Operasyonel" />
           {analysisSummary?.takvim && analysisSummary.takvim.length > 0 && (
-            <TakvimCard takvim={analysisSummary.takvim} />
+            <TakvimCard
+              takvim={analysisSummary.takvim}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('takvim')}
+              onToggleSelect={() => onToggleCard?.('takvim')}
+            />
           )}
 
           {analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0 && (
@@ -320,6 +375,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('servis_saatleri')}
               onDelete={makeDeleteHandler('servis_saatleri', analysisSummary.servis_saatleri)}
               isCorrected={!!getCorrectionForField('servis_saatleri')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('servis_saatleri')}
+              onToggleSelect={() => onToggleCard?.('servis_saatleri')}
             />
           )}
 
@@ -331,6 +389,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('personel_detaylari')}
               onDelete={makeDeleteHandler('personel_detaylari', analysisSummary.personel_detaylari)}
               isCorrected={!!getCorrectionForField('personel_detaylari')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('personel_detaylari')}
+              onToggleSelect={() => onToggleCard?.('personel_detaylari')}
             />
           )}
 
@@ -343,13 +404,21 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('ogun_bilgileri')}
               onDelete={makeDeleteHandler('ogun_bilgileri', analysisSummary.ogun_bilgileri)}
               isCorrected={!!getCorrectionForField('ogun_bilgileri')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('ogun_bilgileri')}
+              onToggleSelect={() => onToggleCard?.('ogun_bilgileri')}
             />
           )}
 
           <CateringDetayKartlari analysisSummary={analysisSummary} />
 
           {analysisSummary?.is_yerleri && analysisSummary.is_yerleri.length > 0 && (
-            <IsYerleriCard yerler={analysisSummary.is_yerleri} />
+            <IsYerleriCard
+              yerler={analysisSummary.is_yerleri}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('is_yerleri')}
+              onToggleSelect={() => onToggleCard?.('is_yerleri')}
+            />
           )}
 
           {analysisSummary?.gramaj_gruplari && analysisSummary.gramaj_gruplari.length > 0 && (
@@ -360,6 +429,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('gramaj_gruplari')}
               onDelete={makeDeleteHandler('gramaj_gruplari', analysisSummary.gramaj_gruplari)}
               isCorrected={!!getCorrectionForField('gramaj_gruplari')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('gramaj_gruplari')}
+              onToggleSelect={() => onToggleCard?.('gramaj_gruplari')}
             />
           )}
 
@@ -379,6 +451,7 @@ export function AnalysisCardsPanel({
       {/* ─── MALİ & HUKUKİ ────────────────────────────────────────── */}
       {showCategory('mali') && (
         <>
+          <CategoryHeader category="mali" icon={<IconBuildingBank size={14} />} label="Mali" />
           {analysisSummary?.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0 && (
             <BirimFiyatlarCard
               birimFiyatlar={analysisSummary.birim_fiyatlar}
@@ -387,6 +460,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('birim_fiyatlar')}
               onDelete={makeDeleteHandler('birim_fiyatlar', analysisSummary.birim_fiyatlar)}
               isCorrected={!!getCorrectionForField('birim_fiyatlar')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('birim_fiyatlar')}
+              onToggleSelect={() => onToggleCard?.('birim_fiyatlar')}
             />
           )}
 
@@ -398,6 +474,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('teminat_oranlari')}
               onDelete={makeDeleteHandler('teminat_oranlari', analysisSummary.teminat_oranlari)}
               isCorrected={!!getCorrectionForField('teminat_oranlari')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('teminat_oranlari')}
+              onToggleSelect={() => onToggleCard?.('teminat_oranlari')}
             />
           )}
 
@@ -409,16 +488,29 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('mali_kriterler')}
               onDelete={makeDeleteHandler('mali_kriterler', analysisSummary.mali_kriterler)}
               isCorrected={!!getCorrectionForField('mali_kriterler')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('mali_kriterler')}
+              onToggleSelect={() => onToggleCard?.('mali_kriterler')}
             />
           )}
 
           {analysisSummary?.fiyat_farki &&
             (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar) && (
-              <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
+              <FiyatFarkiCard
+                fiyatFarki={analysisSummary.fiyat_farki}
+                showCheckbox={showCheckboxes}
+                isSelected={selectedCards?.has('fiyat_farki')}
+                onToggleSelect={() => onToggleCard?.('fiyat_farki')}
+              />
             )}
 
           {analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0 && (
-            <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
+            <CezaKosullariCard
+              cezalar={analysisSummary.ceza_kosullari}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('ceza_kosullari')}
+              onToggleSelect={() => onToggleCard?.('ceza_kosullari')}
+            />
           )}
 
           {analysisSummary?.odeme_kosullari && (
@@ -492,6 +584,7 @@ export function AnalysisCardsPanel({
       {/* ─── TEKNİK ──────────────────────────────────────────────── */}
       {showCategory('teknik') && (
         <>
+          <CategoryHeader category="teknik" icon={<IconClipboardList size={14} />} label="Teknik" />
           {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
             <TeknikSartlarCard
               teknikSartlar={analysisSummary.teknik_sartlar}
@@ -500,16 +593,29 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('teknik_sartlar')}
               onDelete={makeDeleteHandler('teknik_sartlar', analysisSummary.teknik_sartlar)}
               isCorrected={!!getCorrectionForField('teknik_sartlar')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('teknik_sartlar')}
+              onToggleSelect={() => onToggleCard?.('teknik_sartlar')}
             />
           )}
 
-          {analysisSummary?.benzer_is_tanimi && <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />}
+          {analysisSummary?.benzer_is_tanimi && (
+            <BenzerIsTanimiCard
+              tanim={analysisSummary.benzer_is_tanimi}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('benzer_is_tanimi')}
+              onToggleSelect={() => onToggleCard?.('benzer_is_tanimi')}
+            />
+          )}
 
           {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
             <OnemliNotlarCard
               notlar={
                 analysisSummary.onemli_notlar as Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>
               }
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('onemli_notlar')}
+              onToggleSelect={() => onToggleCard?.('onemli_notlar')}
             />
           )}
 
@@ -554,8 +660,14 @@ export function AnalysisCardsPanel({
       {/* ─── BELGELER & İLETİŞİM ─────────────────────────────────── */}
       {showCategory('belgeler') && (
         <>
+          <CategoryHeader category="belgeler" icon={<IconFolder size={14} />} label="Belgeler" />
           {analysisSummary?.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0 && (
-            <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
+            <GerekliBelgelerCard
+              belgeler={analysisSummary.gerekli_belgeler}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('gerekli_belgeler')}
+              onToggleSelect={() => onToggleCard?.('gerekli_belgeler')}
+            />
           )}
 
           {analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0 && (
@@ -566,6 +678,9 @@ export function AnalysisCardsPanel({
               onSave={makeSaveHandler('iletisim')}
               onDelete={makeDeleteHandler('iletisim', analysisSummary.iletisim)}
               isCorrected={!!getCorrectionForField('iletisim')}
+              showCheckbox={showCheckboxes}
+              isSelected={selectedCards?.has('iletisim')}
+              onToggleSelect={() => onToggleCard?.('iletisim')}
             />
           )}
 
@@ -573,7 +688,14 @@ export function AnalysisCardsPanel({
             analysisSummary.eksik_bilgiler.length > 0 &&
             (() => {
               const filtered = filterEksikBilgiler(analysisSummary.eksik_bilgiler, analysisSummary);
-              return filtered.length > 0 ? <EksikBilgilerCard eksikBilgiler={filtered} /> : null;
+              return filtered.length > 0 ? (
+                <EksikBilgilerCard
+                  eksikBilgiler={filtered}
+                  showCheckbox={showCheckboxes}
+                  isSelected={selectedCards?.has('eksik_bilgiler')}
+                  onToggleSelect={() => onToggleCard?.('eksik_bilgiler')}
+                />
+              ) : null;
             })()}
 
           {activeCategory === 'belgeler' && categoryCounts.belgeler === 0 && (

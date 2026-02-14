@@ -189,7 +189,7 @@ export default function PersonelPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   // === YETKİ KONTROLÜ ===
-  const { canCreate, canEdit, canDelete, canExport, isSuperAdmin } = usePermissions();
+  const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
   const canEditPersonel = isSuperAdmin || canEdit('personel');
   const canCreatePersonel = isSuperAdmin || canCreate('personel');
   const canDeletePersonel = isSuperAdmin || canDelete('personel');
@@ -264,10 +264,13 @@ export default function PersonelPage() {
           return current;
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Proje yükleme hatası:', error);
-      // 401 hatası ise login sayfasına yönlendir
-      if (error?.response?.status === 401) {
+      const res =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { status?: number } }).response
+          : undefined;
+      if (res?.status === 401) {
         notifications.show({
           title: 'Oturum Süresi Doldu',
           message: 'Lütfen tekrar giriş yapın',
@@ -292,10 +295,13 @@ export default function PersonelPage() {
       if (result.success) {
         setPersoneller(result.data || []);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Personel yükleme hatası:', error);
-      // 401 hatası ise login sayfasına yönlendir
-      if (error?.response?.status === 401) {
+      const res =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { status?: number } }).response
+          : undefined;
+      if (res?.status === 401) {
         notifications.show({
           title: 'Oturum Süresi Doldu',
           message: 'Lütfen tekrar giriş yapın',
@@ -330,9 +336,13 @@ export default function PersonelPage() {
       } else if (ozetRes.status === 'rejected') {
         console.error('Bordro özet yükleme hatası:', ozetRes.reason);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Bordro yükleme hatası:', error);
-      if (error?.response?.status === 401) {
+      const res =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { status?: number } }).response
+          : undefined;
+      if (res?.status === 401) {
         notifications.show({
           title: 'Oturum Süresi Doldu',
           message: 'Lütfen tekrar giriş yapın',
@@ -353,9 +363,13 @@ export default function PersonelPage() {
         setMaasOdemePersoneller(result.data?.personeller || []);
         setMaasOdemeOzet(result.data?.ozet || null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Maaş ödeme yükleme hatası:', error);
-      if (error?.response?.status === 401) {
+      const res =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { status?: number } }).response
+          : undefined;
+      if (res?.status === 401) {
         notifications.show({
           title: 'Oturum Süresi Doldu',
           message: 'Lütfen tekrar giriş yapın',
@@ -406,13 +420,18 @@ export default function PersonelPage() {
   const fetchAylikOdeme = useCallback(async () => {
     if (!selectedProje) return;
     try {
-      const result = (await personelAPI.getAylikOdeme(selectedProje, bordroYil, bordroAy)) as any;
-      if (result.success) {
-        setAylikOdeme(result.data as any);
+      const result = await personelAPI.getAylikOdeme(selectedProje, bordroYil, bordroAy);
+      if (result.success && result.data !== undefined) {
+        const data = Array.isArray(result.data) ? (result.data[0] ?? null) : result.data;
+        setAylikOdeme(data as AylikOdeme | null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Aylık ödeme yükleme hatası:', error);
-      if (error?.response?.status === 401) {
+      const res =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { status?: number } }).response
+          : undefined;
+      if (res?.status === 401) {
         notifications.show({
           title: 'Oturum Süresi Doldu',
           message: 'Lütfen tekrar giriş yapın',
@@ -583,8 +602,8 @@ export default function PersonelPage() {
       };
 
       const result = editingPersonel
-        ? await personelAPI.updatePersonel(editingPersonel.id, data as any)
-        : await personelAPI.createPersonel(data as any);
+        ? await personelAPI.updatePersonel(editingPersonel.id, data as Record<string, unknown>)
+        : await personelAPI.createPersonel(data as Record<string, unknown>);
 
       if (!result.success) throw new Error('İşlem başarısız');
 
@@ -599,8 +618,12 @@ export default function PersonelPage() {
       resetPersonelForm();
       fetchPersoneller();
       fetchProjeler();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
+    } catch (error: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'İşlem başarısız',
+        color: 'red',
+      });
     }
   };
 
@@ -614,8 +637,12 @@ export default function PersonelPage() {
       notifications.show({ title: 'Silindi', message: 'Personel kaydı silindi', color: 'orange' });
       fetchPersoneller();
       fetchProjeler();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
+    } catch (error: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Silme başarısız',
+        color: 'red',
+      });
     }
   };
 

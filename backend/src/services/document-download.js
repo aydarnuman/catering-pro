@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Node 18+ has native fetch — no import needed
 import browserManager from '../scraper/shared/browser.js';
 import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 import loginService from '../scraper/shared/ihalebul-login.js';
@@ -42,7 +42,7 @@ class DocumentDownloadService {
           // Cookie'leri header formatına çevir
           const cookieHeader = session.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
-          headers['Cookie'] = cookieHeader;
+          headers.Cookie = cookieHeader;
           logger.debug(`${session.cookies.length} cookie kullanılıyor`);
         } else {
           logger.warn('Session bulunamadı, cookie olmadan deneniyor');

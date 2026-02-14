@@ -1,5 +1,5 @@
-const path = require('path');
-const { execSync } = require('child_process');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -63,6 +63,12 @@ const nextConfig = {
         removeEmptyChunks: false,
       };
     }
+    // Workspace: leaflet root node_modules'da; build frontend/node_modules bekliyor
+    const rootNodeModules = path.resolve(__dirname, '..', 'node_modules');
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      leaflet: path.join(rootNodeModules, 'leaflet'),
+    };
     return config;
   },
 }

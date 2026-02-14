@@ -349,7 +349,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
         const uniqueMap = new Map<string, StokKartItem>();
 
-        (result.data as StokKartItem[]).forEach((s) => {
+        (result.data as unknown as StokKartItem[]).forEach((s) => {
           const key = normalizeKey(s.ad || '');
           if (key && key.length > 0) {
             // Eğer key varsa, yoksa veya yeni ID daha büyükse ekle

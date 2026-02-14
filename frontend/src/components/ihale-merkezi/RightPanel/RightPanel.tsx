@@ -22,6 +22,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Group,
   Menu,
   Paper,
@@ -53,7 +54,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesModal } from '@/context/NotesContext';
 import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
 import { useCreateMasaPaketi } from '@/hooks/useMasaVeriPaketi';
@@ -62,6 +63,11 @@ import { useTenderCards } from '@/hooks/useTenderCards';
 import { AnalysisCardsPanel } from '../CenterPanel/AnalysisCardsPanel';
 import { normalizeAnalysisData } from '../CenterPanel/normalizeAnalysis';
 import type { AnalysisData, IhaleMerkeziState, SavedTender } from '../types';
+import {
+  filterAnalysisBySelection,
+  getAllAnalysisCardPaths,
+  getAnalysisCardsForCategory,
+} from '../utils/selection-helpers';
 import { CardCategoryBadge, CardContentRenderer, CardDetailModal } from './CardRenderers';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -92,12 +98,16 @@ function SortableCard({
   onDelete,
   isUpdating,
   onCardClick,
+  isSelected,
+  onToggleSelect,
 }: {
   card: TenderCard;
   onUpdate: (data: UpdateCardInput & { id: number }) => void;
   onDelete: (id: number) => void;
   isUpdating: boolean;
   onCardClick: (card: TenderCard) => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
@@ -118,6 +128,8 @@ function SortableCard({
         isUpdating={isUpdating}
         onCardClick={onCardClick}
         dragHandleProps={{ ...attributes, ...listeners }}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       />
     </div>
   );
@@ -132,6 +144,8 @@ function EditableCard({
   isUpdating,
   onCardClick,
   dragHandleProps,
+  isSelected,
+  onToggleSelect,
 }: {
   card: TenderCard;
   onUpdate: (data: UpdateCardInput & { id: number }) => void;
@@ -139,6 +153,8 @@ function EditableCard({
   isUpdating: boolean;
   onCardClick: (card: TenderCard) => void;
   dragHandleProps?: Record<string, unknown>;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
@@ -231,6 +247,8 @@ function EditableCard({
       style={{
         cursor: 'pointer',
         transition: 'all 0.15s ease',
+        borderColor: isSelected ? 'var(--mantine-color-green-6)' : undefined,
+        borderWidth: isSelected ? 2 : undefined,
       }}
       styles={{
         root: {
@@ -243,6 +261,16 @@ function EditableCard({
     >
       <Group justify="space-between" gap="xs" mb={4}>
         <Group gap={4} style={{ flex: 1, minWidth: 0 }}>
+          {onToggleSelect && (
+            <Checkbox
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
           {dragHandleProps && (
             <ActionIcon
               size="xs"
@@ -293,10 +321,14 @@ function EditableNote({
   note,
   onUpdate,
   onDelete,
+  isSelected,
+  onToggleSelect,
 }: {
   note: VeriPaketiNote;
   onUpdate: (id: string, text: string) => void;
   onDelete: (id: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
@@ -342,8 +374,17 @@ function EditableNote({
   }
 
   return (
-    <Paper p="xs" radius="sm" withBorder>
+    <Paper
+      p="xs"
+      radius="sm"
+      withBorder
+      style={{
+        borderColor: isSelected ? 'var(--mantine-color-green-6)' : undefined,
+        borderWidth: isSelected ? 2 : undefined,
+      }}
+    >
       <Group justify="space-between" gap="xs" align="flex-start">
+        {onToggleSelect && <Checkbox checked={isSelected} onChange={onToggleSelect} />}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Text size="xs">{note.text}</Text>
           {note.source && (
@@ -466,6 +507,11 @@ export function RightPanel({
       (savedTender?.teknik_sart_sayisi || 0) > 0 ||
       (savedTender?.birim_fiyat_sayisi || 0) > 0);
 
+  // ─── Checkbox Selection State ─────────────────────────────
+  const [selectedAnalysisCards, setSelectedAnalysisCards] = useState<Set<string>>(new Set());
+  const [selectedUserCards, setSelectedUserCards] = useState<Set<number>>(new Set());
+  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+
   // ─── Notes state ──────────────────────────────────────────
   const [paketiNotes, setPaketiNotes] = useState<VeriPaketiNote[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
@@ -485,6 +531,88 @@ export function RightPanel({
       color: 'teal',
     });
   }, []);
+
+  // ─── Checkbox Helper Functions ────────────────────────────
+  const toggleAnalysisCard = useCallback((fieldPath: string) => {
+    setSelectedAnalysisCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(fieldPath)) next.delete(fieldPath);
+      else next.add(fieldPath);
+      return next;
+    });
+  }, []);
+
+  const toggleAnalysisCategory = useCallback(
+    (category: string) => {
+      // Get all field paths for this category from analysisSummary
+      const categoryCards = getAnalysisCardsForCategory(analysisSummary, category);
+      const allSelected = categoryCards.every((path) => selectedAnalysisCards.has(path));
+
+      setSelectedAnalysisCards((prev) => {
+        const next = new Set(prev);
+        if (allSelected) {
+          // Deselect all in category
+          for (const path of categoryCards) {
+            next.delete(path);
+          }
+        } else {
+          // Select all in category
+          for (const path of categoryCards) {
+            next.add(path);
+          }
+        }
+        return next;
+      });
+    },
+    [analysisSummary, selectedAnalysisCards]
+  );
+
+  const toggleUserCard = useCallback((cardId: number) => {
+    setSelectedUserCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }, []);
+
+  const toggleNote = useCallback((noteId: string) => {
+    setSelectedNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(noteId)) next.delete(noteId);
+      else next.add(noteId);
+      return next;
+    });
+  }, []);
+
+  // Tümünü seç/kaldır fonksiyonları (gelecekte UI'da kullanılacak)
+  // const selectAll = useCallback(() => {
+  //   const allAnalysisCards = getAllAnalysisCardPaths(analysisSummary);
+  //   setSelectedAnalysisCards(new Set(allAnalysisCards));
+  //   setSelectedUserCards(new Set(tenderCards.map((c) => c.id)));
+  //   setSelectedNotes(new Set(paketiNotes.map((n) => n.id)));
+  // }, [analysisSummary, tenderCards, paketiNotes]);
+
+  // const deselectAll = useCallback(() => {
+  //   setSelectedAnalysisCards(new Set());
+  //   setSelectedUserCards(new Set());
+  //   setSelectedNotes(new Set());
+  // }, []);
+
+  // ─── Initialize Selections (All Selected by Default) ──────
+  // Stable primitive deps so effect runs only when the set of cards/notes actually changes,
+  // not on every render (tenderCards/paketiNotes are new array refs from hooks → would cause update loop).
+  const tenderCardIds = tenderCards.map((c) => c.id).join(',');
+  const paketiNoteIds = paketiNotes.map((n) => n.id).join(',');
+
+  useEffect(() => {
+    if (!analysisSummary) return;
+
+    const allAnalysisCards = getAllAnalysisCardPaths(analysisSummary);
+    setSelectedAnalysisCards(new Set(allAnalysisCards));
+    setSelectedUserCards(new Set(tenderCards.map((c) => c.id)));
+    setSelectedNotes(new Set(paketiNotes.map((n) => n.id)));
+  }, [analysisSummary, tenderCardIds, paketiNoteIds]);
 
   const updateNote = useCallback((id: string, text: string) => {
     setPaketiNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n)));
@@ -687,6 +815,10 @@ export function RightPanel({
                     saveCorrection={saveCorrection}
                     getCorrectionForField={getCorrectionForField}
                     onRefreshData={onRefreshData}
+                    selectedCards={selectedAnalysisCards}
+                    onToggleCard={toggleAnalysisCard}
+                    onToggleCategory={toggleAnalysisCategory}
+                    showCheckboxes
                   />
                 </Accordion.Panel>
               </Accordion.Item>
@@ -784,6 +916,8 @@ export function RightPanel({
                             onDelete={deleteCard}
                             isUpdating={isCardUpdating}
                             onCardClick={handleCardClick}
+                            isSelected={selectedUserCards.has(card.id)}
+                            onToggleSelect={() => toggleUserCard(card.id)}
                           />
                         ))}
                       </SortableContext>
@@ -843,7 +977,14 @@ export function RightPanel({
 
                   {/* Not listesi */}
                   {paketiNotes.map((note) => (
-                    <EditableNote key={note.id} note={note} onUpdate={updateNote} onDelete={deleteNote} />
+                    <EditableNote
+                      key={note.id}
+                      note={note}
+                      onUpdate={updateNote}
+                      onDelete={deleteNote}
+                      isSelected={selectedNotes.has(note.id)}
+                      onToggleSelect={() => toggleNote(note.id)}
+                    />
                   ))}
 
                   <Button
@@ -875,6 +1016,20 @@ export function RightPanel({
             background: 'rgba(24, 24, 27, 0.8)',
           }}
         >
+          {/* Selection Summary */}
+          <Stack gap={4} mb="xs">
+            <Text size="xs" c="dimmed">
+              ✓ {selectedAnalysisCards.size} analiz kartı
+            </Text>
+            <Text size="xs" c="dimmed">
+              ✓ {selectedUserCards.size} özel kart
+            </Text>
+            <Text size="xs" c="dimmed">
+              ✓ {selectedNotes.size} not
+            </Text>
+          </Stack>
+
+          {/* Send Button */}
           <Button
             variant="gradient"
             gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
@@ -882,9 +1037,15 @@ export function RightPanel({
             fullWidth
             size="sm"
             loading={isSendingToMasa}
+            disabled={selectedAnalysisCards.size + selectedUserCards.size + selectedNotes.size === 0}
             style={{ boxShadow: '0 2px 12px rgba(139, 92, 246, 0.25)' }}
             onClick={async () => {
               try {
+                // Filter data by selection
+                const selectedAnalysis = filterAnalysisBySelection(analysisSummary, selectedAnalysisCards);
+                const selectedCards = tenderCards.filter((c) => selectedUserCards.has(c.id));
+                const selectedNotesList = paketiNotes.filter((n) => selectedNotes.has(n.id));
+
                 await createMasaPaketi({
                   tenderId: savedTender.tender_id,
                   tender_title: savedTender.ihale_basligi,
@@ -892,9 +1053,9 @@ export function RightPanel({
                   tarih: savedTender.tarih,
                   bedel: savedTender.bedel,
                   sure: savedTender.sure,
-                  analysis_cards: (analysisSummary as Record<string, unknown>) || {},
-                  user_cards: tenderCards as unknown[],
-                  notes: paketiNotes as unknown[],
+                  analysis_cards: selectedAnalysis,
+                  user_cards: selectedCards as unknown[],
+                  notes: selectedNotesList as unknown[],
                   correction_count: correctionCount,
                   is_confirmed: isConfirmed,
                 });
@@ -904,7 +1065,7 @@ export function RightPanel({
               }
             }}
           >
-            Masaya Gönder
+            Masaya Gönder ({selectedAnalysisCards.size + selectedUserCards.size + selectedNotes.size} öğe)
           </Button>
         </Box>
       )}

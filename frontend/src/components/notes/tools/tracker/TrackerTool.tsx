@@ -20,8 +20,7 @@ export function TrackerTool() {
   const { sheets, setSheets, isSaving } = useTrackerSheets();
   const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
 
-  // Fix corrupted data (duplicate IDs from old bug) -- runs once on mount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional one-time migration
+  // Fix corrupted data (duplicate IDs from old bug) when sheets load
   useEffect(() => {
     if (!sheets || sheets.length === 0) return;
 
@@ -48,7 +47,7 @@ export function TrackerTool() {
       return { ...s, id: uid(), columns: newCols, rows: newRows };
     });
     setSheets(fixed);
-  }, []);
+  }, [sheets, setSheets]);
 
   const activeSheet = sheets.find((s) => s.id === activeSheetId) ?? null;
 

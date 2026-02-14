@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Group,
-  Stack,
-  Text,
-  Textarea,
-  ThemeIcon,
-} from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Stack, Text, Textarea, ThemeIcon } from '@mantine/core';
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -20,9 +11,9 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { AnalysisDetailModal, type AnalysisCardType } from './AnalysisDetailModal';
-import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
+import { type AnalysisCardType, AnalysisDetailModal } from './AnalysisDetailModal';
 import { getTeknikSartTextFromItem } from './card-utils';
+import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
 import { useCardEditState } from './useCardEditState';
 
 // ═══════════════════════════════════════════════════════════════
@@ -36,6 +27,9 @@ interface TeknikSartlarCardProps {
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export function TeknikSartlarCard({
@@ -45,6 +39,9 @@ export function TeknikSartlarCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: TeknikSartlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -75,6 +72,9 @@ export function TeknikSartlarCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {isEditing
@@ -110,26 +110,11 @@ export function TeknikSartlarCard({
               ))
             : displayItems.map((sart, idx) => {
                 const sartText = getTeknikSartTextFromItem(sart);
-                const onem =
-                  typeof sart === 'object' && sart !== null
-                    ? (sart as Record<string, unknown>).onem
-                    : null;
-                const onemColor =
-                  onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
+                const onem = typeof sart === 'object' && sart !== null ? (sart as Record<string, unknown>).onem : null;
+                const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
                 return (
-                  <Group
-                    key={`ts-${idx}-${sartText.substring(0, 20)}`}
-                    gap="xs"
-                    wrap="nowrap"
-                    align="flex-start"
-                  >
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color={onemColor}
-                      circle
-                      style={{ flexShrink: 0, marginTop: 2 }}
-                    >
+                  <Group key={`ts-${idx}-${sartText.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                    <Badge size="xs" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
                       {idx + 1}
                     </Badge>
                     <Text size="xs" style={{ flex: 1 }} lineClamp={2}>
@@ -174,9 +159,12 @@ export function TeknikSartlarCard({
 
 interface BenzerIsTanimiCardProps {
   tanim: string;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function BenzerIsTanimiCard({ tanim }: BenzerIsTanimiCardProps) {
+export function BenzerIsTanimiCard({ tanim, showCheckbox, isSelected, onToggleSelect }: BenzerIsTanimiCardProps) {
   if (!tanim || !tanim.trim()) return null;
 
   return (
@@ -185,6 +173,9 @@ export function BenzerIsTanimiCard({ tanim }: BenzerIsTanimiCardProps) {
       icon={<IconInfoCircle size={12} />}
       color="gray"
       badge={undefined}
+      showCheckbox={showCheckbox}
+      isSelected={isSelected}
+      onToggleSelect={onToggleSelect}
     >
       <Text size="xs" c="dimmed" style={{ lineHeight: 1.6 }}>
         {tanim}
@@ -199,9 +190,12 @@ export function BenzerIsTanimiCard({ tanim }: BenzerIsTanimiCardProps) {
 
 interface OnemliNotlarCardProps {
   notlar: Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function OnemliNotlarCard({ notlar }: OnemliNotlarCardProps) {
+export function OnemliNotlarCard({ notlar, showCheckbox, isSelected, onToggleSelect }: OnemliNotlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { displayItems } = useExpandableItems(notlar, 5);
@@ -219,17 +213,14 @@ export function OnemliNotlarCard({ notlar }: OnemliNotlarCardProps) {
         totalCount={notlar.length}
         initialShowCount={5}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {displayItems.map((not, idx) => {
-            const notItem =
-              typeof not === 'string' ? { not, tur: 'bilgi' as const } : not;
-            const turColor =
-              notItem.tur === 'uyari'
-                ? 'red'
-                : notItem.tur === 'gereklilik'
-                  ? 'blue'
-                  : 'gray';
+            const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not;
+            const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
             const TurIcon =
               notItem.tur === 'uyari'
                 ? IconAlertTriangle
@@ -237,20 +228,8 @@ export function OnemliNotlarCard({ notlar }: OnemliNotlarCardProps) {
                   ? IconExclamationMark
                   : IconInfoCircle;
             return (
-              <Group
-                key={`not-${idx}-${notItem.not.substring(0, 20)}`}
-                gap="xs"
-                wrap="nowrap"
-                align="flex-start"
-              >
-                <ThemeIcon
-                  size="xs"
-                  variant="light"
-                  color={turColor}
-                  radius="xl"
-                  mt={2}
-                  style={{ flexShrink: 0 }}
-                >
+              <Group key={`not-${idx}-${notItem.not.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                <ThemeIcon size="xs" variant="light" color={turColor} radius="xl" mt={2} style={{ flexShrink: 0 }}>
                   <TurIcon size={10} />
                 </ThemeIcon>
                 <Text size="xs" style={{ flex: 1 }}>

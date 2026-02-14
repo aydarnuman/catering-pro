@@ -46,7 +46,7 @@ export function DocxViewer({ url, extractedText, onTextSelect }: DocxViewerProps
               : extractedText
                   .split('\n\n')
                   .map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
-                  .join(''),
+                  .join('')
           );
           setUseFallback(true);
           setLoading(false);
@@ -65,7 +65,7 @@ export function DocxViewer({ url, extractedText, onTextSelect }: DocxViewerProps
 
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
-    if (selection && selection.toString().trim()) {
+    if (selection?.toString().trim()) {
       onTextSelect?.(selection.toString().trim());
     }
   }, [onTextSelect]);

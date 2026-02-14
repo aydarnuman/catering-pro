@@ -25,7 +25,13 @@ export function CardEditToolbar({ isEditing, onToggleEdit, onSave, onDelete, onA
         <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
           İptal
         </Button>
-        <Button size="compact-xs" variant="filled" color="green" onClick={onSave} leftSection={<IconDeviceFloppy size={12} />}>
+        <Button
+          size="compact-xs"
+          variant="filled"
+          color="green"
+          onClick={onSave}
+          leftSection={<IconDeviceFloppy size={12} />}
+        >
           Kaydet
         </Button>
       </Group>

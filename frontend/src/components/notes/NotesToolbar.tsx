@@ -5,12 +5,7 @@
  */
 
 import { ActionIcon, Badge, Box, Group, Select, TextInput, Tooltip } from '@mantine/core';
-import {
-  IconPin,
-  IconSearch,
-  IconTrash,
-  IconX,
-} from '@tabler/icons-react';
+import { IconPin, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 
 interface NotesToolbarProps {
   activeTab: 'notes' | 'tasks';

@@ -5,7 +5,7 @@
  * Authentication: WS-Security (UsernameToken)
  */
 
-import fetch from 'node-fetch';
+// Node 18+ has native fetch — no import needed
 import { parseStringPromise } from 'xml2js';
 
 const API_ENDPOINT = 'https://efatura.uyumsoft.com.tr/Services/Integration';

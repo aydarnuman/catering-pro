@@ -22,6 +22,11 @@ import logger from './logger.js';
 let birimEslestirmeCache = null;
 let birimDonusumCache = null;
 
+// Ürüne özel dönüşüm cache (TTL: 5 dakika)
+let urunBirimCache = new Map();
+let urunBirimCacheTime = 0;
+const URUN_BIRIM_CACHE_TTL = 5 * 60 * 1000; // 5 min
+
 // Bilinen temel dönüşümler (DB'den yüklenemezse fallback)
 const FALLBACK_DONUSUMLER = {
   'g:kg': 0.001,
@@ -124,22 +129,30 @@ export async function donusumCarpaniAl(kaynakBirim, hedefBirim, urunKartId = nul
   // Aynı birimse
   if (stdKaynak === stdHedef) return 1;
 
-  // Ürüne özel dönüşüm (varsa en öncelikli)
+  // Ürüne özel dönüşüm (varsa en öncelikli) — cache'li
   if (urunKartId) {
     try {
-      const result = await query(
-        'SELECT carpan FROM urun_birim_donusumleri WHERE urun_kart_id = $1 AND kaynak_birim = $2 AND hedef_birim = $3 LIMIT 1',
-        [urunKartId, stdKaynak, stdHedef]
-      );
-      if (result.rows.length > 0) return parseFloat(result.rows[0].carpan);
+      // Cache'i yenile (TTL dolmuşsa)
+      if (Date.now() - urunBirimCacheTime > URUN_BIRIM_CACHE_TTL) {
+        const allRows = await query(
+          'SELECT urun_kart_id, kaynak_birim, hedef_birim, carpan FROM urun_birim_donusumleri'
+        );
+        urunBirimCache = new Map();
+        for (const row of allRows.rows) {
+          const fwd = `${row.urun_kart_id}:${row.kaynak_birim}:${row.hedef_birim}`;
+          urunBirimCache.set(fwd, parseFloat(row.carpan));
+        }
+        urunBirimCacheTime = Date.now();
+      }
 
-      // Ürüne özel ters dönüşüm
-      const tersResult = await query(
-        'SELECT carpan FROM urun_birim_donusumleri WHERE urun_kart_id = $1 AND kaynak_birim = $2 AND hedef_birim = $3 LIMIT 1',
-        [urunKartId, stdHedef, stdKaynak]
-      );
-      if (tersResult.rows.length > 0) {
-        const c = parseFloat(tersResult.rows[0].carpan);
+      // İleri dönüşüm
+      const fwdKey = `${urunKartId}:${stdKaynak}:${stdHedef}`;
+      if (urunBirimCache.has(fwdKey)) return urunBirimCache.get(fwdKey);
+
+      // Ters dönüşüm
+      const revKey = `${urunKartId}:${stdHedef}:${stdKaynak}`;
+      if (urunBirimCache.has(revKey)) {
+        const c = urunBirimCache.get(revKey);
         if (c > 0) return 1 / c;
       }
     } catch (_err) {

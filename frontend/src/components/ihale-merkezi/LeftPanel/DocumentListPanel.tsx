@@ -206,14 +206,14 @@ export function DocumentListPanel({
       // Skip ZIP and RAR files
       const ext = doc.original_filename?.split('.').pop()?.toLowerCase() || '';
       if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) continue;
-      
+
       const key = doc.doc_type || 'Diğer';
       if (!groups[key]) groups[key] = [];
       groups[key].push(doc);
     }
     return groups;
   }, [documents]);
-  
+
   // Actual visible count (excluding archives)
   const visibleDocCount = useMemo(() => {
     return Object.values(groupedDocs).flat().length;

@@ -70,8 +70,8 @@ export interface Birim {
   id: number;
   kod: string;
   ad: string;
-  kisa_ad: string;
-  tip: string;
+  kisa_ad?: string;
+  tip?: string;
 }
 
 // Lokasyon tipi

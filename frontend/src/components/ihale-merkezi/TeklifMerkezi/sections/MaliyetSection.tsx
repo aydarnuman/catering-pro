@@ -53,7 +53,7 @@ export function MaliyetSection({ ctx }: MaliyetSectionProps) {
   const {
     teklifData,
     hesaplanmisTeklifData,
-    updateMaliyetDetay,
+    updateMaliyetDetay: _updateMaliyetDetay,
     handleKarOraniChange,
     selectedKalem,
     setSelectedKalem,

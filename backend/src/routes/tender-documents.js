@@ -10,8 +10,8 @@ import path from 'node:path';
 import express from 'express';
 import mammoth from 'mammoth';
 import { pool } from '../database.js';
-import supabase from '../supabase.js';
 import documentStorageService from '../services/document-storage.js';
+import supabase from '../supabase.js';
 
 const router = express.Router();
 
@@ -321,7 +321,12 @@ router.get('/documents/:documentId/convert', async (req, res) => {
     }
 
     // 7. Sonucu extracted_text'e kaydet (cache)
-    const textToSave = text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const textToSave =
+      text ||
+      html
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     if (textToSave.length > 50) {
       pool.query('UPDATE documents SET extracted_text = $1 WHERE id = $2', [textToSave, docId]).catch(() => {});
     }
@@ -330,7 +335,7 @@ router.get('/documents/:documentId/convert', async (req, res) => {
       success: true,
       data: {
         html: format === 'html' ? html : null,
-        text: format === 'text' ? text : (text || null),
+        text: format === 'text' ? text : text || null,
         format,
         cached: false,
       },

@@ -59,9 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       // Aynı origin'de relative URL daha güvenilir (CORS/SSL sorunlarını önler)
-      const apiUrl = baseUrl.startsWith(window.location.origin)
-        ? '/api/auth/me'
-        : `${baseUrl}/api/auth/me`;
+      const apiUrl = baseUrl.startsWith(window.location.origin) ? '/api/auth/me' : `${baseUrl}/api/auth/me`;
 
       const response = await fetch(apiUrl, {
         method: 'GET',

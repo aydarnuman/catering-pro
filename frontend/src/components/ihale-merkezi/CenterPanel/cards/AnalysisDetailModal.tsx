@@ -18,7 +18,6 @@ import {
   Tabs,
   Text,
   Textarea,
-  TextInput,
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
@@ -100,9 +99,15 @@ function getDataRenderMode(cardType: AnalysisCardType): DataRenderMode {
 // ─── Sayi Vurgulama ─────────────────────────────────────────────
 
 function highlightNumbers(text: string): React.ReactNode {
-  const parts = text.split(/(\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?)/gi);
+  const parts = text.split(
+    /(\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?)/gi
+  );
   return parts.map((part) => {
-    if (/^\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?$/i.test(part)) {
+    if (
+      /^\d+[.,]?\d*\s*(?:adet|kişi|kisi|gr|g|kg|lt|ml|porsiyon|öğün|ogun|gün|gun|saat|dakika|metre|m²|m2|%)?$/i.test(
+        part
+      )
+    ) {
       return (
         <Text key={`hl-${part}`} component="span" fw={700} c="blue">
           {part}
@@ -115,7 +120,7 @@ function highlightNumbers(text: string): React.ReactNode {
 
 // ─── Veriyi String'e Donustur (kopyalama + AI icin) ─────────────
 
-function dataToString(data: unknown, cardType: AnalysisCardType): string {
+function dataToString(data: unknown, _cardType: AnalysisCardType): string {
   if (!data) return '';
   if (typeof data === 'string') return data;
   if (typeof data === 'number') return String(data);
@@ -131,7 +136,8 @@ function dataToString(data: unknown, cardType: AnalysisCardType): string {
           // Onemli not
           if (obj.not) return `${i + 1}. ${obj.not}`;
           // Birim fiyat
-          if (obj.kalem) return `${obj.kalem}: ${obj.miktar || ''} ${obj.birim || ''} ${obj.fiyat ? `- ${obj.fiyat} TL` : ''}`;
+          if (obj.kalem)
+            return `${obj.kalem}: ${obj.miktar || ''} ${obj.birim || ''} ${obj.fiyat ? `- ${obj.fiyat} TL` : ''}`;
           // Personel
           if (obj.pozisyon) return `${obj.pozisyon}: ${obj.adet || ''} kişi`;
           // Takvim
@@ -193,10 +199,20 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
   if (contentType === 'list') {
     const items = splitContentToItems(value);
     return (
-      <List spacing="xs" size="sm" icon={<ThemeIcon size={16} variant="light" color="blue" radius="xl"><IconList size={10} /></ThemeIcon>}>
+      <List
+        spacing="xs"
+        size="sm"
+        icon={
+          <ThemeIcon size={16} variant="light" color="blue" radius="xl">
+            <IconList size={10} />
+          </ThemeIcon>
+        }
+      >
         {items.map((item) => (
           <List.Item key={`sli-${item.slice(0, 30)}`}>
-            <Text size="sm" style={{ lineHeight: 1.5 }}>{highlightNumbers(item)}</Text>
+            <Text size="sm" style={{ lineHeight: 1.5 }}>
+              {highlightNumbers(item)}
+            </Text>
           </List.Item>
         ))}
       </List>
@@ -206,7 +222,11 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
     const lines = value.split(/\n/).filter((l) => l.trim());
     const rows = lines.map((line) => {
       if (line.includes('\t')) return line.split('\t').map((c) => c.trim());
-      if (line.includes('|')) return line.split('|').map((c) => c.trim()).filter(Boolean);
+      if (line.includes('|'))
+        return line
+          .split('|')
+          .map((c) => c.trim())
+          .filter(Boolean);
       return [line.trim()];
     });
     if (rows.length === 0) return null;
@@ -215,12 +235,18 @@ function SmartStringRenderer({ value, contentType }: { value: string; contentTyp
     return (
       <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
         <Table.Thead>
-          <Table.Tr>{headers.map((h) => <Table.Th key={`sth-${h.slice(0, 20)}`}>{h}</Table.Th>)}</Table.Tr>
+          <Table.Tr>
+            {headers.map((h) => (
+              <Table.Th key={`sth-${h.slice(0, 20)}`}>{h}</Table.Th>
+            ))}
+          </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {dataRows.map((row) => (
             <Table.Tr key={`str-${(row[0] || '').slice(0, 15)}`}>
-              {row.map((cell) => <Table.Td key={`std-${cell.slice(0, 20)}`}>{highlightNumbers(cell)}</Table.Td>)}
+              {row.map((cell) => (
+                <Table.Td key={`std-${cell.slice(0, 20)}`}>{highlightNumbers(cell)}</Table.Td>
+              ))}
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -251,7 +277,9 @@ function ArrayListRenderer({ items, cardType }: { items: unknown[]; cardType: An
             <Badge size="xs" variant="filled" color="blue" circle style={{ flexShrink: 0, marginTop: 3 }}>
               {i + 1}
             </Badge>
-            <Text size="sm" style={{ flex: 1, lineHeight: 1.5 }}>{highlightNumbers(text)}</Text>
+            <Text size="sm" style={{ flex: 1, lineHeight: 1.5 }}>
+              {highlightNumbers(text)}
+            </Text>
             {badge && (
               <Badge size="xs" variant="light" color={badge.color} style={{ flexShrink: 0 }}>
                 {badge.text}
@@ -306,8 +334,12 @@ function ObjectKeyValueRenderer({ obj }: { obj: Record<string, unknown> }) {
     <SimpleGrid cols={2} spacing="md">
       {entries.map(([key, value]) => (
         <Box key={`okv-${key}`}>
-          <Text size="xs" c="dimmed" tt="capitalize">{key.replace(/_/g, ' ')}</Text>
-          <Text size="sm" fw={600}>{highlightNumbers(String(value))}</Text>
+          <Text size="xs" c="dimmed" tt="capitalize">
+            {key.replace(/_/g, ' ')}
+          </Text>
+          <Text size="sm" fw={600}>
+            {highlightNumbers(String(value))}
+          </Text>
         </Box>
       ))}
     </SimpleGrid>
@@ -320,7 +352,19 @@ function getItemDisplayText(item: unknown, _cardType: AnalysisCardType): string 
   if (typeof item === 'string') return item;
   if (typeof item === 'object' && item !== null) {
     const obj = item as Record<string, unknown>;
-    return String(obj.madde || obj.text || obj.description || obj.not || obj.kalem || obj.aciklama || obj.pozisyon || obj.tur || obj.olay || obj.belge || JSON.stringify(item));
+    return String(
+      obj.madde ||
+        obj.text ||
+        obj.description ||
+        obj.not ||
+        obj.kalem ||
+        obj.aciklama ||
+        obj.pozisyon ||
+        obj.tur ||
+        obj.olay ||
+        obj.belge ||
+        JSON.stringify(item)
+    );
   }
   return String(item);
 }
@@ -388,22 +432,44 @@ interface AIAction {
 }
 
 const AI_ACTIONS: AIAction[] = [
-  { id: 'summarize', label: 'Özetle', description: 'İçeriği 2-3 cümleye indir', icon: <IconSparkles size={16} />, transformType: 'summarize' },
-  { id: 'reformat', label: 'Yeniden Formatla', description: 'Düz metni yapılandırılmış formata çevir', icon: <IconTransform size={16} />, transformType: 'reformat' },
-  { id: 'to_list', label: 'Maddelere Ayır', description: 'Paragraf metni maddeli listeye çevir', icon: <IconListCheck size={16} />, transformType: 'to_list' },
-  { id: 'to_table', label: 'Tablo Yap', description: 'Liste veya metni tablo formatına çevir', icon: <IconTable size={16} />, transformType: 'to_table' },
-  { id: 'validate', label: 'Doğrula', description: 'AI ile tutarsızlık ve hata kontrolü yap', icon: <IconAlertCircle size={16} />, transformType: 'validate' },
+  {
+    id: 'summarize',
+    label: 'Özetle',
+    description: 'İçeriği 2-3 cümleye indir',
+    icon: <IconSparkles size={16} />,
+    transformType: 'summarize',
+  },
+  {
+    id: 'reformat',
+    label: 'Yeniden Formatla',
+    description: 'Düz metni yapılandırılmış formata çevir',
+    icon: <IconTransform size={16} />,
+    transformType: 'reformat',
+  },
+  {
+    id: 'to_list',
+    label: 'Maddelere Ayır',
+    description: 'Paragraf metni maddeli listeye çevir',
+    icon: <IconListCheck size={16} />,
+    transformType: 'to_list',
+  },
+  {
+    id: 'to_table',
+    label: 'Tablo Yap',
+    description: 'Liste veya metni tablo formatına çevir',
+    icon: <IconTable size={16} />,
+    transformType: 'to_table',
+  },
+  {
+    id: 'validate',
+    label: 'Doğrula',
+    description: 'AI ile tutarsızlık ve hata kontrolü yap',
+    icon: <IconAlertCircle size={16} />,
+    transformType: 'validate',
+  },
 ];
 
-function AIActionsTab({
-  data,
-  cardType,
-  tenderId,
-}: {
-  data: unknown;
-  cardType: AnalysisCardType;
-  tenderId?: number;
-}) {
+function AIActionsTab({ data, cardType, tenderId }: { data: unknown; cardType: AnalysisCardType; tenderId?: number }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ action: string; content: string } | null>(null);
 
@@ -429,7 +495,8 @@ function AIActionsTab({
         if (aiResult) {
           setResult({
             action: action.label,
-            content: typeof aiResult.content === 'string' ? aiResult.content : JSON.stringify(aiResult.content, null, 2),
+            content:
+              typeof aiResult.content === 'string' ? aiResult.content : JSON.stringify(aiResult.content, null, 2),
           });
         }
       } catch (err) {
@@ -453,11 +520,19 @@ function AIActionsTab({
             onClick={() => handleAction(action)}
             loading={loading === action.id}
             disabled={!!loading}
-            styles={{ root: { height: 'auto', padding: '10px 14px' }, inner: { justifyContent: 'flex-start' }, label: { whiteSpace: 'normal' } }}
+            styles={{
+              root: { height: 'auto', padding: '10px 14px' },
+              inner: { justifyContent: 'flex-start' },
+              label: { whiteSpace: 'normal' },
+            }}
           >
             <Box>
-              <Text size="sm" fw={600}>{action.label}</Text>
-              <Text size="xs" c="dimmed">{action.description}</Text>
+              <Text size="sm" fw={600}>
+                {action.label}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {action.description}
+              </Text>
             </Box>
           </Button>
         ))}
@@ -466,7 +541,9 @@ function AIActionsTab({
       {loading && (
         <Group gap="xs" justify="center" py="md">
           <Loader size="sm" color="violet" />
-          <Text size="sm" c="dimmed">AI işliyor...</Text>
+          <Text size="sm" c="dimmed">
+            AI işliyor...
+          </Text>
         </Group>
       )}
 
@@ -476,11 +553,19 @@ function AIActionsTab({
           <Group justify="space-between" mb="xs">
             <Group gap="xs">
               <IconRobot size={14} />
-              <Text size="sm" fw={600}>{result.action} Sonucu</Text>
+              <Text size="sm" fw={600}>
+                {result.action} Sonucu
+              </Text>
             </Group>
             <CopyButton value={result.content}>
               {({ copied, copy }) => (
-                <Button size="compact-xs" variant="light" color={copied ? 'green' : 'gray'} onClick={copy} leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}>
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  color={copied ? 'green' : 'gray'}
+                  onClick={copy}
+                  leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                >
                   {copied ? 'Kopyalandı' : 'Kopyala'}
                 </Button>
               )}
@@ -514,15 +599,21 @@ function SourceTab({
           <ThemeIcon size="sm" variant="light" color="blue">
             <IconFileText size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={500}>{sourceDocumentName}</Text>
+          <Text size="sm" fw={500}>
+            {sourceDocumentName}
+          </Text>
         </Group>
       ) : (
-        <Text size="sm" c="dimmed">Kaynak doküman bilgisi mevcut değil.</Text>
+        <Text size="sm" c="dimmed">
+          Kaynak doküman bilgisi mevcut değil.
+        </Text>
       )}
 
       {rawText ? (
         <Box>
-          <Text size="xs" c="dimmed" mb="xs" fw={600}>Orijinal Metin</Text>
+          <Text size="xs" c="dimmed" mb="xs" fw={600}>
+            Orijinal Metin
+          </Text>
           <Box
             p="sm"
             style={{
@@ -539,7 +630,9 @@ function SourceTab({
           </Box>
         </Box>
       ) : (
-        <Text size="sm" c="dimmed" fs="italic">Orijinal metin alıntısı mevcut değil.</Text>
+        <Text size="sm" c="dimmed" fs="italic">
+          Orijinal metin alıntısı mevcut değil.
+        </Text>
       )}
     </Stack>
   );
@@ -590,7 +683,12 @@ export function AnalysisDetailModal({
     const lines = textData.split('\n');
     const excelText = lines.map((l) => l.replace(/:\s+/g, '\t')).join('\n');
     navigator.clipboard.writeText(excelText);
-    notifications.show({ title: 'Kopyalandı', message: 'Excel formatında panoya kopyalandı', color: 'green', autoClose: 2000 });
+    notifications.show({
+      title: 'Kopyalandı',
+      message: 'Excel formatında panoya kopyalandı',
+      color: 'green',
+      autoClose: 2000,
+    });
   }, [textData]);
 
   return (
@@ -606,10 +704,20 @@ export function AnalysisDetailModal({
             {icon}
           </ThemeIcon>
           <Box>
-            <Text size="md" fw={600}>{title}</Text>
+            <Text size="md" fw={600}>
+              {title}
+            </Text>
             <Group gap={4}>
-              {isCorrected && <Badge size="xs" variant="filled" color="green">Düzeltildi</Badge>}
-              {Array.isArray(data) && <Badge size="xs" variant="light" color="gray">{data.length} öğe</Badge>}
+              {isCorrected && (
+                <Badge size="xs" variant="filled" color="green">
+                  Düzeltildi
+                </Badge>
+              )}
+              {Array.isArray(data) && (
+                <Badge size="xs" variant="light" color="gray">
+                  {data.length} öğe
+                </Badge>
+              )}
             </Group>
           </Box>
         </Group>
@@ -621,10 +729,20 @@ export function AnalysisDetailModal({
     >
       <Tabs defaultValue="content" keepMounted={false}>
         <Tabs.List px="lg">
-          <Tabs.Tab value="content" leftSection={<IconFileText size={14} />}>İçerik</Tabs.Tab>
-          {onSave && <Tabs.Tab value="edit" leftSection={<IconEdit size={14} />}>Düzenle</Tabs.Tab>}
-          <Tabs.Tab value="ai" leftSection={<IconBrain size={14} />}>AI</Tabs.Tab>
-          <Tabs.Tab value="source" leftSection={<IconExternalLink size={14} />}>Kaynak</Tabs.Tab>
+          <Tabs.Tab value="content" leftSection={<IconFileText size={14} />}>
+            İçerik
+          </Tabs.Tab>
+          {onSave && (
+            <Tabs.Tab value="edit" leftSection={<IconEdit size={14} />}>
+              Düzenle
+            </Tabs.Tab>
+          )}
+          <Tabs.Tab value="ai" leftSection={<IconBrain size={14} />}>
+            AI
+          </Tabs.Tab>
+          <Tabs.Tab value="source" leftSection={<IconExternalLink size={14} />}>
+            Kaynak
+          </Tabs.Tab>
         </Tabs.List>
 
         <Box px="lg" py="md">
@@ -650,7 +768,11 @@ export function AnalysisDetailModal({
 
           <Tabs.Panel value="source">
             <ScrollArea.Autosize mah="60vh">
-              <SourceTab sourceDocumentId={sourceDocumentId} sourceDocumentName={sourceDocumentName} rawText={rawText} />
+              <SourceTab
+                sourceDocumentId={sourceDocumentId}
+                sourceDocumentName={sourceDocumentName}
+                rawText={rawText}
+              />
             </ScrollArea.Autosize>
           </Tabs.Panel>
         </Box>
@@ -710,12 +832,21 @@ function EditTab({
         <Button size="sm" variant="light" color="gray" onClick={() => setEditText(textValue)} disabled={!isModified}>
           Sıfırla
         </Button>
-        <Button size="sm" variant="filled" color="green" onClick={handleSave} disabled={!isModified} leftSection={<IconCheck size={14} />}>
+        <Button
+          size="sm"
+          variant="filled"
+          color="green"
+          onClick={handleSave}
+          disabled={!isModified}
+          leftSection={<IconCheck size={14} />}
+        >
           Kaydet
         </Button>
       </Group>
       {isModified && (
-        <Text size="xs" c="yellow">Kaydedilmemiş değişiklikler var.</Text>
+        <Text size="xs" c="yellow">
+          Kaydedilmemiş değişiklikler var.
+        </Text>
       )}
     </Stack>
   );

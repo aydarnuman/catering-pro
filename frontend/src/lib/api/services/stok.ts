@@ -6,6 +6,7 @@
 
 import { api } from '@/lib/api';
 import type { ApiResponse } from '../types';
+import type { FaturaKalem } from './fatura-kalemleri';
 import { faturaKalemleriAPI } from './fatura-kalemleri';
 
 // Depo
@@ -19,10 +20,12 @@ export interface Depo {
 
 // Depo Stok
 export interface DepoStok {
+  id?: number;
   depo_id: number;
   depo_kod: string;
   depo_ad: string;
   miktar: number;
+  toplam_stok?: number;
   rezerve_miktar?: number;
   kullanilabilir_miktar?: number;
 }
@@ -30,25 +33,34 @@ export interface DepoStok {
 // Stok Hareketi
 export interface StokHareket {
   id: number;
-  hareket_tipi: 'giris' | 'cikis' | 'transfer';
+  hareket_tipi: 'giris' | 'cikis' | 'transfer' | 'GIRIS' | 'CIKIS' | 'TRANSFER';
+  hareket_yonu?: '+' | '-';
   depo_id?: number;
   hedef_depo_id?: number;
-  urun_id: number;
+  stok_kart_id?: number;
+  urun_id?: number;
+  stok_ad?: string;
   miktar: number;
-  birim: string;
+  birim?: string;
+  giris_depo_ad?: string;
+  cikis_depo_ad?: string;
   belge_no?: string;
   belge_tarihi?: string;
   aciklama?: string;
   created_at?: string;
 }
 
-// Stok Fatura
+// Stok Fatura (stok modülü fatura listesi - backend invoice_date, sender_name, payable_amount, stok_islendi döner)
 export interface StokFatura {
   ettn: string;
-  fatura_no: string;
-  tarih: string;
-  toplam_tutar: number;
-  [key: string]: any;
+  fatura_no?: string;
+  tarih?: string;
+  toplam_tutar?: number;
+  invoice_date: string;
+  sender_name: string;
+  payable_amount: string;
+  stok_islendi: boolean;
+  [key: string]: string | number | boolean | undefined | null; // Fatura[] ile uyum
 }
 
 // Akıllı Eşleştirme Sonucu
@@ -119,6 +131,36 @@ export interface AkilliEslestirmeResponse {
   otomatik_onay: boolean;
 }
 
+// Birim
+export interface Birim {
+  id: number;
+  kod: string;
+  ad: string;
+  kisa_ad?: string;
+  tip?: string;
+}
+
+// Lokasyon
+export interface Lokasyon {
+  id: number;
+  ad: string;
+  kod?: string;
+  tur?: string;
+  urun_sayisi?: number;
+  depo_id: number;
+}
+
+// Stok Kart (genel arama sonucu)
+export interface StokKart {
+  id: number;
+  kod: string;
+  ad: string;
+  birim?: string;
+  kategori?: string;
+  toplam_stok?: number;
+  [key: string]: unknown;
+}
+
 // Stok API
 export const stokAPI = {
   /**
@@ -156,7 +198,7 @@ export const stokAPI = {
   /**
    * Depo sil
    */
-  async deleteDepo(id: number): Promise<ApiResponse<any>> {
+  async deleteDepo(id: number): Promise<ApiResponse<unknown>> {
     const response = await api.delete(`/api/stok/depolar/${id}`);
     return response.data;
   },
@@ -172,7 +214,7 @@ export const stokAPI = {
   /**
    * Depo lokasyonlarını getir
    */
-  async getDepoLokasyonlar(depoId: number): Promise<ApiResponse<any[]>> {
+  async getDepoLokasyonlar(depoId: number): Promise<ApiResponse<Lokasyon[]>> {
     const response = await api.get(`/api/stok/depolar/${depoId}/lokasyonlar`);
     return response.data;
   },
@@ -180,7 +222,7 @@ export const stokAPI = {
   /**
    * Lokasyon stoklarını getir
    */
-  async getLokasyonStoklar(lokasyonId: number): Promise<ApiResponse<any[]>> {
+  async getLokasyonStoklar(lokasyonId: number): Promise<ApiResponse<StokKart[]>> {
     const response = await api.get(`/api/stok/lokasyonlar/${lokasyonId}/stoklar`);
     return response.data;
   },
@@ -205,7 +247,7 @@ export const stokAPI = {
     belge_no?: string;
     belge_tarihi?: string;
     aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     const response = await api.post('/api/stok/hareketler/transfer', data);
     return response.data;
   },
@@ -221,7 +263,7 @@ export const stokAPI = {
     belge_no?: string;
     belge_tarihi?: string;
     aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     const response = await api.post('/api/stok/hareketler/giris', data);
     return response.data;
   },
@@ -237,7 +279,7 @@ export const stokAPI = {
     belge_no?: string;
     belge_tarihi?: string;
     aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     const response = await api.post('/api/stok/hareketler/cikis', data);
     return response.data;
   },
@@ -253,7 +295,7 @@ export const stokAPI = {
   /**
    * Fatura kalemlerini getir (TEK KAYNAK: faturaKalemleriAPI)
    */
-  async getFaturaKalemler(ettn: string): Promise<ApiResponse<any[]>> {
+  async getFaturaKalemler(ettn: string): Promise<ApiResponse<FaturaKalem[]>> {
     const data = await faturaKalemleriAPI.getKalemler(ettn);
     return { success: true, data: data.kalemler };
   },
@@ -282,7 +324,7 @@ export const stokAPI = {
   /**
    * Toplu fatura işle
    */
-  async topluFaturaIsle(data: { faturalar: string[]; depo_id: number }): Promise<ApiResponse<any>> {
+  async topluFaturaIsle(data: { faturalar: string[]; depo_id: number }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await api.post('/api/stok/toplu-fatura-isle', data);
     return response.data;
   },
@@ -290,7 +332,11 @@ export const stokAPI = {
   /**
    * Faturadan stok girişi
    */
-  async faturadanGiris(data: { ettn: string; depo_id: number; kalemler?: number[] }): Promise<ApiResponse<any>> {
+  async faturadanGiris(data: {
+    ettn: string;
+    depo_id: number;
+    kalemler?: number[];
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await api.post('/api/stok/faturadan-giris', data);
     return response.data;
   },
@@ -298,7 +344,7 @@ export const stokAPI = {
   /**
    * Stok kartlarını ara
    */
-  async araKartlar(query: string): Promise<ApiResponse<any[]>> {
+  async araKartlar(query: string): Promise<ApiResponse<StokKart[]>> {
     const response = await api.get('/api/stok/kartlar/ara', { params: { q: query } });
     return response.data;
   },
@@ -306,7 +352,7 @@ export const stokAPI = {
   /**
    * Birimleri listele
    */
-  async getBirimler(): Promise<ApiResponse<any[]>> {
+  async getBirimler(): Promise<ApiResponse<Birim[]>> {
     const response = await api.get('/api/stok/birimler');
     return response.data;
   },
@@ -314,7 +360,7 @@ export const stokAPI = {
   /**
    * Stok kartlarını listele
    */
-  async getKartlar(params?: { limit?: number }): Promise<ApiResponse<any[]>> {
+  async getKartlar(params?: { limit?: number }): Promise<ApiResponse<StokKart[]>> {
     const response = await api.get('/api/stok/kartlar', { params });
     return response.data;
   },

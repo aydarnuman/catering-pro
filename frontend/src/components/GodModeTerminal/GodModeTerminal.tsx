@@ -34,6 +34,7 @@ import {
   IconTerminal2,
   IconX,
 } from '@tabler/icons-react';
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getApiBaseUrlDynamic } from '@/lib/config';
 
@@ -55,18 +56,19 @@ interface PresetCommand {
   dynamic?: boolean; // Runtime'da oluşturulacak komutlar için
 }
 
-interface WarningResponse {
+/** Warning response shape from god mode API. Used by consumers of this module. */
+type _WarningResponse = {
   success: false;
   warning: true;
   message: string;
   command: string;
-}
+};
 
 // Kategorize edilmiş hazır komutlar - macOS uyumlu
 const PRESET_CATEGORIES: {
   [key: string]: {
     label: string;
-    icon: any;
+    icon: ComponentType<{ size?: number | string }>;
     commands: (PresetCommand | (PresetCommand & { dynamic: true }))[];
   };
 } = {

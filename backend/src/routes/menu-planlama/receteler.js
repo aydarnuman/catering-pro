@@ -391,11 +391,10 @@ router.post('/receteler', async (req, res) => {
 
     const receteId = receteResult.rows[0].id;
 
-    // Malzemeleri ekle (birim doğrulamalı)
+    // Malzemeleri ekle (birim doğrulamalı + batch INSERT)
     if (malzemeler && malzemeler.length > 0) {
-      for (let i = 0; i < malzemeler.length; i++) {
-        const m = malzemeler[i];
-        // Birim doğrulama
+      // Önce tüm birimleri doğrula (DB'ye gitmeden)
+      for (const m of malzemeler) {
         if (m.birim) {
           const birimCheck = validateReceteBirim(m.birim);
           if (!birimCheck.valid) {
@@ -405,15 +404,23 @@ router.post('/receteler', async (req, res) => {
             });
           }
         }
-        await query(
-          `
-          INSERT INTO recete_malzemeler (
-            recete_id, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `,
-          [receteId, m.stok_kart_id, m.malzeme_adi, m.miktar, m.birim, m.zorunlu ?? true, i + 1]
-        );
       }
+
+      // Batch INSERT — tek sorgu ile tüm malzemeleri ekle
+      const values = [];
+      const params = [];
+      for (let i = 0; i < malzemeler.length; i++) {
+        const m = malzemeler[i];
+        const offset = i * 7;
+        values.push(
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`
+        );
+        params.push(receteId, m.stok_kart_id, m.malzeme_adi, m.miktar, m.birim, m.zorunlu ?? true, i + 1);
+      }
+      await query(
+        `INSERT INTO recete_malzemeler (recete_id, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira) VALUES ${values.join(', ')}`,
+        params
+      );
     }
 
     // Maliyeti hesapla

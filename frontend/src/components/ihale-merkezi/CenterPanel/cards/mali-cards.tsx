@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Button,
-  Group,
-  SimpleGrid,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import {
   IconCurrencyLira,
   IconGavel,
@@ -21,13 +11,7 @@ import {
   IconWallet,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import type {
-  BirimFiyat,
-  CezaKosulu,
-  FiyatFarki,
-  MaliKriterler,
-  TeminatOranlari,
-} from '../../types';
+import type { BirimFiyat, CezaKosulu, FiyatFarki, MaliKriterler, TeminatOranlari } from '../../types';
 import { AnalysisDetailModal } from './AnalysisDetailModal';
 import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
 import { useCardEditState } from './useCardEditState';
@@ -43,6 +27,9 @@ interface BirimFiyatlarCardProps {
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export function BirimFiyatlarCard({
@@ -52,16 +39,17 @@ export function BirimFiyatlarCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: BirimFiyatlarCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { displayItems } = useExpandableItems(birimFiyatlar, 5, isEditing);
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<Array<{ kalem: string; birim: string; miktar: string; fiyat: string; tutar: string }>>({
+  const { editData, setEditData, handleSave } = useCardEditState<
+    Array<{ kalem: string; birim: string; miktar: string; fiyat: string; tutar: string }>
+  >({
     originalData: birimFiyatlar.map((item) => ({
       kalem: item.kalem || item.aciklama || item.text || '',
       birim: item.birim || '',
@@ -108,6 +96,9 @@ export function BirimFiyatlarCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {isEditing
@@ -145,12 +136,7 @@ export function BirimFiyatlarCard({
                     onChange={(e) => handleFieldChange(idx, 'fiyat', e.target.value)}
                     w={80}
                   />
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    color="red"
-                    onClick={() => handleRemoveItem(idx)}
-                  >
+                  <ActionIcon size="xs" variant="subtle" color="red" onClick={() => handleRemoveItem(idx)}>
                     <IconTrash size={10} />
                   </ActionIcon>
                 </Group>
@@ -224,6 +210,9 @@ interface TeminatOranlariCardProps {
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 const TEMINAT_LABELS: Record<string, string> = {
@@ -239,16 +228,15 @@ export function TeminatOranlariCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: TeminatOranlariCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const entries = Object.entries(teminat).filter(([, v]) => v?.trim());
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<Record<string, string>>({
+  const { editData, setEditData, handleSave } = useCardEditState<Record<string, string>>({
     originalData: { ...teminat } as Record<string, string>,
     isEditing,
     fieldPath: 'teminat_oranlari',
@@ -270,6 +258,9 @@ export function TeminatOranlariCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {isEditing ? (
           <Stack gap="xs">
@@ -330,6 +321,9 @@ interface MaliKriterlerCardProps {
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 const MALI_LABELS: Record<string, string> = {
@@ -349,16 +343,15 @@ export function MaliKriterlerCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: MaliKriterlerCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const entries = Object.entries(kriterler).filter(([, v]) => v?.trim());
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<Record<string, string>>({
+  const { editData, setEditData, handleSave } = useCardEditState<Record<string, string>>({
     originalData: { ...kriterler } as Record<string, string>,
     isEditing,
     fieldPath: 'mali_kriterler',
@@ -380,10 +373,21 @@ export function MaliKriterlerCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {isEditing ? (
           <Stack gap="xs">
-            {['cari_oran', 'ozkaynak_orani', 'is_deneyimi', 'ciro_orani', 'banka_borc_orani', 'toplam_ciro_orani', 'hizmet_ciro_orani'].map((key) => (
+            {[
+              'cari_oran',
+              'ozkaynak_orani',
+              'is_deneyimi',
+              'ciro_orani',
+              'banka_borc_orani',
+              'toplam_ciro_orani',
+              'hizmet_ciro_orani',
+            ].map((key) => (
               <Group key={key} gap="xs">
                 <Text size="xs" w={100} c="dimmed">
                   {MALI_LABELS[key]}:
@@ -434,9 +438,12 @@ export function MaliKriterlerCard({
 
 interface CezaKosullariCardProps {
   cezalar: CezaKosulu[];
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function CezaKosullariCard({ cezalar }: CezaKosullariCardProps) {
+export function CezaKosullariCard({ cezalar, showCheckbox, isSelected, onToggleSelect }: CezaKosullariCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { displayItems } = useExpandableItems(cezalar, 4);
@@ -454,6 +461,9 @@ export function CezaKosullariCard({ cezalar }: CezaKosullariCardProps) {
         totalCount={cezalar.length}
         initialShowCount={4}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {displayItems.map((c) => (
@@ -495,9 +505,12 @@ export function CezaKosullariCard({ cezalar }: CezaKosullariCardProps) {
 
 interface FiyatFarkiCardProps {
   fiyatFarki: FiyatFarki;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function FiyatFarkiCard({ fiyatFarki }: FiyatFarkiCardProps) {
+export function FiyatFarkiCard({ fiyatFarki, showCheckbox, isSelected, onToggleSelect }: FiyatFarkiCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   if (!fiyatFarki || (!fiyatFarki.formul && !fiyatFarki.katsayilar)) return null;
@@ -511,6 +524,9 @@ export function FiyatFarkiCard({ fiyatFarki }: FiyatFarkiCardProps) {
         icon={<IconMathFunction size={12} />}
         color="pink"
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {fiyatFarki.formul && (
           <Text size="xs" c="dimmed" mb="xs" style={{ fontFamily: 'monospace' }}>

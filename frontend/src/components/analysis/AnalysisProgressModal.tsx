@@ -135,21 +135,22 @@ export function AnalysisProgressModal({
   onMinimize,
   onCancel,
   progress,
-  tenderId,
+  tenderId: _tenderId,
   tenderTitle,
 }: AnalysisProgressModalProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Geçen süreyi hesapla
+  const startTime = progress.startTime;
   useEffect(() => {
-    if (!progress.startTime || progress.current >= progress.total) return;
+    if (!startTime || progress.current >= progress.total) return;
 
     const interval = setInterval(() => {
-      setElapsedTime(Date.now() - progress.startTime!);
+      setElapsedTime(Date.now() - startTime);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [progress.startTime, progress.current, progress.total]);
+  }, [startTime, progress.current, progress.total]);
 
   // Progress yüzdesi
   const percentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;

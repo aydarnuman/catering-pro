@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import fetch from 'node-fetch';
+// Node 18+ has native fetch — no import needed
 import { supabase } from '../supabase.js';
 // v9.0: TEK MERKEZİ SİSTEM - unified-pipeline kullan!
 import { analyzeDocument } from './ai-analyzer/unified-pipeline.js';

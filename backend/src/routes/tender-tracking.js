@@ -1957,19 +1957,70 @@ router.post('/add-from-analysis', async (req, res) => {
     // --- is_yerleri: Yemek/malzeme isimlerini filtrele ---
     if (analysisSummary.is_yerleri && analysisSummary.is_yerleri.length > 0) {
       const yemekKeywords = [
-        'kebap', 'kebab', 'kofte', 'pilav', 'corba', 'salata', 'makarna', 'borek',
-        'dolma', 'sarma', 'kizartma', 'tatli', 'komposto', 'hosaf', 'cacik', 'ayran',
-        'patates', 'patlican', 'domates', 'biber', 'sogan', 'havuc', 'fasulye',
-        'mercimek', 'bulgur', 'pirinc', 'tavuk', 'et ', 'kuzu', 'dana',
-        'yogurt', 'peynir', 'sut', 'yumurta', 'ekmek', 'simit',
-        'mantar', 'kabak', 'lahana', 'ispanak', 'bamya', 'bezelye',
-        'musakka', 'karniyarik', 'guvec', 'sote', 'haslama', 'izgara',
-        'firinda', 'kiymali', 'etli', 'tavuklu', 'sebzeli', 'corba',
-        'rosto', 'bonfile', 'sinitzel', 'fajita', 'manti', 'kumpir',
+        'kebap',
+        'kebab',
+        'kofte',
+        'pilav',
+        'corba',
+        'salata',
+        'makarna',
+        'borek',
+        'dolma',
+        'sarma',
+        'kizartma',
+        'tatli',
+        'komposto',
+        'hosaf',
+        'cacik',
+        'ayran',
+        'patates',
+        'patlican',
+        'domates',
+        'biber',
+        'sogan',
+        'havuc',
+        'fasulye',
+        'mercimek',
+        'bulgur',
+        'pirinc',
+        'tavuk',
+        'et ',
+        'kuzu',
+        'dana',
+        'yogurt',
+        'peynir',
+        'sut',
+        'yumurta',
+        'ekmek',
+        'simit',
+        'mantar',
+        'kabak',
+        'lahana',
+        'ispanak',
+        'bamya',
+        'bezelye',
+        'musakka',
+        'karniyarik',
+        'guvec',
+        'sote',
+        'haslama',
+        'izgara',
+        'firinda',
+        'kiymali',
+        'etli',
+        'tavuklu',
+        'sebzeli',
+        'corba',
+        'rosto',
+        'bonfile',
+        'sinitzel',
+        'fajita',
+        'manti',
+        'kumpir',
       ];
 
       analysisSummary.is_yerleri = analysisSummary.is_yerleri.filter((yer) => {
-        const yerStr = typeof yer === 'string' ? yer : (yer.isim || yer.ad || '');
+        const yerStr = typeof yer === 'string' ? yer : yer.isim || yer.ad || '';
         const yerNorm = normalizeForCompare(yerStr);
         // Çok kısa
         if (yerNorm.length < 3) return false;
@@ -2014,9 +2065,7 @@ router.post('/add-from-analysis', async (req, res) => {
           return miktar > 100; // 100'den az olanlar genelde meta bilgi
         });
         if (gercekOgunler.length > 0) {
-          analysisSummary.toplam_ogun_sayisi = gercekOgunler.reduce(
-            (sum, o) => sum + (Number(o.miktar) || 0), 0
-          );
+          analysisSummary.toplam_ogun_sayisi = gercekOgunler.reduce((sum, o) => sum + (Number(o.miktar) || 0), 0);
         }
       }
     }
@@ -2026,15 +2075,15 @@ router.post('/add-from-analysis', async (req, res) => {
       for (const bf of analysisSummary.birim_fiyatlar) {
         if (bf.miktar && typeof bf.miktar === 'string') {
           const parsed = parseFloat(bf.miktar.replace(/[^\d.,]/g, '').replace(',', '.'));
-          if (!isNaN(parsed)) bf.miktar = parsed;
+          if (!Number.isNaN(parsed)) bf.miktar = parsed;
         }
         if (bf.fiyat && typeof bf.fiyat === 'string') {
           const parsed = parseFloat(bf.fiyat.replace(/[^\d.,]/g, '').replace(',', '.'));
-          if (!isNaN(parsed)) bf.fiyat = parsed;
+          if (!Number.isNaN(parsed)) bf.fiyat = parsed;
         }
         if (bf.tutar && typeof bf.tutar === 'string') {
           const parsed = parseFloat(bf.tutar.replace(/[^\d.,]/g, '').replace(',', '.'));
-          if (!isNaN(parsed)) bf.tutar = parsed;
+          if (!Number.isNaN(parsed)) bf.tutar = parsed;
         }
       }
     }

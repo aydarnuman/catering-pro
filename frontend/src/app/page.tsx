@@ -38,10 +38,10 @@ import {
   IconUsers,
   IconWallet,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
 import { LoadingState } from '@/components/common';
 import { useAuth } from '@/context/AuthContext';
 import { useNotesModal } from '@/context/NotesContext';
@@ -254,13 +254,16 @@ function HomePageContent() {
   }, []);
 
   // Stats fetch - Auth olmadan da çalışır
-  const SWR_OPTS = { dedupingInterval: 5000 }; // Aynı key ile 5 sn içinde tekrar istek atma
   const {
     data: stats,
     error,
     isLoading,
-    mutate: mutateStats,
-  } = useSWR<StatsResponse>('stats', apiClient.getStats, SWR_OPTS);
+    refetch: refetchStats,
+  } = useQuery<StatsResponse>({
+    queryKey: ['stats'],
+    queryFn: apiClient.getStats,
+    staleTime: 5000,
+  });
 
   // Unified Notes System - Kişisel notları getir
   const { notes: personalNotes, refresh: refreshNotes } = useNotes({
@@ -270,30 +273,30 @@ function HomePageContent() {
   });
 
   // Finans özeti fetch - Auth olmadan da çalışır
-  const { data: finansOzet, mutate: mutateFinans } = useSWR(
-    'finans-ozet',
-    () => muhasebeAPI.getKasaBankaOzet(),
-    SWR_OPTS
-  );
+  const { data: finansOzet, refetch: refetchFinans } = useQuery({
+    queryKey: ['finans-ozet'],
+    queryFn: () => muhasebeAPI.getKasaBankaOzet(),
+    staleTime: 5000,
+  });
 
   // Yaklaşan ihaleler - Auth olmadan da çalışır
-  const { data: yaklasanIhaleler, mutate: mutateYaklasanIhaleler } = useSWR(
-    'yaklasan-ihaleler',
-    async () => {
+  const { data: yaklasanIhaleler, refetch: refetchYaklasanIhaleler } = useQuery({
+    queryKey: ['yaklasan-ihaleler'],
+    queryFn: async () => {
       const { tendersAPI } = await import('@/lib/api/services/tenders');
       const data = await tendersAPI.getTenders({ limit: 5, status: 'active' });
       return data.tenders?.slice(0, 5) || [];
     },
-    SWR_OPTS
-  );
+    staleTime: 5000,
+  });
 
   // 🔴 REALTIME - Ana sayfa için tüm tabloları dinle
   const refetchDashboard = useCallback(() => {
-    mutateStats();
+    refetchStats();
     refreshNotes();
-    mutateFinans();
-    mutateYaklasanIhaleler();
-  }, [mutateStats, refreshNotes, mutateFinans, mutateYaklasanIhaleler]);
+    refetchFinans();
+    refetchYaklasanIhaleler();
+  }, [refetchStats, refreshNotes, refetchFinans, refetchYaklasanIhaleler]);
 
   useRealtimeRefetch(['invoices', 'tenders', 'stok', 'notifications'], refetchDashboard);
 

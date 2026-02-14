@@ -34,8 +34,8 @@ import { useState } from 'react';
 
 import type { GramajGrubu, OgunBilgisi, PersonelDetay, ServisSaatleri } from '../../types';
 import { AnalysisDetailModal } from './AnalysisDetailModal';
-import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
 import { isRealPersonelPosition } from './card-utils';
+import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
 import { useCardEditState } from './useCardEditState';
 
 // ═══════════════════════════════════════════════════════════════
@@ -48,6 +48,9 @@ interface EditableCardProps {
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -56,9 +59,12 @@ interface EditableCardProps {
 
 export function TakvimCard({
   takvim,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: {
   takvim: Array<{ olay: string; tarih: string; gun?: string }>;
-}) {
+} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect'>) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(takvim, 6);
 
@@ -74,6 +80,9 @@ export function TakvimCard({
         initialShowCount={6}
         maxExpandedHeight={400}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
           {displayItems.map((item, idx) => (
@@ -125,14 +134,13 @@ export function ServisSaatleriCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: { saatler: ServisSaatleri } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<Record<string, string>>({
+  const { editData, setEditData, handleSave } = useCardEditState<Record<string, string>>({
     originalData: { ...saatler } as Record<string, string>,
     isEditing: !!isEditing,
     fieldPath: 'servis_saatleri',
@@ -161,6 +169,9 @@ export function ServisSaatleriCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {isEditing ? (
           <Stack gap="xs">
@@ -231,6 +242,9 @@ export function PersonelCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: { personel: PersonelDetay[] } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -238,11 +252,7 @@ export function PersonelCard({
 
   type EditItem = { pozisyon: string; adet: string; ucret_orani: string };
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<EditItem[]>({
+  const { editData, setEditData, handleSave } = useCardEditState<EditItem[]>({
     originalData: personel.map((p) => ({
       pozisyon: p.pozisyon,
       adet: String(p.adet || 0),
@@ -286,6 +296,9 @@ export function PersonelCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {isEditing ? (
           <Stack gap={4}>
@@ -362,7 +375,10 @@ export function PersonelCard({
                     <Tooltip label={p.ucret_orani} disabled={p.ucret_orani.length <= 20}>
                       <Badge size="xs" variant="light" color="green" style={{ maxWidth: 100 }}>
                         <Text size="xs" truncate>
-                          {p.ucret_orani.replace(/Brüt Asgari Ücretin\s*/gi, '').replace(/Fazlası/gi, '').trim()}
+                          {p.ucret_orani
+                            .replace(/Brüt Asgari Ücretin\s*/gi, '')
+                            .replace(/Fazlası/gi, '')
+                            .trim()}
                         </Text>
                       </Badge>
                     </Tooltip>
@@ -408,6 +424,9 @@ export function OgunBilgileriCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: { ogunler: OgunBilgisi[]; toplamOgunSayisi?: number } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -415,11 +434,7 @@ export function OgunBilgileriCard({
   const tabloOgunler = safeOgunler.filter((o) => o.rows && o.headers);
   const flatOgunler = safeOgunler.filter((o) => o.tur);
 
-  const {
-    editData,
-    setEditData,
-    handleSave,
-  } = useCardEditState<OgunEditItem[]>({
+  const { editData, setEditData, handleSave } = useCardEditState<OgunEditItem[]>({
     originalData: flatOgunler.map((o) => ({
       tur: o.tur || '',
       miktar: String(o.miktar || 0),
@@ -463,6 +478,9 @@ export function OgunBilgileriCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         {/* Tablo formatı - Azure'dan gelen öğün dağılım tabloları */}
         {tabloOgunler.length > 0 && !isEditing && (
@@ -491,11 +509,16 @@ export function OgunBilgileriCard({
                         <Table.Tr>
                           {headers.map((h, colIndex) => {
                             const cleanHeader = h.replace(/\n.*$/g, '').trim();
-                            const displayHeader = cleanHeader.length > 20 ? `${cleanHeader.substring(0, 18)}..` : cleanHeader;
+                            const displayHeader =
+                              cleanHeader.length > 20 ? `${cleanHeader.substring(0, 18)}..` : cleanHeader;
                             return (
                               <Table.Th
                                 key={`th-${tIdx}-${h.slice(0, 20)}-col${colIndex}`}
-                                style={colIndex === 0 ? { minWidth: 140 } : { textAlign: 'right', minWidth: 75, whiteSpace: 'nowrap' }}
+                                style={
+                                  colIndex === 0
+                                    ? { minWidth: 140 }
+                                    : { textAlign: 'right', minWidth: 75, whiteSpace: 'nowrap' }
+                                }
                                 title={cleanHeader.length > 20 ? cleanHeader : undefined}
                               >
                                 {displayHeader}
@@ -642,7 +665,14 @@ export function OgunBilgileriCard({
 // 5. IsYerleriCard
 // ═══════════════════════════════════════════════════════════════
 
-export function IsYerleriCard({ yerler }: { yerler: string[] }) {
+export function IsYerleriCard({
+  yerler,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+}: {
+  yerler: string[];
+} & Pick<EditableCardProps, 'showCheckbox' | 'isSelected' | 'onToggleSelect'>) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(yerler, 4);
 
@@ -660,6 +690,9 @@ export function IsYerleriCard({ yerler }: { yerler: string[] }) {
         initialShowCount={4}
         maxExpandedHeight={250}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {displayItems.map((yer, index) => (
@@ -697,6 +730,9 @@ export function GramajBilgileriCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: { gramajlar: GramajGrubu[] } & EditableCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -719,6 +755,9 @@ export function GramajBilgileriCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <ScrollArea.Autosize mah={400}>
           <Stack gap="xs">

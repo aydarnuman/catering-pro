@@ -7,7 +7,15 @@
  * Kullanım: OzetTabPanel.tsx içinde useMemo ile sarılır.
  */
 
-import type { AnalysisData, BirimFiyat, GramajGrubu, GramajMalzeme, OgunBilgisi, PersonelDetay, ServisSaatleri } from '../types';
+import type {
+  AnalysisData,
+  BirimFiyat,
+  GramajGrubu,
+  GramajMalzeme,
+  OgunBilgisi,
+  PersonelDetay,
+  ServisSaatleri,
+} from '../types';
 
 // ─── İçerik Tipi Tespiti ────────────────────────────────────────
 
@@ -202,48 +210,59 @@ function isFoodName(text: string): boolean {
  */
 function isValidTimeFormat(value: string): boolean {
   if (!value || typeof value !== 'string') return false;
-  
+
   const trimmed = value.trim();
-  
+
   // Çok uzun metinler saat olamaz (40+ karakter)
   if (trimmed.length > 40) return false;
-  
+
   // Saat pattern'leri
   const timePatterns = [
     /^\d{1,2}[:.]\d{2}/, // "07:00" veya "07.00" ile başlıyor
     /\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/, // "07:00 - 09:00" formatı
     /^\d{1,2}\s*[-–]\s*\d{1,2}$/, // "7 - 9" basit format
   ];
-  
+
   // Herhangi bir saat pattern'ine uyuyorsa geçerli
-  if (timePatterns.some(p => p.test(trimmed))) return true;
-  
+  if (timePatterns.some((p) => p.test(trimmed))) return true;
+
   // "İdarece", "belirlenecek", "duyurulacak" gibi kelimeler varsa geçersiz
   // normalizeTr zaten Türkçe karakterleri ASCII'ye çevirir, keyword'ler de normalize edilmiş olmalı
-  const invalidKeywords = ['idarece', 'belirlenecek', 'duyurulacak', 'bildirilecek', 'cizelge', 'program', 'uygulanacak', 'idare', 'mudurluk', 'mudurlugu'];
+  const invalidKeywords = [
+    'idarece',
+    'belirlenecek',
+    'duyurulacak',
+    'bildirilecek',
+    'cizelge',
+    'program',
+    'uygulanacak',
+    'idare',
+    'mudurluk',
+    'mudurlugu',
+  ];
   const lowerValue = normalizeTr(trimmed);
-  if (invalidKeywords.some(kw => lowerValue.includes(kw))) return false;
-  
+  if (invalidKeywords.some((kw) => lowerValue.includes(kw))) return false;
+
   // Kısa ve sayı içeriyorsa kabul et (örn: "Sabah 7-9")
   if (trimmed.length <= 25 && /\d/.test(trimmed)) return true;
-  
+
   // Diğer durumlar - 20 karakterden kısa ise kabul et
   return trimmed.length <= 20;
 }
 
 function normalizeServisSaatleri(saatler?: ServisSaatleri): ServisSaatleri | undefined {
   if (!saatler || typeof saatler !== 'object') return undefined;
-  
+
   const result: ServisSaatleri = {};
   let hasValidEntry = false;
-  
+
   for (const [key, value] of Object.entries(saatler)) {
     if (typeof value === 'string' && value.trim() && isValidTimeFormat(value)) {
       result[key] = value.trim();
       hasValidEntry = true;
     }
   }
-  
+
   return hasValidEntry ? result : undefined;
 }
 
@@ -290,7 +309,22 @@ function normalizeIsYerleri(yerler?: string[]): string[] {
 const GRAMAJ_KEYWORDS = ['gramaj', 'malzeme', 'gr', 'gram', 'miktar', 'porsiyon', 'besin'];
 
 /** Öğün tablosu anahtar kelimeleri */
-const OGUN_TABLE_KEYWORDS = ['öğün', 'ogun', 'kahvaltı', 'kahvalti', 'öğle', 'ogle', 'akşam', 'aksam', 'kişi', 'kisi', 'adet', 'tarih', 'gün', 'gun'];
+const OGUN_TABLE_KEYWORDS = [
+  'öğün',
+  'ogun',
+  'kahvaltı',
+  'kahvalti',
+  'öğle',
+  'ogle',
+  'akşam',
+  'aksam',
+  'kişi',
+  'kisi',
+  'adet',
+  'tarih',
+  'gün',
+  'gun',
+];
 
 /**
  * Bir tablonun gramaj tablosu olup olmadığını tespit et
@@ -299,49 +333,50 @@ const OGUN_TABLE_KEYWORDS = ['öğün', 'ogun', 'kahvaltı', 'kahvalti', 'öğle
 function isGramajTable(headers: string[], rows: unknown[][]): boolean {
   const allHeaders = headers.join(' ').toLowerCase();
   const normalizedHeaders = normalizeTr(allHeaders);
-  
+
   // Gramaj keyword'leri kontrol et
-  const hasGramajKeyword = GRAMAJ_KEYWORDS.some(kw => normalizedHeaders.includes(kw));
-  
+  const hasGramajKeyword = GRAMAJ_KEYWORDS.some((kw) => normalizedHeaders.includes(kw));
+
   // Öğün keyword'leri kontrol et (bunlar varsa gramaj değil)
-  const hasOgunKeyword = OGUN_TABLE_KEYWORDS.some(kw => normalizedHeaders.includes(kw));
-  
+  const hasOgunKeyword = OGUN_TABLE_KEYWORDS.some((kw) => normalizedHeaders.includes(kw));
+
   // Eğer açıkça öğün tablosuysa, gramaj değil
   if (hasOgunKeyword && !hasGramajKeyword) return false;
-  
+
   // Eğer gramaj keyword'ü varsa, gramaj tablosudur
   if (hasGramajKeyword) return true;
-  
+
   // Header'da "gr" veya "g" sütunu varsa gramaj olabilir
-  if (headers.some(h => /^(gr|g|gram)$/i.test(h.trim()))) return true;
-  
+  if (headers.some((h) => /^(gr|g|gram)$/i.test(h.trim()))) return true;
+
   // İçeriğe bak - yemek/malzeme isimleri ve sayısal gramaj değerleri var mı?
   let foodItemCount = 0;
   let numericValueCount = 0;
-  
-  for (const row of rows.slice(0, 10)) { // İlk 10 satıra bak
+
+  for (const row of rows.slice(0, 10)) {
+    // İlk 10 satıra bak
     if (!Array.isArray(row) || row.length < 2) continue;
-    
+
     const firstCol = String(row[0] || '').trim();
     const secondCol = String(row[1] || '').trim();
-    
+
     // İlk sütun yemek/malzeme ismi mi?
     if (isFoodName(firstCol) || firstCol.length > 3) {
       foodItemCount++;
     }
-    
+
     // İkinci sütun sayısal değer mi (gramaj)?
     if (/^\d+([.,]\d+)?$/.test(secondCol.replace(/\s/g, ''))) {
       numericValueCount++;
     }
   }
-  
+
   // Çoğu satırda yemek ismi + sayısal değer varsa gramaj tablosudur
   const totalRows = Math.min(rows.length, 10);
   if (totalRows > 0 && foodItemCount >= totalRows * 0.5 && numericValueCount >= totalRows * 0.5) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -351,13 +386,13 @@ function isGramajTable(headers: string[], rows: unknown[][]): boolean {
 function convertToGramajGrubu(tablo: OgunBilgisi): GramajGrubu | null {
   const headers = tablo.headers || [];
   const rows = tablo.rows || [];
-  
+
   if (rows.length === 0) return null;
-  
+
   const malzemeler: GramajMalzeme[] = [];
   let toplamGramaj: number | null = null;
   let yemekAdi = 'Bilinmeyen Yemek';
-  
+
   // Header'dan yemek adını bulmaya çalış
   for (const h of headers) {
     const hStr = String(h || '').trim();
@@ -370,36 +405,36 @@ function convertToGramajGrubu(tablo: OgunBilgisi): GramajGrubu | null {
       }
     }
   }
-  
+
   for (const row of rows) {
     if (!Array.isArray(row) || row.length < 2) continue;
-    
+
     const itemName = String(row[0] || '').trim();
     const weightStr = String(row[1] || '').trim();
-    
+
     // Başlık satırları atla
     if (/^(malzeme|item|ürün|urun)$/i.test(itemName)) continue;
-    
+
     // Toplam satırı
     if (/^toplam$/i.test(itemName)) {
       toplamGramaj = toNumber(weightStr);
       continue;
     }
-    
+
     if (!itemName || itemName.length < 2) continue;
-    
+
     const weight = toNumber(weightStr);
     const unit = row[2] ? String(row[2]).trim() : 'g';
-    
+
     malzemeler.push({
       item: itemName,
       weight: weight > 0 ? weight : null,
       unit: unit || 'g',
     });
   }
-  
+
   if (malzemeler.length === 0) return null;
-  
+
   return {
     yemek_adi: yemekAdi,
     malzemeler,
@@ -446,7 +481,7 @@ function normalizeOgunlerAndExtractGramaj(ogunler?: OgunBilgisi[]): NormalizedOg
   for (const tablo of tabloOgunler) {
     const headers = tablo.headers || [];
     const rows = tablo.rows || [];
-    
+
     if (isGramajTable(headers, rows)) {
       // Gramaj tablosu - dönüştür
       const gramajGrubu = convertToGramajGrubu(tablo);
@@ -598,7 +633,7 @@ export function normalizeOnemliNotlar(notlar?: OnemliNotInput[]): OnemliNotOutpu
 /**
  * AI analiz verisini render öncesi normalize eder.
  * Orijinal veriyi değiştirmez, yeni bir kopya döner.
- * 
+ *
  * Önemli: Öğün bilgilerindeki gramaj tablolarını tespit edip gramaj_gruplari'na taşır.
  */
 export function normalizeAnalysisData(raw?: AnalysisData): AnalysisData | undefined {
@@ -617,11 +652,11 @@ export function normalizeAnalysisData(raw?: AnalysisData): AnalysisData | undefi
   // Öğün bilgilerini normalize et VE gramaj tablolarını ayır
   const { ogunler, gramajGruplari } = normalizeOgunlerAndExtractGramaj(result.ogun_bilgileri);
   result.ogun_bilgileri = ogunler;
-  
+
   // Gramaj gruplarını birleştir (mevcut + yeni tespit edilenler)
   const existingGramaj = result.gramaj_gruplari || [];
   const allGramaj = [...existingGramaj, ...gramajGruplari];
-  
+
   // Duplicate'leri temizle (yemek adına göre)
   const gramajMap = new Map<string, GramajGrubu>();
   for (const g of allGramaj) {

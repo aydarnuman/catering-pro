@@ -1,22 +1,10 @@
 'use client';
 
-import {
-  Badge,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-} from '@mantine/core';
-import {
-  IconAlertTriangle,
-  IconCertificate,
-  IconCheck,
-  IconPhone,
-} from '@tabler/icons-react';
+import { Badge, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { IconAlertTriangle, IconCertificate, IconCheck, IconPhone } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { GerekliBelge, IletisimBilgileri } from '../../types';
-import { AnalysisDetailModal, type AnalysisCardType } from './AnalysisDetailModal';
+import { type AnalysisCardType, AnalysisDetailModal } from './AnalysisDetailModal';
 import { ExpandableCardShell, useExpandableItems } from './ExpandableCardShell';
 import { useCardEditState } from './useCardEditState';
 
@@ -24,7 +12,17 @@ import { useCardEditState } from './useCardEditState';
 // Gerekli Belgeler Kartı
 // ═══════════════════════════════════════════════════════════════
 
-export function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) {
+export function GerekliBelgelerCard({
+  belgeler,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+}: {
+  belgeler: GerekliBelge[];
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(belgeler, 5);
 
@@ -42,6 +40,9 @@ export function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) 
         initialShowCount={5}
         maxExpandedHeight={300}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {displayItems.map((b) => {
@@ -105,6 +106,9 @@ export function IletisimCard({
   onSave,
   onDelete,
   isCorrected,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
 }: {
   iletisim: IletisimBilgileri;
   isEditing?: boolean;
@@ -112,6 +116,9 @@ export function IletisimCard({
   onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
   onDelete?: () => void;
   isCorrected?: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -139,6 +146,9 @@ export function IletisimCard({
         onDelete={onDelete}
         isCorrected={isCorrected}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Stack gap={4}>
           {isEditing
@@ -187,7 +197,17 @@ export function IletisimCard({
 // Eksik Bilgiler Kartı
 // ═══════════════════════════════════════════════════════════════
 
-export function EksikBilgilerCard({ eksikBilgiler }: { eksikBilgiler: string[] }) {
+export function EksikBilgilerCard({
+  eksikBilgiler,
+  showCheckbox,
+  isSelected,
+  onToggleSelect,
+}: {
+  eksikBilgiler: string[];
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [detailOpen, setDetailOpen] = useState(false);
   const { displayItems } = useExpandableItems(eksikBilgiler, 8);
 
@@ -205,6 +225,9 @@ export function EksikBilgilerCard({ eksikBilgiler }: { eksikBilgiler: string[] }
         initialShowCount={8}
         maxExpandedHeight={300}
         onOpenDetail={() => setDetailOpen(true)}
+        showCheckbox={showCheckbox}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       >
         <Group gap={6}>
           {displayItems.map((eksik, idx) => (

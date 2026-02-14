@@ -541,12 +541,18 @@ Kurallar:
                               gap: 8,
                               padding: '6px 8px',
                               borderRadius: 8,
-                              background: selectedTemplate === t.slug
-                                ? isDark ? 'rgba(139, 92, 246, 0.15)' : 'var(--mantine-color-violet-0)'
-                                : 'transparent',
-                              border: selectedTemplate === t.slug
-                                ? isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--mantine-color-violet-3)'
-                                : '1px solid transparent',
+                              background:
+                                selectedTemplate === t.slug
+                                  ? isDark
+                                    ? 'rgba(139, 92, 246, 0.15)'
+                                    : 'var(--mantine-color-violet-0)'
+                                  : 'transparent',
+                              border:
+                                selectedTemplate === t.slug
+                                  ? isDark
+                                    ? '1px solid rgba(139, 92, 246, 0.3)'
+                                    : '1px solid var(--mantine-color-violet-3)'
+                                  : '1px solid transparent',
                               transition: 'all 0.15s ease',
                             }}
                           >
@@ -625,12 +631,22 @@ Kurallar:
                       size="sm"
                       radius="xl"
                       style={{
-                        background: message.type === 'user'
-                          ? isDark ? 'rgba(99, 102, 241, 0.2)' : 'var(--mantine-color-indigo-1)'
-                          : isDark ? 'rgba(139, 92, 246, 0.2)' : 'var(--mantine-color-violet-1)',
-                        color: message.type === 'user'
-                          ? isDark ? '#a5b4fc' : 'var(--mantine-color-indigo-6)'
-                          : isDark ? '#c4b5fd' : 'var(--mantine-color-violet-6)',
+                        background:
+                          message.type === 'user'
+                            ? isDark
+                              ? 'rgba(99, 102, 241, 0.2)'
+                              : 'var(--mantine-color-indigo-1)'
+                            : isDark
+                              ? 'rgba(139, 92, 246, 0.2)'
+                              : 'var(--mantine-color-violet-1)',
+                        color:
+                          message.type === 'user'
+                            ? isDark
+                              ? '#a5b4fc'
+                              : 'var(--mantine-color-indigo-6)'
+                            : isDark
+                              ? '#c4b5fd'
+                              : 'var(--mantine-color-violet-6)',
                         border: isDark
                           ? `1px solid ${message.type === 'user' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(139, 92, 246, 0.3)'}`
                           : 'none',
@@ -658,19 +674,18 @@ Kurallar:
                         p="xs"
                         radius="lg"
                         style={{
-                          background: message.type === 'user'
-                            ? isDark
-                              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.2))'
-                              : 'linear-gradient(135deg, #eef2ff, #e0e7ff)'
-                            : isDark
-                              ? 'rgba(255, 255, 255, 0.06)'
-                              : '#ffffff',
+                          background:
+                            message.type === 'user'
+                              ? isDark
+                                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.2))'
+                                : 'linear-gradient(135deg, #eef2ff, #e0e7ff)'
+                              : isDark
+                                ? 'rgba(255, 255, 255, 0.06)'
+                                : '#ffffff',
                           border: isDark
                             ? `1px solid ${message.type === 'user' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`
                             : `1px solid ${message.type === 'user' ? 'var(--mantine-color-indigo-2)' : 'var(--mantine-color-gray-2)'}`,
-                          borderRadius: message.type === 'user'
-                            ? '14px 14px 4px 14px'
-                            : '14px 14px 14px 4px',
+                          borderRadius: message.type === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                         }}
                       >
                         <Text

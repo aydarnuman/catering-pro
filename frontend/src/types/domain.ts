@@ -109,8 +109,7 @@ export interface Personel {
   acil_telefon?: string;
   created_at?: string;
   updated_at?: string;
-  // biome-ignore lint/suspicious/noExplicitAny: Backend API'den gelen dinamik alanlar için gerekli
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================
@@ -183,8 +182,7 @@ export interface TeklifResponse {
   tutar?: number;
   gerekce?: string;
   durum?: 'taslak' | 'hazirlaniyor' | 'gonderildi' | 'kazanildi' | 'kaybedildi' | 'tamamlandi';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  maliyet_detay?: any;
+  maliyet_detay?: unknown;
   maliyet_toplam?: number;
   kar_orani?: number;
   kar_tutari?: number;

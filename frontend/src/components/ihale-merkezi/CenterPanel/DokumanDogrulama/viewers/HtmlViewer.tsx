@@ -14,7 +14,7 @@ interface HtmlViewerProps {
 export function HtmlViewer({ content, onTextSelect }: HtmlViewerProps) {
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
-    if (selection && selection.toString().trim()) {
+    if (selection?.toString().trim()) {
       onTextSelect?.(selection.toString().trim());
     }
   }, [onTextSelect]);

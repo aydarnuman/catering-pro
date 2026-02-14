@@ -6,7 +6,19 @@
  * Orchestrates sub-components: FolderBar, NotesToolbar, NoteComposer, NotesList, EditNoteModal, CalcPopup
  */
 
-import { ActionIcon, Box, CopyButton, Group, Menu, Modal, ScrollArea, SegmentedControl, Text, Tooltip, useMantineColorScheme } from '@mantine/core';
+import {
+  ActionIcon,
+  Box,
+  CopyButton,
+  Group,
+  Menu,
+  Modal,
+  ScrollArea,
+  SegmentedControl,
+  Text,
+  Tooltip,
+  useMantineColorScheme,
+} from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {

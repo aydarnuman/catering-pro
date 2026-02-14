@@ -4,9 +4,9 @@ import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
 import { query } from '../database.js';
-import { detectDocTypeFromFilename } from '../services/ai-analyzer/prompts/doc-type/index.js';
 // v9.0: UNIFIED PIPELINE - TEK MERKEZİ SİSTEM (DİĞER PİPELINE DOSYALARINI KULLANMA!)
-import { SUPPORTED_FORMATS, getFileType } from '../services/ai-analyzer/index.js';
+import { getFileType, SUPPORTED_FORMATS } from '../services/ai-analyzer/index.js';
+import { detectDocTypeFromFilename } from '../services/ai-analyzer/prompts/doc-type/index.js';
 import { analyzeDocument } from '../services/ai-analyzer/unified-pipeline.js';
 import { processDocument } from '../services/document.js';
 import { supabase } from '../supabase.js';
@@ -82,10 +82,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     // Check for duplicate filename and add timestamp if needed
     let originalFilename = req.file.originalname;
     if (tender_id) {
-      const existingDoc = await query(
-        'SELECT id FROM documents WHERE tender_id = $1 AND original_filename = $2',
-        [tender_id, originalFilename]
-      );
+      const existingDoc = await query('SELECT id FROM documents WHERE tender_id = $1 AND original_filename = $2', [
+        tender_id,
+        originalFilename,
+      ]);
       if (existingDoc.rows.length > 0) {
         // Add timestamp to filename to make it unique
         const ext = path.extname(originalFilename);
@@ -119,23 +119,17 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const fileBuffer = fs.readFileSync(req.file.path);
         const contentType = CONTENT_TYPES[fileExt] || 'application/octet-stream';
 
-        const { error: uploadError } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(storagePath, fileBuffer, {
-            contentType,
-            upsert: false,
-          });
+        const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(storagePath, fileBuffer, {
+          contentType,
+          upsert: false,
+        });
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
           storageUrl = urlData?.publicUrl || null;
-          console.log(`[Upload] Supabase Storage'a yüklendi: ${storagePath}`);
         } else {
-          console.error('[Upload] Supabase Storage hatası:', uploadError.message);
         }
-      } catch (storageErr) {
-        console.error('[Upload] Supabase Storage yükleme hatası:', storageErr.message);
-      }
+      } catch (_storageErr) {}
     }
 
     // Görsel dosyalar için status 'completed' (AI analizi gerekmez, hemen görüntülenebilir)
@@ -499,12 +493,10 @@ router.post('/fix-storage', async (req, res) => {
         const storageFileName = `${timestamp}-${uniqueId}-${safeFileName}`;
         const storagePath = `tenders/${doc.tender_id || 'unknown'}/${doc.doc_type || 'other'}/${storageFileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(storagePath, fileBuffer, {
-            contentType,
-            upsert: false,
-          });
+        const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(storagePath, fileBuffer, {
+          contentType,
+          upsert: false,
+        });
 
         if (uploadError) {
           results.push({ id: doc.id, status: 'error', message: uploadError.message });
@@ -516,10 +508,11 @@ router.post('/fix-storage', async (req, res) => {
         const storageUrl = urlData?.publicUrl || null;
 
         // Database'i güncelle
-        await query(
-          'UPDATE documents SET storage_path = $1, storage_url = $2 WHERE id = $3',
-          [storagePath, storageUrl, doc.id]
-        );
+        await query('UPDATE documents SET storage_path = $1, storage_url = $2 WHERE id = $3', [
+          storagePath,
+          storageUrl,
+          doc.id,
+        ]);
 
         results.push({ id: doc.id, status: 'fixed', storage_url: storageUrl });
       } catch (err) {

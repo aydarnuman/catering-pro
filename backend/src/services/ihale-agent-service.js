@@ -155,7 +155,9 @@ Bulgularını Türkçe yaz. Strateji önerilerini somut senaryolarla destekle.`,
 
 /**
  * İhale temel bilgilerini yükle (tenders tablosu + analysis_summary)
+ * NOT: Artık loadMasaVeriPaketi kullanılıyor, bu fonksiyon deprecated
  */
+/*
 async function loadTenderData(tenderId) {
   const result = await query(
     `SELECT
@@ -170,15 +172,46 @@ async function loadTenderData(tenderId) {
   );
   return result.rows[0] || null;
 }
+*/
+
+/**
+ * Masa veri paketini yükle (kullanıcı tarafından kurasyonlanmış veri)
+ * @param {number} tenderId
+ * @returns {Object|null} { analysis_cards, user_cards, notes, tender_title, kurum, ... }
+ */
+async function loadMasaVeriPaketi(tenderId) {
+  const result = await query(
+    `SELECT analysis_cards, user_cards, notes, tender_title, kurum, tarih, bedel, sure, 
+            correction_count, is_confirmed, created_at, version
+     FROM masa_veri_paketleri
+     WHERE tender_id = $1 AND is_active = true
+     ORDER BY version DESC
+     LIMIT 1`,
+    [tenderId]
+  );
+
+  if (result.rows.length === 0) {
+    logger.warn(`[İhale Agent] Masa veri paketi bulunamadı: tender=${tenderId}`);
+    return null;
+  }
+
+  const paket = result.rows[0];
+  logger.debug(`[İhale Agent] Masa veri paketi yüklendi: tender=${tenderId}, version=${paket.version}`, {
+    tenderId,
+    version: paket.version,
+    cardCount: Object.keys(paket.analysis_cards || {}).length,
+    userCardCount: (paket.user_cards || []).length,
+    noteCount: (paket.notes || []).length,
+  });
+
+  return paket;
+}
 
 /**
  * İhale döküman analizlerini yükle (documents tablosu → combined analysis)
- *
- * Pipeline-işlenmiş dökümanlar (tech_spec, contract, admin_spec, unit_price)
- * verileri `analysis_result.analysis.*` nested yapıda tutar.
- * İlan ve mal/hizmet listesi ise `analysis_result.*` düz (flat) yapıdadır.
- * Bu fonksiyon her iki yapıyı da okur.
+ * NOT: Artık masa_veri_paketleri.analysis_cards kullanılıyor, bu fonksiyon deprecated
  */
+/*
 async function loadDocumentAnalyses(tenderId) {
   const docsResult = await query(
     `SELECT original_filename, doc_type, analysis_result
@@ -255,11 +288,13 @@ async function loadDocumentAnalyses(tenderId) {
 
   return combined;
 }
+*/
 
 /**
  * Dizi elemanlarını deduplicate et.
- * Objeler için JSON.stringify kullanarak, stringler için doğrudan Set ile.
+ * NOT: Artık kullanılmıyor (loadDocumentAnalyses deprecated)
  */
+/*
 function deduplicateItems(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return arr;
   const seen = new Set();
@@ -270,13 +305,15 @@ function deduplicateItems(arr) {
     return true;
   });
 }
+*/
 
 // ─── Ring Verisi (Kullanıcı Eklemeleri) ──────────────────────
 
 /**
  * İhaleye özel kullanıcı eklemelerini yükle (ring / orbit verileri)
- * Notlar, linkler, hesaplamalar, dilekçe taslakları, AI raporları vs.
+ * NOT: Artık masa_veri_paketleri.user_cards ve notes kullanılıyor, bu fonksiyon deprecated
  */
+/*
 async function loadRingData(tenderId) {
   try {
     const result = await query(
@@ -305,6 +342,7 @@ async function loadRingData(tenderId) {
     return [];
   }
 }
+*/
 
 // ─── Agent Config & Knowledge Yükleme ───────────────────────
 
@@ -387,15 +425,16 @@ const KNOWLEDGE_TYPE_LABELS = {
   pdf: 'Döküman',
 };
 
-const RING_TYPE_LABELS = {
-  note: 'Not',
-  document: 'Döküman',
-  petition: 'Dilekçe/Zeyilname',
-  ai_report: 'AI Raporu',
-  link: 'Kaynak Link',
-  contact: 'İletişim',
-  calculation: 'Hesaplama',
-};
+// RING_TYPE_LABELS artık kullanılmıyor (ringData deprecated)
+// const RING_TYPE_LABELS = {
+//   note: 'Not',
+//   document: 'Döküman',
+//   petition: 'Dilekçe/Zeyilname',
+//   ai_report: 'AI Raporu',
+//   link: 'Kaynak Link',
+//   contact: 'İletişim',
+//   calculation: 'Hesaplama',
+// };
 
 // ─── Yardımcı: JSON'u kompakt ama okunabilir formatta serialize et ──────────
 
@@ -465,7 +504,7 @@ function normalizeAnalysisSummary(raw) {
 
 // ─── Analiz Prompt Oluşturucu ────────────────────────────────
 
-function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems = [], ringData = []) {
+function buildAnalysisPrompt(agentId, tender, analysisSummary, userCards = [], userNotes = [], knowledgeItems = []) {
   const s = normalizeAnalysisSummary(analysisSummary);
 
   // ── Ortak değer çözümleme (field name mismatch düzeltmeleri) ──
@@ -483,7 +522,7 @@ function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, know
   const birimFiyatlar = s.birim_fiyatlar || [];
   const maliKriterler = s.mali_kriterler || {};
   const teminatOranlari = s.teminat_oranlari || {};
-  const cezaKosullari = s.ceza_kosullari || docAnalysis?.ceza_kosullari || [];
+  const cezaKosullari = s.ceza_kosullari || [];
   const onemliNotlar = s.onemli_notlar || [];
   const gereliBelgeler = s.gerekli_belgeler || [];
   const fiyatFarki = s.fiyat_farki || {};
@@ -522,9 +561,7 @@ function buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, know
 
   // ── Analiz edilen döküman bilgisi ──
   const docInfo =
-    docDetails.length > 0
-      ? docDetails.map((d) => `${d.filename} (${d.doc_type})`).join(', ')
-      : `${docAnalysis?.dokuman_sayisi || 0} döküman`;
+    docDetails.length > 0 ? docDetails.map((d) => `${d.filename} (${d.doc_type})`).join(', ') : 'Veri paketi';
 
   // ── ORTAK İHALE BİLGİLERİ (tüm ajanlara gider) ──
   let prompt = `## İHALE BİLGİLERİ
@@ -795,25 +832,38 @@ ${compactJson(
 `;
   }
 
-  // ── DÖKÜMAN ANALİZLERİNDEN EK VERİ ──
-  if (docAnalysis) {
-    // Tam metin varsa ekle
-    const tamMetin = docAnalysis.tam_metin || '';
-    if (tamMetin.length > 0) {
-      const kisaltilmis =
-        tamMetin.length > 10000
-          ? `${tamMetin.slice(0, 10000)}\n\n[...metin kısaltıldı, toplam ${tamMetin.length} karakter]`
-          : tamMetin;
-      prompt += `\n## DÖKÜMAN TAM METNİ (${docAnalysis.dokuman_sayisi} döküman)\n${kisaltilmis}\n`;
-    }
+  // ── KULLANICI ÖZEL KARTLARI ──
+  if (userCards.length > 0) {
+    prompt += `\n## KULLANICI ÖZEL KARTLARI\n`;
+    prompt += `Kullanıcı bu ihaleyle ilgili ${userCards.length} adet özel kart oluşturdu. Bunları analizinde dikkate al:\n\n`;
 
-    // Döküman özetleri
-    if (docAnalysis.dokuman_ozetleri?.length > 0) {
-      prompt += '\n## DÖKÜMAN ÖZETLERİ\n';
-      for (const d of docAnalysis.dokuman_ozetleri) {
-        prompt += `- **${d.dosya}** (${d.tur}): ${d.ozet}\n`;
-      }
+    for (const card of userCards) {
+      const cardContent = typeof card.content === 'string' ? card.content : JSON.stringify(card.content, null, 2);
+      prompt += `### ${card.title} (${card.card_type}, kaynak: ${card.source_type})\n`;
+      prompt += `${cardContent}\n\n`;
     }
+  }
+
+  // ── KULLANICI NOTLARI ──
+  if (userNotes.length > 0) {
+    prompt += `\n## KULLANICI NOTLARI\n`;
+    prompt += `Kullanıcının bu ihaleyle ilgili ${userNotes.length} notu:\n\n`;
+
+    for (const note of userNotes) {
+      const noteText = typeof note === 'string' ? note : note.text || JSON.stringify(note);
+      prompt += `- ${noteText}\n`;
+    }
+    prompt += '\n';
+  }
+
+  // ── TAM METİN (analysis_cards'dan) ──
+  const tamMetin = analysisSummary.tam_metin || '';
+  if (tamMetin.length > 0) {
+    const kisaltilmis =
+      tamMetin.length > 10000
+        ? `${tamMetin.slice(0, 10000)}\n\n[...metin kısaltıldı, toplam ${tamMetin.length} karakter]`
+        : tamMetin;
+    prompt += `\n## İHALE DÖKÜMAN METNİ\n${kisaltilmis}\n`;
   }
 
   // ── KNOWLEDGE BASE ──
@@ -834,33 +884,7 @@ ${compactJson(
     }
   }
 
-  // ── RING VERİSİ (kullanıcı eklemeleri — ajan bazlı filtreleme) ──
-  if (ringData.length > 0) {
-    // Öncelik 1: Bu ajana özel eklemeler (sourceAgent eşleşmesi veya sürükle-bırakla atanmış)
-    const agentSpecific = ringData.filter((item) => item.sourceAgent === agentId);
-    // Öncelik 2: Genel eklemeler (hiçbir ajana atanmamış)
-    const general = ringData.filter((item) => !item.sourceAgent);
-    // Birleştir: önce ajana özel, sonra genel
-    const relevantRing = [...agentSpecific, ...general];
-
-    if (relevantRing.length > 0) {
-      const specificCount = agentSpecific.length;
-      const generalCount = general.length;
-      prompt += `\n## İHALEYE ÖZEL EK BİLGİLER (${specificCount} adet sana özel, ${generalCount} adet genel)\n`;
-      prompt +=
-        'Kullanıcılar bu ihale için aşağıdaki ek bilgileri eklemiştir. Özellikle sana atanmış olanları öncelikle dikkate al:\n\n';
-
-      for (const item of relevantRing) {
-        const typeLabel = RING_TYPE_LABELS[item.type] || 'Ek Bilgi';
-        const agentTag = item.sourceAgent === agentId ? ' ⭐ (sana atanmış)' : '';
-        prompt += `### ${typeLabel}: ${item.title || 'İsimsiz'}${agentTag}\n`;
-        if (item.content) {
-          const text = item.content.length > 1500 ? `${item.content.slice(0, 1500)}\n[...kısaltıldı]` : item.content;
-          prompt += `${text}\n\n`;
-        }
-      }
-    }
-  }
+  // ringData artık kullanılmıyor — kullanıcı eklemeleri userCards ile geliyor
 
   // ── ANALİZ TALİMATI ──
   prompt += `
@@ -956,21 +980,36 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
     return { success: false, error: 'Analiz kaydı oluşturulamadı' };
   }
 
-  // 3. Veri yükle
-  const tender = await loadTenderData(tenderId);
-  if (!tender) {
-    await query(`UPDATE agent_analyses SET status = 'error', error_message = 'İhale bulunamadı' WHERE id = $1`, [
-      analysisId,
-    ]);
-    return { success: false, error: 'İhale bulunamadı' };
+  // 3. Veri yükle — ÖNCELİK: Masa veri paketi (kullanıcı kurasyonlu)
+  const masaPaketi = await loadMasaVeriPaketi(tenderId);
+  if (!masaPaketi) {
+    await query(
+      `UPDATE agent_analyses SET status = 'error', 
+              error_message = 'Masa veri paketi bulunamadı — lütfen önce sağ panelden masaya gönderin' 
+       WHERE id = $1`,
+      [analysisId]
+    );
+    return { success: false, error: 'Masa veri paketi bulunamadı' };
   }
 
-  const analysisSummary = tender.analysis_summary || {};
-  const [docAnalysis, agentConfig, knowledgeItems, ringData, pastLearning, sharedLearnings] = await Promise.all([
-    loadDocumentAnalyses(tenderId),
+  // Curated veri paketten gelir
+  const analysisSummary = masaPaketi.analysis_cards || {};
+  const userCards = masaPaketi.user_cards || [];
+  const userNotes = masaPaketi.notes || [];
+
+  // Temel ihale bilgileri paket meta'sından
+  const tender = {
+    id: tenderId,
+    title: masaPaketi.tender_title,
+    organization: masaPaketi.kurum,
+    tender_date: masaPaketi.tarih,
+    estimated_cost: masaPaketi.bedel,
+  };
+
+  // Sadece ajan config, knowledge, past learning yüklenir
+  const [agentConfig, knowledgeItems, pastLearning, sharedLearnings] = await Promise.all([
     loadAgentConfig(agentId),
     loadAgentKnowledge(agentId),
-    loadRingData(tenderId),
     getPastLearningSection(agentId),
     getSharedLearningsForAgent(agentId, 'ihale'),
   ]);
@@ -979,7 +1018,7 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
   const systemPrompt = agentConfig?.system_prompt || AGENT_SYSTEM_PROMPTS[agentId];
   const agentModel = agentConfig?.model && agentConfig.model !== 'default' ? agentConfig.model : MODEL;
   const agentTemperature = Number(agentConfig?.temperature) || 0.3;
-  let userMessage = buildAnalysisPrompt(agentId, tender, analysisSummary, docAnalysis, knowledgeItems, ringData);
+  let userMessage = buildAnalysisPrompt(agentId, tender, analysisSummary, userCards, userNotes, knowledgeItems);
 
   // 4b. Geçmiş ihale sonuçlarından öğrenme verisi ekle (few-shot örnekler)
   if (pastLearning) {
@@ -1026,11 +1065,13 @@ async function analyzeWithAgent(tenderId, agentId, { force = false, additionalCo
     logger.info(`[İhale Agent] Analiz başlıyor: tender=${tenderId}, agent=${agentId}`, {
       tenderId,
       agentId,
-      hasDocAnalysis: !!docAnalysis,
+      paketVersion: masaPaketi.version,
+      analysisCardCount: Object.keys(analysisSummary).length,
+      userCardCount: userCards.length,
+      userNoteCount: userNotes.length,
       promptLength: userMessage.length,
       promptSource,
       knowledgeCount: knowledgeItems.length,
-      ringCount: ringData.length,
       model: agentModel,
     });
 

@@ -74,6 +74,7 @@ export function ImageViewer({ url, ocrText, onTextSelect }: ImageViewerProps) {
             </Tooltip>
           </Group>
           {url ? (
+            // biome-ignore lint/performance/noImgElement: Dynamic external URL from Supabase storage, not suitable for next/image
             <img
               src={url}
               alt="Döküman görseli"

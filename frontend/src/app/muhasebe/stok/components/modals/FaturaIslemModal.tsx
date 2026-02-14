@@ -37,7 +37,7 @@ import {
 } from '@tabler/icons-react';
 import { EmptyState } from '@/components/common';
 import { useResponsive } from '@/hooks/useResponsive';
-import type { AkilliKalem, AkilliKalemlerResponse } from '@/lib/api/services/stok';
+import type { AkilliKalem, AkilliKalemlerResponse, EslesmeSonucu } from '@/lib/api/services/stok';
 
 import type { Depo, Fatura, StokItem } from '../../types';
 
@@ -82,7 +82,7 @@ interface FaturaIslemModalProps {
   onFaturaStokGirisi: () => Promise<void>;
   onTopluFaturaIsle: () => Promise<void>;
   onFiyatGuncelle: (urunKartId: number, birimFiyat: number, urunAdi: string) => Promise<void>;
-  onYeniUrunOlustur: (kalem: any, anaUrunId?: number) => Promise<void>;
+  onYeniUrunOlustur: (kalem: AkilliKalem, anaUrunId?: number) => Promise<void>;
   onManuelGirisAc: () => void;
   // Loading
   faturaLoading?: boolean;
@@ -97,7 +97,7 @@ export default function FaturaIslemModal({
   setSelectedFatura,
   faturaKalemler,
   faturaOzet,
-  faturaInfo,
+  faturaInfo: _faturaInfo,
   kalemEslestirme,
   setKalemEslestirme,
   tumUrunler,
@@ -582,9 +582,9 @@ export default function FaturaIslemModal({
                               <Text size="xs" c="dimmed">
                                 Öneriler:
                               </Text>
-                              {kalem.alternatif_eslesmeler.slice(0, 2).map((alt: any, idx: number) => (
+                              {kalem.alternatif_eslesmeler.slice(0, 2).map((alt: EslesmeSonucu, idx: number) => (
                                 <Badge
-                                  key={idx}
+                                  key={`${kalem.sira}-${alt.stok_kart_id}-${idx}`}
                                   size="xs"
                                   variant="outline"
                                   color="blue"

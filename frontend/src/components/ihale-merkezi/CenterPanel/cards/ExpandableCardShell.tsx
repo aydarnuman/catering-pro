@@ -1,23 +1,7 @@
 'use client';
 
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Group,
-  Paper,
-  ScrollArea,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconChevronDown,
-  IconDeviceFloppy,
-  IconEdit,
-  IconExternalLink,
-  IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Badge, Button, Checkbox, Group, Paper, ScrollArea, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconChevronDown, IconDeviceFloppy, IconEdit, IconExternalLink, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 
 export interface ExpandableCardShellProps {
@@ -43,6 +27,11 @@ export interface ExpandableCardShellProps {
   headerExtra?: React.ReactNode;
   // Empty state
   hidden?: boolean;
+  // Checkbox selection
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  fieldPath?: string;
 }
 
 export function ExpandableCardShell({
@@ -63,6 +52,9 @@ export function ExpandableCardShell({
   onOpenDetail,
   headerExtra,
   hidden,
+  showCheckbox = false,
+  isSelected = false,
+  onToggleSelect,
 }: ExpandableCardShellProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -76,11 +68,19 @@ export function ExpandableCardShell({
       withBorder
       radius="md"
       className="glassy-card-nested"
-      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+      style={
+        isCorrected
+          ? { borderColor: 'var(--mantine-color-green-5)' }
+          : isSelected && showCheckbox
+            ? { borderColor: 'var(--mantine-color-green-6)', borderWidth: 2 }
+            : undefined
+      }
     >
       {/* Header */}
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
+          {/* Checkbox */}
+          {showCheckbox && onToggleSelect && <Checkbox checked={isSelected} onChange={onToggleSelect} />}
           <ThemeIcon size="sm" variant="light" color={color}>
             {icon}
           </ThemeIcon>
@@ -144,7 +144,10 @@ export function ExpandableCardShell({
               color={color}
               onClick={() => setExpanded(!expanded)}
               rightSection={
-                <IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <IconChevronDown
+                  size={12}
+                  style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                />
               }
             >
               {expanded ? 'Daralt' : `Tümü (${totalCount})`}
@@ -156,9 +159,7 @@ export function ExpandableCardShell({
       </Group>
 
       {/* Content */}
-      <ScrollArea.Autosize mah={expanded || isEditing ? maxExpandedHeight : undefined}>
-        {children}
-      </ScrollArea.Autosize>
+      <ScrollArea.Autosize mah={expanded || isEditing ? maxExpandedHeight : undefined}>{children}</ScrollArea.Autosize>
     </Paper>
   );
 }

@@ -3,7 +3,7 @@
  * Masaüstündeki Excel dosyalarından menü planı oluşturur
  */
 
-import fetch from 'node-fetch';
+// Node 18+ has native fetch — no import needed
 import XLSX from 'xlsx';
 
 const API_URL = 'http://localhost:3001/api/menu-planlama';
