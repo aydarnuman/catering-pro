@@ -10,10 +10,7 @@ import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth.js'
 import aiAgent from '../services/ai-agent.js';
 import { createAnthropicClient } from '../utils/anthropic-client.js';
 import logger from '../utils/logger.js';
-import {
-  CARD_TRANSFORM_PROMPTS,
-  CROSS_ANALYSIS_SYSTEM_PROMPT,
-} from './ai-prompts.js';
+import { CARD_TRANSFORM_PROMPTS, CROSS_ANALYSIS_SYSTEM_PROMPT } from './ai-prompts.js';
 
 const router = express.Router();
 
