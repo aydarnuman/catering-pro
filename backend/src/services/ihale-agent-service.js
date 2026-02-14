@@ -1408,6 +1408,5 @@ export default {
   analyzeAllAgents,
   loadCachedAnalyses,
   generateAIVerdict,
-  loadRingData,
   AGENT_IDS,
 };
