@@ -185,7 +185,7 @@ export default function DemirbasPage() {
 
   // Filter states
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
-  const [selectedKategori, _setSelectedKategori] = useState<string | null>(null);
+  const [selectedKategori, setSelectedKategori] = useState<string | null>(null);
   const [selectedLokasyonFilter, setSelectedLokasyonFilter] = useState<number | null>(null);
   const [selectedProjeFilter, setSelectedProjeFilter] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1300,7 +1300,7 @@ export default function DemirbasPage() {
           </Group>
 
           {/* Aktif Filtreler */}
-          {(selectedLokasyonFilter || selectedProjeFilter) && (
+          {(selectedLokasyonFilter || selectedProjeFilter || selectedKategori) && (
             <Box mt="md" mb="sm">
               <Group gap="xs">
                 <Text size="sm" c="dimmed">
@@ -1342,6 +1342,25 @@ export default function DemirbasPage() {
                     📁 {projeler.find((p) => p.id === selectedProjeFilter)?.ad}
                   </Badge>
                 )}
+                {selectedKategori && (
+                  <Badge
+                    size="lg"
+                    variant="light"
+                    color="indigo"
+                    rightSection={
+                      <ActionIcon
+                        size="xs"
+                        variant="transparent"
+                        c="white"
+                        onClick={() => setSelectedKategori(null)}
+                      >
+                        <IconX size={12} />
+                      </ActionIcon>
+                    }
+                  >
+                    📦 {kategoriler.find((k) => k.id.toString() === selectedKategori)?.ad ?? 'Kategori'}
+                  </Badge>
+                )}
                 <Button
                   variant="subtle"
                   size="xs"
@@ -1349,6 +1368,7 @@ export default function DemirbasPage() {
                   onClick={() => {
                     setSelectedLokasyonFilter(null);
                     setSelectedProjeFilter(null);
+                    setSelectedKategori(null);
                   }}
                 >
                   Tümünü Temizle
@@ -1358,13 +1378,23 @@ export default function DemirbasPage() {
           )}
 
           <Box mt="md">
-            <TextInput
-              placeholder="Kod, ad, marka, model veya seri no ile ara..."
-              leftSection={<IconSearch size={16} />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              mb="md"
-            />
+            <Group gap="sm" mb="md" wrap="wrap">
+              <TextInput
+                placeholder="Kod, ad, marka, model veya seri no ile ara..."
+                leftSection={<IconSearch size={16} />}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <Select
+                placeholder="Kategori"
+                clearable
+                value={selectedKategori}
+                onChange={setSelectedKategori}
+                data={kategoriler.map((k) => ({ value: k.id.toString(), label: `${k.ikon || ''} ${k.ad}`.trim() }))}
+                style={{ width: 180 }}
+              />
+            </Group>
 
             {/* Toplu İşlem Çubuğu */}
             {selectedItems.length > 0 && (
