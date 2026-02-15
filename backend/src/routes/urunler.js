@@ -859,9 +859,7 @@ router.patch('/:id/aktif-fiyat-sec', async (req, res) => {
       const piyasaRes = await query(
         `SELECT COALESCE(piyasa_fiyat_ort, birim_fiyat) as fiyat
          FROM piyasa_fiyat_gecmisi 
-         WHERE urun_kart_id = $1 OR stok_kart_id IN (
-           SELECT id FROM stok_kartlari WHERE urun_kart_id = $1
-         )
+         WHERE urun_kart_id = $1 OR stok_kart_id = $1
          ORDER BY arastirma_tarihi DESC NULLS LAST
          LIMIT 1`,
         [id]

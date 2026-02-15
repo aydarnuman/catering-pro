@@ -136,7 +136,7 @@ export function MenuTakvim() {
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getKategoriler();
       if (!res.success || !Array.isArray(res.data)) return [];
-      return (res.data as Array<{ kod: string; ad: string }>).map((k) => ({ kod: k.kod, ad: k.ad }));
+      return res.data.map((k) => ({ kod: String(k.id), ad: k.ad }));
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -398,7 +398,8 @@ export function MenuTakvim() {
       });
 
       if (!res.success) throw new Error(String(res.error || 'Plan kaydedilemedi'));
-      return { planId: res.data.plan_id, sartname_uyarilar: (res as Record<string, unknown>).sartname_uyarilar };
+      const fullRes = res as typeof res & { sartname_uyarilar?: unknown };
+      return { planId: res.data.plan_id, sartname_uyarilar: fullRes.sartname_uyarilar };
     },
     onSuccess: (result) => {
       notifications.show({ title: 'Başarılı', message: 'Menü planı kaydedildi', color: 'green' });

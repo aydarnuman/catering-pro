@@ -372,11 +372,11 @@ export const menuToolImplementations = {
           const birim = (m.birim || 'g').toLowerCase();
           const gecerliBirim = izinliBirimler.has(birim) ? birim : 'g';
 
-          // Stok kartı var mı ara
-          const stokResult = await query(
+          // Ürün kartı var mı ara
+          const urunResult = await query(
             `
-            SELECT id FROM stok_kartlari 
-            WHERE ad ILIKE $1 
+            SELECT id FROM urun_kartlari 
+            WHERE ad ILIKE $1 AND aktif = true
             LIMIT 1
           `,
             [`%${m.ad}%`]
@@ -385,10 +385,10 @@ export const menuToolImplementations = {
           await query(
             `
             INSERT INTO recete_malzemeler (
-              recete_id, stok_kart_id, malzeme_adi, miktar, birim, sira
+              recete_id, urun_kart_id, malzeme_adi, miktar, birim, sira
             ) VALUES ($1, $2, $3, $4, $5, $6)
           `,
-            [receteId, stokResult.rows[0]?.id || null, m.ad, m.miktar, gecerliBirim, i + 1]
+            [receteId, urunResult.rows[0]?.id || null, m.ad, m.miktar, gecerliBirim, i + 1]
           );
         }
       }

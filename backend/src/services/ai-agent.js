@@ -40,18 +40,17 @@ async function getProductPrices(_productNames = null) {
       return priceData;
     }
 
-    // 2. FATURADA YOKSA STOK KARTLARINDAN BAK
+    // 2. FATURADA YOKSA ÜRÜN KARTLARINDAN BAK
     const stockPrices = await query(`
       SELECT 
         ad as urun_adi,
-        alis_fiyati as birim_fiyat,
+        aktif_fiyat as birim_fiyat,
         birim,
-        kategori,
         updated_at as guncelleme_tarihi,
-        'stok_karti' as kaynak
-      FROM stok_kartlari
+        'urun_karti' as kaynak
+      FROM urun_kartlari
       WHERE aktif = true
-        AND alis_fiyati > 0
+        AND aktif_fiyat > 0
       ORDER BY updated_at DESC
     `);
 
@@ -1145,17 +1144,17 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
       `);
       summaries.ihaleler = ihaleResult.rows[0];
 
-      // Stok özeti (varsa)
+      // Ürün özeti (varsa)
       try {
-        const stokResult = await query(`
+        const urunResult = await query(`
           SELECT 
-            COUNT(*) as toplam_urun,
-            COUNT(CASE WHEN mevcut_miktar <= minimum_stok THEN 1 END) as kritik
-          FROM stok_kartlari
+            COUNT(*) as toplam_urun
+          FROM urun_kartlari
+          WHERE aktif = true
         `);
-        summaries.stok = stokResult.rows[0];
+        summaries.urunler = urunResult.rows[0];
       } catch {
-        summaries.stok = { toplam_urun: 0, kritik: 0 };
+        summaries.urunler = { toplam_urun: 0 };
       }
 
       // AI istatistikleri

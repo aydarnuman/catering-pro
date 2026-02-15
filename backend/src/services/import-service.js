@@ -95,16 +95,15 @@ const TABLE_SCHEMAS = {
       toplam_maliyet: { type: 'number', description: 'Toplam İşveren Maliyeti (TL)' },
     },
   },
-  stok: {
-    table: 'stok_kartlari',
+  urun: {
+    table: 'urun_kartlari',
     fields: {
       ad: { type: 'string', required: true, description: 'Ürün Adı' },
-      kod: { type: 'string', description: 'Stok Kodu' },
+      kod: { type: 'string', description: 'Ürün Kodu' },
       kategori: { type: 'string', description: 'Kategori' },
       birim: { type: 'string', description: 'Birim (kg, adet, litre)' },
-      miktar: { type: 'number', description: 'Mevcut Miktar' },
-      birim_fiyat: { type: 'number', description: 'Birim Fiyat (TL)' },
-      kritik_stok: { type: 'number', description: 'Kritik Stok Seviyesi' },
+      aktif_fiyat: { type: 'number', description: 'Aktif Fiyat (TL)' },
+      manuel_fiyat: { type: 'number', description: 'Manuel Fiyat (TL)' },
     },
   },
   cari: {

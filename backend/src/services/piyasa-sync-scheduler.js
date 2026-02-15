@@ -141,8 +141,7 @@ class PiyasaSyncScheduler {
       //   3. Geri kalan aktif ürünler
       // En uzun süredir güncellenmeyenler önce gelir.
       //
-      // stok_kartlari tablosuyla ilişki: urun_kartlari.stok_kart_id -> stok_kartlari.id
-      // Ama çoğu üründe stok_kart_id NULL, bu yüzden doğrudan urun_kartlari üzerinden çalışıyoruz.
+      // urun_kartlari tablosu üzerinden çalışıyoruz.
       const result = await query(
         `
         SELECT 
@@ -298,15 +297,17 @@ class PiyasaSyncScheduler {
           [result.ortalama, stok_kart_id]
         ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
 
-        // stok_kartlari'ndaki son_piyasa_fiyat'ı da güncelle
-        await query(
-          `
-          UPDATE stok_kartlari 
-          SET son_piyasa_fiyat = $1, updated_at = NOW()
-          WHERE id = $2
-        `,
-          [result.ortalama, stok_kart_id]
-        ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
+        // urun_kartlari'ndaki son_piyasa_fiyat'ı da güncelle
+        if (urunKartId) {
+          await query(
+            `
+            UPDATE urun_kartlari 
+            SET son_piyasa_fiyat = $1, updated_at = NOW()
+            WHERE id = $2
+          `,
+            [result.ortalama, urunKartId]
+          ).catch((err) => logger.warn('[PiyasaSync] Islem hatasi', { error: err.message }));
+        }
       }
 
       return {

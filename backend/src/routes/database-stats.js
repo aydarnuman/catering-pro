@@ -81,7 +81,7 @@ router.get('/admin-stats', async (_req, res) => {
       { ad: 'personeller', sql: 'SELECT COUNT(*) as c FROM personeller' },
       { ad: 'invoices', sql: 'SELECT COUNT(*) as c FROM invoices' },
       { ad: 'tenders', sql: 'SELECT COUNT(*) as c FROM tenders' },
-      { ad: 'stok_kartlari', sql: 'SELECT COUNT(*) as c FROM stok_kartlari' },
+      { ad: 'urun_kartlari', sql: 'SELECT COUNT(*) as c FROM urun_kartlari WHERE aktif = true' },
       { ad: 'kasa_banka_hesaplari', sql: 'SELECT COUNT(*) as c FROM kasa_banka_hesaplari' },
       { ad: 'demirbaslar', sql: 'SELECT COUNT(*) as c FROM demirbaslar' },
       { ad: 'users', sql: 'SELECT COUNT(*) as c FROM users' },

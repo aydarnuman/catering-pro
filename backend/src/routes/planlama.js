@@ -1003,7 +1003,7 @@ router.get('/ana-urunler/:id', async (req, res) => {
     const anaUrun = anaUrunResult.rows[0];
 
     // Bu ana ürüne bağlı ürün kartları (ambalaj miktarı ve birim fiyat hesaplaması ile) - YENİ SİSTEM
-    const stokKartlariResult = await query(
+    const urunKartlariResult = await query(
       `
       SELECT
         uk.id,
@@ -1095,7 +1095,7 @@ router.get('/ana-urunler/:id', async (req, res) => {
     );
 
     // Fatura fiyatları özeti (birim bazında)
-    const faturaOzet = stokKartlariResult.rows.reduce(
+    const faturaOzet = urunKartlariResult.rows.reduce(
       (acc, sk) => {
         if (sk.fatura_birim_fiyat) {
           acc.toplam += parseFloat(sk.fatura_birim_fiyat);
@@ -1112,7 +1112,7 @@ router.get('/ana-urunler/:id', async (req, res) => {
       success: true,
       data: {
         ...anaUrun,
-        stok_kartlari: stokKartlariResult.rows,
+        urun_kartlari: urunKartlariResult.rows,
         piyasa_arastirma: piyasaArastirmaResult.rows,
         piyasa_ozet: piyasaOzetResult.rows[0],
         fatura_ozet: {

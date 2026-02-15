@@ -248,44 +248,6 @@ export const db = {
     },
   },
 
-  // Stok
-  stok: {
-    async list(filters = {}) {
-      let query = supabase.from('stok_kartlari').select('*');
-
-      if (filters.kategori) query = query.eq('kategori', filters.kategori);
-      if (filters.kritik) query = query.eq('kritik_stok', true);
-      if (filters.aktif !== undefined) query = query.eq('aktif', filters.aktif);
-      if (filters.search) query = query.ilike('ad', `%${filters.search}%`);
-
-      return query.order('ad');
-    },
-
-    async get(id) {
-      return supabase.from('stok_kartlari').select('*').eq('id', id).single();
-    },
-
-    async create(data) {
-      return supabase.from('stok_kartlari').insert(data).select().single();
-    },
-
-    async update(id, data) {
-      return supabase.from('stok_kartlari').update(data).eq('id', id).select().single();
-    },
-
-    async delete(id) {
-      return supabase.from('stok_kartlari').delete().eq('id', id);
-    },
-
-    async addMovement(data) {
-      return supabase.from('stok_hareketleri').insert(data).select().single();
-    },
-
-    async getMovements(stokId) {
-      return supabase.from('stok_hareketleri').select('*').eq('stok_id', stokId).order('tarih', { ascending: false });
-    },
-  },
-
   // Personel
   personel: {
     async list(filters = {}) {
