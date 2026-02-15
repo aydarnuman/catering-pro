@@ -447,8 +447,6 @@ app.use('/api/kurum-menuleri', authenticate, kurumMenuleriRouter);
 app.use('/api/mevzuat', mevzuatRouter);
 app.use('/api/sektor-gundem', sektorGundemRouter);
 app.use('/api/teklifler', tekliflerRouter);
-// DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
-// app.use('/api/notlar', notlarRouter);
 app.use('/api/notes', unifiedNotesRouter); // Unified Notes System
 app.use('/api/firmalar', firmalarRouter);
 app.use('/api/ihale-sonuclari', ihaleSonuclariRouter);
@@ -462,8 +460,6 @@ app.use('/api/audit-logs', adminLimiter, auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', authenticate, maliyetAnaliziRouter);
-// DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
-// app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/contractors', contractorsRouter);
