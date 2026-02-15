@@ -406,6 +406,7 @@ import uyumsoftRouter from './routes/uyumsoft.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
 import piyasaSyncScheduler from './services/piyasa-sync-scheduler.js';
 import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
+import sartnameValidator from './services/sartname-validator.js';
 import scheduler from './services/sync-scheduler.js';
 import systemMonitor from './services/system-monitor.js';
 import tenderScheduler from './services/tender-scheduler.js';
@@ -553,6 +554,9 @@ const startServer = async () => {
 
       logger.info('🛒 Piyasa fiyat sync scheduler başlatılıyor...');
       piyasaSyncScheduler.start();
+
+      logger.info('📋 Şartname validator başlatılıyor...');
+      sartnameValidator.start();
 
       logger.info('📡 System monitor hazır');
     });
