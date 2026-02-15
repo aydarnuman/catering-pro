@@ -597,45 +597,6 @@ export const menuPlanlamaAPI = {
   },
 
   /**
-   * Şartnameye gramaj ekle
-   */
-  async addGramaj(
-    sartnameId: number,
-    data: {
-      yemek_turu: string;
-      porsiyon_gramaj: number;
-      birim: string;
-      birim_fiyat?: number;
-    }
-  ): Promise<ApiResponse<unknown>> {
-    const response = await api.post(`/api/menu-planlama/sartname/${sartnameId}/gramaj`, data);
-    return response.data;
-  },
-
-  /**
-   * Gramaj güncelle
-   */
-  async updateGramaj(
-    gramajId: number,
-    data: {
-      yemek_turu?: string;
-      porsiyon_gramaj?: number;
-      birim?: string;
-    }
-  ): Promise<ApiResponse<unknown>> {
-    const response = await api.put(`/api/menu-planlama/sartname/gramaj/${gramajId}`, data);
-    return response.data;
-  },
-
-  /**
-   * Gramaj sil
-   */
-  async deleteGramaj(gramajId: number): Promise<ApiResponse<unknown>> {
-    const response = await api.delete(`/api/menu-planlama/sartname/gramaj/${gramajId}`);
-    return response.data;
-  },
-
-  /**
    * Stok kartları listesi (arama için)
    */
   async getStokKartlariListesi(arama: string): Promise<ApiResponse<unknown[]>> {
