@@ -119,8 +119,12 @@ export async function validateBirimUyumluluk(malzemeBirim, urunBirim, urunKartId
 
   // Çarpan 1 döndü ama birimler farklı → muhtemelen tanımsız dönüşüm
   if (carpan === 1) {
-    // Bilinen güvenli dönüşümler: gr→kg, ml→lt gibi normalize sonucu aynı olan çiftler
-    const guvenliCiftler = new Set(['g:kg', 'gr:kg', 'ml:lt', 'ml:l', 'kg:kg', 'lt:lt']);
+    // Bilinen güvenli dönüşümler: SADECE aynı birim varyasyonları (çarpan gerçekten 1 olanlar)
+    // g:kg (0.001), gr:kg (0.001), ml:lt (0.001) ÇIKARILDI — carpan=1 dönüyorsa hatalıdır
+    const guvenliCiftler = new Set([
+      'kg:kg', 'lt:lt', 'g:g', 'gr:g', 'ml:ml', 'adet:adet',
+      'g:gr', 'gr:gr', 'lt:l', 'l:lt',
+    ]);
     const key = `${mLower}:${uLower}`;
     if (guvenliCiftler.has(key)) {
       return { uyumlu: true, carpan };
