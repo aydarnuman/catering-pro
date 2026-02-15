@@ -2,9 +2,21 @@ import { query } from '../database.js';
 import { donusumCarpaniAl } from '../utils/birim-donusum.js';
 import logger from '../utils/logger.js';
 
+/** Fiyat geçerlilik süresi (gün) — fiyat-hesaplama.js ile tutarlı */
+const FIYAT_GECERLILIK_GUN = 90;
+
+function fiyatGuncelMi(tarih) {
+  if (!tarih) return false;
+  const fiyatTarihi = new Date(tarih);
+  const simdi = new Date();
+  const gun = Math.floor((simdi - fiyatTarihi) / (1000 * 60 * 60 * 24));
+  return gun >= 0 && gun <= FIYAT_GECERLILIK_GUN;
+}
+
 /**
  * Reçete maliyetini hesapla
- * Fiyat önceliği: aktif_fiyat > son_alış > manuel > piyasa > varyant fallback > 0
+ * Fiyat önceliği (tüm sistemlerle tutarlı):
+ *   aktif_fiyat > son_alış (≤90 gün) > piyasa > son_alış (eski) > manuel > varyant > 0
  */
 async function hesaplaReceteMaliyet(receteId) {
   try {
@@ -17,6 +29,7 @@ async function hesaplaReceteMaliyet(receteId) {
         urk.aktif_fiyat as urun_aktif_fiyat,
         urk.aktif_fiyat_tipi as urun_aktif_fiyat_tipi,
         urk.son_alis_fiyati as urun_son_alis,
+        urk.son_alis_tarihi as urun_son_alis_tarihi,
         urk.varsayilan_birim as urun_birim,
         urk.fiyat_birimi as urun_fiyat_birimi,
         urk.birim as urun_standart_birim,
@@ -48,12 +61,15 @@ async function hesaplaReceteMaliyet(receteId) {
     let toplamMaliyet = 0;
 
     for (const m of malzemeler.rows) {
-      // Fiyat önceliği: aktif_fiyat > son_alış > manuel > piyasa > VARYANT FALLBACK > 0
+      // Fiyat önceliği (tüm sistemlerle tutarlı):
+      //   aktif_fiyat > son_alış (≤90 gün) > piyasa > son_alış (eski) > manuel > varyant > 0
+      const sonAlisGuncel = fiyatGuncelMi(m.urun_son_alis_tarihi);
       const birimFiyat =
         Number(m.urun_aktif_fiyat) ||
-        Number(m.urun_son_alis) ||
-        Number(m.urun_manuel_fiyat) ||
+        (sonAlisGuncel && Number(m.urun_son_alis) ? Number(m.urun_son_alis) : 0) ||
         Number(m.piyasa_fiyat) ||
+        (!sonAlisGuncel && Number(m.urun_son_alis) ? Number(m.urun_son_alis) : 0) ||
+        Number(m.urun_manuel_fiyat) ||
         Number(m.varyant_fiyat) ||
         0;
 
@@ -83,13 +99,14 @@ async function hesaplaReceteMaliyet(receteId) {
         }
       }
 
-      // Fiyat kaynağı belirleme (aktif_fiyat_tipi varsa onu kullan)
+      // Fiyat kaynağı belirleme (öncelik sırası ile tutarlı)
       let fiyatKaynagi = 'yok';
       if (Number(m.urun_aktif_fiyat) > 0 && m.urun_aktif_fiyat_tipi) {
         fiyatKaynagi = m.urun_aktif_fiyat_tipi;
-      } else if (Number(m.urun_son_alis) > 0) fiyatKaynagi = 'FATURA';
-      else if (Number(m.urun_manuel_fiyat) > 0) fiyatKaynagi = 'MANUEL';
+      } else if (sonAlisGuncel && Number(m.urun_son_alis) > 0) fiyatKaynagi = 'FATURA';
       else if (Number(m.piyasa_fiyat) > 0) fiyatKaynagi = 'PIYASA';
+      else if (!sonAlisGuncel && Number(m.urun_son_alis) > 0) fiyatKaynagi = 'FATURA_ESKI';
+      else if (Number(m.urun_manuel_fiyat) > 0) fiyatKaynagi = 'MANUEL';
       else if (Number(m.varyant_fiyat) > 0) fiyatKaynagi = 'VARYANT';
 
       // Malzeme fiyatını güncelle (birim_fiyat = ürün kartı birim fiyatı, toplam_fiyat = dönüştürülmüş maliyet)
