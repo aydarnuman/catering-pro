@@ -1386,7 +1386,7 @@ export default function DemirbasPage() {
             )}
 
             <Table.ScrollContainer minWidth={1000}>
-              <Table striped highlightOnHover>
+              <Table striped highlightOnHover verticalSpacing="md">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th w={40}>
@@ -1396,8 +1396,8 @@ export default function DemirbasPage() {
                         onChange={handleSelectAll}
                       />
                     </Table.Th>
-                    <Table.Th>Kod</Table.Th>
-                    <Table.Th>Envanter</Table.Th>
+                    <Table.Th w={100}>Kod</Table.Th>
+                    <Table.Th miw={180}>Envanter</Table.Th>
                     <Table.Th>Kategori</Table.Th>
                     <Table.Th>Lokasyon</Table.Th>
                     <Table.Th>Zimmetli</Table.Th>
@@ -1451,16 +1451,22 @@ export default function DemirbasPage() {
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Stack gap={2}>
-                            <Text size="sm" fw={500}>
-                              {item.ad}
-                            </Text>
-                            {(item.marka || item.model) && (
-                              <Text size="xs" c="dimmed">
-                                {[item.marka, item.model].filter(Boolean).join(' ')}
+                          <Tooltip
+                            label={[item.ad, item.marka, item.model].filter(Boolean).join(' • ')}
+                            multiline
+                            maw={300}
+                          >
+                            <Stack gap={2} style={{ overflow: 'hidden' }}>
+                              <Text size="sm" fw={500} lineClamp={1}>
+                                {item.ad}
                               </Text>
-                            )}
-                          </Stack>
+                              {(item.marka || item.model) && (
+                                <Text size="xs" c="dimmed" lineClamp={1}>
+                                  {[item.marka, item.model].filter(Boolean).join(' ')}
+                                </Text>
+                              )}
+                            </Stack>
+                          </Tooltip>
                         </Table.Td>
                         <Table.Td>
                           <Badge
