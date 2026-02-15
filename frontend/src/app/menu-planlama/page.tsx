@@ -12,6 +12,7 @@ import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 import { MenuPlanlamaProvider } from './components/MenuPlanlamaContext';
 import { MobileMenuNav } from './components/MobileMenuNav';
 import { PlanlamaWorkspace } from './components/PlanlamaWorkspace';
+import { MaliyetDetayModal } from './components/MaliyetDetayModal';
 import { ReceteDetayModal } from './components/ReceteDetayModal';
 import { RecetelerTab } from './components/RecetelerTab';
 import { SartnameYonetimModal } from './components/SartnameYonetimModal';
@@ -79,6 +80,10 @@ export default function MenuPlanlamaPage() {
   const [detayModalOpened, setDetayModalOpened] = useState(false);
   const [receteDetayId, setReceteDetayId] = useState<number | null>(null);
 
+  // Maliyet detay modal
+  const [maliyetModalOpened, setMaliyetModalOpened] = useState(false);
+  const [maliyetReceteId, setMaliyetReceteId] = useState<number | null>(null);
+
   // React Query: Reçete kategorileri
   const {
     data: receteKategorileri = [],
@@ -133,8 +138,6 @@ export default function MenuPlanlamaPage() {
           ad: recete.ad,
           kategori: kategoriKod,
           fiyat: Number(recete.tahmini_maliyet || 0),
-          fatura_fiyat: Number(recete.tahmini_maliyet || 0),
-          piyasa_fiyat: Number(recete.tahmini_maliyet || 0),
           porsiyon: Number(recete.porsiyon_miktar || 0),
         });
       });
@@ -169,6 +172,12 @@ export default function MenuPlanlamaPage() {
   const fetchReceteDetay = useCallback((receteId: number) => {
     setReceteDetayId(receteId);
     setDetayModalOpened(true);
+  }, []);
+
+  // Maliyet detay modalını aç
+  const handleMaliyetClick = useCallback((receteId: number) => {
+    setMaliyetReceteId(receteId);
+    setMaliyetModalOpened(true);
   }, []);
 
   // Kategoriler (memoized)
@@ -250,6 +259,7 @@ export default function MenuPlanlamaPage() {
             <Tabs.Panel value="receteler">
               <RecetelerTab
                 fetchReceteDetay={fetchReceteDetay}
+                onMaliyetClick={handleMaliyetClick}
                 KATEGORILER={KATEGORILER}
                 isActive={activeTab === 'receteler'}
               />
@@ -284,6 +294,15 @@ export default function MenuPlanlamaPage() {
           opened={detayModalOpened}
           onClose={() => setDetayModalOpened(false)}
           receteId={receteDetayId}
+          isMobile={isMobile}
+          isMounted={isMounted}
+        />
+
+        {/* Maliyet Detay Modal */}
+        <MaliyetDetayModal
+          opened={maliyetModalOpened}
+          onClose={() => setMaliyetModalOpened(false)}
+          receteId={maliyetReceteId}
           isMobile={isMobile}
           isMounted={isMounted}
         />
