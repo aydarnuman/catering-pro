@@ -133,13 +133,15 @@ function dogrudan_isim_eslestir(malzemeAdi, kurallar) {
  * Çok katmanlı kural eşleştirme (önizleme ve toplu uygulama ile aynı mantık)
  * 1. Sözlük → alt tip kuralları
  * 2. Doğrudan isim → alt tip kuralları
- * 3. Sözlük → tüm şartname kuralları (fallback)
- * 4. Doğrudan isim → tüm şartname kuralları (fallback)
+ *
+ * NOT: Fallback katmanları (tüm şartname kuralları) kaldırıldı.
+ * Bir çorbadaki malzeme, et yemeği gramajıyla eşleştiğinde fiyat 2-3x şişiyordu.
+ * Eğer malzeme kendi alt tipinde eşleşmiyorsa, şartname gramajı yok = reçetenin gramajı kullanılır.
+ *
  * @returns {{ kural: { gramaj: number, birim: string, malzeme_tipi: string }, malzeme_tipi: string, kaynak: string } | null}
  */
-export function kuralBul(malzemeAdi, sozluk, altTipKurallari, tumKurallar) {
+export function kuralBul(malzemeAdi, sozluk, altTipKurallari, _tumKurallar) {
   // Sözlükten TÜM eşleşmeleri al (en spesifik → en genel sıralı)
-  // Böylece "Zeytinyağı" hem "Zeytinyağı" hem "Sıvı yağ" kuralıyla denenebilir
   const eslesmeler = malzemeTipiEslestirTumu(malzemeAdi, sozluk);
 
   // Katman 1: Sözlük + alt tip kuralları (en spesifik eşleşme önce)
@@ -156,16 +158,7 @@ export function kuralBul(malzemeAdi, sozluk, altTipKurallari, tumKurallar) {
     if (kural) return { kural, malzeme_tipi: kural.malzeme_tipi, kaynak: 'alt_tip_direkt' };
   }
 
-  // Katman 3: Sözlük + tüm şartname kuralları (fallback, en spesifik eşleşme önce)
-  for (const eslesme of eslesmeler) {
-    const kural = tumKurallar.find((k) => k.malzeme_tipi === eslesme.malzeme_tipi);
-    if (kural) return { kural, malzeme_tipi: eslesme.malzeme_tipi, kaynak: 'fallback' };
-  }
-
-  // Katman 4: Doğrudan isim + tüm şartname kuralları (fallback)
-  const kural = dogrudan_isim_eslestir(malzemeAdi, tumKurallar);
-  if (kural) return { kural, malzeme_tipi: kural.malzeme_tipi, kaynak: 'fallback_direkt' };
-
+  // Eşleşme yoksa null — reçetenin kendi gramajı kullanılır
   return null;
 }
 

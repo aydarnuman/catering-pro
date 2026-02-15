@@ -761,7 +761,7 @@ router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req,
  */
 /**
  * Gramaj kontrol hesaplama — malzemeleri kurallara göre karşılaştır.
- * Önizleme ile tutarlı 4-katmanlı kuralBul() eşleşmesi kullanır (Bug #8, #14 fix).
+ * Önizleme ile tutarlı 2-katmanlı kuralBul() eşleşmesi kullanır (sadece alt tip kuralları).
  *
  * @param {Array} malzemelerRows - reçete malzemeleri
  * @param {Array} altTipKurallar - belirli alt tipe ait kurallar
