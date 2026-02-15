@@ -406,6 +406,8 @@
 | PUT | /ogun-yapisi/:id | 345 | Öğün yapısı güncelle |
 | GET | /recete/:receteId/gramaj-kontrol | 375 | Gramaj kontrolü |
 
+**Şartname gramaj:** Ana sistem `sartname_gramaj_kurallari` (alt_tip + malzeme_tipi); toplu uygulama, önizleme ve uyum bu tabloyu kullanır. `sartname_porsiyon_gramajlari` (kategori + yemek_turu) eski yapıdır; şartname detayda döner, yeni özellikler sadece gramaj kuralları ile çalışır.
+
 #### menu-planlama/urun-kartlari.js — 9 endpoint
 | Method | Path | Satır | Açıklama |
 |--------|------|-------|----------|

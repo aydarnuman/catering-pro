@@ -7,6 +7,13 @@ const router = express.Router();
 // =============================================
 // ŞARTNAME VE GRAMAJ YÖNETİMİ
 // =============================================
+//
+// Gramaj için iki yapı vardır:
+// - sartname_gramaj_kurallari (alt_tip + malzeme_tipi): Ana sistem. UI toplu uygulama,
+//   önizleme ve uyum kontrolü bu tabloyu kullanır.
+// - sartname_porsiyon_gramajlari (kategori + yemek_turu): Eski yapı. API şartname detayda
+//   gramajlar olarak döner; yeni özellikler sadece gramaj kuralları ile çalışır.
+//
 
 // Kurumları listele
 router.get('/sartname/kurumlar', async (_req, res) => {
@@ -333,7 +340,7 @@ router.get('/sartname/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Şartname bulunamadı' });
     }
 
-    // Porsiyon gramajlarını al
+    // Porsiyon gramajları (eski sistem: kategori + yemek_turu). Yeni özellikler sartname_gramaj_kurallari kullanır.
     const gramajlar = await query(
       `
       SELECT
