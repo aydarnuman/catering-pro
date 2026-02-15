@@ -1397,9 +1397,24 @@ export default function DemirbasPage() {
                   {filteredDemirbaslar.length === 0 ? (
                     <Table.Tr>
                       <Table.Td colSpan={10}>
-                        <Text ta="center" c="dimmed" py="xl">
-                          {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
-                        </Text>
+                        <Stack align="center" gap="md" py="xl">
+                          <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                            <IconPackage size={28} />
+                          </ThemeIcon>
+                          <Text ta="center" c="dimmed">
+                            {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
+                          </Text>
+                          {!searchTerm && (
+                            <Button
+                              variant="light"
+                              color="indigo"
+                              leftSection={<IconPlus size={16} />}
+                              onClick={openDemirbasModal}
+                            >
+                              Yeni Envanter Ekle
+                            </Button>
+                          )}
+                        </Stack>
                       </Table.Td>
                     </Table.Tr>
                   ) : (
