@@ -197,6 +197,7 @@ export default function PersonelPage() {
 
   // === TEMEL STATE ===
   const [loading, setLoading] = useState(true);
+  const [personelListLoading, setPersonelListLoading] = useState(false);
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [selectedProje, setSelectedProje] = useState<number | null>(null);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
@@ -289,7 +290,7 @@ export default function PersonelPage() {
 
   const fetchPersoneller = useCallback(async () => {
     if (!selectedProje) return;
-    setLoading(true);
+    setPersonelListLoading(true);
     try {
       const result = await personelAPI.getProjePersoneller(selectedProje);
       if (result.success) {
@@ -312,7 +313,7 @@ export default function PersonelPage() {
         }, 2000);
       }
     } finally {
-      setLoading(false);
+      setPersonelListLoading(false);
     }
   }, [selectedProje]);
 
@@ -937,49 +938,67 @@ export default function PersonelPage() {
                       )}
                     </Group>
 
-                    {/* Personel Tablosu */}
-                    <Table.ScrollContainer minWidth={800}>
-                      <Table verticalSpacing="sm" highlightOnHover>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Personel</Table.Th>
-                            <Table.Th>Departman</Table.Th>
-                            <Table.Th>Pozisyon</Table.Th>
-                            <Table.Th>İşe Giriş</Table.Th>
-                            <Table.Th>Durum</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>
-                              <Tooltip label="Gerçek ödenen maaş (elden)">
-                                <Text size="sm" fw={600}>
-                                  Net Maaş
-                                </Text>
-                              </Tooltip>
-                            </Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>
-                              <Tooltip label="Resmi bordro maaşı (SGK'ya bildirilen)">
-                                <Text size="sm" fw={600} c="orange">
-                                  Bordro
-                                </Text>
-                              </Tooltip>
-                            </Table.Th>
-                            <Table.Th style={{ textAlign: 'center', width: 80 }}>İşlem</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {filteredPersoneller.length === 0 ? (
+                    {/* Personel listesi: loading / boş / tablo */}
+                    {personelListLoading ? (
+                      <Center py="xl">
+                        <Stack align="center" gap="md">
+                          <Loader size="lg" color="violet" />
+                          <Text c="dimmed" size="sm">
+                            Personel listesi yükleniyor...
+                          </Text>
+                        </Stack>
+                      </Center>
+                    ) : filteredPersoneller.length === 0 ? (
+                      <Center py="xl">
+                        <Stack align="center" gap="md">
+                          <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                            <IconUser size={24} />
+                          </ThemeIcon>
+                          <Text c="dimmed">Bu projede personel bulunamadı</Text>
+                          {canCreatePersonel && (
+                            <Button
+                              variant="light"
+                              color="violet"
+                              leftSection={<IconPlus size={16} />}
+                              onClick={() => {
+                                resetPersonelForm();
+                                openPersonelModal();
+                              }}
+                            >
+                              Personel Ekle
+                            </Button>
+                          )}
+                        </Stack>
+                      </Center>
+                    ) : (
+                      <Table.ScrollContainer minWidth={800}>
+                        <Table verticalSpacing="sm" highlightOnHover>
+                          <Table.Thead>
                             <Table.Tr>
-                              <Table.Td colSpan={8}>
-                                <Center py="xl">
-                                  <Stack align="center" gap="sm">
-                                    <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
-                                      <IconUser size={24} />
-                                    </ThemeIcon>
-                                    <Text c="dimmed">Bu projede personel bulunamadı</Text>
-                                  </Stack>
-                                </Center>
-                              </Table.Td>
+                              <Table.Th>Personel</Table.Th>
+                              <Table.Th>Departman</Table.Th>
+                              <Table.Th>Pozisyon</Table.Th>
+                              <Table.Th>İşe Giriş</Table.Th>
+                              <Table.Th>Durum</Table.Th>
+                              <Table.Th style={{ textAlign: 'right' }}>
+                                <Tooltip label="Gerçek ödenen maaş (elden)">
+                                  <Text size="sm" fw={600}>
+                                    Net Maaş
+                                  </Text>
+                                </Tooltip>
+                              </Table.Th>
+                              <Table.Th style={{ textAlign: 'right' }}>
+                                <Tooltip label="Resmi bordro maaşı (SGK'ya bildirilen)">
+                                  <Text size="sm" fw={600} c="orange">
+                                    Bordro
+                                  </Text>
+                                </Tooltip>
+                              </Table.Th>
+                              <Table.Th style={{ textAlign: 'center', width: 80 }}>İşlem</Table.Th>
                             </Table.Tr>
-                          ) : (
-                            filteredPersoneller.map((personel) => (
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {filteredPersoneller.map((personel) => (
                               <Table.Tr key={personel.id}>
                                 <Table.Td>
                                   <Group gap="sm">
@@ -1062,11 +1081,11 @@ export default function PersonelPage() {
                                   </Menu>
                                 </Table.Td>
                               </Table.Tr>
-                            ))
-                          )}
-                        </Table.Tbody>
-                      </Table>
-                    </Table.ScrollContainer>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </Table.ScrollContainer>
+                    )}
                   </Stack>
                 </Tabs.Panel>
 
