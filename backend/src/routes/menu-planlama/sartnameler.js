@@ -768,7 +768,7 @@ router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req,
  * @param {Array} tumKurallar - şartnamenin TÜM kuralları (fallback için)
  * @param {Array} sozluk - malzeme_tip_eslesmeleri
  */
-function gramajKontrolHesapla(malzemelerRows, altTipKurallar, tumKurallar, sozluk) {
+export function gramajKontrolHesapla(malzemelerRows, altTipKurallar, tumKurallar, sozluk) {
   const kontrolSonuclari = [];
   let toplamUygun = 0;
   let toplamUyumsuz = 0;

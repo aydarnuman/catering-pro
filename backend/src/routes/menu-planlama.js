@@ -10,7 +10,7 @@ import aiFeaturesRouter from './menu-planlama/ai-features.js';
 import menuImportRouter from './menu-planlama/menu-import.js';
 // Sub-router'lar
 import recetelerRouter from './menu-planlama/receteler.js';
-import sartnamelerRouter from './menu-planlama/sartnameler.js';
+import sartnamelerRouter, { gramajKontrolHesapla } from './menu-planlama/sartnameler.js';
 import urunKartlariRouter from './menu-planlama/urun-kartlari.js';
 
 const router = express.Router();
@@ -764,10 +764,51 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
     // Öğün ve plan maliyetlerini güncelle
     await guncelleOgunMaliyet(ogunId);
 
+    // Şartname uyumluluk kontrolü (bilgilendirme — kayıt engellenmez)
+    let sartnameUyari = null;
+    try {
+      // Projenin bağlı şartnamesini bul
+      const sartnameResult = await query(
+        `SELECT ps.sartname_id
+         FROM proje_sartname_atamalari ps
+         WHERE ps.proje_id = $1 AND ps.aktif = true
+         LIMIT 1`,
+        [proje_id]
+      );
+      if (sartnameResult.rows.length > 0) {
+        const sartnameId = sartnameResult.rows[0].sartname_id;
+        // Reçetenin alt tip bilgisini al
+        const receteInfo = await query('SELECT alt_tip_id FROM receteler WHERE id = $1', [recete_id]);
+        const altTipId = receteInfo.rows[0]?.alt_tip_id;
+        if (altTipId) {
+          // Kuralları ve malzemeleri çek
+          const [kurallarRes, malzRes, sozlukRes] = await Promise.all([
+            query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [sartnameId]),
+            query('SELECT malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1', [recete_id]),
+            query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
+          ]);
+          const tumKurallar = kurallarRes.rows;
+          const altTipKurallar = tumKurallar.filter((k) => Number(k.alt_tip_id) === Number(altTipId));
+          const kontrol = gramajKontrolHesapla(malzRes.rows, altTipKurallar, tumKurallar, sozlukRes.rows);
+          if (kontrol.uyumsuz_sayisi > 0) {
+            sartnameUyari = {
+              mesaj: `${kontrol.uyumsuz_sayisi} malzemede şartname uyumsuzluğu`,
+              uygun: kontrol.uygun_sayisi,
+              uyumsuz: kontrol.uyumsuz_sayisi,
+              toplam: kontrol.toplam_kontrol,
+            };
+          }
+        }
+      }
+    } catch (_sartnameErr) {
+      // Şartname kontrolü başarısız olursa kayıt yine de başarılı
+    }
+
     res.json({
       success: true,
       data: yemekResult.rows[0],
       message: 'Yemek menüye eklendi',
+      sartname_uyari: sartnameUyari,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
