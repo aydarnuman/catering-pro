@@ -69,6 +69,8 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
     gramaj: number;
     birim: string;
   } | null>(null);
+  const [topluUygulaKategoriId, setTopluUygulaKategoriId] = useState<number | null>(null);
+  const [topluUygulaAltTipId, setTopluUygulaAltTipId] = useState<number | null>(null);
 
   // Şartname listesi
   const { data: sartnameler = [], isLoading: sartnameLoading } = useQuery<SartnameItem[]>({
@@ -96,6 +98,16 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getMalzemeEslesmeleri();
       return res.success ? (res.data as Array<{ malzeme_tipi: string }>) : [];
+    },
+    enabled: opened,
+  });
+
+  // Reçete kategorileri (toplu uygulama filtre için)
+  const { data: receteKategorileri = [] } = useQuery({
+    queryKey: ['recete-kategorileri'],
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getKategoriler();
+      return res.success ? (res.data as Array<{ id: number; ad: string }>) : [];
     },
     enabled: opened,
   });
@@ -225,7 +237,10 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
   const topluUygulaMutation = useMutation({
     mutationFn: () => {
       if (!seciliSartnameId) throw new Error('Şartname seçilmedi');
-      return menuPlanlamaAPI.topluGramajUygula(seciliSartnameId, {});
+      const body: { kategori_id?: number; alt_tip_id?: number } = {};
+      if (topluUygulaKategoriId != null) body.kategori_id = topluUygulaKategoriId;
+      if (topluUygulaAltTipId != null) body.alt_tip_id = topluUygulaAltTipId;
+      return menuPlanlamaAPI.topluGramajUygula(seciliSartnameId, body);
     },
     onSuccess: (res) => {
       if (res.success) {
@@ -547,37 +562,65 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
                 </Stack>
               </Paper>
             ) : (
-              <Group gap="xs" wrap="wrap">
-                <Button
-                  leftSection={<IconRobot size={14} />}
-                  variant="filled"
-                  size="xs"
-                  color="blue"
-                  onClick={() => setProfilSecimAcik(true)}
-                  loading={aiGramajMutation.isPending}
-                >
-                  AI ile Kuralları Oluştur
-                </Button>
-                <Button
-                  leftSection={<IconPlus size={14} />}
-                  variant="light"
-                  size="xs"
-                  onClick={() => setYeniKuralFormu({ alt_tip_id: '', malzeme_tipi: '', gramaj: 0, birim: 'g' })}
-                >
-                  Elle Kural Ekle
-                </Button>
-                <Button
-                  leftSection={<IconRefresh size={14} />}
-                  variant="filled"
-                  size="xs"
-                  color="teal"
-                  onClick={() => topluUygulaMutation.mutate()}
-                  loading={topluUygulaMutation.isPending}
-                  disabled={gramajKurallari.length === 0}
-                >
-                  Reçetelere Uygula
-                </Button>
-              </Group>
+              <Stack gap="sm">
+                <Group gap="xs" wrap="wrap">
+                  <Button
+                    leftSection={<IconRobot size={14} />}
+                    variant="filled"
+                    size="xs"
+                    color="blue"
+                    onClick={() => setProfilSecimAcik(true)}
+                    loading={aiGramajMutation.isPending}
+                  >
+                    AI ile Kuralları Oluştur
+                  </Button>
+                  <Button
+                    leftSection={<IconPlus size={14} />}
+                    variant="light"
+                    size="xs"
+                    onClick={() => setYeniKuralFormu({ alt_tip_id: '', malzeme_tipi: '', gramaj: 0, birim: 'g' })}
+                  >
+                    Elle Kural Ekle
+                  </Button>
+                  <Button
+                    leftSection={<IconRefresh size={14} />}
+                    variant="filled"
+                    size="xs"
+                    color="teal"
+                    onClick={() => topluUygulaMutation.mutate()}
+                    loading={topluUygulaMutation.isPending}
+                    disabled={gramajKurallari.length === 0}
+                  >
+                    Reçetelere Uygula
+                  </Button>
+                </Group>
+                <Group gap="xs" align="flex-end">
+                  <Select
+                    placeholder="Tüm kategoriler"
+                    label="Toplu uygulama: Kategori"
+                    description="Boş bırakırsanız tüm reçeteler uygulanır"
+                    data={receteKategorileri.map((k) => ({ value: String(k.id), label: k.ad }))}
+                    value={topluUygulaKategoriId != null ? String(topluUygulaKategoriId) : null}
+                    onChange={(v) => setTopluUygulaKategoriId(v ? Number(v) : null)}
+                    clearable
+                    searchable
+                    size="xs"
+                    style={{ minWidth: 160 }}
+                  />
+                  <Select
+                    placeholder="Tüm alt tipler"
+                    label="Toplu uygulama: Alt tip"
+                    description="Boş bırakırsanız tüm reçeteler uygulanır"
+                    data={altTipSecenekleri}
+                    value={topluUygulaAltTipId != null ? String(topluUygulaAltTipId) : null}
+                    onChange={(v) => setTopluUygulaAltTipId(v ? Number(v) : null)}
+                    clearable
+                    searchable
+                    size="xs"
+                    style={{ minWidth: 180 }}
+                  />
+                </Group>
+              </Stack>
             )}
           </>
         )}
