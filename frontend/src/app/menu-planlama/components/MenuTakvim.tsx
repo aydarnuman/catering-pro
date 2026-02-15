@@ -162,7 +162,7 @@ export function MenuTakvim() {
   // Yemek ekle
   const handleYemekEkle = (tarih: Date, ogun: OgunInfo, yemek: Recete) => {
     const key = getHucreKey(tarih, ogun.kod);
-    const fiyat = Number(yemek.tahmini_maliyet || yemek.porsiyon_miktar || 0);
+    const fiyat = Number(yemek.tahmini_maliyet || 0);
 
     setTakvimState((prev) => {
       const mevcut = prev[key]?.yemekler || [];

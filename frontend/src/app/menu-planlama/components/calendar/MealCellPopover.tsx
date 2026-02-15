@@ -401,7 +401,7 @@ export function MealCellPopover({
                           </Group>
                           <Group gap={4} wrap="nowrap">
                             <Text size="10px" fw={600} c={ogun.renk}>
-                              {formatMoney(recete.tahmini_maliyet || recete.porsiyon_miktar || 0)}
+                              {formatMoney(recete.tahmini_maliyet || 0)}
                             </Text>
                             <ThemeIcon size={16} color={ogun.renk} variant="light" radius="xl">
                               <IconPlus size={10} />
