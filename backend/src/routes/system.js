@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 // Proje kök dizini - environment variable ile ayarlanabilir
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.resolve(__dirname, '../../../..');
 const WHATSAPP_SERVICE_PATH = process.env.WHATSAPP_SERVICE_PATH || path.join(PROJECT_ROOT, 'services/whatsapp');
+const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || 'http://localhost:3002';
 
 // ==========================================
 // 🔥 GOD MODE TERMINAL
@@ -314,7 +315,7 @@ router.get('/services/status', async (_req, res) => {
 
     // WhatsApp servisi kontrolü
     try {
-      const waRes = await fetch('http://localhost:3002/status', {
+      const waRes = await fetch(`${WHATSAPP_SERVICE_URL}/status`, {
         signal: AbortSignal.timeout(3000),
       });
       const waStatus = await waRes.json();
@@ -463,7 +464,7 @@ router.get('/services', async (_req, res) => {
 
     // WhatsApp kontrolü
     try {
-      const waRes = await fetch('http://localhost:3002/status', {
+      const waRes = await fetch(`${WHATSAPP_SERVICE_URL}/status`, {
         signal: AbortSignal.timeout(2000),
       });
       services.whatsapp.status = waRes.ok ? 'running' : 'unhealthy';
