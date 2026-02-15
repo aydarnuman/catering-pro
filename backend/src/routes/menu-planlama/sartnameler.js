@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../../database.js';
+import { donusumCarpaniAlSync } from '../../utils/birim-donusum.js';
 import { kuralBul, malzemeKuralaUyarMi, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
 
 const router = express.Router();
@@ -772,8 +773,13 @@ function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
       }
     }
     if (eslesenMalzeme) {
-      const gercekGramaj = parseFloat(eslesenMalzeme.miktar) || 0;
-      const hedefGramaj = parseFloat(kural.gramaj);
+      // Her iki tarafı da gram'a çevirerek karşılaştır (Bug #1 fix)
+      const malzemeBirimi = (eslesenMalzeme.birim || 'g').toLowerCase();
+      const kuralBirimi = (kural.birim || 'g').toLowerCase();
+      const malzemeMiktar = parseFloat(eslesenMalzeme.miktar) || 0;
+      const kuralMiktar = parseFloat(kural.gramaj);
+      const gercekGramaj = malzemeMiktar * donusumCarpaniAlSync(malzemeBirimi, 'g');
+      const hedefGramaj = kuralMiktar * donusumCarpaniAlSync(kuralBirimi, 'g');
       const tolerans = hedefGramaj * 0.15;
       let durum = 'uygun';
       if (gercekGramaj < hedefGramaj - tolerans) durum = 'dusuk';
@@ -784,6 +790,8 @@ function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
         malzeme_adi: eslesenMalzeme.malzeme_adi,
         malzeme_tipi: kural.malzeme_tipi,
         recete_gramaj: gercekGramaj,
+        recete_orijinal_miktar: malzemeMiktar,
+        recete_orijinal_birim: malzemeBirimi,
         hedef_gramaj: hedefGramaj,
         birim: kural.birim,
         durum,
