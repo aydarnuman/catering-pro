@@ -28,6 +28,7 @@ import {
   ThemeIcon,
   Title,
   Tooltip,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -165,6 +166,8 @@ interface DemirbasDetay {
 
 export default function DemirbasPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -955,28 +958,38 @@ export default function DemirbasPage() {
   };
 
   return (
-    <Container fluid>
-      <LoadingOverlay visible={loading} />
+    <Box
+      style={{
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(99,102,241,0.05) 0%, rgba(0,0,0,0) 100%)'
+          : 'linear-gradient(180deg, rgba(99,102,241,0.06) 0%, rgba(255,255,255,0) 100%)',
+        minHeight: '100vh',
+      }}
+    >
+      <Container size="xl" py="xl" pos="relative">
+        <LoadingOverlay visible={loading} />
 
-      {error && (
-        <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
+            {error}
+          </Alert>
+        )}
 
-      {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Group gap="md">
-          <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
-            <IconBuilding size={24} />
-          </ThemeIcon>
-          <Box>
-            <Title order={3}>Envanter Yönetimi</Title>
-            <Text size="xs" c="dimmed">
-              Şirket varlıklarınızı takip edin
-            </Text>
-          </Box>
-        </Group>
+        {/* Header - ortak pattern: ThemeIcon + Title + açıklama */}
+        <Group justify="space-between" mb="md">
+          <Group gap="md">
+            <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
+              <IconBuilding size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={1} fw={700}>
+                Envanter Yönetimi
+              </Title>
+              <Text size="lg" c="dimmed">
+                Şirket varlıklarınızı takip edin
+              </Text>
+            </Box>
+          </Group>
         <Group gap="xs">
           <Tooltip label="Raporlar">
             <ActionIcon variant="light" color="indigo" size="lg" radius="xl" onClick={() => setRaporMerkeziOpen(true)}>
@@ -2418,6 +2431,7 @@ export default function DemirbasPage() {
 
       {/* Rapor Merkezi Modal */}
       <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="operasyon" />
-    </Container>
+      </Container>
+    </Box>
   );
 }
