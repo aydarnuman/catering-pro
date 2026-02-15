@@ -206,7 +206,13 @@ router.post('/urun-kartlari', async (req, res) => {
       logger.warn(`[UrunKart] Arama terimi optimizasyonu hatası: ${err.message}`);
     });
 
-    res.json({ success: true, data: newProduct });
+    // Fiyat uyarısı (engellemez, sadece bilgilendirir)
+    const warnings = [];
+    if (!manuel_fiyat || Number(manuel_fiyat) === 0) {
+      warnings.push('Ürün fiyatı girilmedi. Maliyet hesaplamalarında bu ürün 0₺ olarak değerlendirilecek.');
+    }
+
+    res.json({ success: true, data: newProduct, ...(warnings.length > 0 && { warnings }) });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -239,6 +245,20 @@ router.put('/urun-kartlari/:id', async (req, res) => {
     }
 
     const current = existing.rows[0];
+
+    // Ad değiştiriliyorsa duplicate kontrolü
+    if (ad && ad.toLowerCase() !== current.ad.toLowerCase()) {
+      const duplicate = await query(
+        'SELECT id FROM urun_kartlari WHERE LOWER(ad) = LOWER($1) AND aktif = true AND id != $2',
+        [ad, id]
+      );
+      if (duplicate.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Bu isimde aktif bir ürün kartı zaten mevcut (ID: ${duplicate.rows[0].id})`,
+        });
+      }
+    }
 
     const result = await query(
       `
