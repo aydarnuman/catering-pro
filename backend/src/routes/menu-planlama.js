@@ -339,7 +339,8 @@ router.post('/ogunler/:ogunId/yemekler', async (req, res) => {
     const { ogunId } = req.params;
     const { recete_id, sira } = req.body;
 
-    // Reçete maliyetini al
+    // Bug #7 fix: Reçete maliyetini önce tazele, sonra oku
+    await hesaplaReceteMaliyet(recete_id);
     const receteResult = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [recete_id]);
 
     const porsiyonMaliyet = receteResult.rows[0]?.tahmini_maliyet || 0;
@@ -729,7 +730,8 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
       ogunId = createOgunResult.rows[0].id;
     }
 
-    // Reçete maliyetini al
+    // Bug #7 fix: Reçete maliyetini önce tazele, sonra oku
+    await hesaplaReceteMaliyet(recete_id);
     const receteResult = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [recete_id]);
 
     const porsiyonMaliyet = parseFloat(receteResult.rows[0]?.tahmini_maliyet) || 0;
