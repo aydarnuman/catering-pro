@@ -204,6 +204,8 @@ export default function PersonelPage() {
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>('personel');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartman, setFilterDepartman] = useState<string | null>(null);
+  const [filterDurum, setFilterDurum] = useState<string | null>(null);
   const [personelViewMode, setPersonelViewMode] = useState<'table' | 'cards'>('table');
 
   // === BORDRO STATE ===
@@ -721,12 +723,16 @@ export default function PersonelPage() {
     );
   };
 
-  // Filtrelenmiş personeller
-  const filteredPersoneller = personeller.filter(
-    (p) =>
+  // Filtrelenmiş personeller (arama + departman + durum)
+  const filteredPersoneller = personeller.filter((p) => {
+    const matchesSearch =
+      !searchTerm ||
       `${p.ad} ${p.soyad}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.pozisyon?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      p.pozisyon?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartman = !filterDepartman || p.departman === filterDepartman;
+    const matchesDurum = !filterDurum || (p.durum || 'aktif') === filterDurum;
+    return matchesSearch && matchesDepartman && matchesDurum;
+  });
 
   // Seçili proje bilgisi
   const selectedProjeData = projeler.find((p) => p.id === selectedProje);
@@ -925,6 +931,28 @@ export default function PersonelPage() {
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.currentTarget.value)}
                           style={{ width: 300 }}
+                        />
+                        <Select
+                          placeholder="Departman"
+                          clearable
+                          value={filterDepartman}
+                          onChange={(v) => setFilterDepartman(v || null)}
+                          data={departmanlar.map((d) => ({ value: d, label: d }))}
+                          size="sm"
+                          style={{ width: 140 }}
+                        />
+                        <Select
+                          placeholder="Durum"
+                          clearable
+                          value={filterDurum}
+                          onChange={(v) => setFilterDurum(v || null)}
+                          data={[
+                            { value: 'aktif', label: 'Aktif' },
+                            { value: 'izinli', label: 'İzinli' },
+                            { value: 'pasif', label: 'Pasif' },
+                          ]}
+                          size="sm"
+                          style={{ width: 110 }}
                         />
                         <SegmentedControl
                           value={personelViewMode}
