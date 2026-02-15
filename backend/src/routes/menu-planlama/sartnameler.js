@@ -759,25 +759,33 @@ router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req,
  * Eşleşme: sözlük + doğrudan isim eşleşme (kuralBul ile aynı mantık)
  * @returns {{ uygun_sayisi: number, uyumsuz_sayisi: number, toplam_kontrol: number, sonuclar: Array }}
  */
-function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
+/**
+ * Gramaj kontrol hesaplama — malzemeleri kurallara göre karşılaştır.
+ * Önizleme ile tutarlı 4-katmanlı kuralBul() eşleşmesi kullanır (Bug #8, #14 fix).
+ *
+ * @param {Array} malzemelerRows - reçete malzemeleri
+ * @param {Array} altTipKurallar - belirli alt tipe ait kurallar
+ * @param {Array} tumKurallar - şartnamenin TÜM kuralları (fallback için)
+ * @param {Array} sozluk - malzeme_tip_eslesmeleri
+ */
+function gramajKontrolHesapla(malzemelerRows, altTipKurallar, tumKurallar, sozluk) {
   const kontrolSonuclari = [];
   let toplamUygun = 0;
   let toplamUyumsuz = 0;
-  for (const kural of kurallarRows) {
-    let eslesenMalzeme = null;
-    for (const malzeme of malzemelerRows) {
-      // Sözlük + doğrudan isim eşleşme (kuralBul ile tutarlı)
-      if (malzemeKuralaUyarMi(malzeme.malzeme_adi, kural.malzeme_tipi, sozluk)) {
-        eslesenMalzeme = malzeme;
-        break;
-      }
-    }
-    if (eslesenMalzeme) {
+
+  // Eşleştirilmiş kural malzeme_tipi'lerini takip et (her malzeme için bir kural)
+  const eslesilenKurallar = new Set();
+
+  for (const malzeme of malzemelerRows) {
+    const sonuc = kuralBul(malzeme.malzeme_adi, sozluk, altTipKurallar, tumKurallar);
+    if (sonuc) {
+      eslesilenKurallar.add(sonuc.malzeme_tipi);
+
       // Her iki tarafı da gram'a çevirerek karşılaştır (Bug #1 fix)
-      const malzemeBirimi = (eslesenMalzeme.birim || 'g').toLowerCase();
-      const kuralBirimi = (kural.birim || 'g').toLowerCase();
-      const malzemeMiktar = parseFloat(eslesenMalzeme.miktar) || 0;
-      const kuralMiktar = parseFloat(kural.gramaj);
+      const malzemeBirimi = (malzeme.birim || 'g').toLowerCase();
+      const kuralBirimi = (sonuc.kural.birim || 'g').toLowerCase();
+      const malzemeMiktar = parseFloat(malzeme.miktar) || 0;
+      const kuralMiktar = parseFloat(sonuc.kural.gramaj);
       const gercekGramaj = malzemeMiktar * donusumCarpaniAlSync(malzemeBirimi, 'g');
       const hedefGramaj = kuralMiktar * donusumCarpaniAlSync(kuralBirimi, 'g');
       const tolerans = hedefGramaj * 0.15;
@@ -787,20 +795,27 @@ function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
       if (durum === 'uygun') toplamUygun++;
       else toplamUyumsuz++;
       kontrolSonuclari.push({
-        malzeme_adi: eslesenMalzeme.malzeme_adi,
-        malzeme_tipi: kural.malzeme_tipi,
+        malzeme_adi: malzeme.malzeme_adi,
+        malzeme_tipi: sonuc.malzeme_tipi,
+        kaynak: sonuc.kaynak,
         recete_gramaj: gercekGramaj,
         recete_orijinal_miktar: malzemeMiktar,
         recete_orijinal_birim: malzemeBirimi,
         hedef_gramaj: hedefGramaj,
-        birim: kural.birim,
+        birim: sonuc.kural.birim,
         durum,
       });
-    } else {
+    }
+  }
+
+  // Eşleşmeyen kuralları "eksik" olarak ekle (altTipKurallar'dan)
+  for (const kural of altTipKurallar) {
+    if (!eslesilenKurallar.has(kural.malzeme_tipi)) {
       toplamUyumsuz++;
       kontrolSonuclari.push({
         malzeme_adi: null,
         malzeme_tipi: kural.malzeme_tipi,
+        kaynak: 'alt_tip',
         recete_gramaj: null,
         hedef_gramaj: parseFloat(kural.gramaj),
         birim: kural.birim,
@@ -808,6 +823,7 @@ function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
       });
     }
   }
+
   return {
     uygun_sayisi: toplamUygun,
     uyumsuz_sayisi: toplamUyumsuz,
@@ -865,16 +881,21 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
       });
     }
 
-    const kurallarResult = await query(
-      `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND alt_tip_id = $2 AND aktif = true ORDER BY sira`,
-      [sartnameIdToUse, recete.rows[0].alt_tip_id]
+    // Bug #8 fix: TÜM şartname kurallarını al (fallback için)
+    const tumKurallarResult = await query(
+      `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true ORDER BY sira`,
+      [sartnameIdToUse]
     );
+    const tumKurallar = tumKurallarResult.rows;
+    const altTipKurallar = tumKurallar.filter((k) => Number(k.alt_tip_id) === Number(recete.rows[0].alt_tip_id));
+
     const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
     const sozluk = sozlukResult.rows;
 
     const { uygun_sayisi, uyumsuz_sayisi, sonuclar } = gramajKontrolHesapla(
       malzemeler.rows,
-      kurallarResult.rows,
+      altTipKurallar,
+      tumKurallar,
       sozluk
     );
 
