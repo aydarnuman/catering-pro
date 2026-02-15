@@ -47,6 +47,18 @@ export const BIRIM_DONUSUM: Record<string, number> = {
   'lt:ml': 1000,
   'l:ml': 1000,
 
+  // Hacim ↔ ağırlık çapraz dönüşümler (1ml ≈ 1g yaklaşımı, gıda sıvıları için)
+  'ml:g': 1,
+  'g:ml': 1,
+  'ml:kg': 0.001,
+  'kg:ml': 1000,
+  'ml:gr': 1,
+  'gr:ml': 1,
+  'g:lt': 0.001,
+  'lt:g': 1000,
+  'gr:lt': 0.001,
+  'lt:gr': 1000,
+
   // Identity (aynı birim)
   'kg:kg': 1,
   'lt:lt': 1,

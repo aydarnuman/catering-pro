@@ -21,6 +21,8 @@ import logger from './logger.js';
 // Önbellek (her sorgu için DB'ye gitmesin)
 let birimEslestirmeCache = null;
 let birimDonusumCache = null;
+let genelCacheTime = 0;
+const GENEL_CACHE_TTL = 10 * 60 * 1000; // 10 dakika — yeni dönüşüm eklendiğinde restart gerekmez
 
 // Ürüne özel dönüşüm cache (TTL: 5 dakika)
 let urunBirimCache = new Map();
@@ -31,14 +33,17 @@ const URUN_BIRIM_CACHE_TTL = 5 * 60 * 1000; // 5 min
 const FALLBACK_DONUSUMLER = {
   'g:kg': 0.001,
   'kg:g': 1000,
-  'ml:L': 0.001,
-  'L:ml': 1000,
-  'gr:kg': 0.001,
-  'kg:gr': 1000,
   'ml:lt': 0.001,
   'lt:ml': 1000,
-  'lt:L': 1,
-  'L:lt': 1,
+  'gr:kg': 0.001,
+  'kg:gr': 1000,
+  // Hacim ↔ ağırlık çapraz dönüşümler (1ml ≈ 1g yaklaşımı, gıda sıvıları için)
+  'ml:g': 1,
+  'g:ml': 1,
+  'ml:kg': 0.001,
+  'kg:ml': 1000,
+  'g:lt': 0.001,
+  'lt:g': 1000,
 };
 
 // Bilinen varyasyon → standart eşleştirmeleri (DB'den yüklenemezse fallback)
@@ -51,9 +56,9 @@ const FALLBACK_ESLESTIRME = {
   kilogram: 'kg',
   ml: 'ml',
   mililitre: 'ml',
-  lt: 'L',
-  litre: 'L',
-  l: 'L',
+  lt: 'lt',
+  litre: 'lt',
+  l: 'lt',
   adet: 'adet',
   ad: 'adet',
   porsiyon: 'porsiyon',
@@ -69,6 +74,12 @@ const FALLBACK_ESLESTIRME = {
  * Önbelleği yükle
  */
 async function loadCache() {
+  // TTL dolmuşsa cache'i invalidate et
+  if (genelCacheTime > 0 && Date.now() - genelCacheTime > GENEL_CACHE_TTL) {
+    birimEslestirmeCache = null;
+    birimDonusumCache = null;
+  }
+
   if (!birimEslestirmeCache) {
     try {
       const result = await query('SELECT varyasyon, standart FROM birim_eslestirme');
@@ -94,6 +105,11 @@ async function loadCache() {
       logger.warn(`birim_donusumleri tablosu okunamadı, fallback kullanılıyor: ${err.message}`);
       birimDonusumCache = { ...FALLBACK_DONUSUMLER };
     }
+  }
+
+  // Her iki cache de yüklendiyse zamanı kaydet
+  if (birimEslestirmeCache && birimDonusumCache) {
+    genelCacheTime = Date.now();
   }
 }
 
@@ -242,6 +258,9 @@ export async function miktarDonustur(miktar, kaynakBirim, hedefBirim) {
 export function cacheTemizle() {
   birimEslestirmeCache = null;
   birimDonusumCache = null;
+  genelCacheTime = 0;
+  urunBirimCache = new Map();
+  urunBirimCacheTime = 0;
 }
 
 /**
