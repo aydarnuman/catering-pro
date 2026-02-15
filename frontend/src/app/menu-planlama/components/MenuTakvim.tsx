@@ -24,6 +24,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAlertTriangle,
   IconBuilding,
   IconCalendar,
   IconChevronLeft,
@@ -393,10 +394,41 @@ export function MenuTakvim() {
       });
 
       if (!res.success) throw new Error(String(res.error || 'Plan kaydedilemedi'));
-      return res.data.plan_id;
+      return { planId: res.data.plan_id, sartname_uyarilar: (res as Record<string, unknown>).sartname_uyarilar };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       notifications.show({ title: 'Başarılı', message: 'Menü planı kaydedildi', color: 'green' });
+
+      // Şartname uyarılarını göster (bilgilendirme)
+      const uyarilar = result?.sartname_uyarilar as
+        | Array<{
+            tarih: string;
+            ogun_tipi_kod: string;
+            uyarilar: Array<{ tip: string; mesaj: string; eksik?: string[] }>;
+          }>
+        | null
+        | undefined;
+      if (uyarilar && uyarilar.length > 0) {
+        const toplamUyari = uyarilar.reduce((s, u) => s + u.uyarilar.length, 0);
+        const detayMesajlari = uyarilar
+          .slice(0, 3)
+          .map((u) => {
+            const tarihStr = new Date(u.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+            const ogunStr = u.ogun_tipi_kod === 'ogle' ? 'Öğle' : u.ogun_tipi_kod === 'aksam' ? 'Akşam' : u.ogun_tipi_kod === 'kahvalti' ? 'Kahvaltı' : u.ogun_tipi_kod;
+            return `${tarihStr} ${ogunStr}: ${u.uyarilar.map((uy) => uy.mesaj).join(', ')}`;
+          })
+          .join('\n');
+        const fazlaMesaj = uyarilar.length > 3 ? `\n...ve ${uyarilar.length - 3} öğün daha` : '';
+
+        notifications.show({
+          title: `⚠️ ${toplamUyari} şartname uyarısı`,
+          message: detayMesajlari + fazlaMesaj,
+          color: 'orange',
+          autoClose: 8000,
+          icon: <IconAlertTriangle size={18} />,
+        });
+      }
+
       setTakvimState({});
       setEditingPlanId(null);
       queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.menuPlanlari() });
