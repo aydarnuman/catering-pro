@@ -52,8 +52,13 @@ function normalizeBirim(birim, birimMap) {
   return birimMap.get(lower) || lower;
 }
 
-function getCarpan(kaynak, hedef, donusumMap) {
+function getCarpan(kaynak, hedef, donusumMap, urunDonusumMap, urunKartId) {
   if (kaynak === hedef) return 1;
+  // Ürün bazlı override öncelikli
+  if (urunKartId && urunDonusumMap) {
+    const urunKey = `${urunKartId}:${kaynak}:${hedef}`;
+    if (urunDonusumMap.has(urunKey)) return urunDonusumMap.get(urunKey);
+  }
   const key = `${kaynak}:${hedef}`;
   if (donusumMap.has(key)) return donusumMap.get(key);
   if (FALLBACK_DONUSUM[key]) return FALLBACK_DONUSUM[key];
@@ -167,9 +172,10 @@ async function main() {
   console.log('');
 
   // 1. Referans verilerini toplu yükle
-  const [birimEslResult, donusumResult, sozlukResult] = await Promise.all([
+  const [birimEslResult, donusumResult, urunDonusumResult, sozlukResult] = await Promise.all([
     query('SELECT varyasyon, standart FROM birim_eslestirme'),
     query('SELECT kaynak_birim, hedef_birim, carpan FROM birim_donusumleri'),
+    query('SELECT urun_kart_id, kaynak_birim, hedef_birim, carpan FROM urun_birim_donusumleri'),
     query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
   ]);
 
@@ -178,6 +184,9 @@ async function main() {
   const donusumMap = new Map();
   for (const row of donusumResult.rows)
     donusumMap.set(`${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
+  const urunDonusumMap = new Map();
+  for (const row of urunDonusumResult.rows)
+    urunDonusumMap.set(`${row.urun_kart_id}:${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
   const sozluk = sozlukResult.rows;
 
   // 2. Aktif şartnameler (gramaj kuralı olanlar)
@@ -293,7 +302,7 @@ async function main() {
         }
 
         // Birim dönüşümleri
-        const sartnameCarpan = getCarpan(sartnameBirim, fiyatBirimi, donusumMap);
+        const sartnameCarpan = getCarpan(sartnameBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
         if (sartnameCarpan === null) {
           anomaliler.push({
             sartname: sartname.kod, recete: recete.ad, malzeme: m.malzeme_adi,
@@ -306,7 +315,7 @@ async function main() {
           continue;
         }
 
-        const receteCarpan = getCarpan(receteBirim, fiyatBirimi, donusumMap);
+        const receteCarpan = getCarpan(receteBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
         if (receteCarpan === null) {
           anomaliler.push({
             sartname: sartname.kod, recete: recete.ad, malzeme: m.malzeme_adi,

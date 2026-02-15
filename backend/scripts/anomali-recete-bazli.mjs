@@ -43,8 +43,12 @@ function normalizeBirim(birim, birimMap) {
   return birimMap.get(lower) || lower;
 }
 
-function getCarpan(kaynak, hedef, donusumMap) {
+function getCarpan(kaynak, hedef, donusumMap, urunDonusumMap, urunKartId) {
   if (kaynak === hedef) return 1;
+  if (urunKartId && urunDonusumMap) {
+    const urunKey = `${urunKartId}:${kaynak}:${hedef}`;
+    if (urunDonusumMap.has(urunKey)) return urunDonusumMap.get(urunKey);
+  }
   const key = `${kaynak}:${hedef}`;
   if (donusumMap.has(key)) return donusumMap.get(key);
   if (FALLBACK_DONUSUM[key]) return FALLBACK_DONUSUM[key];
@@ -89,9 +93,10 @@ async function main() {
   console.log('');
 
   // 1. Referans verilerini toplu yükle
-  const [birimEslResult, donusumResult] = await Promise.all([
+  const [birimEslResult, donusumResult, urunDonusumResult] = await Promise.all([
     query('SELECT varyasyon, standart FROM birim_eslestirme'),
     query('SELECT kaynak_birim, hedef_birim, carpan FROM birim_donusumleri'),
+    query('SELECT urun_kart_id, kaynak_birim, hedef_birim, carpan FROM urun_birim_donusumleri'),
   ]);
 
   const birimMap = new Map();
@@ -99,6 +104,9 @@ async function main() {
   const donusumMap = new Map();
   for (const row of donusumResult.rows)
     donusumMap.set(`${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
+  const urunDonusumMap = new Map();
+  for (const row of urunDonusumResult.rows)
+    urunDonusumMap.set(`${row.urun_kart_id}:${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
 
   // 2. Tüm aktif reçeteleri al
   const recetelerResult = await query(`
@@ -193,7 +201,7 @@ async function main() {
       }
 
       // Birim dönüşümü
-      const carpan = getCarpan(malzemeBirim, fiyatBirimi, donusumMap);
+      const carpan = getCarpan(malzemeBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
       if (carpan === null) {
         receteSorunlari.push({
           malzeme: m.malzeme_adi,
