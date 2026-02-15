@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Çapraz Kontrol Anomali Tespit Scripti
+ * Çapraz Kontrol Anomali Tespit Scripti (v2)
  *
- * 1. Şartname maliyeti ile reçete maliyeti uyuşuyor mu?
- * 2. Fiyatı olmayan veya sıfır olan malzeme var mı?
- * 3. Birim dönüşümü yapılamayan malzeme var mı?
- * 4. Uyuşmayan ürünleri listeler.
+ * Tüm sorunları tek bir yerden özetler:
+ * 1. Fiyatı olmayan veya sıfır olan malzemeler
+ * 2. Birim dönüşümü yapılamayan malzemeler
+ * 3. Ürün kartı eksik malzemeler
+ * 4. Alt tipi atanmamış reçeteler
+ * 5. Şartname-reçete maliyet uyumsuzlukları (reçete toplam bazlı)
+ * 6. Fiyat güvenilirlik analizi (hangi fiyatlar eskimiş)
  *
- * Kullanım: cd backend && node scripts/anomali-capraz-kontrol.mjs [--esik 10]
+ * Kullanım: cd backend && node scripts/anomali-capraz-kontrol.mjs [--esik 10] [--min-tl 1]
  */
 
 import dotenv from 'dotenv';
@@ -22,442 +25,231 @@ const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
 });
+async function query(text, params) { return pool.query(text, params); }
 
-async function query(text, params) {
-  return pool.query(text, params);
-}
-
-// ── CLI argümanları ──
 const args = process.argv.slice(2);
-const esikIdx = args.indexOf('--esik');
-const ESIK_YUZDE = esikIdx >= 0 && args[esikIdx + 1] ? Number(args[esikIdx + 1]) : 10;
+function argVal(name, def) { const i = args.indexOf(name); return i >= 0 && args[i + 1] ? args[i + 1] : def; }
+const ESIK_YUZDE = Number(argVal('--esik', '10'));
+const MIN_TL_FARK = Number(argVal('--min-tl', '1'));
 
-// ── Birim dönüşüm ──
-const FALLBACK_DONUSUM = {
-  'g:kg': 0.001, 'gr:kg': 0.001, 'ml:lt': 0.001, 'ml:l': 0.001,
-  'kg:kg': 1, 'lt:lt': 1, 'l:l': 1, 'g:g': 1, 'gr:g': 1, 'ml:ml': 1, 'adet:adet': 1,
-};
-
-function normalizeBirim(birim, birimMap) {
-  if (!birim) return 'g';
-  const lower = birim.toLowerCase().trim();
-  return birimMap.get(lower) || lower;
+const FALLBACK = { 'g:kg': 0.001, 'gr:kg': 0.001, 'ml:lt': 0.001, 'ml:l': 0.001 };
+function normBirim(b, map) { if (!b) return 'g'; const l = b.toLowerCase().trim(); return map.get(l) || l; }
+function getCarpan(k, h, dMap, uMap, uid) {
+  if (k === h) return 1;
+  if (uid && uMap) { const uk = `${uid}:${k}:${h}`; if (uMap.has(uk)) return uMap.get(uk); }
+  const key = `${k}:${h}`; return dMap.get(key) ?? FALLBACK[key] ?? null;
 }
 
-function getCarpan(kaynak, hedef, donusumMap, urunDonusumMap, urunKartId) {
-  if (kaynak === hedef) return 1;
-  if (urunKartId && urunDonusumMap) {
-    const urunKey = `${urunKartId}:${kaynak}:${hedef}`;
-    if (urunDonusumMap.has(urunKey)) return urunDonusumMap.get(urunKey);
-  }
-  const key = `${kaynak}:${hedef}`;
-  if (donusumMap.has(key)) return donusumMap.get(key);
-  if (FALLBACK_DONUSUM[key]) return FALLBACK_DONUSUM[key];
-  return null;
+function malzemeTipiEslestirTumu(ad, sozluk) {
+  if (!ad || !sozluk?.length) return [];
+  const n = String(ad).toLowerCase().trim(); const m = [];
+  for (const e of sozluk) { let best = 0; for (const k of (e.eslesen_kelimeler || [])) { if (!k) continue; const nk = String(k).toLowerCase().trim(); if (nk && n.includes(nk) && nk.length > best) best = nk.length; } if (best > 0) m.push({ malzeme_tipi: e.malzeme_tipi, score: best }); }
+  m.sort((a, b) => b.score - a.score || b.malzeme_tipi.length - a.malzeme_tipi.length); return m;
+}
+function dogrudan_isim_eslestir(ad, kurallar) {
+  if (!ad || !kurallar?.length) return null; const n = String(ad).toLowerCase().trim();
+  for (const k of kurallar) if (k.malzeme_tipi?.toLowerCase().trim() === n) return k;
+  let best = null, bestLen = 0;
+  for (const k of kurallar) { if (!k.malzeme_tipi) continue; const t = k.malzeme_tipi.toLowerCase().trim(); if (t.length <= 3) { if (new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(n) && t.length > bestLen) { best = k; bestLen = t.length; } } else if (n.includes(t) && t.length > bestLen) { best = k; bestLen = t.length; } }
+  return best;
+}
+function kuralBul(ad, sozluk, altK, tumK) {
+  const esl = malzemeTipiEslestirTumu(ad, sozluk);
+  if (altK.length > 0) { for (const e of esl) { const k = altK.find((x) => x.malzeme_tipi === e.malzeme_tipi); if (k) return k; } const k = dogrudan_isim_eslestir(ad, altK); if (k) return k; }
+  for (const e of esl) { const k = tumK.find((x) => x.malzeme_tipi === e.malzeme_tipi); if (k) return k; }
+  return dogrudan_isim_eslestir(ad, tumK);
 }
 
-// ── Malzeme tipi eşleştirme (sartname-onizleme.js ile aynı) ──
-function malzemeTipiEslestirTumu(malzemeAdi, sozluk) {
-  if (!malzemeAdi || !sozluk?.length) return [];
-  const normalizedAd = String(malzemeAdi).toLowerCase().trim();
-  const matches = [];
-  for (const entry of sozluk) {
-    const kelimeler = entry.eslesen_kelimeler || [];
-    let bestKelimeLen = 0;
-    for (const kelime of kelimeler) {
-      if (!kelime) continue;
-      const nk = String(kelime).toLowerCase().trim();
-      if (nk && normalizedAd.includes(nk) && nk.length > bestKelimeLen) {
-        bestKelimeLen = nk.length;
-      }
-    }
-    if (bestKelimeLen > 0) {
-      matches.push({ malzeme_tipi: entry.malzeme_tipi, score: bestKelimeLen });
-    }
-  }
-  matches.sort((a, b) => b.score - a.score || b.malzeme_tipi.length - a.malzeme_tipi.length);
-  return matches;
+const FIYAT_GUN = 90;
+function fiyatGuncel(t) { if (!t) return false; const g = Math.floor((new Date() - new Date(t)) / 86400000); return g >= 0 && g <= FIYAT_GUN; }
+function eskiGun(t) { if (!t) return null; return Math.floor((new Date() - new Date(t)) / 86400000); }
+function enIyiFiyat(m) {
+  const ub = (m.urun_standart_birim || m.urun_fiyat_birimi || 'kg').toLowerCase();
+  const g = fiyatGuncel(m.urun_son_alis_tarihi);
+  if (Number(m.urun_aktif_fiyat) > 0) return { f: Number(m.urun_aktif_fiyat), b: ub, k: 'aktif' };
+  if (g && Number(m.urun_son_alis) > 0) return { f: Number(m.urun_son_alis), b: ub, k: 'son_alis' };
+  if (Number(m.piyasa_fiyat) > 0) return { f: Number(m.piyasa_fiyat), b: m.piyasa_birim_tipi?.toLowerCase() || ub, k: 'piyasa' };
+  if (Number(m.urun_son_alis) > 0) return { f: Number(m.urun_son_alis), b: ub, k: 'eski_alis' };
+  if (Number(m.urun_manuel_fiyat) > 0) return { f: Number(m.urun_manuel_fiyat), b: ub, k: 'manuel' };
+  if (Number(m.varyant_fiyat) > 0) return { f: Number(m.varyant_fiyat), b: ub, k: 'varyant' };
+  return { f: 0, b: ub, k: 'yok' };
 }
 
-function dogrudan_isim_eslestir(malzemeAdi, kurallar) {
-  if (!malzemeAdi || !kurallar?.length) return null;
-  const ad = String(malzemeAdi).toLowerCase().trim();
-  for (const k of kurallar) {
-    if (k.malzeme_tipi && k.malzeme_tipi.toLowerCase().trim() === ad) return k;
-  }
-  let bestMatch = null;
-  let bestLen = 0;
-  for (const k of kurallar) {
-    if (!k.malzeme_tipi) continue;
-    const tip = k.malzeme_tipi.toLowerCase().trim();
-    if (tip.length <= 3) {
-      const regex = new RegExp(`\\b${tip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-      if (regex.test(ad) && tip.length > bestLen) { bestMatch = k; bestLen = tip.length; }
-    } else if (ad.includes(tip) && tip.length > bestLen) { bestMatch = k; bestLen = tip.length; }
-  }
-  return bestMatch;
-}
-
-function kuralBul(malzemeAdi, sozluk, altTipKurallari, tumKurallar) {
-  const eslesmeler = malzemeTipiEslestirTumu(malzemeAdi, sozluk);
-  if (altTipKurallari.length > 0) {
-    for (const e of eslesmeler) {
-      const k = altTipKurallari.find((x) => x.malzeme_tipi === e.malzeme_tipi);
-      if (k) return { kural: k, malzeme_tipi: e.malzeme_tipi };
-    }
-    const k = dogrudan_isim_eslestir(malzemeAdi, altTipKurallari);
-    if (k) return { kural: k, malzeme_tipi: k.malzeme_tipi };
-  }
-  for (const e of eslesmeler) {
-    const k = tumKurallar.find((x) => x.malzeme_tipi === e.malzeme_tipi);
-    if (k) return { kural: k, malzeme_tipi: e.malzeme_tipi };
-  }
-  const k = dogrudan_isim_eslestir(malzemeAdi, tumKurallar);
-  if (k) return { kural: k, malzeme_tipi: k.malzeme_tipi };
-  return null;
-}
-
-// ── Fiyat önceliklendirme ──
-const FIYAT_GECERLILIK_GUN = 90;
-
-function fiyatGuncelMi(tarih) {
-  if (!tarih) return false;
-  const gun = Math.floor((new Date() - new Date(tarih)) / (1000 * 60 * 60 * 24));
-  return gun >= 0 && gun <= FIYAT_GECERLILIK_GUN;
-}
-
-function enIyiFiyatBelirle(m) {
-  const urunBirim = (m.urun_standart_birim || m.urun_fiyat_birimi || 'kg').toLowerCase();
-  const sonAlisGuncel = fiyatGuncelMi(m.urun_son_alis_tarihi);
-
-  if (Number(m.urun_aktif_fiyat) > 0)
-    return { birimFiyat: Number(m.urun_aktif_fiyat), fiyatBirimi: urunBirim };
-  if (sonAlisGuncel && Number(m.urun_son_alis) > 0)
-    return { birimFiyat: Number(m.urun_son_alis), fiyatBirimi: urunBirim };
-  if (Number(m.piyasa_fiyat) > 0) {
-    const pb = m.piyasa_birim_tipi ? m.piyasa_birim_tipi.toLowerCase() : urunBirim;
-    return { birimFiyat: Number(m.piyasa_fiyat), fiyatBirimi: pb };
-  }
-  if (Number(m.urun_son_alis) > 0)
-    return { birimFiyat: Number(m.urun_son_alis), fiyatBirimi: urunBirim };
-  if (Number(m.urun_manuel_fiyat) > 0)
-    return { birimFiyat: Number(m.urun_manuel_fiyat), fiyatBirimi: urunBirim };
-  if (Number(m.varyant_fiyat) > 0)
-    return { birimFiyat: Number(m.varyant_fiyat), fiyatBirimi: urunBirim };
-  return { birimFiyat: 0, fiyatBirimi: urunBirim };
-}
-
-// ── Ana akış ──
 async function main() {
-  console.log('=== CAPRAZ KONTROL ANOMALi RAPORU ===');
+  console.log('=== CAPRAZ KONTROL RAPORU (v2) ===');
   console.log(`Tarih: ${new Date().toISOString().slice(0, 10)}`);
-  console.log(`Maliyet karsilastirma esigi: %${ESIK_YUZDE}`);
+  console.log(`Capraz sapma esigi: %${ESIK_YUZDE} | Min TL fark: ₺${MIN_TL_FARK.toFixed(2)}`);
   console.log('');
 
-  // 1. Referans verilerini toplu yükle
-  const [birimEslResult, donusumResult, urunDonusumResult, sozlukResult, kurallarResult] = await Promise.all([
+  // Veri yükle
+  const [bE, dR, uD, sR, kR] = await Promise.all([
     query('SELECT varyasyon, standart FROM birim_eslestirme'),
     query('SELECT kaynak_birim, hedef_birim, carpan FROM birim_donusumleri'),
     query('SELECT urun_kart_id, kaynak_birim, hedef_birim, carpan FROM urun_birim_donusumleri'),
     query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
     query('SELECT * FROM sartname_gramaj_kurallari WHERE aktif = true'),
   ]);
+  const birimMap = new Map(); for (const r of bE.rows) birimMap.set(r.varyasyon.toLowerCase(), r.standart.toLowerCase());
+  const donusumMap = new Map(); for (const r of dR.rows) donusumMap.set(`${r.kaynak_birim.toLowerCase()}:${r.hedef_birim.toLowerCase()}`, Number(r.carpan));
+  const urunDMap = new Map(); for (const r of uD.rows) urunDMap.set(`${r.urun_kart_id}:${r.kaynak_birim.toLowerCase()}:${r.hedef_birim.toLowerCase()}`, Number(r.carpan));
+  const sozluk = sR.rows;
+  const kuralBySart = new Map();
+  for (const k of kR.rows) { if (!kuralBySart.has(k.sartname_id)) kuralBySart.set(k.sartname_id, []); kuralBySart.get(k.sartname_id).push(k); }
 
-  const birimMap = new Map();
-  for (const row of birimEslResult.rows) birimMap.set(row.varyasyon.toLowerCase(), row.standart.toLowerCase());
-  const donusumMap = new Map();
-  for (const row of donusumResult.rows)
-    donusumMap.set(`${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
-  const urunDonusumMap = new Map();
-  for (const row of urunDonusumResult.rows)
-    urunDonusumMap.set(`${row.urun_kart_id}:${row.kaynak_birim.toLowerCase()}:${row.hedef_birim.toLowerCase()}`, Number(row.carpan));
-  const sozluk = sozlukResult.rows;
-
-  // Kurallar sartname_id bazlı
-  const kuralBySartname = new Map();
-  for (const k of kurallarResult.rows) {
-    if (!kuralBySartname.has(k.sartname_id)) kuralBySartname.set(k.sartname_id, []);
-    kuralBySartname.get(k.sartname_id).push(k);
-  }
-
-  // 2. Aktif şartnameler
-  const sartnameler = await query(`
-    SELECT ps.id, ps.kod, ps.ad
-    FROM proje_sartnameleri ps
-    WHERE ps.aktif = true
-      AND EXISTS (SELECT 1 FROM sartname_gramaj_kurallari sgk WHERE sgk.sartname_id = ps.id AND sgk.aktif = true)
-    ORDER BY ps.id
+  const sartnameler = await query(`SELECT ps.id, ps.kod FROM proje_sartnameleri ps WHERE ps.aktif = true AND EXISTS (SELECT 1 FROM sartname_gramaj_kurallari sgk WHERE sgk.sartname_id = ps.id AND sgk.aktif = true) ORDER BY ps.id`);
+  const recetelerR = await query(`SELECT r.id, r.ad, r.alt_tip_id, r.tahmini_maliyet, rk.ad as kategori FROM receteler r LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id WHERE r.aktif = true ORDER BY r.ad`);
+  const malzR = await query(`
+    SELECT rm.recete_id, rm.malzeme_adi, rm.miktar, rm.sef_miktar, rm.aktif_miktar_tipi,
+      rm.birim, rm.urun_kart_id, urk.ad as urun_adi,
+      urk.manuel_fiyat as urun_manuel_fiyat, urk.aktif_fiyat as urun_aktif_fiyat,
+      urk.son_alis_fiyati as urun_son_alis, urk.son_alis_tarihi as urun_son_alis_tarihi,
+      urk.fiyat_birimi as urun_fiyat_birimi, urk.birim as urun_standart_birim,
+      COALESCE(ufo.birim_fiyat_ekonomik, (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id=rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL ORDER BY arastirma_tarihi DESC LIMIT 1)) as piyasa_fiyat,
+      ufo.birim_tipi as piyasa_birim_tipi, get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat
+    FROM recete_malzemeler rm LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id LEFT JOIN urun_fiyat_ozet ufo ON ufo.urun_kart_id = rm.urun_kart_id ORDER BY rm.recete_id, rm.sira
   `);
+  const mByR = new Map();
+  for (const m of malzR.rows) { if (!mByR.has(m.recete_id)) mByR.set(m.recete_id, []); mByR.get(m.recete_id).push(m); }
 
-  // 3. Aktif reçeteler
-  const recetelerResult = await query(`
-    SELECT r.id, r.ad, r.kod, r.alt_tip_id, r.tahmini_maliyet, rk.ad as kategori_adi
-    FROM receteler r
-    LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
-    WHERE r.aktif = true
-    ORDER BY r.ad
-  `);
-  const receteler = recetelerResult.rows;
+  // ── BÖLÜM 1: Malzeme seviyesi sorunlar ──
+  const sifirFiyat = [], birimHata = [], eksikKart = [], eskiFiyat = [];
+  const fiyatKaynakDagilim = { aktif: 0, son_alis: 0, piyasa: 0, eski_alis: 0, manuel: 0, varyant: 0, yok: 0 };
 
-  // 4. Tüm malzemeleri toplu yükle
-  const malzemeResult = await query(`
-    SELECT
-      rm.recete_id, rm.id, rm.malzeme_adi, rm.miktar, rm.sef_miktar, rm.aktif_miktar_tipi,
-      rm.birim, rm.urun_kart_id,
-      urk.ad as urun_adi,
-      urk.manuel_fiyat as urun_manuel_fiyat,
-      urk.aktif_fiyat as urun_aktif_fiyat,
-      urk.son_alis_fiyati as urun_son_alis,
-      urk.son_alis_tarihi as urun_son_alis_tarihi,
-      urk.fiyat_birimi as urun_fiyat_birimi,
-      urk.birim as urun_standart_birim,
-      COALESCE(
-        ufo.birim_fiyat_ekonomik,
-        (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi
-         WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
-            OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
-         ORDER BY arastirma_tarihi DESC LIMIT 1)
-      ) as piyasa_fiyat,
-      ufo.birim_tipi as piyasa_birim_tipi,
-      get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat
-    FROM recete_malzemeler rm
-    LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
-    LEFT JOIN urun_fiyat_ozet ufo ON ufo.urun_kart_id = rm.urun_kart_id
-    ORDER BY rm.recete_id, rm.sira
-  `);
-
-  const malzemeByRecete = new Map();
-  for (const m of malzemeResult.rows) {
-    if (!malzemeByRecete.has(m.recete_id)) malzemeByRecete.set(m.recete_id, []);
-    malzemeByRecete.get(m.recete_id).push(m);
-  }
-
-  // ── BÖLÜM 1: Fiyatı olmayan / sıfır olan malzemeler ──
-  console.log('--- BOLUM 1: FIYATI OLMAYAN VEYA SIFIR MALZEMELER ---');
-  console.log('');
-
-  const sifirFiyatlilar = [];
-  const eksikUrunKartlilar = [];
-
-  for (const recete of receteler) {
-    const malzemeler = malzemeByRecete.get(recete.id) || [];
-    for (const m of malzemeler) {
-      if (!m.urun_kart_id) {
-        eksikUrunKartlilar.push({
-          recete: recete.ad,
-          malzeme: m.malzeme_adi,
-          sorun: 'EKSIK_URUN_KARTI',
-          detay: 'urun_kart_id NULL — urune eslestirilmemis',
-        });
-        continue;
-      }
-
-      const { birimFiyat } = enIyiFiyatBelirle(m);
-      if (birimFiyat === 0) {
-        sifirFiyatlilar.push({
-          recete: recete.ad,
-          malzeme: m.malzeme_adi,
-          urun: m.urun_adi || '—',
-          sorun: 'SIFIR_FIYAT',
-          detay: 'Hicbir kaynakta fiyat bulunamadi',
-        });
-      }
+  for (const rec of recetelerR.rows) {
+    for (const m of (mByR.get(rec.id) || [])) {
+      if (!m.urun_kart_id) { eksikKart.push({ recete: rec.ad, malzeme: m.malzeme_adi }); continue; }
+      const mb = normBirim(m.birim, birimMap);
+      const { f, b, k } = enIyiFiyat(m);
+      fiyatKaynakDagilim[k]++;
+      if (f === 0) { sifirFiyat.push({ recete: rec.ad, malzeme: m.malzeme_adi, urun: m.urun_adi }); continue; }
+      const c = getCarpan(mb, b, donusumMap, urunDMap, m.urun_kart_id);
+      if (c === null) { birimHata.push({ recete: rec.ad, malzeme: m.malzeme_adi, kaynak: mb, hedef: b }); }
+      if (k === 'eski_alis') { const gun = eskiGun(m.urun_son_alis_tarihi); eskiFiyat.push({ recete: rec.ad, malzeme: m.malzeme_adi, gun, fiyat: f }); }
     }
   }
 
-  if (sifirFiyatlilar.length === 0 && eksikUrunKartlilar.length === 0) {
-    console.log('  Tum malzemelerin fiyati mevcut ve urun kartina bagli.');
+  console.log('--- BOLUM 1: MALZEME SORUNLARI ---');
+  if (sifirFiyat.length === 0 && birimHata.length === 0 && eksikKart.length === 0) {
+    console.log('  Kritik malzeme sorunu yok.');
   } else {
-    if (sifirFiyatlilar.length > 0) {
-      console.log(`  Sifir fiyatli malzeme: ${sifirFiyatlilar.length}`);
-      for (const s of sifirFiyatlilar) {
-        console.log(`    - [${s.recete}] ${s.malzeme} (${s.urun}) — ${s.detay}`);
+    if (sifirFiyat.length > 0) {
+      console.log(`  Sifir fiyat: ${sifirFiyat.length}`);
+      for (const s of sifirFiyat) console.log(`    - [${s.recete}] ${s.malzeme} (${s.urun || '?'})`);
+    }
+    if (birimHata.length > 0) {
+      const ciftler = new Map();
+      for (const b of birimHata) { const k = `${b.kaynak}->${b.hedef}`; if (!ciftler.has(k)) ciftler.set(k, []); ciftler.get(k).push(b); }
+      console.log(`  Birim donusum hatasi: ${birimHata.length} (${ciftler.size} benzersiz cift)`);
+      for (const [c, list] of ciftler) {
+        console.log(`    ${c}: ${list.map((l) => l.malzeme).slice(0, 3).join(', ')}${list.length > 3 ? ` +${list.length - 3}` : ''}`);
       }
     }
-    if (eksikUrunKartlilar.length > 0) {
-      console.log(`  Eksik urun karti: ${eksikUrunKartlilar.length}`);
-      for (const s of eksikUrunKartlilar) {
-        console.log(`    - [${s.recete}] ${s.malzeme} — ${s.detay}`);
-      }
-    }
-  }
-
-  // ── BÖLÜM 2: Birim dönüşümü yapılamayan malzemeler ──
-  console.log('');
-  console.log('--- BOLUM 2: BIRIM DONUSUMU YAPILAMAYAN MALZEMELER ---');
-  console.log('');
-
-  const donusumHatalari = [];
-
-  for (const recete of receteler) {
-    const malzemeler = malzemeByRecete.get(recete.id) || [];
-    for (const m of malzemeler) {
-      if (!m.urun_kart_id) continue;
-      const malzemeBirim = normalizeBirim(m.birim, birimMap);
-      const { fiyatBirimi } = enIyiFiyatBelirle(m);
-      const carpan = getCarpan(malzemeBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
-      if (carpan === null) {
-        donusumHatalari.push({
-          recete: recete.ad,
-          malzeme: m.malzeme_adi,
-          kaynak_birim: malzemeBirim,
-          hedef_birim: fiyatBirimi,
-        });
-      }
+    if (eksikKart.length > 0) {
+      console.log(`  Eksik urun karti: ${eksikKart.length}`);
+      for (const s of eksikKart) console.log(`    - [${s.recete}] ${s.malzeme}`);
     }
   }
-
-  if (donusumHatalari.length === 0) {
-    console.log('  Tum birim donusumleri mevcut.');
-  } else {
-    console.log(`  Donusum hatasi: ${donusumHatalari.length}`);
-    // Benzersiz birim çiftlerine göre grupla
-    const birimCiftleri = new Map();
-    for (const d of donusumHatalari) {
-      const key = `${d.kaynak_birim}->${d.hedef_birim}`;
-      if (!birimCiftleri.has(key)) birimCiftleri.set(key, []);
-      birimCiftleri.get(key).push(d);
-    }
-    for (const [cift, hatalar] of birimCiftleri) {
-      console.log(`    ${cift} (${hatalar.length} malzeme):`);
-      const gosterilenler = hatalar.slice(0, 5);
-      for (const h of gosterilenler) {
-        console.log(`      - [${h.recete}] ${h.malzeme}`);
-      }
-      if (hatalar.length > 5) console.log(`      ... ve ${hatalar.length - 5} daha`);
-    }
-  }
-
-  // ── BÖLÜM 3: Şartname maliyeti vs reçete maliyeti karşılaştırması ──
-  console.log('');
-  console.log('--- BOLUM 3: SARTNAME vs RECETE MALIYET KARSILASTIRMASI ---');
-  console.log(`Esik: %${ESIK_YUZDE}`);
   console.log('');
 
-  // Sadece alt_tip_id olan reçeteleri tara (şartname karşılaştırması yapılabilsin)
-  const recetelerAltTipli = receteler.filter((r) => r.alt_tip_id != null);
-  const caprazAnomaliler = [];
-
-  for (const sartname of sartnameler.rows) {
-    const tumKurallar = kuralBySartname.get(sartname.id) || [];
-    if (tumKurallar.length === 0) continue;
-
-    for (const recete of recetelerAltTipli) {
-      const malzemeler = malzemeByRecete.get(recete.id) || [];
-      if (malzemeler.length === 0) continue;
-
-      const altTipKurallari = tumKurallar.filter((k) => Number(k.alt_tip_id) === Number(recete.alt_tip_id));
-
-      let sartnameMaliyet = 0;
-      let receteMaliyet = 0;
-      let hesaplanabilir = true;
-
-      for (const m of malzemeler) {
-        if (!m.urun_kart_id) continue;
-
-        const receteMiktar =
-          m.aktif_miktar_tipi === 'sef' && m.sef_miktar != null
-            ? Number(m.sef_miktar) : Number(m.miktar) || 0;
-        const receteBirim = normalizeBirim(m.birim, birimMap);
-
-        const { birimFiyat, fiyatBirimi } = enIyiFiyatBelirle(m);
-        if (birimFiyat === 0) continue;
-
-        // Reçete maliyeti
-        const receteCarpan = getCarpan(receteBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
-        if (receteCarpan === null) continue;
-        receteMaliyet += receteMiktar * receteCarpan * birimFiyat;
-
-        // Şartname maliyeti (eşleşen kural varsa o gramajla, yoksa reçete miktarıyla)
-        const sonuc = kuralBul(m.malzeme_adi, sozluk, altTipKurallari, tumKurallar);
-        if (sonuc) {
-          const sartnameGramaj = Number(sonuc.kural.gramaj) || 0;
-          const sartnameBirim = normalizeBirim(sonuc.kural.birim || 'g', birimMap);
-          const sartnameCarpan = getCarpan(sartnameBirim, fiyatBirimi, donusumMap, urunDonusumMap, m.urun_kart_id);
-          if (sartnameCarpan !== null) {
-            sartnameMaliyet += sartnameGramaj * sartnameCarpan * birimFiyat;
-          } else {
-            sartnameMaliyet += receteMiktar * receteCarpan * birimFiyat; // fallback
-          }
-        } else {
-          // Kural eşleşmedi → reçete miktarını kullan (şartname bu malzemeyi kontrol etmiyor)
-          sartnameMaliyet += receteMiktar * receteCarpan * birimFiyat;
-        }
-      }
-
-      sartnameMaliyet = Math.round(sartnameMaliyet * 100) / 100;
-      receteMaliyet = Math.round(receteMaliyet * 100) / 100;
-
-      if (sartnameMaliyet === 0 && receteMaliyet === 0) continue;
-
-      const referans = Math.max(sartnameMaliyet, receteMaliyet);
-      const sapma = referans > 0 ? ((receteMaliyet - sartnameMaliyet) / referans) * 100 : 0;
-
-      if (Math.abs(sapma) > ESIK_YUZDE) {
-        caprazAnomaliler.push({
-          sartname: sartname.kod,
-          recete: recete.ad,
-          kategori: recete.kategori_adi || '—',
-          sartname_maliyet: sartnameMaliyet,
-          recete_maliyet: receteMaliyet,
-          sapma: Math.round(sapma * 10) / 10,
-        });
-      }
-    }
+  // ── BÖLÜM 2: Fiyat güvenilirlik ──
+  console.log('--- BOLUM 2: FIYAT KAYNAK DAGILIMI ---');
+  const toplam = Object.values(fiyatKaynakDagilim).reduce((a, b) => a + b, 0);
+  for (const [k, v] of Object.entries(fiyatKaynakDagilim)) {
+    if (v > 0) console.log(`  ${k}: ${v} malzeme (%${((v / toplam) * 100).toFixed(1)})`);
   }
+  if (eskiFiyat.length > 0) {
+    const enEski = eskiFiyat.sort((a, b) => b.gun - a.gun).slice(0, 5);
+    console.log(`  Eski fiyat (>90 gun): ${eskiFiyat.length} malzeme`);
+    for (const e of enEski) console.log(`    - [${e.recete}] ${e.malzeme}: ${e.gun} gun once`);
+  }
+  console.log('');
 
-  if (caprazAnomaliler.length === 0) {
-    console.log(`  Esik degerin (%${ESIK_YUZDE}) ustunde capraz sapma bulunamadi.`);
-  } else {
-    console.log(`  Capraz sapma: ${caprazAnomaliler.length}`);
+  // ── BÖLÜM 3: Alt tipi eksik reçeteler ──
+  const altTipYok = recetelerR.rows.filter((r) => r.alt_tip_id == null);
+  if (altTipYok.length > 0) {
+    console.log(`--- BOLUM 3: ALT TIPI ATANMAMIS RECETELER (${altTipYok.length}) ---`);
+    for (const r of altTipYok) console.log(`  ${r.ad} (${r.kategori || '?'})`);
     console.log('');
-
-    const header = [
-      '#'.padStart(4),
-      'Sartname'.padEnd(14),
-      'Recete'.padEnd(28),
-      'Kategori'.padEnd(16),
-      'Sartname Mal.'.padStart(14),
-      'Recete Mal.'.padStart(14),
-      'Sapma %'.padStart(8),
-    ].join(' | ');
-
-    console.log(header);
-    console.log('-'.repeat(header.length));
-
-    for (let i = 0; i < caprazAnomaliler.length; i++) {
-      const a = caprazAnomaliler[i];
-      console.log(
-        [
-          String(i + 1).padStart(4),
-          (a.sartname || '').slice(0, 14).padEnd(14),
-          (a.recete || '').slice(0, 28).padEnd(28),
-          (a.kategori || '').slice(0, 16).padEnd(16),
-          `₺${a.sartname_maliyet.toFixed(2)}`.padStart(14),
-          `₺${a.recete_maliyet.toFixed(2)}`.padStart(14),
-          `${a.sapma > 0 ? '+' : ''}${a.sapma}%`.padStart(8),
-        ].join(' | ')
-      );
-    }
-    console.log('-'.repeat(header.length));
   }
+
+  // ── BÖLÜM 4: Şartname vs Reçete çapraz maliyet ──
+  console.log('--- BOLUM 4: SARTNAME vs RECETE MALIYET ---');
+  const recAltTipli = recetelerR.rows.filter((r) => r.alt_tip_id != null);
+  const capraz = [];
+
+  for (const sart of sartnameler.rows) {
+    const tumK = kuralBySart.get(sart.id) || [];
+    if (tumK.length === 0) continue;
+    for (const rec of recAltTipli) {
+      const malz = mByR.get(rec.id) || [];
+      if (malz.length === 0) continue;
+      const altK = tumK.filter((k) => Number(k.alt_tip_id) === Number(rec.alt_tip_id));
+      let sM = 0, rM = 0;
+      for (const m of malz) {
+        if (!m.urun_kart_id) continue;
+        const am = m.aktif_miktar_tipi === 'sef' && m.sef_miktar != null ? Number(m.sef_miktar) : Number(m.miktar) || 0;
+        const mb = normBirim(m.birim, birimMap);
+        const { f, b } = enIyiFiyat(m);
+        if (f === 0) continue;
+        const rc = getCarpan(mb, b, donusumMap, urunDMap, m.urun_kart_id);
+        if (rc === null) continue;
+        rM += am * rc * f;
+        const kural = kuralBul(m.malzeme_adi, sozluk, altK, tumK);
+        if (kural) {
+          const sg = Number(kural.gramaj) || 0;
+          const sb = normBirim(kural.birim || 'g', birimMap);
+          const sc = getCarpan(sb, b, donusumMap, urunDMap, m.urun_kart_id);
+          sM += sc !== null ? sg * sc * f : am * rc * f;
+        } else { sM += am * rc * f; }
+      }
+      sM = Math.round(sM * 100) / 100;
+      rM = Math.round(rM * 100) / 100;
+      if (sM === 0 && rM === 0) continue;
+      const fark = rM - sM;
+      const ref = Math.max(sM, rM);
+      const sapma = ref > 0 ? (fark / ref) * 100 : 0;
+      if (Math.abs(sapma) > ESIK_YUZDE && Math.abs(fark) >= MIN_TL_FARK) {
+        capraz.push({ sartname: sart.kod, recete: rec.ad, kategori: rec.kategori || '—', sM, rM, fark: Math.round(fark * 100) / 100, sapma: Math.round(sapma * 10) / 10 });
+      }
+    }
+  }
+
+  if (capraz.length === 0) {
+    console.log(`  Esik ustunde capraz sapma yok.`);
+  } else {
+    // Sartname bazlı grupla
+    const bySart = new Map();
+    for (const c of capraz) { if (!bySart.has(c.sartname)) bySart.set(c.sartname, []); bySart.get(c.sartname).push(c); }
+    console.log(`  Toplam capraz sapma: ${capraz.length} (${bySart.size} sartname)`);
+    console.log('');
+    for (const [sart, items] of bySart) {
+      const ciddi = items.filter((i) => Math.abs(i.fark) >= 20);
+      const orta = items.filter((i) => Math.abs(i.fark) >= 5 && Math.abs(i.fark) < 20);
+      const dusuk = items.filter((i) => Math.abs(i.fark) < 5);
+      console.log(`  ${sart}: ${items.length} sapma (ciddi:${ciddi.length} orta:${orta.length} dusuk:${dusuk.length})`);
+      // Sadece ciddi olanları göster
+      for (const c of ciddi.sort((a, b) => Math.abs(b.fark) - Math.abs(a.fark)).slice(0, 10)) {
+        console.log(`    ${c.recete.slice(0, 30).padEnd(30)} sart:₺${c.sM.toFixed(0).padStart(4)} rec:₺${c.rM.toFixed(0).padStart(4)} fark:${c.fark > 0 ? '+' : ''}₺${c.fark.toFixed(0).padStart(4)} (${c.sapma > 0 ? '+' : ''}${c.sapma}%)`);
+      }
+      if (ciddi.length > 10) console.log(`    ... ve ${ciddi.length - 10} ciddi sapma daha`);
+    }
+  }
+  console.log('');
 
   // ── GENEL ÖZET ──
-  console.log('');
+  const toplamSorun = sifirFiyat.length + birimHata.length + eksikKart.length;
   console.log('=== GENEL OZET ===');
-  console.log(`  Sifir fiyatli malzeme: ${sifirFiyatlilar.length}`);
-  console.log(`  Eksik urun karti: ${eksikUrunKartlilar.length}`);
-  console.log(`  Birim donusum hatasi: ${donusumHatalari.length}`);
-  console.log(`  Capraz maliyet sapmasi: ${caprazAnomaliler.length}`);
-  const toplamSorun = sifirFiyatlilar.length + eksikUrunKartlilar.length + donusumHatalari.length + caprazAnomaliler.length;
-  console.log(`  TOPLAM SORUN: ${toplamSorun}`);
+  console.log(`  Kritik sorunlar: ${toplamSorun}`);
+  console.log(`    Sifir fiyat: ${sifirFiyat.length}`);
+  console.log(`    Birim hatasi: ${birimHata.length}`);
+  console.log(`    Eksik urun karti: ${eksikKart.length}`);
+  console.log(`  Uyarilar:`);
+  console.log(`    Alt tip eksik: ${altTipYok.length} recete`);
+  console.log(`    Eski fiyat: ${eskiFiyat.length} malzeme`);
+  console.log(`  Capraz sapma: ${capraz.length}`);
 
   pool.end();
   if (toplamSorun > 0) process.exit(1);
 }
 
-main().catch((err) => {
-  console.error('HATA:', err);
-  pool.end();
-  process.exit(2);
-});
+main().catch((err) => { console.error('HATA:', err); pool.end(); process.exit(2); });
