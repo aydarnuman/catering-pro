@@ -1,18 +1,21 @@
 import express from 'express';
 import { pool } from '../database.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 
 const router = express.Router();
 
 // ==================== PROJELER ====================
 
 // Tüm projeleri getir
-router.get('/projeler', async (_req, res) => {
+router.get('/projeler', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT * FROM projeler 
-      WHERE aktif = true 
-      ORDER BY ad
-    `);
+    const firmaId = getFirmaId(req);
+    const result = await pool.query(
+      `SELECT * FROM projeler
+      WHERE aktif = true${firmaId ? ' AND firma_id = $1' : ''}
+      ORDER BY ad`,
+      firmaId ? [firmaId] : []
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -81,9 +84,10 @@ router.delete('/projeler/:id', async (req, res) => {
 router.get('/siparisler', async (req, res) => {
   try {
     const { proje_id, tedarikci_id, durum, baslangic, bitis } = req.query;
+    const firmaId = getFirmaId(req);
 
     let query = `
-      SELECT 
+      SELECT
         s.*,
         p.kod as proje_kod,
         p.ad as proje_ad,
@@ -98,6 +102,13 @@ router.get('/siparisler', async (req, res) => {
     `;
     const params = [];
     let paramCount = 0;
+
+    // Firma filtresi
+    if (firmaId) {
+      paramCount++;
+      query += ` AND (s.proje_id IS NULL OR p.firma_id = $${paramCount})`;
+      params.push(firmaId);
+    }
 
     if (proje_id) {
       paramCount++;
@@ -379,17 +390,30 @@ router.delete('/siparisler/:id', async (req, res) => {
 // ==================== RAPORLAR ====================
 
 // Özet istatistikler
-router.get('/ozet', async (_req, res) => {
+router.get('/ozet', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
+    const firmaId = getFirmaId(req);
+    let firmaJoin = '';
+    let firmaClause = '';
+    const params = [];
+    if (firmaId) {
+      firmaJoin = ' LEFT JOIN projeler p ON s.proje_id = p.id';
+      firmaClause = ' AND (s.proje_id IS NULL OR p.firma_id = $1)';
+      params.push(firmaId);
+    }
+    const result = await pool.query(
+      `
+      SELECT
         COUNT(*) as toplam_siparis,
-        COUNT(*) FILTER (WHERE durum IN ('talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi')) as bekleyen,
-        COUNT(*) FILTER (WHERE durum = 'teslim_alindi') as tamamlanan,
-        COALESCE(SUM(toplam_tutar) FILTER (WHERE durum = 'siparis_verildi'), 0) as beklenen_tutar,
-        COALESCE(SUM(toplam_tutar) FILTER (WHERE durum = 'teslim_alindi' AND EXTRACT(MONTH FROM siparis_tarihi) = EXTRACT(MONTH FROM CURRENT_DATE)), 0) as bu_ay_harcama
-      FROM siparisler
-    `);
+        COUNT(*) FILTER (WHERE s.durum IN ('talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi')) as bekleyen,
+        COUNT(*) FILTER (WHERE s.durum = 'teslim_alindi') as tamamlanan,
+        COALESCE(SUM(s.toplam_tutar) FILTER (WHERE s.durum = 'siparis_verildi'), 0) as beklenen_tutar,
+        COALESCE(SUM(s.toplam_tutar) FILTER (WHERE s.durum = 'teslim_alindi' AND EXTRACT(MONTH FROM s.siparis_tarihi) = EXTRACT(MONTH FROM CURRENT_DATE)), 0) as bu_ay_harcama
+      FROM siparisler s${firmaJoin}
+      WHERE 1=1${firmaClause}
+    `,
+      params
+    );
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -400,9 +424,10 @@ router.get('/ozet', async (_req, res) => {
 router.get('/raporlar/proje-bazli', async (req, res) => {
   try {
     const { baslangic, bitis } = req.query;
+    const firmaId = getFirmaId(req);
 
-    let query = `
-      SELECT 
+    let sql = `
+      SELECT
         p.id,
         p.kod,
         p.ad,
@@ -414,14 +439,31 @@ router.get('/raporlar/proje-bazli', async (req, res) => {
     `;
 
     const params = [];
+    let paramCount = 0;
+    const conditions = [];
+
+    if (firmaId) {
+      paramCount++;
+      conditions.push(`p.firma_id = $${paramCount}`);
+      params.push(firmaId);
+    }
+
     if (baslangic && bitis) {
-      query += ` AND s.siparis_tarihi BETWEEN $1 AND $2`;
+      paramCount++;
+      const p1 = paramCount;
+      paramCount++;
+      const p2 = paramCount;
+      conditions.push(`s.siparis_tarihi BETWEEN $${p1} AND $${p2}`);
       params.push(baslangic, bitis);
     }
 
-    query += ` GROUP BY p.id ORDER BY toplam_harcama DESC`;
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
+    }
 
-    const result = await pool.query(query, params);
+    sql += ` GROUP BY p.id ORDER BY toplam_harcama DESC`;
+
+    const result = await pool.query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -432,27 +474,43 @@ router.get('/raporlar/proje-bazli', async (req, res) => {
 router.get('/raporlar/tedarikci-bazli', async (req, res) => {
   try {
     const { baslangic, bitis } = req.query;
+    const firmaId = getFirmaId(req);
 
-    let query = `
-      SELECT 
+    let sql = `
+      SELECT
         c.id,
         c.unvan,
         COUNT(s.id) as siparis_sayisi,
         COALESCE(SUM(s.toplam_tutar), 0) as toplam_tutar
       FROM cariler c
       INNER JOIN siparisler s ON c.id = s.tedarikci_id
-      WHERE c.tip = 'tedarikci'
     `;
 
     const params = [];
-    if (baslangic && bitis) {
-      query += ` AND s.siparis_tarihi BETWEEN $1 AND $2`;
-      params.push(baslangic, bitis);
+    let paramCount = 0;
+    const conditions = ["c.tip = 'tedarikci'"];
+
+    if (firmaId) {
+      paramCount++;
+      sql += ` LEFT JOIN projeler p ON s.proje_id = p.id`;
+      conditions.push(`(s.proje_id IS NULL OR p.firma_id = $${paramCount})`);
+      params.push(firmaId);
     }
 
-    query += ` GROUP BY c.id ORDER BY toplam_tutar DESC`;
+    sql += ` WHERE ${conditions.join(' AND ')}`;
 
-    const result = await pool.query(query, params);
+    if (baslangic && bitis) {
+      paramCount++;
+      sql += ` AND s.siparis_tarihi >= $${paramCount}`;
+      params.push(baslangic);
+      paramCount++;
+      sql += ` AND s.siparis_tarihi <= $${paramCount}`;
+      params.push(bitis);
+    }
+
+    sql += ` GROUP BY c.id ORDER BY toplam_tutar DESC`;
+
+    const result = await pool.query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

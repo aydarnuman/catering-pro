@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 import logger from '../utils/logger.js';
 import {
   atamaSchema,
@@ -25,27 +26,33 @@ const router = express.Router();
 // =====================================================
 // PERSONEL İSTATİSTİKLERİ (Dashboard Widget için)
 // =====================================================
-router.get('/stats', async (_req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT 
-        COUNT(*) as toplam_personel,
-        COUNT(*) FILTER (WHERE durum = 'aktif' OR durum IS NULL) as aktif_personel,
-        COUNT(*) FILTER (WHERE durum = 'izinli') as izinli_personel,
-        COUNT(*) FILTER (WHERE durum = 'pasif') as pasif_personel,
-        COALESCE(SUM(maas), 0) as toplam_maas,
-        COALESCE(AVG(maas), 0) as ortalama_maas
-      FROM personeller
-      WHERE isten_cikis_tarihi IS NULL
-    `);
+    const firmaId = getFirmaId(req);
+    const firmaJoin = firmaId
+      ? 'JOIN proje_personelleri pp2 ON pp2.personel_id = personeller.id AND pp2.aktif = TRUE JOIN projeler pr2 ON pr2.id = pp2.proje_id AND pr2.firma_id = $1'
+      : '';
+    const result = await query(
+      `SELECT
+        COUNT(DISTINCT personeller.id) as toplam_personel,
+        COUNT(DISTINCT personeller.id) FILTER (WHERE personeller.durum = 'aktif' OR personeller.durum IS NULL) as aktif_personel,
+        COUNT(DISTINCT personeller.id) FILTER (WHERE personeller.durum = 'izinli') as izinli_personel,
+        COUNT(DISTINCT personeller.id) FILTER (WHERE personeller.durum = 'pasif') as pasif_personel,
+        COALESCE(SUM(DISTINCT personeller.maas), 0) as toplam_maas,
+        COALESCE(AVG(personeller.maas), 0) as ortalama_maas
+      FROM personeller ${firmaJoin}
+      WHERE personeller.isten_cikis_tarihi IS NULL`,
+      firmaId ? [firmaId] : []
+    );
 
     // Bugün izinli olanlar
-    const izinResult = await query(`
-      SELECT COUNT(DISTINCT it.personel_id) as bugun_izinli
+    const izinResult = await query(
+      `SELECT COUNT(DISTINCT it.personel_id) as bugun_izinli
       FROM izin_talepleri it
       WHERE it.durum = 'onaylandi'
-      AND CURRENT_DATE BETWEEN it.baslangic_tarihi AND it.bitis_tarihi
-    `);
+      AND CURRENT_DATE BETWEEN it.baslangic_tarihi AND it.bitis_tarihi`,
+      []
+    );
 
     const stats = result.rows[0];
     const data = {
@@ -69,21 +76,32 @@ router.get('/stats', async (_req, res) => {
 router.get('/projeler', async (req, res) => {
   try {
     const { durum } = req.query;
+    const firmaId = getFirmaId(req);
 
     let sql = `
-      SELECT 
+      SELECT
         p.*,
         COALESCE((SELECT COUNT(*) FROM proje_personelleri pp WHERE pp.proje_id = p.id AND pp.aktif = TRUE), 0) as personel_sayisi,
-        COALESCE((SELECT SUM(per.maas) FROM proje_personelleri pp 
-                  JOIN personeller per ON per.id = pp.personel_id 
+        COALESCE((SELECT SUM(per.maas) FROM proje_personelleri pp
+                  JOIN personeller per ON per.id = pp.personel_id
                   WHERE pp.proje_id = p.id AND pp.aktif = TRUE), 0) as toplam_maas
       FROM projeler p
+      WHERE 1=1
     `;
 
     const params = [];
+    let paramIndex = 1;
+
+    if (firmaId) {
+      sql += ` AND p.firma_id = $${paramIndex}`;
+      params.push(firmaId);
+      paramIndex++;
+    }
+
     if (durum) {
-      sql += ` WHERE p.durum = $1`;
+      sql += ` AND p.durum = $${paramIndex}`;
       params.push(durum);
+      paramIndex++;
     }
 
     sql += ` ORDER BY p.created_at DESC`;
@@ -247,9 +265,10 @@ router.delete('/projeler/:id', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { departman, durum, proje_id, sadece_atamasiz } = req.query;
+    const firmaId = getFirmaId(req);
 
     let sql = `
-      SELECT 
+      SELECT
         p.*,
         COALESCE(
           (SELECT json_agg(
@@ -274,6 +293,13 @@ router.get('/', async (req, res) => {
 
     const params = [];
     let paramIndex = 1;
+
+    // Firma filtresi: sadece firmanın projelerine atanmış personelleri göster
+    if (firmaId) {
+      sql += ` AND p.id IN (SELECT pp3.personel_id FROM proje_personelleri pp3 JOIN projeler pr3 ON pr3.id = pp3.proje_id WHERE pr3.firma_id = $${paramIndex} AND pp3.aktif = TRUE)`;
+      params.push(firmaId);
+      paramIndex++;
+    }
 
     if (departman) {
       sql += ` AND p.departman = $${paramIndex}`;
@@ -750,16 +776,41 @@ router.delete('/atama/:atamaId', async (req, res) => {
 // =====================================================
 // İSTATİSTİKLER
 // =====================================================
-router.get('/stats/overview', async (_req, res) => {
+router.get('/stats/overview', async (req, res) => {
   try {
-    const stats = await query(`
-      SELECT 
-        (SELECT COUNT(*) FROM personeller WHERE durum = 'aktif' OR (durum IS NULL AND isten_cikis_tarihi IS NULL)) as toplam_personel,
-        (SELECT COUNT(*) FROM personeller WHERE durum = 'izinli') as izinli_personel,
-        (SELECT COUNT(*) FROM projeler WHERE durum = 'aktif') as aktif_proje,
-        (SELECT COALESCE(SUM(maas), 0) FROM personeller WHERE durum = 'aktif' OR (durum IS NULL AND isten_cikis_tarihi IS NULL)) as toplam_maas,
-        (SELECT COUNT(DISTINCT personel_id) FROM proje_personelleri WHERE aktif = TRUE) as gorevli_personel
-    `);
+    const firmaId = getFirmaId(req);
+    let stats;
+    if (firmaId) {
+      stats = await query(
+        `SELECT
+          (SELECT COUNT(*) FROM personeller per
+            JOIN proje_personelleri pp ON pp.personel_id = per.id AND pp.aktif = TRUE
+            JOIN projeler pr ON pr.id = pp.proje_id AND pr.firma_id = $1
+            WHERE per.durum = 'aktif' OR (per.durum IS NULL AND per.isten_cikis_tarihi IS NULL)) as toplam_personel,
+          (SELECT COUNT(*) FROM personeller per
+            JOIN proje_personelleri pp ON pp.personel_id = per.id AND pp.aktif = TRUE
+            JOIN projeler pr ON pr.id = pp.proje_id AND pr.firma_id = $1
+            WHERE per.durum = 'izinli') as izinli_personel,
+          (SELECT COUNT(*) FROM projeler WHERE durum = 'aktif' AND firma_id = $1) as aktif_proje,
+          (SELECT COALESCE(SUM(per.maas), 0) FROM personeller per
+            JOIN proje_personelleri pp ON pp.personel_id = per.id AND pp.aktif = TRUE
+            JOIN projeler pr ON pr.id = pp.proje_id AND pr.firma_id = $1
+            WHERE per.durum = 'aktif' OR (per.durum IS NULL AND per.isten_cikis_tarihi IS NULL)) as toplam_maas,
+          (SELECT COUNT(DISTINCT pp.personel_id) FROM proje_personelleri pp
+            JOIN projeler pr ON pr.id = pp.proje_id AND pr.firma_id = $1
+            WHERE pp.aktif = TRUE) as gorevli_personel`,
+        [firmaId]
+      );
+    } else {
+      stats = await query(`
+        SELECT
+          (SELECT COUNT(*) FROM personeller WHERE durum = 'aktif' OR (durum IS NULL AND isten_cikis_tarihi IS NULL)) as toplam_personel,
+          (SELECT COUNT(*) FROM personeller WHERE durum = 'izinli') as izinli_personel,
+          (SELECT COUNT(*) FROM projeler WHERE durum = 'aktif') as aktif_proje,
+          (SELECT COALESCE(SUM(maas), 0) FROM personeller WHERE durum = 'aktif' OR (durum IS NULL AND isten_cikis_tarihi IS NULL)) as toplam_maas,
+          (SELECT COUNT(DISTINCT personel_id) FROM proje_personelleri WHERE aktif = TRUE) as gorevli_personel
+      `);
+    }
 
     res.json({ success: true, data: stats.rows[0] });
   } catch (error) {

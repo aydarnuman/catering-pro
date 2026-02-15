@@ -42,6 +42,16 @@ const userTypeEnum = z.enum(['super_admin', 'admin', 'user'], {
 export const loginSchema = z.object({
   email: emailField,
   password: z.string({ required_error: 'Şifre gerekli' }).min(1, 'Şifre gerekli'),
+  firma_id: z.coerce.number().int().positive('Geçerli bir firma ID gerekli').optional(),
+});
+
+// ─── Firma değiştirme ────────────────────────────────────────
+
+export const switchFirmaSchema = z.object({
+  firma_id: z.coerce
+    .number({ required_error: 'Firma ID gerekli' })
+    .int('Firma ID tam sayı olmalı')
+    .positive('Firma ID pozitif olmalı'),
 });
 
 // ─── Register ────────────────────────────────────────────────
@@ -52,6 +62,7 @@ export const registerSchema = z.object({
   name: nameField,
   role: roleEnum.optional().default('user'),
   user_type: userTypeEnum.optional(),
+  firma_ids: z.array(z.coerce.number().int().positive()).min(1, 'En az bir firma seçilmelidir'),
 });
 
 // ─── Profil güncelleme ───────────────────────────────────────
@@ -81,6 +92,7 @@ export const updateUserSchema = z
     role: roleEnum.optional(),
     user_type: userTypeEnum.optional(),
     is_active: z.boolean({ invalid_type_error: 'is_active boolean olmalı' }).optional(),
+    firma_ids: z.array(z.coerce.number().int().positive()).min(1).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'En az bir alan güncellenmeli',

@@ -74,6 +74,7 @@ async function extractAndVerifyUser(req) {
       userType,
       role: profile.role,
       isSuperAdmin: userType === 'super_admin',
+      firma_id: decoded.firma_id || null,
     },
     error: null,
   };

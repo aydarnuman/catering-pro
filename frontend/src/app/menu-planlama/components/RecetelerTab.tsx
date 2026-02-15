@@ -27,11 +27,12 @@ import type { KategoriInfo } from './types';
 
 interface RecetelerTabProps {
   fetchReceteDetay: (receteId: number) => void;
+  onMaliyetClick: (receteId: number) => void;
   KATEGORILER: KategoriInfo[];
   isActive: boolean;
 }
 
-export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: RecetelerTabProps) {
+export function RecetelerTab({ fetchReceteDetay, onMaliyetClick, KATEGORILER, isActive }: RecetelerTabProps) {
   const queryClient = useQueryClient();
 
   // Local state
@@ -490,9 +491,19 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
                       <Text size="lg">{kategoriInfo?.ikon || recete.kategori_ikon || '🍽️'}</Text>
                     </Box>
                     {maliyet > 0 && !Number.isNaN(maliyet) && (
-                      <Text size="sm" fw={600} c="teal">
+                      <Badge
+                        size="sm"
+                        variant="light"
+                        color="teal"
+                        radius="sm"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          onMaliyetClick(recete.id);
+                        }}
+                      >
                         ₺{maliyet.toFixed(2)}
-                      </Text>
+                      </Badge>
                     )}
                   </Group>
 

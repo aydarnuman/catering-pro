@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { validate } from '../middleware/validate.js';
+import { getFirmaId, validateProjeAccess } from '../utils/firma-filter.js';
 import {
   avansSchema,
   aylikOdemeSchema,
@@ -25,6 +26,12 @@ const router = express.Router();
 router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     // Personel listesi ve maaş bilgileri
     const personelResult = await query(
@@ -112,6 +119,12 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
 router.post('/olustur/:projeId/:yil/:ay', async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     // Mevcut personelleri al ve maaş ödemesi oluştur
     const result = await query(
@@ -179,6 +192,12 @@ router.patch('/personel-odeme/:personelId', validate(personelOdemeSchema), async
   try {
     const { personelId } = req.params;
     const { proje_id, yil, ay, elden_fark, avans, prim } = req.body;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId && proje_id) {
+      const hasAccess = await validateProjeAccess(query, proje_id, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     // Önce personelden bordro_maas'ı al
     const personelRes = await query('SELECT bordro_maas FROM personeller WHERE id = $1', [personelId]);
@@ -217,6 +236,13 @@ router.patch('/personel-odeme/:personelId', validate(personelOdemeSchema), async
 router.patch('/toplu-odendi/:projeId/:yil/:ay', validate(odendiSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
+
     const { tip, odendi } = req.body;
 
     const field = tip === 'banka' ? 'banka_odendi' : 'elden_odendi';
@@ -269,6 +295,12 @@ router.get('/avans/:personelId', async (req, res) => {
 router.post('/avans', validate(avansSchema), async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli, mahsup_ay, mahsup_yil } = req.body;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId && proje_id) {
+      const hasAccess = await validateProjeAccess(query, proje_id, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     const result = await query(
       `
@@ -330,6 +362,12 @@ router.get('/prim/:personelId', async (req, res) => {
 router.post('/prim', validate(primSchema), async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil } = req.body;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId && proje_id) {
+      const hasAccess = await validateProjeAccess(query, proje_id, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     const result = await query(
       `
@@ -395,6 +433,13 @@ router.patch('/personel/:maasOdemeId', validate(personelMaasDetaySchema), async 
 router.get('/proje-ayarlari/:projeId', async (req, res) => {
   try {
     const { projeId } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
+
     const result = await query(
       `
       SELECT * FROM proje_maas_ayarlari WHERE proje_id = $1
@@ -414,6 +459,13 @@ router.get('/proje-ayarlari/:projeId', async (req, res) => {
 router.post('/proje-ayarlari/:projeId', validate(projeAyarlariSchema), async (req, res) => {
   try {
     const { projeId } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
+
     const { odeme_gunu, banka_adi, iban } = req.body;
 
     const result = await query(
@@ -446,6 +498,12 @@ router.post('/proje-ayarlari/:projeId', validate(projeAyarlariSchema), async (re
 router.get('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
 
     // Kayıt yoksa oluştur
     await query(
@@ -478,6 +536,13 @@ router.get('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
 router.patch('/aylik-odeme/:projeId/:yil/:ay', validate(aylikOdemeSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
+
     const { field, odendi } = req.body;
 
     // Güvenlik: sadece izin verilen alanlar
@@ -530,6 +595,13 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', validate(aylikOdemeSchema), async
 router.post('/finalize/:projeId/:yil/:ay', validate(finalizeSchema), async (req, res) => {
   try {
     const { projeId, yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    if (firmaId) {
+      const hasAccess = await validateProjeAccess(query, projeId, firmaId);
+      if (!hasAccess) return res.status(403).json({ success: false, error: 'Bu projeye erişim yetkiniz yok' });
+    }
+
     const { maas, sgk, vergi } = req.body;
     const tarih = `${yil}-${String(ay).padStart(2, '0')}-15`;
 

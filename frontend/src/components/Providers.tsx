@@ -7,6 +7,7 @@ import { UnifiedNotesModal } from '@/components/notes';
 import { QuickNotePopover } from '@/components/notes/QuickNotePopover';
 import { ReminderPoller } from '@/components/notes/ReminderPoller';
 import { AuthProvider } from '@/context/AuthContext';
+import { FirmaProvider } from '@/context/FirmaContext';
 import { NotesProvider, useNotesModal } from '@/context/NotesContext';
 import { PreferencesProvider } from '@/context/PreferencesContext';
 import { RealtimeProvider } from '@/context/RealtimeContext';
@@ -105,20 +106,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <PreferencesProvider>
-            <AuthModalProvider>
-              <RealtimeProvider>
-                <NotesProvider>
-                  {children}
-                  <UnifiedNotesModal />
-                  <QuickNotePopover />
-                  <ReminderPoller />
-                  <NotesKeyboardShortcuts />
-                  <NotesDeepLinkListener />
-                </NotesProvider>
-              </RealtimeProvider>
-            </AuthModalProvider>
-          </PreferencesProvider>
+          <FirmaProvider>
+            <PreferencesProvider>
+              <AuthModalProvider>
+                <RealtimeProvider>
+                  <NotesProvider>
+                    {children}
+                    <UnifiedNotesModal />
+                    <QuickNotePopover />
+                    <ReminderPoller />
+                    <NotesKeyboardShortcuts />
+                    <NotesDeepLinkListener />
+                  </NotesProvider>
+                </RealtimeProvider>
+              </AuthModalProvider>
+            </PreferencesProvider>
+          </FirmaProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

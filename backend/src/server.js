@@ -10,7 +10,7 @@ import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { pool } from './database.js';
-import { authenticate } from './middleware/auth.js';
+import { authenticate, optionalAuth } from './middleware/auth.js';
 import { globalErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { ipAccessControl } from './middleware/ip-access-control.js';
 import { adminLimiter, apiLimiter, authLimiter } from './middleware/rate-limiter.js';
@@ -171,6 +171,92 @@ app.get('/', (req, res) => {
     health: `${base}/health`,
   });
 });
+
+// /api/health alias - /health ile tutarlılık için (her iki URL de çalışsın)
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbResult = await pool.query('SELECT NOW()');
+    res.json({
+      status: 'ok',
+      timestamp: dbResult.rows[0]?.now || new Date().toISOString(),
+      database: 'connected',
+      uptime: Math.round(process.uptime()),
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'development',
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', database: 'disconnected', message: error.message });
+  }
+});
+
+// DEV TOKEN - Sadece development modunda çalışır
+// Backend'i auth token olmadan test etmek için kullanılır
+// curl http://localhost:3001/api/dev/token
+// curl http://localhost:3001/api/dev/token?email=admin@example.com
+if (process.env.NODE_ENV !== 'production') {
+  const jwtLib = await import('jsonwebtoken');
+
+  app.get('/api/dev/token', async (req, res) => {
+    try {
+      const email = req.query.email;
+      let user;
+
+      if (email) {
+        const result = await pool.query('SELECT id, email, name, role, user_type FROM users WHERE email = $1 AND is_active = true', [email]);
+        user = result.rows[0];
+      }
+
+      if (!user) {
+        // İlk admin kullanıcıyı bul
+        const result = await pool.query(
+          `SELECT id, email, name, role, user_type FROM users WHERE is_active = true ORDER BY CASE WHEN user_type = 'super_admin' THEN 1 WHEN user_type = 'admin' THEN 2 ELSE 3 END, id ASC LIMIT 1`
+        );
+        user = result.rows[0];
+      }
+
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'Aktif kullanıcı bulunamadı' });
+      }
+
+      const token = jwtLib.default.sign(
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          user_type: user.user_type || 'user',
+          firma_id: null,
+          type: 'access',
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Cookie'ye de yaz (browser testleri için)
+      res.cookie('access_token', token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
+      res.json({
+        success: true,
+        message: '⚠️ DEV ONLY - Production\'da bu endpoint mevcut değildir',
+        token,
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, user_type: user.user_type },
+        usage: {
+          curl: `curl -H "Authorization: Bearer ${token}" http://localhost:${PORT}/api/auth/me`,
+          cookie: 'Token cookie\'ye de yazıldı - browser\'dan direkt test edebilirsiniz',
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  logger.info('🔑 DEV TOKEN endpoint aktif: /api/dev/token');
+}
 
 /**
  * @swagger
@@ -354,7 +440,7 @@ app.use('/api/mutabakat', mutabakatRouter);
 app.use('/api/bordro-import', bordroImportRouter);
 app.use('/api/maas-odeme', maasOdemeRouter);
 app.use('/api/proje-hareketler', projeHareketlerRouter);
-app.use('/api/projeler', projelerRouter);
+app.use('/api/projeler', optionalAuth, projelerRouter);
 app.use('/api/planlama', authenticate, planlamaRouter);
 app.use('/api/menu-planlama', authenticate, menuPlanlamaRouter);
 app.use('/api/kurum-menuleri', authenticate, kurumMenuleriRouter);

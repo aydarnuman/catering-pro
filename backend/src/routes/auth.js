@@ -24,6 +24,7 @@ import {
   loginAttemptsQuerySchema,
   loginSchema,
   registerSchema,
+  switchFirmaSchema,
   updateIpRuleSchema,
   updateProfileSchema,
   updateUserSchema,
@@ -76,7 +77,7 @@ const hashToken = (token) => {
  */
 router.post('/login', validate(loginSchema), async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, firma_id } = req.body;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
 
@@ -142,10 +143,38 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     // Başarılı login
     await loginAttemptService.recordSuccessfulLogin(user.id, ipAddress, userAgent);
 
+    // Firma erişim kontrolü
+    let validatedFirmaId = null;
+    if (firma_id) {
+      const isSuperAdmin = user.user_type === 'super_admin';
+      if (isSuperAdmin) {
+        // Super admin tüm firmalara erişebilir
+        const firmaCheck = await query('SELECT id FROM firmalar WHERE id = $1 AND aktif = true', [firma_id]);
+        if (firmaCheck.rows.length === 0) {
+          return res.status(400).json({ success: false, error: 'Firma bulunamadı veya aktif değil' });
+        }
+        validatedFirmaId = firma_id;
+      } else {
+        const firmaAccess = await query(
+          'SELECT 1 FROM kullanici_firmalari WHERE user_id = $1 AND firma_id = $2 AND aktif = true',
+          [user.id, firma_id]
+        );
+        if (firmaAccess.rows.length === 0) {
+          return res.status(403).json({
+            success: false,
+            error: 'Bu firmaya erişim yetkiniz yok',
+            code: 'FIRMA_ACCESS_DENIED',
+          });
+        }
+        validatedFirmaId = firma_id;
+      }
+    }
+
     logger.info('User logged in successfully', {
       userId: user.id,
       email: user.email,
       role: user.role,
+      firma_id: validatedFirmaId,
     });
 
     // JWT Access Token oluştur (24 saat)
@@ -155,6 +184,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         email: user.email,
         role: user.role,
         user_type: user.user_type || 'user',
+        firma_id: validatedFirmaId,
         type: 'access',
       },
       JWT_SECRET,
@@ -212,12 +242,18 @@ router.post('/login', validate(loginSchema), async (req, res) => {
  */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { email, password, name, role, user_type } = req.body;
+    const { email, password, name, role, user_type, firma_ids } = req.body;
 
     // Email kontrolü
     const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Bu email zaten kullanılıyor' });
+    }
+
+    // Firma ID'leri doğrula
+    const firmaCheck = await query(`SELECT id FROM firmalar WHERE id = ANY($1) AND aktif = true`, [firma_ids]);
+    if (firmaCheck.rows.length !== firma_ids.length) {
+      return res.status(400).json({ success: false, error: 'Geçersiz veya aktif olmayan firma seçildi' });
     }
 
     // Şifre hash
@@ -228,20 +264,28 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 
     // Kullanıcı oluştur
     const result = await query(
-      `
-      INSERT INTO users (email, password_hash, name, role, user_type)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, email, name, role, user_type
-    `,
+      `INSERT INTO users (email, password_hash, name, role, user_type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, name, role, user_type`,
       [email, passwordHash, name, role, finalUserType]
     );
 
-    logAuth('User registered', result.rows[0].id, { email, role, userType: finalUserType });
+    const newUser = result.rows[0];
+
+    // Firma atamalarını oluştur
+    for (const firmaId of firma_ids) {
+      await query('INSERT INTO kullanici_firmalari (user_id, firma_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
+        newUser.id,
+        firmaId,
+      ]);
+    }
+
+    logAuth('User registered', newUser.id, { email, role, userType: finalUserType, firma_ids });
 
     res.json({
       success: true,
       message: 'Kullanıcı oluşturuldu',
-      user: result.rows[0],
+      user: newUser,
     });
   } catch (error) {
     logger.error('Register hatası', { error: error.message });
@@ -254,6 +298,14 @@ router.post('/register', validate(registerSchema), async (req, res) => {
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
+    let firmaInfo = null;
+    if (req.user.firma_id) {
+      const firmaResult = await query('SELECT id, unvan, kisa_ad FROM firmalar WHERE id = $1', [req.user.firma_id]);
+      if (firmaResult.rows.length > 0) {
+        firmaInfo = firmaResult.rows[0];
+      }
+    }
+
     res.json({
       success: true,
       user: {
@@ -262,11 +314,92 @@ router.get('/me', authenticate, async (req, res) => {
         name: req.user.name,
         role: req.user.role,
         user_type: req.user.user_type || 'user',
+        firma_id: req.user.firma_id || null,
+        firma: firmaInfo,
       },
     });
   } catch (error) {
     logger.error('Auth hatası', { error: error.message });
     res.status(500).json({ success: false, error: 'Kullanıcı bilgisi alınamadı' });
+  }
+});
+
+/**
+ * FIRMALAR - Kullanıcının erişebildiği firmalar
+ */
+router.get('/firmalar', authenticate, async (req, res) => {
+  try {
+    let result;
+    if (req.user.isSuperAdmin) {
+      // Super admin tüm aktif firmaları görebilir
+      result = await query('SELECT id, unvan, kisa_ad, vergi_no FROM firmalar WHERE aktif = true ORDER BY unvan ASC');
+    } else {
+      result = await query(
+        `SELECT f.id, f.unvan, f.kisa_ad, f.vergi_no
+         FROM kullanici_firmalari kf
+         JOIN firmalar f ON f.id = kf.firma_id
+         WHERE kf.user_id = $1 AND kf.aktif = true AND f.aktif = true
+         ORDER BY f.unvan ASC`,
+        [req.user.id]
+      );
+    }
+
+    res.json({ success: true, firmalar: result.rows });
+  } catch (error) {
+    logger.error('Firma listesi hatası', { error: error.message });
+    res.status(500).json({ success: false, error: 'Firma listesi alınamadı' });
+  }
+});
+
+/**
+ * SWITCH-FIRMA - Aktif firma değiştir (yeni JWT oluştur)
+ */
+router.post('/switch-firma', authenticate, validate(switchFirmaSchema), async (req, res) => {
+  try {
+    const { firma_id } = req.body;
+
+    // Erişim kontrolü
+    let firmaRow;
+    if (req.user.isSuperAdmin) {
+      const result = await query('SELECT id, unvan, kisa_ad FROM firmalar WHERE id = $1 AND aktif = true', [firma_id]);
+      firmaRow = result.rows[0];
+    } else {
+      const result = await query(
+        `SELECT f.id, f.unvan, f.kisa_ad
+         FROM kullanici_firmalari kf
+         JOIN firmalar f ON f.id = kf.firma_id
+         WHERE kf.user_id = $1 AND kf.firma_id = $2 AND kf.aktif = true AND f.aktif = true`,
+        [req.user.id, firma_id]
+      );
+      firmaRow = result.rows[0];
+    }
+
+    if (!firmaRow) {
+      return res.status(403).json({ success: false, error: 'Bu firmaya erişim yetkiniz yok' });
+    }
+
+    // Yeni JWT oluştur
+    const newAccessToken = jwt.sign(
+      {
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+        user_type: req.user.user_type || 'user',
+        firma_id,
+        type: 'access',
+      },
+      JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+
+    res.cookie('access_token', newAccessToken, getCookieOptions(COOKIE_MAX_AGE));
+
+    logger.info('User switched firma', { userId: req.user.id, firma_id, firma: firmaRow.unvan });
+
+    res.json({ success: true, token: newAccessToken, firma: firmaRow });
+  } catch (error) {
+    logger.error('Switch firma hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -429,6 +562,18 @@ router.post('/refresh', async (req, res) => {
       logger.debug('Session activity güncellenemedi', { error: sessionError.message });
     }
 
+    // Mevcut access token'dan firma_id'yi al (varsa)
+    let currentFirmaId = null;
+    try {
+      const currentAccessToken = req.cookies?.access_token;
+      if (currentAccessToken) {
+        const decoded = jwt.verify(currentAccessToken, JWT_SECRET, { ignoreExpiration: true });
+        currentFirmaId = decoded.firma_id || null;
+      }
+    } catch (_decodeErr) {
+      // firma_id alınamazsa null kalır
+    }
+
     // Yeni access token oluştur
     const newAccessToken = jwt.sign(
       {
@@ -436,6 +581,7 @@ router.post('/refresh', async (req, res) => {
         email: tokenRecord.email,
         role: tokenRecord.role,
         user_type: tokenRecord.user_type || 'user',
+        firma_id: currentFirmaId,
         type: 'access',
       },
       JWT_SECRET,
@@ -523,6 +669,22 @@ router.get('/users', authenticate, requireAdmin, async (_req, res) => {
       }
     }
 
+    // Her kullanıcının firma atamalarını al
+    const firmaResult = await query(
+      `SELECT kf.user_id, kf.firma_id, f.unvan, f.kisa_ad
+       FROM kullanici_firmalari kf
+       JOIN firmalar f ON f.id = kf.firma_id
+       WHERE kf.aktif = true AND f.aktif = true
+       ORDER BY f.unvan`
+    );
+
+    // user_id bazlı grupla
+    const firmaMap = {};
+    for (const row of firmaResult.rows) {
+      if (!firmaMap[row.user_id]) firmaMap[row.user_id] = [];
+      firmaMap[row.user_id].push({ id: row.firma_id, unvan: row.unvan, kisa_ad: row.kisa_ad });
+    }
+
     res.json({
       success: true,
       users: result.rows.map((u) => ({
@@ -533,6 +695,8 @@ router.get('/users', authenticate, requireAdmin, async (_req, res) => {
         failedAttempts: u.failed_login_attempts || 0,
         lockoutCount: u.lockout_count || 0,
         lastFailedLogin: u.last_failed_login || null,
+        firmalar: firmaMap[u.id] || [],
+        firma_ids: (firmaMap[u.id] || []).map((f) => f.id),
       })),
     });
   } catch (error) {
@@ -547,7 +711,7 @@ router.get('/users', authenticate, requireAdmin, async (_req, res) => {
 router.put('/users/:id', authenticate, requireAdmin, validate(updateUserSchema), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, password, role, user_type, is_active } = req.body;
+    const { name, email, password, role, user_type, is_active, firma_ids } = req.body;
 
     let passwordHash = null;
     if (password) {
@@ -605,16 +769,27 @@ router.put('/users/:id', authenticate, requireAdmin, validate(updateUserSchema),
     values.push(id);
 
     const result = await query(
-      `
-      UPDATE users SET ${updateFields.join(', ')}
-      WHERE id = $${paramCount}
-      RETURNING id, email, name, role, user_type, is_active, created_at
-    `,
+      `UPDATE users SET ${updateFields.join(', ')}
+       WHERE id = $${paramCount}
+       RETURNING id, email, name, role, user_type, is_active, created_at`,
       values
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+    }
+
+    // Firma atamalarını güncelle (varsa)
+    if (firma_ids) {
+      // Mevcut atamaları kaldır
+      await query('DELETE FROM kullanici_firmalari WHERE user_id = $1', [id]);
+      // Yeni atamaları ekle
+      for (const firmaId of firma_ids) {
+        await query('INSERT INTO kullanici_firmalari (user_id, firma_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
+          id,
+          firmaId,
+        ]);
+      }
     }
 
     res.json({

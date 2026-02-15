@@ -1,15 +1,22 @@
 'use client';
 
-import { Button, Group, Modal, PasswordInput, Select, Stack, Switch, TextInput } from '@mantine/core';
+import { Button, Group, Modal, MultiSelect, PasswordInput, Select, Stack, Switch, TextInput } from '@mantine/core';
 import type { User } from '@/lib/api/services/admin';
 
-interface UserFormData {
+interface FirmaOption {
+  id: number;
+  unvan: string;
+  kisa_ad: string | null;
+}
+
+export interface UserFormData {
   name: string;
   email: string;
   password: string;
   role: string;
   user_type: 'super_admin' | 'admin' | 'user';
   is_active: boolean;
+  firma_ids: string[];
 }
 
 interface UserFormModalProps {
@@ -20,6 +27,7 @@ interface UserFormModalProps {
   setFormData: (data: UserFormData) => void;
   onSave: () => void;
   submitting: boolean;
+  availableFirmalar: FirmaOption[];
 }
 
 export function UserFormModal({
@@ -30,6 +38,7 @@ export function UserFormModal({
   setFormData,
   onSave,
   submitting,
+  availableFirmalar,
 }: UserFormModalProps) {
   return (
     <Modal opened={opened} onClose={onClose} title={editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'} size="md">
@@ -60,9 +69,9 @@ export function UserFormModal({
           label="Kullanıcı Tipi"
           description="Kullanıcının yetki seviyesini belirler"
           data={[
-            { value: 'user', label: '👤 Kullanıcı' },
-            { value: 'admin', label: '🛡️ Yönetici' },
-            { value: 'super_admin', label: '👑 Süper Admin' },
+            { value: 'user', label: 'Kullanıcı' },
+            { value: 'admin', label: 'Yönetici' },
+            { value: 'super_admin', label: 'Süper Admin' },
           ]}
           value={formData.user_type}
           onChange={(value) => {
@@ -70,6 +79,19 @@ export function UserFormModal({
             const role = userType === 'super_admin' || userType === 'admin' ? 'admin' : 'user';
             setFormData({ ...formData, user_type: userType, role });
           }}
+        />
+        <MultiSelect
+          label="Firmalar"
+          description="Kullanıcının erişebileceği firmaları seçin"
+          placeholder="Firma seçin..."
+          data={(availableFirmalar ?? []).map((f) => ({
+            value: String(f.id),
+            label: f.kisa_ad || f.unvan,
+          }))}
+          value={formData.firma_ids}
+          onChange={(value) => setFormData({ ...formData, firma_ids: value })}
+          required
+          searchable={availableFirmalar.length > 5}
         />
         <Switch
           label="Aktif"

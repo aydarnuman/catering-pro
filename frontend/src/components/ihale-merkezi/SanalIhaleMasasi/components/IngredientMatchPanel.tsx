@@ -89,7 +89,7 @@ export function IngredientMatchPanel({ agentColor = 'green' }: IngredientMatchPa
             variant="light"
             color={agentColor}
             leftSection={<IconPlus size={14} />}
-            onClick={() => router.push('/menu-planlama?tab=menuler&subtab=kurum')}
+            onClick={() => router.push('/menu-planlama?mode=kurum')}
           >
             Menu Olustur
           </Button>
@@ -101,7 +101,7 @@ export function IngredientMatchPanel({ agentColor = 'green' }: IngredientMatchPa
               <MenuShortCard
                 key={menu.id}
                 menu={menu}
-                onClick={() => router.push('/menu-planlama?tab=menuler&subtab=kurum')}
+                onClick={() => router.push('/menu-planlama?mode=kurum')}
               />
             ))}
           </Stack>
@@ -116,7 +116,7 @@ export function IngredientMatchPanel({ agentColor = 'green' }: IngredientMatchPa
         color="gray"
         size="xs"
         rightSection={<IconExternalLink size={14} />}
-        onClick={() => router.push('/menu-planlama?tab=menuler&subtab=kurum')}
+        onClick={() => router.push('/menu-planlama?mode=kurum')}
         fullWidth
       >
         Tum Kurum Menuleri

@@ -23,6 +23,8 @@ export interface User {
   failedAttempts?: number;
   lockoutCount?: number;
   created_at: string;
+  firmalar?: { id: number; unvan: string; kisa_ad: string | null }[];
+  firma_ids?: number[];
 }
 
 // Admin API
@@ -63,6 +65,7 @@ export const adminAPI = {
     role?: string;
     user_type?: 'super_admin' | 'admin' | 'user';
     is_active?: boolean;
+    firma_ids: number[];
   }): Promise<ApiResponse<User>> {
     const response = await api.post('/api/auth/register', data);
     return response.data;
@@ -80,6 +83,7 @@ export const adminAPI = {
       role?: string;
       user_type?: 'super_admin' | 'admin' | 'user';
       is_active?: boolean;
+      firma_ids?: number[];
     }
   ): Promise<ApiResponse<User>> {
     const response = await api.put(`/api/auth/users/${userId}`, data);

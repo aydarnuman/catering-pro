@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { validate } from '../middleware/validate.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 import {
   donemSilSchema,
   hesaplaSchema,
@@ -539,6 +540,7 @@ router.post('/kaydet', validate(kaydetSchema), async (req, res) => {
 router.post('/toplu-hesapla', validate(topluHesaplaSchema), async (req, res) => {
   try {
     const { yil, ay, proje_id } = req.body;
+    const firmaId = getFirmaId(req);
 
     // Aktif personelleri al
     let sql = `
@@ -546,10 +548,19 @@ router.post('/toplu-hesapla', validate(topluHesaplaSchema), async (req, res) => 
       WHERE p.durum = 'aktif' OR (p.durum IS NULL AND p.isten_cikis_tarihi IS NULL)
     `;
     const params = [];
+    let paramIdx = 1;
 
     if (proje_id) {
-      sql += ` AND p.id IN (SELECT personel_id FROM proje_personelleri WHERE proje_id = $1 AND aktif = TRUE)`;
+      sql += ` AND p.id IN (SELECT personel_id FROM proje_personelleri WHERE proje_id = $${paramIdx} AND aktif = TRUE)`;
       params.push(proje_id);
+      paramIdx++;
+    }
+
+    // Firma filtresi
+    if (firmaId) {
+      sql += ` AND p.id IN (SELECT pp.personel_id FROM proje_personelleri pp JOIN projeler pr ON pr.id = pp.proje_id WHERE pr.firma_id = $${paramIdx} AND pp.aktif = TRUE)`;
+      params.push(firmaId);
+      paramIdx++;
     }
 
     const personellerResult = await query(sql, params);
@@ -706,6 +717,7 @@ router.post('/toplu-hesapla', validate(topluHesaplaSchema), async (req, res) => 
 router.get('/', async (req, res) => {
   try {
     const { yil, ay, odeme_durumu } = req.query;
+    const firmaId = getFirmaId(req);
 
     let sql = `
       SELECT b.*, b.kaynak, b.kaynak_dosya, p.ad, p.soyad, p.tc_kimlik, p.departman, p.pozisyon
@@ -715,6 +727,13 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
     let paramIndex = 1;
+
+    // Firma filtresi
+    if (firmaId) {
+      sql += ` AND p.id IN (SELECT pp.personel_id FROM proje_personelleri pp JOIN projeler pr ON pr.id = pp.proje_id WHERE pr.firma_id = $${paramIndex} AND pp.aktif = TRUE)`;
+      params.push(firmaId);
+      paramIndex++;
+    }
 
     if (yil) {
       sql += ` AND b.yil = $${paramIndex}`;
@@ -747,25 +766,31 @@ router.get('/', async (req, res) => {
 router.get('/ozet/:yil/:ay', async (req, res) => {
   try {
     const { yil, ay } = req.params;
+    const firmaId = getFirmaId(req);
+
+    const params = [yil, ay];
+    let firmaClause = '';
+    if (firmaId) {
+      firmaClause = ` AND b.personel_id IN (SELECT pp.personel_id FROM proje_personelleri pp JOIN projeler pr ON pr.id = pp.proje_id WHERE pr.firma_id = $3 AND pp.aktif = TRUE)`;
+      params.push(firmaId);
+    }
 
     const result = await query(
-      `
-      SELECT 
+      `SELECT
         COUNT(*) as personel_sayisi,
-        COALESCE(SUM(brut_toplam), 0) as toplam_brut,
-        COALESCE(SUM(net_maas), 0) as toplam_net,
-        COALESCE(SUM(toplam_isci_sgk), 0) as toplam_sgk_isci,
-        COALESCE(SUM(toplam_isveren_sgk), 0) as toplam_sgk_isveren,
-        COALESCE(SUM(gelir_vergisi), 0) as toplam_gelir_vergisi,
-        COALESCE(SUM(damga_vergisi), 0) as toplam_damga_vergisi,
-        COALESCE(SUM(agi_tutari), 0) as toplam_agi,
-        COALESCE(SUM(toplam_maliyet), 0) as toplam_maliyet,
-        COUNT(*) FILTER (WHERE odeme_durumu = 'odendi') as odenen,
-        COUNT(*) FILTER (WHERE odeme_durumu = 'beklemede') as bekleyen
-      FROM bordro_kayitlari
-      WHERE yil = $1 AND ay = $2
-    `,
-      [yil, ay]
+        COALESCE(SUM(b.brut_toplam), 0) as toplam_brut,
+        COALESCE(SUM(b.net_maas), 0) as toplam_net,
+        COALESCE(SUM(b.toplam_isci_sgk), 0) as toplam_sgk_isci,
+        COALESCE(SUM(b.toplam_isveren_sgk), 0) as toplam_sgk_isveren,
+        COALESCE(SUM(b.gelir_vergisi), 0) as toplam_gelir_vergisi,
+        COALESCE(SUM(b.damga_vergisi), 0) as toplam_damga_vergisi,
+        COALESCE(SUM(b.agi_tutari), 0) as toplam_agi,
+        COALESCE(SUM(b.toplam_maliyet), 0) as toplam_maliyet,
+        COUNT(*) FILTER (WHERE b.odeme_durumu = 'odendi') as odenen,
+        COUNT(*) FILTER (WHERE b.odeme_durumu = 'beklemede') as bekleyen
+      FROM bordro_kayitlari b
+      WHERE b.yil = $1 AND b.ay = $2${firmaClause}`,
+      params
     );
 
     res.json({ success: true, data: result.rows[0] });

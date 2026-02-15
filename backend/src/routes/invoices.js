@@ -8,6 +8,7 @@ import { query, transaction } from '../database.js';
 import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 import logger from '../utils/logger.js';
 import { createInvoiceSchema, updateInvoiceSchema, updateInvoiceStatusSchema } from '../validations/invoices.js';
 
@@ -21,19 +22,24 @@ const router = express.Router();
  */
 router.get('/stats', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT 
+    const firmaId = getFirmaId(req);
+    const firmaClause = firmaId
+      ? ' AND (i.proje_id IS NULL OR i.proje_id IN (SELECT id FROM projeler WHERE firma_id = $1))'
+      : '';
+    const result = await query(
+      `SELECT
         COUNT(*) as toplam_fatura,
-        COUNT(*) FILTER (WHERE status = 'WaitingForAprovement') as bekleyen_fatura,
-        COUNT(*) FILTER (WHERE status = 'Approved') as onaylanan_fatura,
-        COUNT(*) FILTER (WHERE status = 'Rejected') as reddedilen_fatura,
-        COUNT(*) FILTER (WHERE due_date = CURRENT_DATE) as bugun_vade,
-        COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status != 'Paid') as geciken_fatura,
-        COALESCE(SUM(total_amount), 0) as toplam_tutar,
-        COALESCE(SUM(CASE WHEN status = 'WaitingForAprovement' THEN total_amount ELSE 0 END), 0) as bekleyen_tutar
-      FROM invoices
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-    `);
+        COUNT(*) FILTER (WHERE i.status = 'WaitingForAprovement') as bekleyen_fatura,
+        COUNT(*) FILTER (WHERE i.status = 'Approved') as onaylanan_fatura,
+        COUNT(*) FILTER (WHERE i.status = 'Rejected') as reddedilen_fatura,
+        COUNT(*) FILTER (WHERE i.due_date = CURRENT_DATE) as bugun_vade,
+        COUNT(*) FILTER (WHERE i.due_date < CURRENT_DATE AND i.status != 'Paid') as geciken_fatura,
+        COALESCE(SUM(i.total_amount), 0) as toplam_tutar,
+        COALESCE(SUM(CASE WHEN i.status = 'WaitingForAprovement' THEN i.total_amount ELSE 0 END), 0) as bekleyen_tutar
+      FROM invoices i
+      WHERE i.created_at >= NOW() - INTERVAL '30 days'${firmaClause}`,
+      firmaId ? [firmaId] : []
+    );
 
     const stats = result.rows[0];
 
@@ -71,10 +77,11 @@ router.get('/', async (req, res) => {
       search,
       proje_id, // Proje bazlı filtreleme
     } = req.query;
+    const firmaId = getFirmaId(req);
 
     // Kalem verisi tek kaynak: /api/fatura-kalemleri (fatura_kalemleri tablosu). Manuel fatura kalemleri kaldırıldı.
     let sql = `
-      SELECT 
+      SELECT
         i.*,
         p.ad as proje_adi,
         p.musteri as proje_musteri,
@@ -86,6 +93,13 @@ router.get('/', async (req, res) => {
 
     const params = [];
     let paramIndex = 1;
+
+    // Firma filtresi
+    if (firmaId) {
+      sql += ` AND (i.proje_id IS NULL OR p.firma_id = $${paramIndex})`;
+      params.push(firmaId);
+      paramIndex++;
+    }
 
     if (type) {
       sql += ` AND i.invoice_type = $${paramIndex}`;

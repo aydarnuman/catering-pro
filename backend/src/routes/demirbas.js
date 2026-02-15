@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from '../database.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 
 const router = express.Router();
 
@@ -167,11 +168,15 @@ router.delete('/lokasyonlar/:id', async (req, res) => {
 // İSTATİSTİKLER & DASHBOARD (Önce tanımlanmalı)
 // =============================================
 
-router.get('/istatistik/ozet', async (_req, res) => {
+router.get('/istatistik/ozet', async (req, res) => {
   try {
+    const firmaId = getFirmaId(req);
+    const firmaClause = firmaId
+      ? ' AND (proje_id IS NULL OR proje_id IN (SELECT id FROM projeler WHERE firma_id = $1))'
+      : '';
     // Genel özet
-    const ozet = await pool.query(`
-      SELECT 
+    const ozet = await pool.query(
+      `SELECT
         COUNT(*) as toplam_demirbas,
         COUNT(CASE WHEN durum = 'aktif' THEN 1 END) as aktif,
         COUNT(CASE WHEN durum = 'bakimda' THEN 1 END) as bakimda,
@@ -181,8 +186,9 @@ router.get('/istatistik/ozet', async (_req, res) => {
         COALESCE(SUM(net_defter_degeri), 0) as toplam_net_deger,
         COALESCE(SUM(birikimis_amortisman), 0) as toplam_amortisman
       FROM demirbaslar
-      WHERE aktif = TRUE
-    `);
+      WHERE aktif = TRUE${firmaClause}`,
+      firmaId ? [firmaId] : []
+    );
 
     // Kategori dağılımı
     const kategoriDagilimi = await pool.query(`
@@ -326,10 +332,20 @@ router.post('/toplu/transfer', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { kategori_id, lokasyon_id, durum, zimmetli, search, limit = 100, offset = 0 } = req.query;
+    const firmaId = getFirmaId(req);
 
     const whereConditions = ['d.aktif = TRUE'];
     const params = [];
     let paramIndex = 1;
+
+    // Firma filtresi (proje üzerinden)
+    if (firmaId) {
+      whereConditions.push(
+        `(d.proje_id IS NULL OR d.proje_id IN (SELECT id FROM projeler WHERE firma_id = $${paramIndex}))`
+      );
+      params.push(firmaId);
+      paramIndex++;
+    }
 
     if (kategori_id) {
       whereConditions.push(`d.kategori_id = $${paramIndex++}`);

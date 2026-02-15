@@ -20,6 +20,7 @@ interface AppUser {
   name: string;
   role: string;
   user_type: 'super_admin' | 'admin' | 'user';
+  firma_id?: number | null;
 }
 
 interface AuthContextType {
@@ -28,7 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, firmaId?: number) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: data.user.name,
           role: data.user.role,
           user_type: data.user.user_type || 'user',
+          firma_id: data.user.firma_id || null,
         };
       }
       return null;
@@ -132,9 +134,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, firmaId?: number) => {
       try {
         setIsLoading(true);
+
+        const body: Record<string, unknown> = { email, password };
+        if (firmaId) {
+          body.firma_id = firmaId;
+        }
 
         const response = await fetch(`${getApiUrl()}/api/auth/login`, {
           method: 'POST',
@@ -142,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(body),
         });
 
         const data = await response.json();
@@ -170,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: data.user.name,
             role: data.user.role,
             user_type: data.user.user_type || 'user',
+            firma_id: data.user.firma_id || null,
           });
           return { success: true };
         }

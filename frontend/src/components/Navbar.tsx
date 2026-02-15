@@ -60,6 +60,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTrackedTenders } from '@/hooks/useIhaleMerkeziData';
 import { usePermissions } from '@/hooks/usePermissions';
+import { FirmaSwitcher } from './FirmaSwitcher';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
 import { WhatsAppNavButton } from './WhatsAppNavButton';
@@ -517,6 +518,9 @@ export function Navbar() {
             <WhatsAppNavButton />
 
             {/* Notifications */}
+            {/* Firma Switcher */}
+            <FirmaSwitcher />
+
             <NotificationDropdown />
 
             {/* User Menu */}

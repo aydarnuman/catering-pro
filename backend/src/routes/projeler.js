@@ -16,14 +16,17 @@ router.get('/', async (req, res) => {
   try {
     const { durum, aktif, firma_id } = req.query;
 
+    // Firma filtresi: JWT'den gelen firma_id öncelikli, yoksa query param
+    const effectiveFirmaId = req.user?.firma_id || firma_id || null;
+
     let sql = `
-      SELECT 
+      SELECT
         p.*,
         f.unvan as firma_unvani,
         f.kisa_ad as firma_kisa_ad,
         COALESCE((SELECT COUNT(*) FROM proje_personelleri pp WHERE pp.proje_id = p.id AND pp.aktif = TRUE), 0) as personel_sayisi,
-        COALESCE((SELECT SUM(per.maas) FROM proje_personelleri pp 
-                  JOIN personeller per ON per.id = pp.personel_id 
+        COALESCE((SELECT SUM(per.maas) FROM proje_personelleri pp
+                  JOIN personeller per ON per.id = pp.personel_id
                   WHERE pp.proje_id = p.id AND pp.aktif = TRUE), 0) as toplam_maas,
         COALESCE((SELECT COUNT(*) FROM siparisler s WHERE s.proje_id = p.id), 0) as siparis_sayisi,
         COALESCE((SELECT SUM(s.toplam_tutar) FROM siparisler s WHERE s.proje_id = p.id AND s.durum = 'teslim_alindi'), 0) as toplam_harcama
@@ -49,10 +52,10 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
-    // Firma filtresi
-    if (firma_id) {
+    // Firma filtresi (JWT'den veya query param'dan)
+    if (effectiveFirmaId) {
       sql += ` AND p.firma_id = $${paramIndex}`;
-      params.push(firma_id);
+      params.push(effectiveFirmaId);
       paramIndex++;
     }
 

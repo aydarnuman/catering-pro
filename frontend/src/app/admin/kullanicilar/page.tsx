@@ -43,6 +43,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDialog } from '@/components/ConfirmDialog';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI, type User } from '@/lib/api/services/admin';
+import { getApiBaseUrlDynamic } from '@/lib/config';
 import { LoginHistoryModal, UserFilters, UserFormModal, UserStatsCards } from './components';
 
 export default function KullanicilarPage() {
@@ -58,7 +59,11 @@ export default function KullanicilarPage() {
     role: 'user',
     user_type: 'user' as 'super_admin' | 'admin' | 'user',
     is_active: true,
+    firma_ids: [] as string[],
   });
+  const [availableFirmalar, setAvailableFirmalar] = useState<{ id: number; unvan: string; kisa_ad: string | null }[]>(
+    []
+  );
   const [submitting, setSubmitting] = useState(false);
   const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] = useDisclosure(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -138,11 +143,30 @@ export default function KullanicilarPage() {
     }
   }, []);
 
+  // Firma listesini getir
+  const fetchFirmalar = useCallback(async () => {
+    try {
+      const base = getApiBaseUrlDynamic() || '';
+      const apiUrl = typeof window !== 'undefined' && base.startsWith(window.location.origin) ? '' : base;
+      const response = await fetch(`${apiUrl}/api/auth/firmalar`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (data.success && data.firmalar) {
+        setAvailableFirmalar(data.firmalar);
+      }
+    } catch (error) {
+      console.error('Firma listesi yüklenemedi:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) return;
     fetchUsers();
-  }, [fetchUsers, authLoading, isAuthenticated]);
+    fetchFirmalar();
+  }, [fetchUsers, fetchFirmalar, authLoading, isAuthenticated]);
 
   // Yeni kullanıcı formunu aç
   const handleNewUser = () => {
@@ -154,6 +178,7 @@ export default function KullanicilarPage() {
       role: 'user',
       user_type: 'user',
       is_active: true,
+      firma_ids: [],
     });
     open();
   };
@@ -168,6 +193,7 @@ export default function KullanicilarPage() {
       role: user.role,
       user_type: (user.user_type as 'super_admin' | 'admin' | 'user') || 'user',
       is_active: user.is_active,
+      firma_ids: (user.firma_ids || []).map(String),
     });
     open();
   };
@@ -192,14 +218,25 @@ export default function KullanicilarPage() {
       return;
     }
 
+    if (formData.firma_ids.length === 0) {
+      notifications.show({
+        title: 'Hata',
+        message: 'En az bir firma seçilmelidir',
+        color: 'red',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const firmaIdsNumeric = formData.firma_ids.map(Number);
       const body: any = {
         name: formData.name,
         email: formData.email,
         role: formData.role,
         user_type: formData.user_type,
         is_active: formData.is_active,
+        firma_ids: firmaIdsNumeric,
       };
 
       if (formData.password) {
@@ -535,6 +572,7 @@ export default function KullanicilarPage() {
                   <Table.Th>Kullanıcı</Table.Th>
                   <Table.Th>Email</Table.Th>
                   <Table.Th>Rol</Table.Th>
+                  <Table.Th>Firma</Table.Th>
                   <Table.Th>Durum</Table.Th>
                   <Table.Th>Kayıt Tarihi</Table.Th>
                   <Table.Th ta="right">İşlemler</Table.Th>
@@ -584,6 +622,20 @@ export default function KullanicilarPage() {
                             ? 'Yönetici'
                             : 'Kullanıcı'}
                       </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap={4} wrap="wrap">
+                        {(user.firmalar || []).map((f) => (
+                          <Badge key={f.id} size="xs" variant="light" color="cyan">
+                            {f.kisa_ad || f.unvan}
+                          </Badge>
+                        ))}
+                        {(!user.firmalar || user.firmalar.length === 0) && (
+                          <Text size="xs" c="dimmed">
+                            -
+                          </Text>
+                        )}
+                      </Group>
                     </Table.Td>
                     <Table.Td>
                       <Stack gap="xs">
@@ -690,6 +742,7 @@ export default function KullanicilarPage() {
         setFormData={setFormData}
         onSave={handleSave}
         submitting={submitting}
+        availableFirmalar={availableFirmalar}
       />
 
       {/* Login Geçmişi Modal */}

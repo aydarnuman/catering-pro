@@ -1,10 +1,11 @@
 'use client';
 
-import { Alert, Box, Button, Checkbox, Group, Stack, Text, TextInput, Transition } from '@mantine/core';
+import { Alert, Box, Button, Checkbox, Group, Select, Stack, Text, TextInput, Transition } from '@mantine/core';
 import {
   IconAlertCircle,
   IconAlertTriangle,
   IconAt,
+  IconBuilding,
   IconClock,
   IconEye,
   IconEyeOff,
@@ -13,10 +14,16 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { getApiBaseUrlDynamic } from '@/lib/config';
 import type { AuthStep } from '../AuthModalProvider';
 
-// Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface FirmaOption {
+  id: number;
+  unvan: string;
+  kisa_ad: string | null;
+}
 
 interface LoginStepProps {
   onSuccess?: () => void;
@@ -33,6 +40,13 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Firma seçim state
+  const [firmalar, setFirmalar] = useState<FirmaOption[]>([]);
+  const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null);
+  const [showFirmaSelect, setShowFirmaSelect] = useState(false);
+  const [firmaLoading, setFirmaLoading] = useState(false);
+  const [credentialsValidated, setCredentialsValidated] = useState(false);
+
   // Error state
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -45,7 +59,6 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
   const [lockCountdown, setLockCountdown] = useState<number>(0);
 
-  // Hatırlanan email'i yükle
   useEffect(() => {
     const rememberedEmail = localStorage.getItem('remembered_email');
     if (rememberedEmail) {
@@ -54,7 +67,6 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
     }
   }, []);
 
-  // Kilit süresini countdown olarak göster
   useEffect(() => {
     if (!lockedUntil) {
       setLockCountdown(0);
@@ -78,7 +90,6 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
     return () => clearInterval(interval);
   }, [lockedUntil]);
 
-  // Caps Lock handler
   const handleKeyDown = (e: React.KeyboardEvent) => {
     setCapsLockOn(e.getModifierState('CapsLock'));
   };
@@ -87,30 +98,124 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
     setCapsLockOn(e.getModifierState('CapsLock'));
   };
 
-  // Email validation
   const validateEmail = (emailValue: string): boolean => {
     return EMAIL_REGEX.test(emailValue);
   };
 
-  // Format countdown time
   const formatCountdown = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
-  // Form submit
+  const getApiUrl = () => {
+    const base = getApiBaseUrlDynamic() || '';
+    if (typeof window !== 'undefined' && base.startsWith(window.location.origin)) {
+      return '';
+    }
+    return base;
+  };
+
+  /** Adım 1: Şifre doğrula → firma listesini al */
+  const validateAndFetchFirmalar = async () => {
+    setError('');
+    setFirmaLoading(true);
+
+    try {
+      // Önce şifre doğrulama (firma_id olmadan login)
+      const loginResult = await login(email, password);
+
+      if (!loginResult.success) {
+        const errorData = loginResult as Record<string, unknown>;
+        if (errorData.code === 'ACCOUNT_LOCKED' && errorData.lockedUntil) {
+          setLockedUntil(new Date(errorData.lockedUntil as string));
+          setRemainingAttempts(0);
+        } else if (typeof errorData.remainingAttempts === 'number') {
+          setRemainingAttempts(errorData.remainingAttempts);
+        }
+        setError(loginResult.error || 'Giriş başarısız');
+        return;
+      }
+
+      // Şifre doğru — firma listesini al
+      setCredentialsValidated(true);
+
+      const firmaRes = await fetch(`${getApiUrl()}/api/auth/firmalar`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const firmaData = await firmaRes.json();
+
+      if (!firmaData.success || !firmaData.firmalar) {
+        setError('Firma listesi alınamadı');
+        return;
+      }
+
+      const userFirmalar: FirmaOption[] = firmaData.firmalar;
+
+      if (userFirmalar.length === 0) {
+        setError('Henüz bir firmaya atanmamışsınız. Lütfen yöneticinizle iletişime geçin.');
+        return;
+      }
+
+      if (userFirmalar.length === 1) {
+        // Tek firma — doğrudan o firma ile giriş yap
+        await completeLoginWithFirma(userFirmalar[0].id);
+        return;
+      }
+
+      // Birden fazla firma — dropdown göster
+      setFirmalar(userFirmalar);
+      setShowFirmaSelect(true);
+    } catch (_err) {
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setFirmaLoading(false);
+    }
+  };
+
+  /** Adım 2: Seçilen firma ile switch-firma çağır */
+  const completeLoginWithFirma = async (firmaId: number) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/auth/switch-firma`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firma_id: firmaId }),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || 'Firma seçimi başarısız');
+        return;
+      }
+
+      // Beni hatırla
+      if (rememberMe) {
+        localStorage.setItem('remembered_email', email);
+      } else {
+        localStorage.removeItem('remembered_email');
+      }
+
+      // Firma bilgisini localStorage'a kaydet
+      if (data.firma) {
+        localStorage.setItem('selected_firma', JSON.stringify(data.firma));
+      }
+
+      onSuccess?.();
+      window.location.reload();
+    } catch (_err) {
+      setError('Firma ile giriş yapılamadı.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setEmailError('');
 
-    // Kilit kontrolü
-    if (lockCountdown > 0) {
-      return;
-    }
+    if (lockCountdown > 0) return;
 
-    // Validation
     if (!email || !password) {
       setError('Email ve şifre gereklidir');
       return;
@@ -124,39 +229,33 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
-
-      if (result.success) {
-        // Beni hatırla
-        if (rememberMe) {
-          localStorage.setItem('remembered_email', email);
-        } else {
-          localStorage.removeItem('remembered_email');
-        }
-
-        // Başarılı giriş callback'i
-        onSuccess?.();
-
-        // Sayfayı yenile (token cookie'leri yüklendi)
-        window.location.reload();
+      if (showFirmaSelect && selectedFirmaId) {
+        // Firma seçildi — giriş tamamla
+        await completeLoginWithFirma(Number(selectedFirmaId));
       } else {
-        // Backend response'dan detayları al
-        const errorData = result as any;
-
-        if (errorData.code === 'ACCOUNT_LOCKED' && errorData.lockedUntil) {
-          setLockedUntil(new Date(errorData.lockedUntil));
-          setRemainingAttempts(0);
-        } else if (errorData.remainingAttempts !== undefined) {
-          setRemainingAttempts(errorData.remainingAttempts);
-        }
-
-        setError(result.error || 'Giriş başarısız');
-        setIsLoading(false);
+        // İlk adım — şifre doğrula ve firma listesini al
+        await validateAndFetchFirmalar();
       }
-    } catch (_err) {
-      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
       setIsLoading(false);
     }
+  };
+
+  // Email veya şifre değiştiğinde firma seçimini sıfırla
+  const resetFirmaState = () => {
+    if (showFirmaSelect) {
+      setShowFirmaSelect(false);
+      setFirmalar([]);
+      setSelectedFirmaId(null);
+      setCredentialsValidated(false);
+    }
+  };
+
+  const getButtonText = () => {
+    if (lockCountdown > 0) return `Kilitli (${formatCountdown(lockCountdown)})`;
+    if (isLoading || firmaLoading) return 'Giriş yapılıyor...';
+    if (showFirmaSelect) return 'Giriş Yap';
+    return 'Devam Et';
   };
 
   return (
@@ -165,7 +264,9 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
       <Stack gap="xs" align="center">
         <Text className="auth-brand">Catering TR</Text>
         <Text className="auth-title">Tekrar Hoşgeldiniz</Text>
-        <Text className="auth-subtitle">Hesabınıza giriş yapın</Text>
+        <Text className="auth-subtitle">
+          {showFirmaSelect ? 'Çalışmak istediğiniz firmayı seçin' : 'Hesabınıza giriş yapın'}
+        </Text>
       </Stack>
 
       {/* Error/Lock Alert */}
@@ -218,9 +319,10 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
                 onChange={(e) => {
                   setEmail(e.target.value);
                   if (emailError) setEmailError('');
+                  resetFirmaState();
                 }}
                 error={emailError}
-                disabled={lockCountdown > 0}
+                disabled={lockCountdown > 0 || credentialsValidated}
                 size="md"
                 radius="md"
                 autoComplete="email"
@@ -253,10 +355,13 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Şifrenizi girin"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  resetFirmaState();
+                }}
                 onKeyDown={handleKeyDown}
                 onKeyUp={handleKeyUp}
-                disabled={lockCountdown > 0}
+                disabled={lockCountdown > 0 || credentialsValidated}
                 size="md"
                 radius="md"
                 autoComplete="current-password"
@@ -293,6 +398,41 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
             </Transition>
           </Box>
 
+          {/* Firma Select (2. adımda görünür) */}
+          <Transition mounted={showFirmaSelect} transition="slide-down" duration={300}>
+            {(transitionStyles) => (
+              <Box style={transitionStyles}>
+                <Text className="auth-label" component="label" htmlFor="login-firma">
+                  Firma
+                </Text>
+                <Box className="auth-input-wrapper">
+                  <IconBuilding size={16} className="auth-input-icon" />
+                  <Select
+                    id="login-firma"
+                    placeholder="Çalışmak istediğiniz firmayı seçin"
+                    data={(firmalar ?? []).map((f) => ({
+                      value: String(f.id),
+                      label: f.kisa_ad || f.unvan,
+                    }))}
+                    value={selectedFirmaId}
+                    onChange={setSelectedFirmaId}
+                    searchable={(firmalar ?? []).length > 5}
+                    size="md"
+                    radius="md"
+                    classNames={{
+                      input: 'auth-input',
+                    }}
+                    styles={{
+                      input: {
+                        paddingLeft: 40,
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
+          </Transition>
+
           {/* Remember Me & Forgot Password */}
           <Group justify="space-between" mt={2}>
             <Checkbox
@@ -316,17 +456,31 @@ export function LoginStep({ onSuccess, onStepChange }: LoginStepProps) {
             fullWidth
             size="md"
             radius="md"
-            loading={isLoading}
-            disabled={lockCountdown > 0}
+            loading={isLoading || firmaLoading}
+            disabled={lockCountdown > 0 || (showFirmaSelect && !selectedFirmaId)}
             className="auth-button"
             mt={8}
           >
-            {lockCountdown > 0
-              ? `Kilitli (${formatCountdown(lockCountdown)})`
-              : isLoading
-                ? 'Giriş yapılıyor...'
-                : 'Giriş Yap'}
+            {getButtonText()}
           </Button>
+
+          {/* Firma seçim aşamasında "Geri dön" linki */}
+          {showFirmaSelect && (
+            <Button
+              variant="subtle"
+              size="sm"
+              fullWidth
+              onClick={() => {
+                setShowFirmaSelect(false);
+                setFirmalar([]);
+                setSelectedFirmaId(null);
+                setCredentialsValidated(false);
+                setError('');
+              }}
+            >
+              Farklı hesapla giriş yap
+            </Button>
+          )}
         </Stack>
       </form>
 

@@ -966,7 +966,7 @@ export default function DemirbasPage() {
         minHeight: '100vh',
       }}
     >
-      <Container size="xl" py="xl" pos="relative">
+      <Container size="lg" py="xl" pos="relative" maw={1280}>
         <LoadingOverlay visible={loading} />
 
         {error && (
@@ -1101,8 +1101,18 @@ export default function DemirbasPage() {
       {/* Lokasyon & Proje Yönetimi - Yan Yana */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="md">
         {/* Lokasyonlar */}
-        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #fff8f0 0%, #fff 100%)' }}>
-          <Text size="sm" fw={600} c="orange.7" mb="sm">
+        <Paper
+          p="md"
+          radius="md"
+          withBorder
+          bg={isDark ? 'dark.6' : 'gray.0'}
+          style={{
+            background: isDark
+              ? undefined
+              : 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, var(--mantine-color-gray-0) 100%)',
+          }}
+        >
+          <Text size="sm" fw={600} c={isDark ? 'orange.4' : 'orange.7'} mb="sm">
             📍 Lokasyonlar
           </Text>
 
@@ -1118,10 +1128,17 @@ export default function DemirbasPage() {
                   justify="space-between"
                   p="xs"
                   style={{
-                    background: selectedLokasyonFilter === lok.id ? '#fed7aa' : '#fafafa',
+                    background:
+                      selectedLokasyonFilter === lok.id
+                        ? isDark
+                          ? 'rgba(249,115,22,0.25)'
+                          : '#fed7aa'
+                        : isDark
+                          ? 'var(--mantine-color-dark-5)'
+                          : '#fafafa',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: selectedLokasyonFilter === lok.id ? '2px solid #f97316' : '2px solid transparent',
+                    border: selectedLokasyonFilter === lok.id ? '2px solid var(--mantine-color-orange-6)' : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedLokasyonFilter === lok.id) {
@@ -1136,7 +1153,7 @@ export default function DemirbasPage() {
                     <Text size="md">
                       {lok.tip === 'sube' ? '🏢' : lok.tip === 'depo' ? '📦' : lok.tip === 'ofis' ? '🏠' : '📍'}
                     </Text>
-                    <Text size="sm" fw={500}>
+                    <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
                       {lok.ad}
                     </Text>
                     <Badge size="xs" variant="light" color="orange">
@@ -1188,8 +1205,18 @@ export default function DemirbasPage() {
         </Paper>
 
         {/* Projeler */}
-        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)' }}>
-          <Text size="sm" fw={600} c="blue.7" mb="sm">
+        <Paper
+          p="md"
+          radius="md"
+          withBorder
+          bg={isDark ? 'dark.6' : 'gray.0'}
+          style={{
+            background: isDark
+              ? undefined
+              : 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, var(--mantine-color-gray-0) 100%)',
+          }}
+        >
+          <Text size="sm" fw={600} c={isDark ? 'blue.4' : 'blue.7'} mb="sm">
             📁 Projeler
           </Text>
 
@@ -1205,10 +1232,17 @@ export default function DemirbasPage() {
                   justify="space-between"
                   p="xs"
                   style={{
-                    background: selectedProjeFilter === proje.id ? '#bfdbfe' : '#f8faff',
+                    background:
+                      selectedProjeFilter === proje.id
+                        ? isDark
+                          ? 'rgba(59,130,246,0.25)'
+                          : '#bfdbfe'
+                        : isDark
+                          ? 'var(--mantine-color-dark-5)'
+                          : '#f8faff',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: selectedProjeFilter === proje.id ? '2px solid #3b82f6' : '2px solid transparent',
+                    border: selectedProjeFilter === proje.id ? '2px solid var(--mantine-color-blue-6)' : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedProjeFilter === proje.id) {
@@ -1221,7 +1255,7 @@ export default function DemirbasPage() {
                 >
                   <Group gap="xs">
                     <Text size="md">📁</Text>
-                    <Text size="sm" fw={500}>
+                    <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
                       {proje.ad}
                     </Text>
                   </Group>
