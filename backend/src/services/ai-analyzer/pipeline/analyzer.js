@@ -13,12 +13,12 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { aiConfig } from '../../../config/ai.config.js';
+import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import logger from '../../../utils/logger.js';
 import { getCorrectionHintsForPrompt } from '../../pipeline-learning-service.js';
 import { createTextHash, ensureValidJson } from '../controls/p0-checks.js';
 import { getPrompt } from '../prompts/index.js';
 import { createFinding } from '../schemas/chunk-output.js';
-import { checkApiCircuit, reportApiError } from '../../../utils/circuit-breaker.js';
 import { safeJsonParse } from '../utils/parser.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

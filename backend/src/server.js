@@ -202,7 +202,10 @@ if (process.env.NODE_ENV !== 'production') {
       let user;
 
       if (email) {
-        const result = await pool.query('SELECT id, email, name, role, user_type FROM users WHERE email = $1 AND is_active = true', [email]);
+        const result = await pool.query(
+          'SELECT id, email, name, role, user_type FROM users WHERE email = $1 AND is_active = true',
+          [email]
+        );
         user = result.rows[0];
       }
 
@@ -242,12 +245,12 @@ if (process.env.NODE_ENV !== 'production') {
 
       res.json({
         success: true,
-        message: '⚠️ DEV ONLY - Production\'da bu endpoint mevcut değildir',
+        message: "⚠️ DEV ONLY - Production'da bu endpoint mevcut değildir",
         token,
         user: { id: user.id, email: user.email, name: user.name, role: user.role, user_type: user.user_type },
         usage: {
           curl: `curl -H "Authorization: Bearer ${token}" http://localhost:${PORT}/api/auth/me`,
-          cookie: 'Token cookie\'ye de yazıldı - browser\'dan direkt test edebilirsiniz',
+          cookie: "Token cookie'ye de yazıldı - browser'dan direkt test edebilirsiniz",
         },
       });
     } catch (error) {

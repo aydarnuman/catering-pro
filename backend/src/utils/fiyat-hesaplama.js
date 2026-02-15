@@ -68,7 +68,8 @@ export function getFiyat(malzeme, tercih = 'auto') {
   const piyasaGuncel = piyasaTarih ? fiyatGuncelMi(piyasaTarih) : { guncel: false, gun: null };
 
   // Manuel fiyat
-  const manuelFiyat = parseFloat(malzeme.manuel_fiyat || malzeme.urun_manuel_fiyat) || parseFloat(malzeme.toplam_fiyat) || 0;
+  const manuelFiyat =
+    parseFloat(malzeme.manuel_fiyat || malzeme.urun_manuel_fiyat) || parseFloat(malzeme.toplam_fiyat) || 0;
 
   // Varyant fiyat (ana ürün yoksa varyantlardan)
   const varyantFiyat = parseFloat(malzeme.varyant_fiyat) || 0;

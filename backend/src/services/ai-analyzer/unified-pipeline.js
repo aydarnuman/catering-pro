@@ -835,7 +835,10 @@ ${fullJsonSchema}`;
 
       // Markdown fence temizliği (Claude bazen ```json ... ``` içinde döner)
       let content = response.content[0]?.text || '{}';
-      content = content.replace(/^[\s\S]*?```json\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+      content = content
+        .replace(/^[\s\S]*?```json\s*/i, '')
+        .replace(/```[\s\S]*$/, '')
+        .trim();
       if (!content.startsWith('{') && !content.startsWith('[')) content = '{}';
 
       const parsed = safeJsonParse(content);

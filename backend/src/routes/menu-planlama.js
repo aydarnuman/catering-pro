@@ -675,8 +675,12 @@ router.post('/menu-planlari/toplu-kaydet', async (req, res) => {
                 if (!altTipId) continue;
 
                 const [kurallarRes, malzRes, sozlukRes] = await Promise.all([
-                  query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [sartnameId]),
-                  query('SELECT malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1', [yemek.recete_id]),
+                  query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [
+                    sartnameId,
+                  ]),
+                  query('SELECT malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1', [
+                    yemek.recete_id,
+                  ]),
                   query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
                 ]);
                 const tumKurallar = kurallarRes.rows;
@@ -736,9 +740,7 @@ router.post('/menu-planlari/toplu-kaydet', async (req, res) => {
                         [receteIds]
                       );
                       const mevcutKategoriler = katRes.rows.map((r) => r.kod);
-                      const eksikKategoriler = yapi.zorunlu_kategoriler.filter(
-                        (zk) => !mevcutKategoriler.includes(zk)
-                      );
+                      const eksikKategoriler = yapi.zorunlu_kategoriler.filter((zk) => !mevcutKategoriler.includes(zk));
                       if (eksikKategoriler.length > 0) {
                         ogunUyarilari.push({
                           tip: 'kategori_eksik',
@@ -1192,9 +1194,7 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
                   [ogunId]
                 );
                 const mevcutKategoriler = katRes.rows.map((r) => r.kod);
-                const eksikKategoriler = yapi.zorunlu_kategoriler.filter(
-                  (zk) => !mevcutKategoriler.includes(zk)
-                );
+                const eksikKategoriler = yapi.zorunlu_kategoriler.filter((zk) => !mevcutKategoriler.includes(zk));
                 if (eksikKategoriler.length > 0) {
                   uyariListesi.push({
                     tip: 'kategori_eksik',

@@ -820,7 +820,10 @@ router.post('/karsilastir', async (req, res) => {
           en_ucuz: enUcuz,
           en_pahali: enPahali,
           fark: enPahali.sistem_maliyet - enUcuz.sistem_maliyet,
-          fark_yuzde: enUcuz.sistem_maliyet > 0 ? (((enPahali.sistem_maliyet - enUcuz.sistem_maliyet) / enUcuz.sistem_maliyet) * 100).toFixed(1) : '0.0',
+          fark_yuzde:
+            enUcuz.sistem_maliyet > 0
+              ? (((enPahali.sistem_maliyet - enUcuz.sistem_maliyet) / enUcuz.sistem_maliyet) * 100).toFixed(1)
+              : '0.0',
         },
       },
     });
