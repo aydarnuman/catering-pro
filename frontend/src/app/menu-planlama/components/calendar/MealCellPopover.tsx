@@ -31,16 +31,21 @@ import type { Recete } from '@/lib/api/services/menu-planlama';
 import { formatMoney } from '@/lib/formatters';
 import type { OgunInfo, TakvimHucre } from './types';
 
-// Kategori bilgileri
-const KATEGORILER = [
-  { kod: '', ad: 'Tümü', ikon: '📋' },
-  { kod: 'corba', ad: 'Çorba', ikon: '🍲' },
-  { kod: 'ana_yemek', ad: 'Ana Yemek', ikon: '🍖' },
-  { kod: 'pilav_makarna', ad: 'Pilav/Makarna', ikon: '🍚' },
-  { kod: 'salata_meze', ad: 'Salata/Meze', ikon: '🥗' },
-  { kod: 'tatli', ad: 'Tatlı', ikon: '🍮' },
-  { kod: 'kahvaltilik', ad: 'Kahvaltılık', ikon: '🧀' },
+// Varsayılan kategoriler (API verisi yüklenene kadar fallback)
+const VARSAYILAN_KATEGORILER = [
+  { kod: '', ad: 'Tümü' },
+  { kod: 'corba', ad: 'Çorba' },
+  { kod: 'ana_yemek', ad: 'Ana Yemek' },
+  { kod: 'pilav_makarna', ad: 'Pilav/Makarna' },
+  { kod: 'salata_meze', ad: 'Salata/Meze' },
+  { kod: 'tatli', ad: 'Tatlı' },
+  { kod: 'kahvaltilik', ad: 'Kahvaltılık' },
 ];
+
+interface KategoriItem {
+  kod: string;
+  ad: string;
+}
 
 interface MealCellPopoverProps {
   hucre?: TakvimHucre;
@@ -56,6 +61,7 @@ interface MealCellPopoverProps {
   onAramaChange: (val: string) => void;
   seciliKategori: string;
   onKategoriChange: (kategori: string) => void;
+  kategoriler?: KategoriItem[];
 }
 
 export function MealCellPopover({
@@ -72,7 +78,11 @@ export function MealCellPopover({
   onAramaChange,
   seciliKategori,
   onKategoriChange,
+  kategoriler,
 }: MealCellPopoverProps) {
+  const KATEGORILER = kategoriler && kategoriler.length > 0
+    ? [{ kod: '', ad: 'Tümü' }, ...kategoriler]
+    : VARSAYILAN_KATEGORILER;
   const yemekSayisi = hucre?.yemekler?.length || 0;
   const toplamFiyat = hucre?.yemekler?.reduce((sum, y) => sum + y.fiyat, 0) || 0;
   const toplamMalzeme = hucre?.yemekler?.reduce((sum, y) => sum + (y.malzemeSayisi || 0), 0) || 0;
@@ -354,7 +364,7 @@ export function MealCellPopover({
                         fontWeight: seciliKategori === kat.kod ? 600 : 400,
                       }}
                     >
-                      {kat.ikon} {kat.ad}
+                      {kat.ad}
                     </UnstyledButton>
                   ))}
                 </Group>

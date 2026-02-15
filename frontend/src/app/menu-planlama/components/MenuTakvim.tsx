@@ -56,32 +56,36 @@ import {
 import { useMenuPlanlama } from './MenuPlanlamaContext';
 import { menuPlanlamaKeys } from './queryKeys';
 
-// Öğün bilgileri
-const OGUNLER: OgunInfo[] = [
-  { id: 1, kod: 'kahvalti', ad: 'Kahvaltı', ikon: <IconCoffee size={16} />, renk: 'orange' },
-  { id: 2, kod: 'ogle', ad: 'Öğle', ikon: <IconSun size={16} />, renk: 'yellow' },
-  { id: 3, kod: 'aksam', ad: 'Akşam', ikon: <IconMoon size={16} />, renk: 'violet' },
-];
-
-// Öğün tipine göre kategori eşleştirmesi
-const getKategorilerByOgun = (ogunKod: string): string[] => {
-  switch (ogunKod) {
-    case 'kahvalti':
-      return ['kahvaltilik', 'kahvalti_paketi'];
-    case 'ogle':
-    case 'aksam':
-      return ['ana_yemek', 'corba', 'pilav_makarna', 'salata_meze', 'tatli'];
-    default:
-      return [];
-  }
+// Öğün tiplerine görsel bilgi ekle (API'den gelen kod'a göre)
+const OGUN_GORSELLER: Record<string, { ikon: React.ReactNode; renk: string }> = {
+  kahvalti: { ikon: <IconCoffee size={16} />, renk: 'orange' },
+  ogle: { ikon: <IconSun size={16} />, renk: 'yellow' },
+  aksam: { ikon: <IconMoon size={16} />, renk: 'violet' },
 };
+const VARSAYILAN_GORSEL = { ikon: <IconSun size={16} />, renk: 'blue' };
 
-// Öğün tipi ID'den koda dönüşüm
-const OGUN_ID_TO_KOD: Record<number, string> = { 1: 'kahvalti', 2: 'ogle', 3: 'aksam' };
+/** API'den gelen OgunTipi[]'ni OgunInfo[]'ya dönüştür */
+function ogunTipleriToInfo(ogunTipleri: import('./types').OgunTipi[]): OgunInfo[] {
+  return ogunTipleri
+    .sort((a, b) => a.sira - b.sira)
+    .map((ot) => ({
+      id: ot.id,
+      kod: ot.kod,
+      ad: ot.ad,
+      ...(OGUN_GORSELLER[ot.kod] || VARSAYILAN_GORSEL),
+    }));
+}
 
 export function MenuTakvim() {
   const queryClient = useQueryClient();
-  const { projeler, kaydedilenMenuler, kaydedilenMenulerLoading, refetchMenuler } = useMenuPlanlama();
+  const { projeler, ogunTipleri, kaydedilenMenuler, kaydedilenMenulerLoading, refetchMenuler } = useMenuPlanlama();
+
+  // Öğün bilgilerini API verisinden oluştur (hardcoded ID'ler yerine)
+  const OGUNLER = useMemo(() => ogunTipleriToInfo(ogunTipleri), [ogunTipleri]);
+  const OGUN_ID_TO_KOD = useMemo(
+    () => Object.fromEntries(ogunTipleri.map((ot) => [ot.id, ot.kod])) as Record<number, string>,
+    [ogunTipleri],
+  );
 
   // Plan state
   const [selectedProjeId, setSelectedProjeId] = useState<number | null>(null);
@@ -112,13 +116,7 @@ export function MenuTakvim() {
   const { data: recetelerData, isLoading: recetelerLoading } = useQuery({
     queryKey: menuPlanlamaKeys.receteler.takvim(debouncedArama, seciliKategori || undefined, aktifOgunKod || undefined),
     queryFn: async () => {
-      let kategori = seciliKategori || undefined;
-      if (!kategori && aktifOgunKod && !debouncedArama) {
-        const kategoriler = getKategorilerByOgun(aktifOgunKod);
-        if (kategoriler.length > 0) {
-          kategori = kategoriler[0];
-        }
-      }
+      const kategori = seciliKategori || undefined;
       const res = await menuPlanlamaAPI.getReceteler({
         arama: debouncedArama || undefined,
         kategori,
@@ -128,6 +126,17 @@ export function MenuTakvim() {
     },
     staleTime: 30000,
     enabled: !!aktifHucreKey,
+  });
+
+  // Kategorileri API'den çek (popover chip listesi için)
+  const { data: kategorilerData } = useQuery({
+    queryKey: menuPlanlamaKeys.receteler.kategoriler(),
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getKategoriler();
+      if (!res.success || !Array.isArray(res.data)) return [];
+      return (res.data as Array<{ kod: string; ad: string }>).map((k) => ({ kod: k.kod, ad: k.ad }));
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Tarih aralığı
@@ -320,7 +329,7 @@ export function MenuTakvim() {
       maliyetler[ogunKod] = (maliyetler[ogunKod] || 0) + hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
     }
     return maliyetler;
-  }, [takvimState]);
+  }, [takvimState, OGUNLER]);
 
   // Günlük toplam maliyetler
   const gunlukMaliyetler = useMemo(() => {
@@ -660,6 +669,7 @@ export function MenuTakvim() {
                         onAramaChange={setAramaMetni}
                         seciliKategori={seciliKategori}
                         onKategoriChange={setSeciliKategori}
+                        kategoriler={kategorilerData}
                       />
                     </Box>
                   );
@@ -757,6 +767,7 @@ export function MenuTakvim() {
                           onAramaChange={setAramaMetni}
                           seciliKategori={seciliKategori}
                           onKategoriChange={setSeciliKategori}
+                          kategoriler={kategorilerData}
                         />
                       </Box>
                     );
