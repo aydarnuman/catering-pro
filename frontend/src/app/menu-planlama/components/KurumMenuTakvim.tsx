@@ -190,21 +190,25 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
     : OGUN_TIPLERI_3;
   const gunSayisiNum = gunSayisi;
 
-  const { totalMaliyet, gunlukOrtalama, toplamYemek } = useMemo(() => {
+  const { totalMaliyet, gunlukOrtalama, ogunBasiOrtalama, toplamYemek } = useMemo(() => {
     let total = 0;
     let yemekCount = 0;
+    let doluOgun = 0;
     const gunMaliyetler = new Map<number, number>();
     for (const [key, yemekler] of Object.entries(takvim)) {
       const gunNo = Number(key.split('_')[0]);
       const gunTotal = yemekler.reduce((s, y) => s + (Number(y.fiyat) || 0), 0);
       total += gunTotal;
       yemekCount += yemekler.length;
+      if (yemekler.length > 0) doluOgun++;
       gunMaliyetler.set(gunNo, (gunMaliyetler.get(gunNo) || 0) + gunTotal);
     }
     const gunluk = gunMaliyetler.size > 0 ? total / gunMaliyetler.size : 0;
+    const ogunBasi = doluOgun > 0 ? total / doluOgun : 0;
     return {
       totalMaliyet: Math.round(total * 100) / 100,
       gunlukOrtalama: Math.round(gunluk * 100) / 100,
+      ogunBasiOrtalama: Math.round(ogunBasi * 100) / 100,
       toplamYemek: yemekCount,
     };
   }, [takvim]);
@@ -696,10 +700,10 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
             <IconCoin size={18} color="var(--mantine-color-green-5)" />
             <div>
               <Text size="10px" c="dimmed">
-                1 Kisi / 1 Ogun Ort.
+                Porsiyon / Ogun Ort.
               </Text>
               <Text size="md" fw={700}>
-                {toplamYemek > 0 ? ((totalMaliyet / toplamYemek) * ogunTipleri.length).toFixed(2) : '0.00'} TL
+                {ogunBasiOrtalama.toFixed(2)} TL
               </Text>
             </div>
           </Group>
@@ -707,7 +711,7 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
             <IconChefHat size={18} color="var(--mantine-color-blue-5)" />
             <div>
               <Text size="10px" c="dimmed">
-                1 Kisi / Gunluk
+                Porsiyon / Gun Ort.
               </Text>
               <Text size="md" fw={700}>
                 {gunlukOrtalama.toFixed(2)} TL
@@ -718,7 +722,7 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
             <IconCalculator size={18} color="var(--mantine-color-teal-5)" />
             <div>
               <Text size="10px" c="dimmed">
-                1 Kisi / {gunSayisiNum} Gun Toplam
+                Porsiyon / {gunSayisiNum} Gun Toplam
               </Text>
               <Text size="md" fw={700}>
                 {totalMaliyet.toFixed(2)} TL
@@ -764,12 +768,7 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
               </Text>
               <Text size="10px" c="dimmed">
                 Ogun basi ({kisiSayisi} kisi):{' '}
-                {toplamYemek > 0
-                  ? ((totalMaliyet / toplamYemek) * ogunTipleri.length * kisiSayisi).toLocaleString('tr-TR', {
-                      minimumFractionDigits: 0,
-                    })
-                  : '0'}{' '}
-                TL
+                {(ogunBasiOrtalama * kisiSayisi).toLocaleString('tr-TR', { minimumFractionDigits: 0 })} TL
               </Text>
             </Stack>
           </Group>
