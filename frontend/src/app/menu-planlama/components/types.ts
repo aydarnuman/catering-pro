@@ -1,8 +1,42 @@
 import type { MaliyetOzetItem } from '@/lib/api/services/fatura-kalemleri';
+import type { Proje } from '@/types/domain';
 
 // ─── Navigasyon Tipleri ───────────────────────────────────────────
 
 export type SidebarCategory = 'planlama' | 'katalog' | 'analiz';
+
+// ─── Öğün / Menu Plan Tipleri ────────────────────────────────────
+
+export interface OgunTipi {
+  id: number;
+  ad: string;
+  kod: string;
+  sira: number;
+}
+
+export interface MenuPlan {
+  id: number;
+  proje_id: number | null;
+  proje_adi?: string;
+  ad: string;
+  tip: 'gunluk' | 'haftalik' | 'aylik';
+  baslangic_tarihi: string;
+  bitis_tarihi: string;
+  varsayilan_kisi_sayisi: number;
+  toplam_maliyet?: number;
+  created_at: string;
+  proje?: Proje;
+  ogunler?: {
+    id: number;
+    ogun_tipi_id: number;
+    ogun_tipi_adi?: string;
+    yemekler?: Array<{
+      id: number;
+      recete_adi: string;
+      porsiyon_maliyet: number;
+    }>;
+  }[];
+}
 
 // ─── Reçete / Yemek Tipleri ───────────────────────────────────────
 
@@ -262,3 +296,7 @@ export const VARSAYILAN_KATEGORILER: KategoriInfo[] = [
   { kod: 'tatli', ad: 'Tatlılar', ikon: '🍮', renk: 'pink' },
   { kod: 'icecek', ad: 'İçecekler', ikon: '🥛', renk: 'grape' },
 ];
+
+// Etli / Etsiz karşılaştırma kategorileri
+export const ETLI_KATEGORILER = ['et', 'tavuk', 'balik'];
+export const ETSIZ_KATEGORILER = ['sebze', 'bakliyat'];
