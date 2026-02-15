@@ -370,16 +370,13 @@
 | GET | /menu-planlari/:planId/gunluk-ozet | 385 | Günlük özet |
 | POST | /projeler/:kaynakId/sablon-kopyala/:hedefId | 405 | Şablon kopyala |
 
-#### menu-planlama/receteler.js — 15 endpoint
+#### menu-planlama/receteler.js — 12 endpoint
 | Method | Path | Satır | Açıklama |
 |--------|------|-------|----------|
 | GET | /kategoriler | 35 | Reçete kategorileri |
 | POST | /kategoriler | 55 | Kategori oluştur |
 | GET | /receteler | 75 | Reçete listesi |
 | GET | /receteler/:id | 105 | Reçete detayı |
-| POST | /recete/:receteId/malzeme | 135 | Malzeme ekle |
-| PUT | /recete/malzeme/:id | 165 | Malzeme güncelle |
-| DELETE | /recete/malzeme/:id | 195 | Malzeme sil |
 | POST | /receteler | 225 | Reçete oluştur |
 | PUT | /receteler/:id | 255 | Reçete güncelle |
 | DELETE | /receteler/:id | 285 | Reçete sil |
@@ -389,7 +386,7 @@
 | POST | /receteler/:id/maliyet-hesapla | 405 | Maliyet hesapla |
 | POST | /receteler/toplu-maliyet-hesapla | 435 | Toplu maliyet |
 
-#### menu-planlama/sartnameler.js — 13 endpoint
+#### menu-planlama/sartnameler.js — 10 endpoint
 | Method | Path | Satır | Açıklama |
 |--------|------|-------|----------|
 | GET | /sartname/kurumlar | 35 | Kurumlar |
@@ -399,14 +396,11 @@
 | PUT | /sartname/:id | 135 | Şartname güncelle |
 | POST | /sartname/:sartnameId/proje-ata | 165 | Projeye ata |
 | GET | /proje/:projeId/sartnameler | 195 | Proje şartnameleri |
-| POST | /sartname/:sartnameId/gramaj | 225 | Gramaj ekle |
-| PUT | /sartname/gramaj/:gramajId | 255 | Gramaj güncelle |
-| DELETE | /sartname/gramaj/:gramajId | 285 | Gramaj sil |
 | POST | /sartname/:sartnameId/ogun-yapisi | 315 | Öğün yapısı ekle |
 | PUT | /ogun-yapisi/:id | 345 | Öğün yapısı güncelle |
 | GET | /recete/:receteId/gramaj-kontrol | 375 | Gramaj kontrolü |
 
-**Şartname gramaj:** Ana sistem `sartname_gramaj_kurallari` (alt_tip + malzeme_tipi); toplu uygulama, önizleme ve uyum bu tabloyu kullanır. `sartname_porsiyon_gramajlari` (kategori + yemek_turu) eski yapıdır; şartname detayda döner, yeni özellikler sadece gramaj kuralları ile çalışır.
+**Şartname gramaj:** Ana sistem `sartname_gramaj_kurallari` (alt_tip + malzeme_tipi); toplu uygulama, önizleme ve uyum bu tabloyu kullanır. Eski `sartname_porsiyon_gramajlari` endpoint'leri kaldırıldı.
 
 #### menu-planlama/urun-kartlari.js — 9 endpoint
 | Method | Path | Satır | Açıklama |

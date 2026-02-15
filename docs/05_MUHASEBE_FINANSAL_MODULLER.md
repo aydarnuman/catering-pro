@@ -555,8 +555,8 @@ Tam Turk bordro hesaplama motoru:
 - `MenuTakvim`: Takvim bazli gorunum (haftalik/aylik)
 - `MenuSidebar`: Proje + ogun tipi secimi + tarif kategorileri
 - `MenuKutuphanesi`: Tarif kutuphanesi (arama + filtreleme + yeni tarif)
-- `KaydedilenMenuler`: Daha once kaydetilmis menu sablonlari
-- `ReceteModal`: Tarif detay (malzemeler, gramaj, beslenme bilgisi, maliyet)
+- `PlanlamaWorkspace`: Plan hub + yonlendirme + kayitli planlari listeleme
+- `ReceteDetayModal`: Tarif detay (malzemeler, gramaj, beslenme bilgisi, maliyet)
 - `YeniProjeModal`: Ihale bazli menu planlama projesi olusturma
 - `MenuKaydetForm`: Menu plan kaydetme formu
 

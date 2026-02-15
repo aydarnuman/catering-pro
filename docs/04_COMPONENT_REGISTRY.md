@@ -366,15 +366,16 @@ Bordro import modalı
 
 ---
 
-### `ReceteModal.tsx`
-Reçete oluşturma/düzenleme modalı
+### `ReceteDetayModal.tsx`
+Reçete detay modalı (malzemeler, gramaj karşılaştırma, maliyet analizi)
 
 ```typescript
-<ReceteModal
-  isOpen={open}
+<ReceteDetayModal
+  opened={open}
   onClose={handleClose}
   receteId={editId}
-  onSave={handleSave}
+  isMobile={isMobile}
+  isMounted={isMounted}
 />
 ```
 
@@ -670,20 +671,6 @@ Responsive breakpoint kontrolü
 
 ```typescript
 const { isMobile, isTablet, isDesktop } = useResponsive();
-```
-
----
-
-### `useMaliyetHesaplama.ts`
-Maliyet hesaplama hook'u
-
-```typescript
-const { hesapla, sonuc } = useMaliyetHesaplama();
-
-const maliyet = hesapla({
-  receteId: 1,
-  porsiyon: 100
-});
 ```
 
 ---
