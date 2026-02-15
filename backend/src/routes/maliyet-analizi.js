@@ -595,15 +595,32 @@ async function hesaplaSablonMaliyet(sablonId) {
       const yemekUyarilari = [];
 
       if (yemek.recete_id) {
-        // Reçeteden malzemeleri al ve maliyet hesapla
+        // Reçeteden malzemeleri al — urun_kartlari JOIN (hesaplaReceteMaliyet ile tutarlı)
         const malzemeler = await query(
           `
-          SELECT 
+          SELECT
             rm.*,
-            sk.son_alis_fiyat as stok_fatura_fiyat,
-            sk.birim as stok_birim
+            uk.aktif_fiyat as urun_aktif_fiyat,
+            uk.son_alis_fiyati as urun_son_alis,
+            uk.son_alis_tarihi as urun_son_alis_tarihi,
+            uk.manuel_fiyat as urun_manuel_fiyat,
+            uk.varsayilan_birim as urun_birim,
+            uk.fiyat_birimi as urun_fiyat_birimi,
+            uk.birim as urun_standart_birim,
+            COALESCE(
+              (SELECT birim_fiyat_ekonomik FROM urun_fiyat_ozet WHERE urun_kart_id = rm.urun_kart_id),
+              (
+                SELECT piyasa_fiyat_ort
+                FROM piyasa_fiyat_gecmisi
+                WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
+                  OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
+                ORDER BY arastirma_tarihi DESC
+                LIMIT 1
+              )
+            ) as piyasa_fiyat_hesaplanan,
+            get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat
           FROM recete_malzemeler rm
-          LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
           WHERE rm.recete_id = $1
         `,
           [yemek.recete_id]
@@ -611,16 +628,24 @@ async function hesaplaSablonMaliyet(sablonId) {
 
         // Malzeme maliyetlerini hesapla ve cache'le
         for (const m of malzemeler.rows) {
-          // Yeni hesaplama fonksiyonunu kullan
           const maliyet = await hesaplaMalzemeMaliyet(
             {
               miktar: m.miktar,
               birim: m.birim,
-              fatura_fiyat: m.fatura_fiyat || m.stok_fatura_fiyat,
-              fatura_fiyat_tarihi: m.fatura_fiyat_tarihi,
-              piyasa_fiyat: m.piyasa_fiyat || m.birim_fiyat,
+              aktif_fiyat: m.urun_aktif_fiyat,
+              urun_aktif_fiyat: m.urun_aktif_fiyat,
+              fatura_fiyat: m.fatura_fiyat || m.urun_son_alis,
+              fatura_fiyat_tarihi: m.fatura_fiyat_tarihi || m.urun_son_alis_tarihi,
+              son_alis_fiyati: m.urun_son_alis,
+              son_alis_tarihi: m.urun_son_alis_tarihi,
+              urun_son_alis: m.urun_son_alis,
+              urun_son_alis_tarihi: m.urun_son_alis_tarihi,
+              piyasa_fiyat: m.piyasa_fiyat || m.piyasa_fiyat_hesaplanan || m.birim_fiyat,
               piyasa_fiyat_tarihi: m.piyasa_fiyat_tarihi,
-              fiyat_birimi: m.stok_birim || 'kg',
+              manuel_fiyat: m.urun_manuel_fiyat,
+              urun_manuel_fiyat: m.urun_manuel_fiyat,
+              varyant_fiyat: m.varyant_fiyat,
+              fiyat_birimi: m.urun_standart_birim || m.urun_fiyat_birimi || 'kg',
             },
             'auto'
           );
