@@ -274,18 +274,8 @@ export default function MenuPlanlamaPage() {
         {/* Mobil Bottom Navigation */}
         {isMobile && isMounted && (
           <MobileMenuNav
-            activeCategory={
-              activeTab === 'planlama'
-                ? 'planlama'
-                : activeTab === 'receteler' || activeTab === 'urunler'
-                  ? 'katalog'
-                  : 'analiz'
-            }
-            onCategoryChange={(cat) => {
-              if (cat === 'planlama') handleTabChange('planlama');
-              else if (cat === 'katalog') handleTabChange('receteler');
-              else if (cat === 'analiz') handleTabChange('urunler');
-            }}
+            activeTab={(activeTab as 'planlama' | 'receteler' | 'urunler') || 'planlama'}
+            onTabChange={(tab) => handleTabChange(tab)}
           />
         )}
 

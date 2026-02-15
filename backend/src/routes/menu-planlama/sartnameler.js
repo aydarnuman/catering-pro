@@ -773,15 +773,14 @@ export function gramajKontrolHesapla(malzemelerRows, altTipKurallar, tumKurallar
   let toplamUygun = 0;
   let toplamUyumsuz = 0;
 
-  // Eşleştirilmiş kural malzeme_tipi'lerini takip et (her malzeme için bir kural)
-  const eslesilenKurallar = new Set();
-
+  // Reçetedeki her malzemeyi şartname kurallarıyla karşılaştır
+  // Not: Şartname kurallarında eşleşmeyen (reçetede olmayan) malzemeler gösterilmez.
+  // Çünkü bir alt tip (ör. "Sebze Yemeği") onlarca farklı yemeğin kurallarını içerir
+  // ve tek bir reçetede hepsinin bulunması beklenmez.
   for (const malzeme of malzemelerRows) {
     const sonuc = kuralBul(malzeme.malzeme_adi, sozluk, altTipKurallar, tumKurallar);
     if (sonuc) {
-      eslesilenKurallar.add(sonuc.malzeme_tipi);
-
-      // Her iki tarafı da gram'a çevirerek karşılaştır (Bug #1 fix)
+      // Her iki tarafı da gram'a çevirerek karşılaştır
       const malzemeBirimi = (malzeme.birim || 'g').toLowerCase();
       const kuralBirimi = (sonuc.kural.birim || 'g').toLowerCase();
       const malzemeMiktar = parseFloat(malzeme.miktar) || 0;
@@ -804,22 +803,6 @@ export function gramajKontrolHesapla(malzemelerRows, altTipKurallar, tumKurallar
         hedef_gramaj: hedefGramaj,
         birim: sonuc.kural.birim,
         durum,
-      });
-    }
-  }
-
-  // Eşleşmeyen kuralları "eksik" olarak ekle (altTipKurallar'dan)
-  for (const kural of altTipKurallar) {
-    if (!eslesilenKurallar.has(kural.malzeme_tipi)) {
-      toplamUyumsuz++;
-      kontrolSonuclari.push({
-        malzeme_adi: null,
-        malzeme_tipi: kural.malzeme_tipi,
-        kaynak: 'alt_tip',
-        recete_gramaj: null,
-        hedef_gramaj: parseFloat(kural.gramaj),
-        birim: kural.birim,
-        durum: 'eksik',
       });
     }
   }

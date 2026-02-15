@@ -1,21 +1,21 @@
 'use client';
 
 import { Box, Group, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
-import { IconBook2, IconCalendar, IconChartLine } from '@tabler/icons-react';
-import type { SidebarCategory } from './types';
+import { IconBook2, IconCalendar, IconPackages } from '@tabler/icons-react';
+import type { MenuTab } from './types';
 
-const MOBILE_NAV_ITEMS: { id: SidebarCategory; label: string; icon: React.ReactNode }[] = [
+const MOBILE_NAV_ITEMS: { id: MenuTab; label: string; icon: React.ReactNode }[] = [
   { id: 'planlama', label: 'Planlama', icon: <IconCalendar size={20} /> },
-  { id: 'katalog', label: 'Katalog', icon: <IconBook2 size={20} /> },
-  { id: 'analiz', label: 'Analiz', icon: <IconChartLine size={20} /> },
+  { id: 'receteler', label: 'Reçeteler', icon: <IconBook2 size={20} /> },
+  { id: 'urunler', label: 'Ürünler', icon: <IconPackages size={20} /> },
 ];
 
 interface MobileMenuNavProps {
-  activeCategory: SidebarCategory;
-  onCategoryChange: (category: SidebarCategory) => void;
+  activeTab: MenuTab;
+  onTabChange: (tab: MenuTab) => void;
 }
 
-export function MobileMenuNav({ activeCategory, onCategoryChange }: MobileMenuNavProps) {
+export function MobileMenuNav({ activeTab, onTabChange }: MobileMenuNavProps) {
   return (
     <Box
       style={{
@@ -31,11 +31,11 @@ export function MobileMenuNav({ activeCategory, onCategoryChange }: MobileMenuNa
     >
       <Group justify="space-around" gap={0}>
         {MOBILE_NAV_ITEMS.map((item) => {
-          const isActive = activeCategory === item.id;
+          const isActive = activeTab === item.id;
           return (
             <UnstyledButton
               key={item.id}
-              onClick={() => onCategoryChange(item.id)}
+              onClick={() => onTabChange(item.id)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

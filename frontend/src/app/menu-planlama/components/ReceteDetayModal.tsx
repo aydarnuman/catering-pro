@@ -252,9 +252,9 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
                                 <Badge
                                   size="xs"
                                   variant="light"
-                                  color={s.durum === 'eksik' ? 'red' : s.durum === 'dusuk' ? 'yellow' : 'orange'}
+                                  color={s.durum === 'dusuk' ? 'yellow' : 'orange'}
                                 >
-                                  {s.durum === 'eksik' ? 'Eksik' : s.durum === 'dusuk' ? 'Düşük' : 'Yüksek'}
+                                  {s.durum === 'dusuk' ? 'Düşük' : 'Yüksek'}
                                 </Badge>
                               </Table.Td>
                             </Table.Tr>

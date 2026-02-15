@@ -4,6 +4,7 @@ import type { Proje } from '@/types/domain';
 // ─── Navigasyon Tipleri ───────────────────────────────────────────
 
 export type SidebarCategory = 'planlama' | 'katalog' | 'analiz';
+export type MenuTab = 'planlama' | 'receteler' | 'urunler';
 
 // ─── Öğün / Menu Plan Tipleri ────────────────────────────────────
 
