@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   Center,
+  Checkbox,
   Container,
   Divider,
   Group,
@@ -48,6 +49,7 @@ import {
   IconSearch,
   IconTrash,
   IconUser,
+  IconUserOff,
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -207,6 +209,7 @@ export default function PersonelPage() {
   const [filterDepartman, setFilterDepartman] = useState<string | null>(null);
   const [filterDurum, setFilterDurum] = useState<string | null>(null);
   const [personelViewMode, setPersonelViewMode] = useState<'table' | 'cards'>('table');
+  const [selectedPersonelIds, setSelectedPersonelIds] = useState<number[]>([]);
 
   // === BORDRO STATE ===
   const [bordroYil, setBordroYil] = useState(new Date().getFullYear());
@@ -672,6 +675,43 @@ export default function PersonelPage() {
     });
   };
 
+  const handleSelectAllPersonel = () => {
+    if (selectedPersonelIds.length === filteredPersoneller.length) {
+      setSelectedPersonelIds([]);
+    } else {
+      setSelectedPersonelIds(filteredPersoneller.map((p) => p.id));
+    }
+  };
+
+  const handleTogglePersonelSelection = (id: number) => {
+    setSelectedPersonelIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkPasif = async () => {
+    if (selectedPersonelIds.length === 0) return;
+    if (!confirm(`${selectedPersonelIds.length} personeli pasife almak istediğinize emin misiniz?`)) return;
+    try {
+      for (const id of selectedPersonelIds) {
+        await personelAPI.updatePersonel(id, { durum: 'pasif' });
+      }
+      notifications.show({
+        title: 'Başarılı',
+        message: `${selectedPersonelIds.length} personel pasife alındı`,
+        color: 'green',
+      });
+      setSelectedPersonelIds([]);
+      fetchPersoneller();
+    } catch (error: unknown) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Toplu güncelleme başarısız',
+        color: 'red',
+      });
+    }
+  };
+
   const handleEditPersonel = (p: Personel) => {
     setEditingPersonel(p);
     setPersonelForm({
@@ -979,6 +1019,37 @@ export default function PersonelPage() {
                       )}
                     </Group>
 
+                    {/* Toplu işlem çubuğu */}
+                    {selectedPersonelIds.length > 0 && (
+                      <Paper withBorder p="sm" bg="violet.0">
+                        <Group justify="space-between">
+                          <Text size="sm" fw={500}>
+                            {selectedPersonelIds.length} personel seçildi
+                          </Text>
+                          <Group gap="xs">
+                            <Button
+                              variant="subtle"
+                              size="xs"
+                              onClick={() => setSelectedPersonelIds([])}
+                            >
+                              Seçimi kaldır
+                            </Button>
+                            {canEditPersonel && (
+                              <Button
+                                variant="light"
+                                color="gray"
+                                size="xs"
+                                leftSection={<IconUserOff size={14} />}
+                                onClick={handleBulkPasif}
+                              >
+                                Seçilenleri pasife al
+                              </Button>
+                            )}
+                          </Group>
+                        </Group>
+                      </Paper>
+                    )}
+
                     {/* Personel listesi: loading / boş / tablo */}
                     {personelListLoading ? (
                       <Center py="xl">
@@ -1017,6 +1088,12 @@ export default function PersonelPage() {
                           <Card key={personel.id} withBorder padding="md" radius="md" shadow="sm">
                             <Group justify="space-between" mb="sm">
                               <Group gap="sm">
+                                <Checkbox
+                                  checked={selectedPersonelIds.includes(personel.id)}
+                                  onChange={() => handleTogglePersonelSelection(personel.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`${personel.ad} ${personel.soyad} seç`}
+                                />
                                 <Avatar color={getAvatarColor(personel.departman ?? null)} radius="xl" size="md">
                                   {personel.ad[0]}
                                   {personel.soyad[0]}
@@ -1096,6 +1173,20 @@ export default function PersonelPage() {
                         <Table verticalSpacing="sm" highlightOnHover>
                           <Table.Thead>
                             <Table.Tr>
+                              <Table.Th style={{ width: 40 }}>
+                                <Checkbox
+                                  checked={
+                                    filteredPersoneller.length > 0 &&
+                                    selectedPersonelIds.length === filteredPersoneller.length
+                                  }
+                                  indeterminate={
+                                    selectedPersonelIds.length > 0 &&
+                                    selectedPersonelIds.length < filteredPersoneller.length
+                                  }
+                                  onChange={handleSelectAllPersonel}
+                                  aria-label="Tümünü seç"
+                                />
+                              </Table.Th>
                               <Table.Th>Personel</Table.Th>
                               <Table.Th>Departman</Table.Th>
                               <Table.Th>Pozisyon</Table.Th>
@@ -1121,6 +1212,13 @@ export default function PersonelPage() {
                           <Table.Tbody>
                             {filteredPersoneller.map((personel) => (
                               <Table.Tr key={personel.id}>
+                                <Table.Td>
+                                  <Checkbox
+                                    checked={selectedPersonelIds.includes(personel.id)}
+                                    onChange={() => handleTogglePersonelSelection(personel.id)}
+                                    aria-label={`${personel.ad} ${personel.soyad} seç`}
+                                  />
+                                </Table.Td>
                                 <Table.Td>
                                   <Group gap="sm">
                                     <Avatar color={getAvatarColor(personel.departman ?? null)} radius="xl">
