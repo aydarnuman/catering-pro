@@ -75,6 +75,7 @@ export function MealCellPopover({
 }: MealCellPopoverProps) {
   const yemekSayisi = hucre?.yemekler?.length || 0;
   const toplamFiyat = hucre?.yemekler?.reduce((sum, y) => sum + y.fiyat, 0) || 0;
+  const toplamMalzeme = hucre?.yemekler?.reduce((sum, y) => sum + (y.malzemeSayisi || 0), 0) || 0;
 
   // Yemek ekleme dropdown açık mı - boş hücrelerde otomatik aç
   const [eklemeAcik, setEklemeAcik] = useState(false);
@@ -156,8 +157,13 @@ export function MealCellPopover({
                   ?.slice(0, 2)
                   .map((y) => y.ad)
                   .join(', ')}
-                {yemekSayisi > 2 && '...'}
+                {yemekSayisi > 2 && ` +${yemekSayisi - 2}`}
               </Text>
+              {toplamMalzeme > 0 && (
+                <Text size="9px" c="dimmed">
+                  {toplamMalzeme} malzeme
+                </Text>
+              )}
               <Text size="xs" fw={600} c={ogun.renk}>
                 {formatMoney(toplamFiyat)}
               </Text>
@@ -235,9 +241,18 @@ export function MealCellPopover({
                       >
                         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                           <Text size="14px">{y.ikon || '🍽️'}</Text>
-                          <Text size="xs" fw={500} lineClamp={1}>
-                            {y.ad}
-                          </Text>
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="xs" fw={500} lineClamp={1}>
+                              {y.ad}
+                            </Text>
+                            {(y.kategoriAdi || y.malzemeSayisi) && (
+                              <Text size="9px" c="dimmed" lineClamp={1}>
+                                {y.kategoriAdi || ''}
+                                {y.kategoriAdi && y.malzemeSayisi ? ' · ' : ''}
+                                {y.malzemeSayisi ? `${y.malzemeSayisi} malzeme` : ''}
+                              </Text>
+                            )}
+                          </Box>
                         </Group>
                         <Text size="xs" fw={600} c={ogun.renk} style={{ whiteSpace: 'nowrap' }}>
                           {formatMoney(y.fiyat)}

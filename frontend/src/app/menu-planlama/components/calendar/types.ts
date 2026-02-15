@@ -7,6 +7,8 @@ export interface TakvimYemek {
   ad: string;
   fiyat: number;
   ikon?: string;
+  malzemeSayisi?: number;
+  kategoriAdi?: string;
 }
 
 export interface TakvimHucre {

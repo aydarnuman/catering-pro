@@ -66,12 +66,24 @@ const KaydedilenMenuKart = ({ menu }: { menu: MenuPlan }) => {
 
           {menu.ogunler && menu.ogunler.length > 0 && (
             <Group gap={6} mt={6}>
-              {menu.ogunler.map((ogun) => (
-                <Badge key={ogun.id} size="xs" variant="dot" color="teal">
-                  {ogun.ogun_tipi_adi}: {ogun.yemekler?.length || 0} yemek
-                </Badge>
-              ))}
+              {menu.ogunler.map((ogun) => {
+                const ogunMaliyet = ogun.yemekler?.reduce((s, y) => s + (y.porsiyon_maliyet || 0), 0) || 0;
+                return (
+                  <Badge key={ogun.id} size="xs" variant="dot" color="teal">
+                    {ogun.ogun_tipi_adi}: {ogun.yemekler?.length || 0} yemek
+                    {ogunMaliyet > 0 && ` · ${formatMoney(ogunMaliyet)}`}
+                  </Badge>
+                );
+              })}
             </Group>
+          )}
+          {menu.varsayilan_kisi_sayisi > 0 && (
+            <Text size="10px" c="dimmed" mt={4}>
+              {menu.varsayilan_kisi_sayisi.toLocaleString('tr-TR')} kişi
+              {menu.toplam_maliyet && menu.varsayilan_kisi_sayisi > 0
+                ? ` · Kişi başı ${formatMoney(menu.toplam_maliyet / menu.varsayilan_kisi_sayisi)}`
+                : ''}
+            </Text>
           )}
         </Box>
 
@@ -251,6 +263,17 @@ function KurumMenuleriSection({
 // ─── Kurum Menü Kartı ─────────────────────────────────────────
 
 function KurumMenuKart({ menu, onClick }: { menu: KurumMenuOzet; onClick: () => void }) {
+  const formatTarih = (tarihStr: string) => {
+    const d = new Date(tarihStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffGun = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffGun === 0) return 'Bugün';
+    if (diffGun === 1) return 'Dün';
+    if (diffGun < 7) return `${diffGun} gün önce`;
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  };
+
   return (
     <Card p="sm" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onClick}>
       <Group justify="space-between" wrap="nowrap" mb={6}>
@@ -262,16 +285,16 @@ function KurumMenuKart({ menu, onClick }: { menu: KurumMenuOzet; onClick: () => 
         </Group>
         {Number(menu.gunluk_maliyet) > 0 && (
           <Badge size="sm" color="green" variant="light">
-            {Number(menu.gunluk_maliyet).toFixed(0)} TL/gun
+            {Number(menu.gunluk_maliyet).toFixed(0)} TL/gün
           </Badge>
         )}
       </Group>
-      <Group gap={6}>
+      <Group gap={6} mb={4}>
         <Badge size="xs" color={menu.maliyet_seviyesi_renk || 'gray'} variant="light">
           {menu.maliyet_seviyesi_ad}
         </Badge>
         <Badge size="xs" color="gray" variant="light">
-          {menu.gun_sayisi} gun
+          {menu.gun_sayisi} gün
         </Badge>
         <Badge size="xs" color="gray" variant="light">
           {menu.yemek_sayisi} yemek
@@ -280,6 +303,43 @@ function KurumMenuKart({ menu, onClick }: { menu: KurumMenuOzet; onClick: () => 
           {menu.durum === 'aktif' ? 'Aktif' : 'Taslak'}
         </Badge>
       </Group>
+      {/* Ek bilgiler: kişi, öğün, toplam maliyet, son güncelleme, kullanım */}
+      <Group gap="xs" wrap="nowrap" style={{ flexWrap: 'wrap' }}>
+        {menu.kisi_sayisi > 0 && (
+          <Text size="xs" c="dimmed">
+            {menu.kisi_sayisi} kişi
+          </Text>
+        )}
+        {menu.ogun_sayisi > 0 && (
+          <Text size="xs" c="dimmed">
+            • {menu.ogun_sayisi} öğün
+          </Text>
+        )}
+        {Number(menu.toplam_maliyet) > 0 && (
+          <Text size="xs" c="dimmed">
+            • Toplam {formatMoney(menu.toplam_maliyet)}
+          </Text>
+        )}
+        {menu.updated_at && (
+          <Text size="xs" c="dimmed" title={new Date(menu.updated_at).toLocaleString('tr-TR')}>
+            • {formatTarih(menu.updated_at)}
+          </Text>
+        )}
+        {menu.kullanim_sayisi > 0 && (
+          <Text size="xs" c="dimmed">
+            • {menu.kullanim_sayisi} kullanım
+          </Text>
+        )}
+      </Group>
+      {menu.etiketler && menu.etiketler.length > 0 && (
+        <Group gap={4} mt={4} wrap="wrap">
+          {menu.etiketler.slice(0, 3).map((etiket) => (
+            <Badge key={etiket} size="xs" variant="outline" color="gray">
+              {etiket}
+            </Badge>
+          ))}
+        </Group>
+      )}
     </Card>
   );
 }

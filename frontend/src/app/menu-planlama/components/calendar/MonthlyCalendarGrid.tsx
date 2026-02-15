@@ -181,6 +181,20 @@ export function MonthlyCalendarGrid({
                       {formatMoney(gunMaliyet)}
                     </Text>
                   </Group>
+                  {/* Öğün bazlı mini maliyet */}
+                  <Group gap={2} wrap="nowrap">
+                    {ogunler.map((ogun) => {
+                      const key = getHucreKey(tarih, ogun.kod);
+                      const hucre: TakvimHucre | undefined = takvimState[key];
+                      if (!hucre || hucre.yemekler.length === 0) return null;
+                      const ogunMaliyet = hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
+                      return (
+                        <Text key={ogun.kod} size="8px" c={ogun.renk} fw={500}>
+                          {ogun.ad.charAt(0)}: {formatMoney(ogunMaliyet)}
+                        </Text>
+                      );
+                    })}
+                  </Group>
                 </Stack>
               ) : (
                 <Text size="10px" c="dimmed" ta="center" py={4}>

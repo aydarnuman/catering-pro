@@ -167,6 +167,8 @@ export function MenuTakvim() {
               ad: yemek.ad,
               fiyat,
               ikon: yemek.kategori_ikon || '🍽️',
+              malzemeSayisi: yemek.malzeme_sayisi,
+              kategoriAdi: yemek.kategori_adi,
             },
           ],
         },
