@@ -9,6 +9,7 @@
  */
 import { query } from '../database.js';
 import { donusumCarpaniAl } from '../utils/birim-donusum.js';
+import { FIYAT_GECERLILIK_GUN } from '../utils/fiyat-hesaplama.js';
 
 /**
  * Sözlük tabanlı eşleşme — TÜM eşleşmeleri spesifikliğe göre sıralı döndürür.
@@ -168,9 +169,6 @@ export function kuralBul(malzemeAdi, sozluk, altTipKurallari, tumKurallar) {
   return null;
 }
 
-/** Fiyat geçerlilik süresi (gün) — tüm sistemlerle tutarlı */
-const FIYAT_GECERLILIK_GUN = 90;
-
 function fiyatGuncelMi(tarih) {
   if (!tarih) return false;
   const fiyatTarihi = new Date(tarih);
@@ -236,7 +234,7 @@ export async function receteSartnamePreview(receteId, altTipId, kurallar, sozluk
   const malzemeResult = await query(
     `
     SELECT
-      rm.id, rm.malzeme_adi, rm.miktar, rm.birim,
+      rm.id, rm.malzeme_adi, rm.miktar, rm.birim, rm.urun_kart_id,
       urk.manuel_fiyat as urun_manuel_fiyat,
       urk.aktif_fiyat as urun_aktif_fiyat,
       urk.son_alis_fiyati as urun_son_alis,

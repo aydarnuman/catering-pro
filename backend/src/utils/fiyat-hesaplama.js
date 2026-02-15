@@ -5,8 +5,8 @@
 
 import { miktarDonustur } from './birim-donusum.js';
 
-// Fiyat geçerlilik süresi (gün)
-const FIYAT_GECERLILIK_GUN = 90;
+/** Fiyat geçerlilik süresi (gün) — tüm sistemlerin ortak sabiti */
+export const FIYAT_GECERLILIK_GUN = 90;
 
 /**
  * Fiyatın güncel olup olmadığını kontrol et

@@ -1,9 +1,7 @@
 import { query } from '../database.js';
 import { donusumCarpaniAl } from '../utils/birim-donusum.js';
+import { FIYAT_GECERLILIK_GUN } from '../utils/fiyat-hesaplama.js';
 import logger from '../utils/logger.js';
-
-/** Fiyat geçerlilik süresi (gün) — fiyat-hesaplama.js ile tutarlı */
-const FIYAT_GECERLILIK_GUN = 90;
 
 function fiyatGuncelMi(tarih) {
   if (!tarih) return false;
@@ -50,7 +48,9 @@ async function hesaplaReceteMaliyet(receteId) {
         get_en_iyi_varyant_fiyat(rm.urun_kart_id) as varyant_fiyat,
         -- Varyant bilgisi (hangi varyanttan geldiğini göstermek için)
         (SELECT vo.en_ucuz_varyant_adi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_kaynak_adi,
-        (SELECT vo.varyant_sayisi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_sayisi
+        (SELECT vo.varyant_sayisi FROM get_varyant_fiyat_ozet(rm.urun_kart_id) vo) as varyant_sayisi,
+        -- Piyasa fiyat birimi (piyasa fiyatı kullanılırsa dönüşüm hesabında gerekli)
+        (SELECT birim_tipi FROM urun_fiyat_ozet WHERE urun_kart_id = rm.urun_kart_id) as piyasa_birim_tipi
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
