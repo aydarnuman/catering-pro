@@ -925,7 +925,7 @@ export default function DemirbasPage() {
     }
   };
 
-  // Durum badge rengi
+  // Durum badge rengi (D2: hurda daha belirgin)
   const getDurumColor = (durum: string) => {
     switch (durum) {
       case 'aktif':
@@ -935,7 +935,7 @@ export default function DemirbasPage() {
       case 'arizali':
         return 'red';
       case 'hurda':
-        return 'gray';
+        return 'dark';
       case 'satildi':
         return 'blue';
       default:
