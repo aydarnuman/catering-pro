@@ -12,19 +12,29 @@ import {
   Select,
   Stack,
   Table,
-  Tabs,
   Text,
-  TextInput,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconInfoCircle, IconPlus, IconScale, IconX } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { IconAlertCircle, IconCheck, IconInfoCircle, IconRobot, IconScale } from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
-import { GramajEditableRow } from './GramajEditableRow';
-import { GramajNewRow } from './GramajNewRow';
-import type { BackendMaliyetAnaliziResponse, ReceteDetay, SartnameGramaj, SartnameSet } from './types';
+import { type AltTipTanimi, menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
+import type { BackendMaliyetAnaliziResponse, ReceteDetay, SartnameSet } from './types';
+
+type GramajOnizlemeItem = {
+  id: number;
+  malzeme_adi: string;
+  mevcut_miktar: number;
+  mevcut_birim: string;
+  sartname_gramaj: number | null;
+  sartname_birim: string | null;
+  kullanilan_miktar: number;
+  kullanilan_birim: string;
+  hesaplanan_fiyat: number;
+  malzeme_tipi: string | null;
+  birim_fiyat: number;
+};
 
 interface ReceteDetayModalProps {
   opened: boolean;
@@ -39,7 +49,7 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
   const [receteDetay, setReceteDetay] = useState<ReceteDetay | null>(null);
 
   // Şartname listesini API'den çek
-  const { data: sartnameListesi = [], refetch: refetchSartnameler } = useQuery<SartnameSet[]>({
+  const { data: sartnameListesi = [] } = useQuery<SartnameSet[]>({
     queryKey: ['sartname-liste'],
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getSartnameListesi();
@@ -47,164 +57,43 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
     },
   });
 
-  // Şartname tab'ları - her tab bir şartnameyi temsil eder (id'ler)
-  const [sartnameTabs, setSartnameTabs] = useLocalStorage<number[]>('recete-sartname-tabs-v2', []);
-  const [activeReceteTab, setActiveReceteTab] = useLocalStorage<number | null>('recete-active-tab-v2', null);
-  const [newSartnameName, setNewSartnameName] = useState('');
+  // Karşılaştırma için seçilen şartname (mevcut şartnamelerden)
+  const [activeReceteTab, setActiveReceteTab] = useLocalStorage<number | null>('recete-sartname-secim-v2', null);
 
-  // İlk şartnameler yüklendiğinde tab'ları ayarla
+  // İlk şartnameler yüklendiğinde varsayılan seçim
   useEffect(() => {
-    if (sartnameListesi.length > 0 && sartnameTabs.length === 0) {
-      const ilkUc = sartnameListesi.slice(0, 3).map((s) => s.id);
-      setSartnameTabs(ilkUc);
-      setActiveReceteTab(ilkUc[0]);
+    const list = sartnameListesi ?? [];
+    if (list.length > 0 && activeReceteTab == null) {
+      setActiveReceteTab(list[0].id);
     }
-  }, [sartnameListesi, sartnameTabs.length, setSartnameTabs, setActiveReceteTab]);
+  }, [sartnameListesi, activeReceteTab, setActiveReceteTab]);
 
-  // Şartname detaylarını cache'le (gramajlarıyla birlikte)
-  const [sartnameDetayCache, setSartnameDetayCache] = useState<Record<number, SartnameSet>>({});
-
-  // Tab için şartname bilgisini al (gramajlarıyla)
-  const getTabSartname = useCallback(
-    (tabId: number): SartnameSet | undefined => {
-      if (sartnameDetayCache[tabId]) {
-        return sartnameDetayCache[tabId];
-      }
-      return sartnameListesi.find((s) => s.id === tabId);
+  // Şartname gramaj önizlemesi (yeni sistem - sartname_gramaj_kurallari)
+  const {
+    data: gramajOnizleme,
+    isLoading: gramajOnizlemeLoading,
+  } = useQuery({
+    queryKey: ['recete-sartname-gramaj-onizleme', receteId, activeReceteTab],
+    queryFn: async () => {
+      if (!receteId || !activeReceteTab) return null;
+      const res = await menuPlanlamaAPI.getReceteSartnameGramajOnizleme(receteId, activeReceteTab);
+      return res.success ? res.data : null;
     },
-    [sartnameDetayCache, sartnameListesi]
-  );
+    enabled: !!receteId && !!activeReceteTab && !!opened,
+    staleTime: 30 * 1000,
+  });
 
-  // Şartname detayını API'den çek (gramajlarıyla)
-  const fetchSartnameDetay = useCallback(
-    async (sartnameId: number) => {
-      if (sartnameDetayCache[sartnameId]) return sartnameDetayCache[sartnameId];
-
-      try {
-        const res = await menuPlanlamaAPI.getSartnameDetay(sartnameId);
-        if (res.success) {
-          const raw = res.data as Record<string, unknown>;
-          const detay = { ...raw, gramajlar: (raw.gramajlar as unknown[]) || [] } as SartnameSet;
-          setSartnameDetayCache((prev) => ({ ...prev, [sartnameId]: detay }));
-          return detay;
-        }
-      } catch (err) {
-        console.error('Şartname detay hatası:', err);
-      }
-      return null;
+  // Gramaj uyum kontrolü (şartnameye göre uygun/düşük/yüksek/eksik)
+  const { data: gramajKontrolData } = useQuery({
+    queryKey: ['recete-gramaj-kontrol', receteId, activeReceteTab],
+    queryFn: async () => {
+      if (!receteId || !activeReceteTab) return null;
+      const res = await menuPlanlamaAPI.getGramajKontrol(receteId, { sartname_id: activeReceteTab });
+      return res.success ? res.data : null;
     },
-    [sartnameDetayCache]
-  );
-
-  // Aktif tab değiştiğinde gramajları yükle
-  useEffect(() => {
-    if (activeReceteTab && !sartnameDetayCache[activeReceteTab]) {
-      fetchSartnameDetay(activeReceteTab);
-    }
-  }, [activeReceteTab, sartnameDetayCache, fetchSartnameDetay]);
-
-  // Yeni şartname ekle
-  const handleAddSartname = async () => {
-    if (!newSartnameName.trim()) return;
-
-    try {
-      const res = await menuPlanlamaAPI.createSartname({ ad: newSartnameName.trim() });
-      if (res.success) {
-        await refetchSartnameler();
-        setSartnameTabs((prev) => [...prev, res.data.id]);
-        setActiveReceteTab(res.data.id);
-        setNewSartnameName('');
-        notifications.show({ title: 'Başarılı', message: 'Şartname eklendi', color: 'green' });
-      }
-    } catch (_err) {
-      notifications.show({ title: 'Hata', message: 'Şartname eklenemedi', color: 'red' });
-    }
-  };
-
-  // Yeni gramaj ekle
-  const handleAddGramaj = async (
-    sartnameId: number,
-    malzeme: string,
-    gramaj: number,
-    birim: string,
-    birimFiyat?: number
-  ) => {
-    try {
-      const res = await menuPlanlamaAPI.addGramaj(sartnameId, { yemek_turu: malzeme, porsiyon_gramaj: gramaj, birim });
-      if (res.success) {
-        const rawGramaj = res.data as Record<string, unknown>;
-        const newGramaj: SartnameGramaj = {
-          id: rawGramaj.id as number,
-          yemek_turu: (rawGramaj.yemek_turu as string) || malzeme,
-          malzeme_adi: rawGramaj.malzeme_adi as string | undefined,
-          porsiyon_gramaj: (rawGramaj.porsiyon_gramaj as number) || gramaj,
-          birim: (rawGramaj.birim as string) || birim,
-          birim_fiyat: birimFiyat,
-        };
-        setSartnameDetayCache((prev) => {
-          const current = prev[sartnameId];
-          if (!current) return prev;
-          return {
-            ...prev,
-            [sartnameId]: {
-              ...current,
-              gramajlar: [...(current.gramajlar || []), newGramaj],
-            },
-          };
-        });
-      }
-    } catch (err) {
-      console.error('Gramaj eklenemedi:', err);
-    }
-  };
-
-  // Gramaj güncelle
-  const handleUpdateGramaj = async (
-    gramajId: number,
-    sartnameId: number,
-    data: { yemek_turu?: string; porsiyon_gramaj?: number; birim?: string }
-  ) => {
-    try {
-      const result = await menuPlanlamaAPI.updateGramaj(gramajId, data);
-      if (result.success) {
-        setSartnameDetayCache((prev) => {
-          const current = prev[sartnameId];
-          if (!current || !current.gramajlar) return prev;
-          return {
-            ...prev,
-            [sartnameId]: {
-              ...current,
-              gramajlar: current.gramajlar.map((g) => (g.id === gramajId ? { ...g, ...data } : g)),
-            },
-          };
-        });
-      }
-    } catch (err) {
-      console.error('Gramaj güncellenemedi:', err);
-    }
-  };
-
-  // Gramaj sil
-  const handleDeleteGramaj = async (gramajId: number, sartnameId: number) => {
-    try {
-      const data = await menuPlanlamaAPI.deleteGramaj(gramajId);
-      if (data.success) {
-        setSartnameDetayCache((prev) => {
-          const current = prev[sartnameId];
-          if (!current || !current.gramajlar) return prev;
-          return {
-            ...prev,
-            [sartnameId]: {
-              ...current,
-              gramajlar: current.gramajlar.filter((g) => g.id !== gramajId),
-            },
-          };
-        });
-      }
-    } catch (err) {
-      console.error('Gramaj silinemedi:', err);
-    }
-  };
+    enabled: !!receteId && !!activeReceteTab && !!opened,
+    staleTime: 30 * 1000,
+  });
 
   // React Query: Reçete detayı
   const {
@@ -289,179 +178,362 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
           <Loader color="teal" />
         </Center>
       ) : receteDetay ? (
-        <Tabs
-          value={activeReceteTab?.toString() || ''}
-          onChange={(val) => setActiveReceteTab(val ? Number(val) : null)}
-        >
-          <Stack gap="md">
-            {/* Tab listesi - Pill style */}
-            <Group gap="xs" wrap="wrap">
-              {sartnameTabs.map((tabId) => {
-                const sartname = getTabSartname(tabId);
-                const isActive = activeReceteTab === tabId;
+        <Stack gap="md">
+          {/* Alt Tip Seçici */}
+          <AltTipSecici receteId={receteDetay.id} />
+
+            <Stack gap="md">
+              {/* Mevcut şartnamelerden seçerek reçete–şartname gramaj karşılaştırması */}
+              <Select
+                label="Şartnameye göre gramaj önizlemesi"
+                description="Karşılaştırmak için mevcut şartnamelerden birini seçin"
+                placeholder="Şartname seçin..."
+                value={activeReceteTab?.toString() ?? null}
+                onChange={(val) => setActiveReceteTab(val ? Number(val) : null)}
+                data={(sartnameListesi ?? []).map((s) => ({ value: s.id.toString(), label: s.ad }))}
+                clearable
+                searchable
+                style={{ maxWidth: 320 }}
+              />
+
+              {/* Gramaj uyum kontrolü özeti (şartname → reçete) */}
+              {activeReceteTab != null && (() => {
+                const kontrol = gramajKontrolData?.gramaj_kontrol ?? null;
+                if (!kontrol) return null;
+                const { uygun_sayisi, uyumsuz_sayisi, toplam_kontrol, sonuclar } = kontrol;
+                const uyumsuzlar = sonuclar.filter((s) => s.durum !== 'uygun');
                 return (
-                  <Paper
-                    key={tabId}
-                    p="xs"
-                    px="md"
-                    radius="xl"
-                    withBorder
-                    style={{
-                      cursor: 'pointer',
-                      background: isActive ? 'var(--mantine-color-teal-9)' : 'var(--mantine-color-dark-6)',
-                      borderColor: isActive ? 'var(--mantine-color-teal-6)' : 'var(--mantine-color-dark-4)',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onClick={() => {
-                      setActiveReceteTab(tabId);
-                      fetchSartnameDetay(tabId);
-                    }}
-                  >
-                    <Group gap={8} wrap="nowrap">
-                      <Text size="sm" fw={isActive ? 600 : 400} c={isActive ? 'white' : 'dimmed'}>
-                        {sartname?.ad || `Şartname ${tabId}`}
+                  <Paper withBorder radius="md" p="sm">
+                    <Group gap="xs" mb={uyumsuzlar.length > 0 ? 'sm' : 0}>
+                      <IconScale size={18} color="var(--mantine-color-teal-6)" />
+                      <Text size="sm" fw={600}>
+                        Şartname uyum kontrolü
                       </Text>
-                      {sartnameTabs.length > 1 && (
-                        <ActionIcon
-                          size={16}
-                          radius="xl"
-                          variant="subtle"
-                          color={isActive ? 'white' : 'gray'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newTabs = sartnameTabs.filter((t) => t !== tabId);
-                            setSartnameTabs(newTabs);
-                            if (activeReceteTab === tabId) {
-                              setActiveReceteTab(newTabs[0]);
-                            }
-                          }}
-                        >
-                          <IconX size={10} />
-                        </ActionIcon>
-                      )}
                     </Group>
+                    <Group gap="md">
+                      <Badge
+                        size="sm"
+                        variant="light"
+                        color="green"
+                        leftSection={<IconCheck size={12} />}
+                      >
+                        {uygun_sayisi} uygun
+                      </Badge>
+                      {uyumsuz_sayisi > 0 && (
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color="orange"
+                          leftSection={<IconAlertCircle size={12} />}
+                        >
+                          {uyumsuz_sayisi} uyumsuz
+                        </Badge>
+                      )}
+                      <Text size="xs" c="dimmed">
+                        Toplam {toplam_kontrol} kural kontrol edildi
+                      </Text>
+                    </Group>
+                    {uyumsuzlar.length > 0 && (
+                      <Table mt="sm" withTableBorder withColumnBorders layout="fixed" fz="xs">
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Malzeme tipi</Table.Th>
+                            <Table.Th ta="right">Hedef</Table.Th>
+                            <Table.Th ta="right">Reçete</Table.Th>
+                            <Table.Th>Durum</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {uyumsuzlar.map((s, i) => (
+                            <Table.Tr key={`${s.malzeme_tipi}-${i}`}>
+                              <Table.Td>{s.malzeme_tipi}</Table.Td>
+                              <Table.Td ta="right">
+                                {s.hedef_gramaj} {s.birim}
+                              </Table.Td>
+                              <Table.Td ta="right">
+                                {s.recete_gramaj != null ? `${s.recete_gramaj} ${s.birim}` : '—'}
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={
+                                    s.durum === 'eksik'
+                                      ? 'red'
+                                      : s.durum === 'dusuk'
+                                        ? 'yellow'
+                                        : 'orange'
+                                  }
+                                >
+                                  {s.durum === 'eksik'
+                                    ? 'Eksik'
+                                    : s.durum === 'dusuk'
+                                      ? 'Düşük'
+                                      : 'Yüksek'}
+                                </Badge>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    )}
                   </Paper>
                 );
-              })}
+              })()}
 
-              {/* Yeni şartname ekle */}
-              {sartnameListesi.filter((s) => !sartnameTabs.includes(s.id)).length > 0 && (
-                <Select
-                  size="xs"
-                  placeholder="+ Ekle"
-                  w={100}
-                  data={sartnameListesi
-                    .filter((s) => !sartnameTabs.includes(s.id))
-                    .map((s) => ({ value: s.id.toString(), label: s.ad }))}
-                  onChange={(val) => {
-                    if (val) {
-                      const numVal = Number(val);
-                      if (!sartnameTabs.includes(numVal)) {
-                        setSartnameTabs([...sartnameTabs, numVal]);
-                        setActiveReceteTab(numVal);
-                        fetchSartnameDetay(numVal);
-                      }
-                    }
-                  }}
-                  comboboxProps={{ withinPortal: true }}
-                  styles={{ input: { borderRadius: 20 } }}
-                />
+              {/* Varyant fiyat bilgisi */}
+              {receteDetay.malzemeler.some((m) => m.fiyat_kaynagi === 'VARYANT') && (
+                <Alert variant="light" color="violet" icon={<IconInfoCircle size={16} />} radius="md" py="xs">
+                  <Group gap="xs" wrap="wrap">
+                    <Text size="xs">Bazı malzemelerin fiyatı varyantlardan alınıyor:</Text>
+                    {receteDetay.malzemeler
+                      .filter((m) => m.fiyat_kaynagi === 'VARYANT')
+                      .map((m) => (
+                        <Badge key={m.id} size="xs" variant="light" color="violet" radius="sm">
+                          {m.malzeme_adi}
+                          {m.varyant_kaynak_adi ? ` → ${m.varyant_kaynak_adi}` : ''}
+                        </Badge>
+                      ))}
+                  </Group>
+                </Alert>
               )}
 
-              {/* Manuel şartname ekleme */}
-              <Group gap={4}>
-                <TextInput
-                  size="xs"
-                  placeholder="Yeni..."
-                  w={80}
-                  value={newSartnameName}
-                  onChange={(e) => setNewSartnameName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddSartname()}
-                  styles={{ input: { borderRadius: 20 } }}
-                />
-                <ActionIcon
-                  size="sm"
-                  radius="xl"
-                  variant="light"
-                  color="teal"
-                  onClick={handleAddSartname}
-                  disabled={!newSartnameName.trim()}
-                >
-                  <IconPlus size={14} />
-                </ActionIcon>
-              </Group>
-            </Group>
+              {/* Gramaj Önizleme Tablosu (yeni sistem - sartname_gramaj_kurallari) */}
+              {(() => {
+                const malzemeler = (gramajOnizleme?.malzemeler ?? []) as GramajOnizlemeItem[];
+                const altTipId = gramajOnizleme?.alt_tip_id ?? null;
+                const toplamMaliyet = gramajOnizleme?.toplam_maliyet ?? 0;
+                const sartnameSecili = activeReceteTab != null;
 
-            {/* Varyant fiyat bilgisi */}
-            {receteDetay.malzemeler.some((m) => m.fiyat_kaynagi === 'VARYANT') && (
-              <Alert variant="light" color="violet" icon={<IconInfoCircle size={16} />} radius="md" py="xs">
-                <Group gap="xs" wrap="wrap">
-                  <Text size="xs">Bazı malzemelerin fiyatı varyantlardan alınıyor:</Text>
-                  {receteDetay.malzemeler
-                    .filter((m) => m.fiyat_kaynagi === 'VARYANT')
-                    .map((m) => (
-                      <Badge key={m.id} size="xs" variant="light" color="violet" radius="sm">
-                        {m.malzeme_adi}
-                        {m.varyant_kaynak_adi ? ` → ${m.varyant_kaynak_adi}` : ''}
-                      </Badge>
-                    ))}
-                </Group>
-              </Alert>
-            )}
+                if (!sartnameSecili) {
+                  return (
+                    <Paper withBorder radius="md" p="xl">
+                      <Text size="sm" c="dimmed" ta="center">
+                        Karşılaştırma için yukarıdaki listeden bir şartname seçin.
+                      </Text>
+                    </Paper>
+                  );
+                }
 
-            {/* Gramaj Tablosu - Aktif tab'ın içeriği */}
-            {(() => {
-              const currentSartname = getTabSartname(activeReceteTab || 0);
-              const gramajlar = currentSartname?.gramajlar || [];
+                if (gramajOnizlemeLoading) {
+                  return (
+                    <Paper withBorder radius="md" p="xl">
+                      <Center>
+                        <Loader size="sm" color="teal" />
+                      </Center>
+                    </Paper>
+                  );
+                }
 
-              return (
-                <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
-                  <Table>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th style={{ width: '40%' }}>Malzeme</Table.Th>
-                        <Table.Th ta="center" style={{ width: '15%' }}>
-                          Gramaj
-                        </Table.Th>
-                        <Table.Th ta="center" style={{ width: '12%' }}>
-                          Birim
-                        </Table.Th>
-                        <Table.Th ta="right" style={{ width: '18%' }}>
-                          Fiyat
-                        </Table.Th>
-                        <Table.Th style={{ width: 40 }} />
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {gramajlar.map((g) => (
-                        <GramajEditableRow
-                          key={g.id}
-                          gramaj={g}
-                          sartnameId={activeReceteTab || 0}
-                          onUpdate={handleUpdateGramaj}
-                          onDelete={handleDeleteGramaj}
-                        />
-                      ))}
-                      {/* Yeni satır ekleme */}
-                      <GramajNewRow sartnameId={activeReceteTab || 0} onAdd={handleAddGramaj} />
-                    </Table.Tbody>
-                  </Table>
+                if (!altTipId) {
+                  return (
+                    <Paper withBorder radius="md" p="xl">
+                      <Text size="sm" c="dimmed" ta="center">
+                        Reçeteye alt tip atanmamış. Alt tip atandığında şartname gramaj kuralları görünür.
+                      </Text>
+                    </Paper>
+                  );
+                }
 
-                  {gramajlar.length === 0 && (
-                    <Text size="sm" c="dimmed" ta="center" py="lg">
-                      Bu şartnameye henüz gramaj eklenmemiş
+                if (malzemeler.length === 0) {
+                  return (
+                    <Paper withBorder radius="md" p="xl">
+                      <Text size="sm" c="dimmed" ta="center">
+                        Bu reçetede malzeme bulunamadı.
+                      </Text>
+                    </Paper>
+                  );
+                }
+
+                const sartnameDoluSayisi = malzemeler.filter((m) => m.sartname_gramaj != null).length;
+
+                return (
+                  <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
+                    {sartnameDoluSayisi === 0 && (
+                      <Alert variant="light" color="blue" radius="md" m="md" mb={0}>
+                        <Text size="sm">
+                          Bu şartnamede bu alt tip için eşleşen gramaj kuralı bulunamadı. Şartname Yönetimi&apos;nden
+                          kural ekleyebilirsiniz.
+                        </Text>
+                      </Alert>
+                    )}
+                    <Table>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th style={{ width: '35%' }}>Malzeme</Table.Th>
+                          <Table.Th ta="right" style={{ width: '12%' }}>
+                            Reçete
+                          </Table.Th>
+                          <Table.Th ta="right" style={{ width: '12%' }}>
+                            Şartname
+                          </Table.Th>
+                          <Table.Th ta="center" style={{ width: '8%' }}>
+                            Birim
+                          </Table.Th>
+                          <Table.Th ta="right" style={{ width: '15%' }}>
+                            Fiyat
+                          </Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {malzemeler.map((m) => (
+                          <Table.Tr key={m.id}>
+                            <Table.Td>
+                              <Text size="sm">{m.malzeme_adi}</Text>
+                              {m.malzeme_tipi && (
+                                <Badge size="xs" variant="light" color="teal" mt={4}>
+                                  {m.malzeme_tipi}
+                                </Badge>
+                              )}
+                            </Table.Td>
+                            <Table.Td ta="right">
+                              <Text size="sm" c="dimmed">
+                                {m.mevcut_miktar}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td ta="right">
+                              {m.sartname_gramaj != null ? (
+                                <Text size="sm" fw={600} c="teal">
+                                  {m.sartname_gramaj}
+                                </Text>
+                              ) : (
+                                <Text size="sm" c="dimmed">
+                                  —
+                                </Text>
+                              )}
+                            </Table.Td>
+                            <Table.Td ta="center">
+                              <Text size="xs" c="dimmed">
+                                {m.kullanilan_birim}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td ta="right">
+                              <Text size="sm">₺{m.hesaplanan_fiyat.toFixed(2)}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                    <Group justify="flex-end" p="md" bg="dark.6">
+                      <Text size="sm" fw={600}>
+                        Toplam: ₺{toplamMaliyet.toFixed(2)}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" ta="center" pb="md" px="md">
+                      Şartname kurallarını düzenlemek için Şartname Yönetimi&apos;ni kullanın.
                     </Text>
-                  )}
-                </Paper>
-              );
-            })()}
-          </Stack>
-        </Tabs>
+                  </Paper>
+                );
+              })()}
+            </Stack>
+        </Stack>
       ) : (
         <Text c="dimmed" ta="center" py="xl">
           Reçete bilgisi bulunamadı
         </Text>
       )}
     </Modal>
+  );
+}
+
+// =============================================
+// Alt Tip Seçici Bileşeni
+// =============================================
+function AltTipSecici({ receteId }: { receteId: number }) {
+  // Alt tipleri getir
+  const { data: altTipler = [] } = useQuery<AltTipTanimi[]>({
+    queryKey: ['alt-tipler'],
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getAltTipler();
+      return res.success ? (res.data as AltTipTanimi[]) : [];
+    },
+  });
+
+  // Reçetenin mevcut detayını al
+  const { data: receteData, refetch: refetchRecete } = useQuery({
+    queryKey: ['recete-alt-tip', receteId],
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getRecete(receteId);
+      return res.success ? res.data : null;
+    },
+    enabled: !!receteId,
+  });
+
+  const altTipSecenekleri = useMemo(() => {
+    const list = altTipler ?? [];
+    const byGroup = new Map<string, Array<{ value: string; label: string }>>();
+    for (const t of list) {
+      const g = t.kategori_adi || 'Diğer';
+      const items = byGroup.get(g) ?? [];
+      if (items.length === 0) byGroup.set(g, items);
+      items.push({
+        value: String(t.id),
+        label: `${t.ikon || ''} ${t.ad}`.trim(),
+      });
+    }
+    return Array.from(byGroup.entries()).map(([group, items]) => ({ group, items }));
+  }, [altTipler]);
+
+  // Alt tip güncelleme
+  const updateMutation = useMutation({
+    mutationFn: (altTipId: number) => menuPlanlamaAPI.updateReceteAltTip(receteId, altTipId),
+    onSuccess: () => {
+      refetchRecete();
+      notifications.show({ message: 'Alt tip güncellendi', color: 'green' });
+    },
+  });
+
+  // AI önerisi
+  const aiOneriMutation = useMutation({
+    mutationFn: () => menuPlanlamaAPI.aiAltTipOneri(receteId),
+    onSuccess: (res) => {
+      if (res.success && res.data.oneri) {
+        const tip = altTipler.find((t) => t.kod === res.data.oneri);
+        if (tip) {
+          updateMutation.mutate(tip.id);
+          notifications.show({
+            title: 'AI Önerisi',
+            message: `"${res.data.oneri_adi}" olarak atandı`,
+            color: 'blue',
+          });
+        }
+      } else {
+        notifications.show({ message: 'AI öneri üretemedi', color: 'yellow' });
+      }
+    },
+  });
+
+  const mevcutAltTipId = (receteData as unknown as Record<string, unknown>)?.alt_tip_id;
+
+  return (
+    <Paper withBorder p="xs" radius="md">
+      <Group gap="sm">
+        <Text size="xs" fw={600} c="dimmed">
+          Alt Tip:
+        </Text>
+        <Select
+          placeholder="Alt tip seçin..."
+          data={altTipSecenekleri ?? []}
+          value={mevcutAltTipId ? String(mevcutAltTipId) : null}
+          onChange={(val) => {
+            if (val) updateMutation.mutate(Number(val));
+          }}
+          searchable
+          size="xs"
+          w={250}
+          clearable
+        />
+        <ActionIcon
+          size="sm"
+          variant="light"
+          color="blue"
+          onClick={() => aiOneriMutation.mutate()}
+          loading={aiOneriMutation.isPending}
+          title="AI ile alt tip öner"
+        >
+          <IconRobot size={14} />
+        </ActionIcon>
+      </Group>
+    </Paper>
   );
 }
