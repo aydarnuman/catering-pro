@@ -29,7 +29,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -165,6 +165,7 @@ interface DemirbasDetay {
 
 export default function DemirbasPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1655,6 +1656,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="xl"
+        fullScreen={isMobile}
       >
         {envanterStep === 1 ? (
           // Adım 1: Kategori Seçimi - Yatay Kartlar
@@ -1834,6 +1836,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="xl"
+        fullScreen={isMobile}
       >
         <Tabs defaultValue="genel">
           <Tabs.List>
@@ -2026,6 +2029,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="md"
+        fullScreen={isMobile}
       >
         {selectedDemirbas && (
           <Alert color="blue" variant="light" mb="md">
@@ -2080,6 +2084,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="md"
+        fullScreen={isMobile}
       >
         {selectedDemirbas && (
           <Alert color="yellow" variant="light" mb="md">
@@ -2151,6 +2156,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="md"
+        fullScreen={isMobile}
       >
         {selectedDemirbas && (
           <Alert color="teal" variant="light" mb="md">
@@ -2206,6 +2212,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="xl"
+        fullScreen={isMobile}
       >
         {detayData && (
           <Stack gap="md">
@@ -2350,6 +2357,7 @@ export default function DemirbasPage() {
           </Group>
         }
         size="md"
+        fullScreen={isMobile}
       >
         <Stack gap="md">
           <TextInput
