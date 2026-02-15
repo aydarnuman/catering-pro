@@ -2,6 +2,7 @@
 
 import {
   ActionIcon,
+  Autocomplete,
   Badge,
   Box,
   Button,
@@ -85,6 +86,16 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getAltTipler();
       return res.success ? (res.data as AltTipTanimi[]) : [];
+    },
+    enabled: opened,
+  });
+
+  // Malzeme eşleme sözlüğü (malzeme tipi önerileri için)
+  const { data: malzemeEslesmeleri = [] } = useQuery({
+    queryKey: ['malzeme-eslesmeleri'],
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getMalzemeEslesmeleri();
+      return res.success ? (res.data as Array<{ malzeme_tipi: string }>) : [];
     },
     enabled: opened,
   });
@@ -261,6 +272,13 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
       notifications.show({ title: 'AI Hatası', message: err.message, color: 'red' });
     },
   });
+
+  // Malzeme tipi öneri listesi: sözlük + bu şartnamedeki kurallardaki tipler (tekilleştirilmiş, sıralı)
+  const malzemeTipiSecenekleri = useMemo(() => {
+    const sozlukTipleri = malzemeEslesmeleri.map((m) => m.malzeme_tipi).filter(Boolean);
+    const kuralTipleri = gramajKurallari.map((k) => k.malzeme_tipi).filter(Boolean);
+    return Array.from(new Set([...sozlukTipleri, ...kuralTipleri])).sort((a, b) => a.localeCompare(b));
+  }, [malzemeEslesmeleri, gramajKurallari]);
 
   // Alt tip Select seçenekleri
   const altTipSecenekleri = useMemo(
@@ -489,11 +507,12 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
                     size="xs"
                   />
                   <Group grow gap="xs">
-                    <TextInput
+                    <Autocomplete
                       label="Malzeme Tipi"
-                      placeholder="ör: Çiğ et, Sıvı yağ"
+                      placeholder="Seçin veya yazın (ör: Çiğ et, Sıvı yağ)"
                       value={yeniKuralFormu.malzeme_tipi}
-                      onChange={(e) => setYeniKuralFormu({ ...yeniKuralFormu, malzeme_tipi: e.target.value })}
+                      onChange={(v) => setYeniKuralFormu({ ...yeniKuralFormu, malzeme_tipi: v })}
+                      data={malzemeTipiSecenekleri}
                       size="xs"
                     />
                     <NumberInput
