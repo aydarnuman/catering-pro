@@ -5,6 +5,7 @@ import {
   guncellePlanMaliyet,
   hesaplaReceteMaliyet,
 } from '../services/maliyet-hesaplama-service.js';
+import { getFirmaId } from '../utils/firma-filter.js';
 import aiFeaturesRouter from './menu-planlama/ai-features.js';
 import menuImportRouter from './menu-planlama/menu-import.js';
 // Sub-router'lar
@@ -42,23 +43,23 @@ router.get('/ogun-tipleri', async (_req, res) => {
 });
 
 // Projeleri listele
-router.get('/projeler', async (_req, res) => {
+router.get('/projeler', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT
-        p.id,
-        p.ad,
-        p.kod,
-        p.aciklama,
-        p.baslangic_tarihi,
-        p.bitis_tarihi,
-        p.aktif,
-        p.created_at,
-        p.updated_at
+    const firmaId = getFirmaId(req);
+    const params = [];
+    let firmaClause = '';
+    if (firmaId) {
+      firmaClause = ' AND p.firma_id = $1';
+      params.push(firmaId);
+    }
+    const result = await query(
+      `SELECT p.id, p.ad, p.kod, p.aciklama, p.baslangic_tarihi, p.bitis_tarihi,
+        p.aktif, p.created_at, p.updated_at
       FROM projeler p
-      WHERE p.aktif = true
-      ORDER BY p.ad
-    `);
+      WHERE p.aktif = true${firmaClause}
+      ORDER BY p.ad`,
+      params
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -66,24 +67,26 @@ router.get('/projeler', async (_req, res) => {
 });
 
 // Tüm menü planlarını listele (kaydedilen menüler için)
-router.get('/menu-planlari', async (_req, res) => {
+router.get('/menu-planlari', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT
-        mp.id,
-        mp.proje_id,
-        mp.ad,
-        mp.baslangic_tarihi,
-        mp.bitis_tarihi,
-        mp.durum,
-        mp.notlar,
-        mp.created_at,
-        mp.updated_at,
+    const firmaId = getFirmaId(req);
+    const params = [];
+    let firmaClause = '';
+    if (firmaId) {
+      firmaClause = ' WHERE p.firma_id = $1';
+      params.push(firmaId);
+    }
+    const result = await query(
+      `SELECT mp.id, mp.proje_id, mp.ad, mp.tip,
+        mp.baslangic_tarihi, mp.bitis_tarihi, mp.varsayilan_kisi_sayisi,
+        mp.toplam_maliyet, mp.durum, mp.notlar, mp.created_at, mp.updated_at,
         p.ad as proje_adi
       FROM menu_planlari mp
       LEFT JOIN projeler p ON p.id = mp.proje_id
-      ORDER BY mp.created_at DESC
-    `);
+      ${firmaClause}
+      ORDER BY mp.created_at DESC`,
+      params
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -175,15 +178,15 @@ router.get('/menu-planlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    const firmaId = getFirmaId(req);
     // Plan bilgisi
+    const planParams = firmaId ? [id, firmaId] : [id];
     const planResult = await query(
-      `
-      SELECT mp.*, p.ad as proje_adi
+      `SELECT mp.*, p.ad as proje_adi
       FROM menu_planlari mp
-      JOIN projeler p ON p.id = mp.proje_id
-      WHERE mp.id = $1
-    `,
-      [id]
+      LEFT JOIN projeler p ON p.id = mp.proje_id
+      WHERE mp.id = $1${firmaId ? ' AND (p.firma_id = $2 OR mp.proje_id IS NULL)' : ''}`,
+      planParams
     );
 
     if (planResult.rows.length === 0) {
@@ -250,6 +253,56 @@ router.post('/menu-planlari', async (req, res) => {
     );
 
     res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Menü planı güncelle (isim değiştir)
+router.put('/menu-planlari/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ad } = req.body;
+
+    if (!ad || !ad.trim()) {
+      return res.status(400).json({ success: false, error: 'Plan adı zorunludur' });
+    }
+
+    const result = await query(`UPDATE menu_planlari SET ad = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [
+      ad.trim(),
+      id,
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Plan bulunamadı' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Menü planı sil (cascade: öğünler + yemekler)
+router.delete('/menu-planlari/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Önce yemekleri sil
+    await query(
+      `DELETE FROM menu_ogun_yemekleri WHERE menu_ogun_id IN (SELECT id FROM menu_plan_ogunleri WHERE menu_plan_id = $1)`,
+      [id]
+    );
+    // Öğünleri sil
+    await query(`DELETE FROM menu_plan_ogunleri WHERE menu_plan_id = $1`, [id]);
+    // Planı sil
+    const result = await query(`DELETE FROM menu_planlari WHERE id = $1 RETURNING id`, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Plan bulunamadı' });
+    }
+
+    res.json({ success: true, data: { message: 'Plan silindi' } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -350,7 +403,24 @@ router.put('/menu-ogun/:ogunId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Öğün bulunamadı' });
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    // Bug #6 fix: kişi_sayısı değişince yemek maliyetlerini yeniden hesapla
+    // Her yemeğin toplam_maliyet = porsiyon_maliyet × yeni_kisi_sayisi
+    const yeniKisiSayisi = Number(kisi_sayisi) || 1;
+    await query(
+      `
+      UPDATE menu_ogun_yemekleri
+      SET toplam_maliyet = porsiyon_maliyet * $1
+      WHERE menu_ogun_id = $2
+    `,
+      [yeniKisiSayisi, ogunId]
+    );
+
+    // Öğün ve plan toplamlarını zincirleme güncelle
+    await guncelleOgunMaliyet(ogunId);
+
+    // Güncel veriyi döndür
+    const updated = await query('SELECT * FROM menu_plan_ogunleri WHERE id = $1', [ogunId]);
+    res.json({ success: true, data: updated.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -398,7 +468,7 @@ router.post('/menu-planlari/toplu-kaydet', async (req, res) => {
       ogunler, // [{ tarih, ogun_tipi_id, kisi_sayisi, yemekler: [{ recete_id, ad, fiyat }] }]
     } = req.body;
 
-    if (!proje_id) {
+    if (!proje_id && tip !== 'gunluk') {
       return res.status(400).json({ success: false, error: 'Proje seçiniz' });
     }
     if (!ogunler || ogunler.length === 0) {
@@ -412,7 +482,7 @@ router.post('/menu-planlari/toplu-kaydet', async (req, res) => {
         varsayilan_kisi_sayisi, durum
       ) VALUES ($1, $2, $3, $4, $5, $6, 'taslak')
       RETURNING *`,
-      [proje_id, ad, tip || 'haftalik', baslangic_tarihi, bitis_tarihi, varsayilan_kisi_sayisi || 1000]
+      [proje_id || null, ad, tip || 'haftalik', baslangic_tarihi, bitis_tarihi, varsayilan_kisi_sayisi || 1000]
     );
     const planId = planResult.rows[0].id;
     const kisiSayisi = varsayilan_kisi_sayisi || 1000;
