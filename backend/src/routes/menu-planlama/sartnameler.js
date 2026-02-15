@@ -1,7 +1,7 @@
 import express from 'express';
 import { query } from '../../database.js';
+import { kuralBul, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
 import { donusumCarpaniAlSync } from '../../utils/birim-donusum.js';
-import { kuralBul, malzemeKuralaUyarMi, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
 
 const router = express.Router();
 

@@ -122,8 +122,16 @@ export async function validateBirimUyumluluk(malzemeBirim, urunBirim, urunKartId
     // Bilinen güvenli dönüşümler: SADECE aynı birim varyasyonları (çarpan gerçekten 1 olanlar)
     // g:kg (0.001), gr:kg (0.001), ml:lt (0.001) ÇIKARILDI — carpan=1 dönüyorsa hatalıdır
     const guvenliCiftler = new Set([
-      'kg:kg', 'lt:lt', 'g:g', 'gr:g', 'ml:ml', 'adet:adet',
-      'g:gr', 'gr:gr', 'lt:l', 'l:lt',
+      'kg:kg',
+      'lt:lt',
+      'g:g',
+      'gr:g',
+      'ml:ml',
+      'adet:adet',
+      'g:gr',
+      'gr:gr',
+      'lt:l',
+      'l:lt',
     ]);
     const key = `${mLower}:${uLower}`;
     if (guvenliCiftler.has(key)) {
