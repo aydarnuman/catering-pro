@@ -503,10 +503,23 @@ function AltTipSecici({ receteId }: { receteId: number }) {
     },
   });
 
-  const mevcutAltTipId = (receteData as unknown as Record<string, unknown>)?.alt_tip_id;
+  const mevcutAltTipId = (receteData as unknown as Record<string, unknown>)?.alt_tip_id as number | undefined;
+  const altTipAktifDegil =
+    mevcutAltTipId != null && altTipler.length > 0 && !altTipler.some((t) => t.id === mevcutAltTipId);
 
   return (
     <Paper withBorder p="xs" radius="md">
+      {altTipAktifDegil && (
+        <Alert
+          color="yellow"
+          variant="light"
+          icon={<IconAlertCircle size={16} />}
+          title="Bu alt tip artık aktif değil"
+          mb="xs"
+        >
+          Reçetenize atanmış alt tip listeden kaldırılmış. Şartname uyumu için lütfen başka bir alt tip seçin.
+        </Alert>
+      )}
       <Group gap="sm">
         <Text size="xs" fw={600} c="dimmed">
           Alt Tip:
