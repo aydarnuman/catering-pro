@@ -136,10 +136,12 @@ async function hesaplaReceteMaliyet(receteId) {
       [yuvarlanmisMaliyet, receteId]
     );
 
-    return toplamMaliyet;
+    // Bug #13 fix: DB'ye yazılan yuvarlama ile dönen değer tutarlı olmalı
+    return yuvarlanmisMaliyet;
   } catch (error) {
+    // Bug #12 fix: Hatayı logla VE yukarı fırlat — arayanın handle etmesini sağla
     logger.error(`Reçete ${receteId} maliyet hesaplama hatası: ${error.message}`);
-    return 0;
+    throw error;
   }
 }
 

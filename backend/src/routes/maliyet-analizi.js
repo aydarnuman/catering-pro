@@ -1015,6 +1015,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
       `
       SELECT 
         rm.id,
+        rm.urun_kart_id,
         COALESCE(uk.ad, rm.malzeme_adi) as malzeme_adi,
         rm.miktar,
         rm.birim,
@@ -1057,8 +1058,8 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
       const sistemFiyat = parseFloat(m.sistem_birim_fiyat) || parseFloat(m.son_alis_fiyati) || 0;
       const piyasaFiyat = parseFloat(m.piyasa_fiyat) || sistemFiyat;
 
-      // Birim dönüşümü: birim_donusumleri tablosundan (malzeme birimi → ürün fiyat birimi)
-      const carpan = await donusumCarpaniAl(birim, urunBirim);
+      // Bug #11 fix: Ürüne özel dönüşüm için urun_kart_id parametresi ekle
+      const carpan = await donusumCarpaniAl(birim, urunBirim, m.urun_kart_id);
 
       // DB'deki toplam_fiyat varsa onu kullan (trigger/hesaplaReceteMaliyet tarafından hesaplandı)
       const sistemToplam = parseFloat(m.sistem_toplam) || miktar * carpan * sistemFiyat;
