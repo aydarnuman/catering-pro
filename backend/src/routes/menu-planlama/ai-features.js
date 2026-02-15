@@ -745,9 +745,6 @@ ${sartname.notlar ? `- Kurum notu: ${sartname.notlar}` : ''}
 
 PORSİYON PROFİLİ: ${profilYonergesi}
 
-Bu kurumun yemek hizmeti verdiği kişiler için yukarıdaki porsiyon profiline uygun gramajlar belirle.
-Örneğin "${sartname.ad}" kurumsal yemekhane profiliyle seçildiyse, bu kurumun çalışanları/hizmet alanları için standart yetişkin porsiyonları uygula.
-
 Aşağıdaki yemek alt tipleri için 1 porsiyon (1 kişilik) gramaj kurallarını belirle:
 
 ${altTipListesi}
@@ -755,10 +752,14 @@ ${altTipListesi}
 Kullanabileceğin malzeme tipleri (SADECE bunlardan seç, yeni tip UYDURMA):
 ${malzemeTipListesi}
 
-KURALLAR:
-- Porsiyon profiline uygun gramajlar belirle
-- Her alt tip için 2-5 arası ana malzeme belirle
-- Sadece şartnamelerde belirtilen ana malzemeleri yaz (baharat, tuz gibi detayları atla)
+KRİTİK KURALLAR:
+- Her alt tip için SADECE 2-8 arası ana malzeme belirle
+- Her malzeme SADECE gerçekten o yemek tipinde kullanılıyorsa ekle
+- YAPMA: Tüm malzemeleri her alt tipe kopyalama! Her yemek tipinin kendine özgü malzemeleri var
+- Bir çorbada Bisküvi, Simit, Pizza Hamuru OLAMAZ
+- Bir tatlıda Çiğ et, Balık OLAMAZ
+- Bir pilavda Çikolata, Bal OLAMAZ
+- Ortak malzemeler (Sıvı yağ, Tuz) sadece gerçekten kullanılan tiplere ekle
 - Malzeme tiplerini AYNEN kullan, büyük/küçük harf dahil
 
 JSON formatında döndür:
@@ -787,6 +788,20 @@ Sadece JSON döndür, açıklama ekleme.`;
         success: false,
         error: 'AI yanıtı parse edilemedi',
         raw: (aiResponse || '').slice(0, 500),
+      });
+    }
+
+    // Üretim sonrası doğrulama: alt tip başına >12 kural varsa AI çıktısı bozuk
+    const MAX_KURAL_PER_ALT_TIP = 12;
+    const bozukAltTipler = aiKurallar.filter((g) => (g.kurallar || []).length > MAX_KURAL_PER_ALT_TIP);
+    if (bozukAltTipler.length > 0) {
+      const ornekler = bozukAltTipler
+        .slice(0, 3)
+        .map((g) => `${g.alt_tip_kod}: ${g.kurallar.length} kural`)
+        .join(', ');
+      return res.status(422).json({
+        success: false,
+        error: `AI üretimi hatalı — bazı alt tipler çok fazla kural içeriyor (maks ${MAX_KURAL_PER_ALT_TIP}). Örnek: ${ornekler}. Lütfen tekrar deneyin veya desteklenen bir profil seçin.`,
       });
     }
 

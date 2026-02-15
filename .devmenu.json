@@ -2,12 +2,6 @@
   "favorites": {},
   "history": [
     {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "16:39:15",
-      "success": true
-    },
-    {
       "id": "clean-fast",
       "label": "Hızlı Temizlik",
       "time": "18:03:24",
@@ -299,6 +293,12 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "17:24:06",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "19:24:30",
       "success": true
     }
   ],
