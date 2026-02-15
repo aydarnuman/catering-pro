@@ -975,21 +975,16 @@ export default function DemirbasPage() {
           </Alert>
         )}
 
-        {/* Header - ortak pattern: ThemeIcon + Title + açıklama */}
+        {/* Header - ortak muhasebe pattern: emoji + Title + açıklama */}
         <Group justify="space-between" mb="md">
-          <Group gap="md">
-            <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
-              <IconBuilding size={24} />
-            </ThemeIcon>
-            <Box>
-              <Title order={1} fw={700}>
-                Envanter Yönetimi
-              </Title>
-              <Text size="lg" c="dimmed">
-                Şirket varlıklarınızı takip edin
-              </Text>
-            </Box>
-          </Group>
+          <Box>
+            <Title order={1} fw={700}>
+              📦 Envanter Yönetimi
+            </Title>
+            <Text c="dimmed" size="lg">
+              Şirket varlıklarınızı takip edin
+            </Text>
+          </Box>
         <Group gap="xs">
           <Tooltip label="Raporlar">
             <ActionIcon variant="light" color="indigo" size="lg" radius="xl" onClick={() => setRaporMerkeziOpen(true)}>
