@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../../database.js';
-import { kuralBul, malzemeTipiEslestir, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
+import { kuralBul, malzemeKuralaUyarMi, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
 
 const router = express.Router();
 
@@ -340,21 +340,6 @@ router.get('/sartname/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Şartname bulunamadı' });
     }
 
-    // Porsiyon gramajları (eski sistem: kategori + yemek_turu). Yeni özellikler sartname_gramaj_kurallari kullanır.
-    const gramajlar = await query(
-      `
-      SELECT
-        spg.*,
-        rk.ad as kategori_adi,
-        rk.ikon as kategori_ikon
-      FROM sartname_porsiyon_gramajlari spg
-      LEFT JOIN recete_kategoriler rk ON rk.id = spg.kategori_id
-      WHERE spg.sartname_id = $1 AND spg.aktif = true
-      ORDER BY spg.sira, spg.yemek_turu
-    `,
-      [id]
-    );
-
     // Öğün yapılarını al (aktif/pasif hepsini getir)
     const ogunYapilari = await query(
       `
@@ -382,7 +367,6 @@ router.get('/sartname/:id', async (req, res) => {
       success: true,
       data: {
         ...sartname.rows[0],
-        gramajlar: gramajlar.rows,
         ogun_yapilari: ogunYapilari.rows,
         projeler: projeler.rows,
       },
@@ -480,84 +464,6 @@ router.get('/proje/:projeId/sartnameler', async (req, res) => {
     );
 
     res.json({ success: true, data: result.rows });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// =============================================
-// GRAMAJ YÖNETİMİ (BASİTLEŞTİRİLMİŞ)
-// Yemek kategorisi bazında porsiyon gramajları
-// =============================================
-
-// Porsiyon gramajı ekle
-router.post('/sartname/:sartnameId/gramaj', async (req, res) => {
-  try {
-    const { sartnameId } = req.params;
-    const { kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira } = req.body;
-
-    if (!yemek_turu || !porsiyon_gramaj) {
-      return res.status(400).json({ success: false, error: 'Yemek türü ve porsiyon gramajı zorunlu' });
-    }
-
-    const result = await query(
-      `
-      INSERT INTO sartname_porsiyon_gramajlari (
-        sartname_id, kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *
-    `,
-      [sartnameId, kategori_id, yemek_turu, porsiyon_gramaj, birim || 'g', aciklama, sira || 0]
-    );
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Porsiyon gramajı güncelle
-router.put('/sartname/gramaj/:gramajId', async (req, res) => {
-  try {
-    const { gramajId } = req.params;
-    const { kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira, aktif } = req.body;
-
-    const result = await query(
-      `
-      UPDATE sartname_porsiyon_gramajlari
-      SET
-        kategori_id = COALESCE($1, kategori_id),
-        yemek_turu = COALESCE($2, yemek_turu),
-        porsiyon_gramaj = COALESCE($3, porsiyon_gramaj),
-        birim = COALESCE($4, birim),
-        aciklama = COALESCE($5, aciklama),
-        sira = COALESCE($6, sira),
-        aktif = COALESCE($7, aktif)
-      WHERE id = $8
-      RETURNING *
-    `,
-      [kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira, aktif, gramajId]
-    );
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Gramaj sil (soft delete)
-router.delete('/sartname/gramaj/:gramajId', async (req, res) => {
-  try {
-    const { gramajId } = req.params;
-
-    await query(
-      `
-      UPDATE sartname_porsiyon_gramajlari SET aktif = false WHERE id = $1
-    `,
-      [gramajId]
-    );
-
-    res.json({ success: true, message: 'Gramaj silindi' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -774,8 +680,18 @@ router.post('/sartname/:sartnameId/toplu-uygula', async (req, res) => {
     const eslesmeyenler = [];
 
     for (const recete of receteler) {
-      // Bu reçetenin alt tipine ait kuralları filtrele
-      const receteKurallari = kurallar.filter((k) => k.alt_tip_id === recete.alt_tip_id);
+      // alt_tip_id'si olmayan reçeteler gramaj kontrolünden atlanır — kullanıcıya bildir
+      if (!recete.alt_tip_id) {
+        eslesmeyenler.push({
+          recete_id: recete.id,
+          recete_ad: recete.ad,
+          sebep: 'alt_tip_id tanımlanmamış — gramaj kuralı uygulanamaz',
+        });
+        continue;
+      }
+
+      // Bu reçetenin alt tipine ait kuralları filtrele (Number ile tip güvenli karşılaştırma)
+      const receteKurallari = kurallar.filter((k) => Number(k.alt_tip_id) === Number(recete.alt_tip_id));
       if (receteKurallari.length === 0) continue;
 
       // Reçetenin malzemelerini al
@@ -839,6 +755,7 @@ router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req,
 
 /**
  * Tek reçete için gramaj kontrolü sonucu (malzemeler + kurallar + sözlük verildiğinde)
+ * Eşleşme: sözlük + doğrudan isim eşleşme (kuralBul ile aynı mantık)
  * @returns {{ uygun_sayisi: number, uyumsuz_sayisi: number, toplam_kontrol: number, sonuclar: Array }}
  */
 function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
@@ -848,8 +765,8 @@ function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
   for (const kural of kurallarRows) {
     let eslesenMalzeme = null;
     for (const malzeme of malzemelerRows) {
-      const eslesme = malzemeTipiEslestir(malzeme.malzeme_adi, sozluk);
-      if (eslesme && eslesme.malzeme_tipi === kural.malzeme_tipi) {
+      // Sözlük + doğrudan isim eşleşme (kuralBul ile tutarlı)
+      if (malzemeKuralaUyarMi(malzeme.malzeme_adi, kural.malzeme_tipi, sozluk)) {
         eslesenMalzeme = malzeme;
         break;
       }

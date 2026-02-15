@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../../database.js';
 import { hesaplaReceteMaliyet } from '../../services/maliyet-hesaplama-service.js';
+import { receteSartnamePreview } from '../../services/sartname-onizleme.js';
 import { validateReceteBirim } from '../../utils/birim-validator.js';
 
 const router = express.Router();
@@ -50,7 +51,7 @@ router.post('/kategoriler', async (req, res) => {
 // Tüm reçeteleri listele
 router.get('/receteler', async (req, res) => {
   try {
-    const { kategori, arama, proje_id, limit = 100, offset = 0 } = req.query;
+    const { kategori, arama, proje_id, sartname_id, limit = 100, offset = 0 } = req.query;
 
     const whereConditions = ['r.aktif = true'];
     const params = [];
@@ -97,14 +98,19 @@ router.get('/receteler', async (req, res) => {
         r.ai_olusturuldu,
         r.proje_id,
         p.ad as proje_adi,
+        r.alt_tip_id,
+        att.kod as alt_tip_kodu,
+        att.ad as alt_tip_adi,
+        att.ikon as alt_tip_ikon,
         r.created_at,
         COUNT(rm.id) as malzeme_sayisi
       FROM receteler r
       LEFT JOIN projeler p ON p.id = r.proje_id
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
+      LEFT JOIN alt_tip_tanimlari att ON att.id = r.alt_tip_id
       LEFT JOIN recete_malzemeler rm ON rm.recete_id = r.id
       WHERE ${whereConditions.join(' AND ')}
-      GROUP BY r.id, rk.ad, rk.ikon, p.ad
+      GROUP BY r.id, rk.ad, rk.ikon, p.ad, att.kod, att.ad, att.ikon
       ORDER BY r.ad
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `,
@@ -123,9 +129,36 @@ router.get('/receteler', async (req, res) => {
       params.slice(0, -2)
     );
 
+    const rows = result.rows;
+
+    // Şartname önizlemesi: sartname_id varsa gramaj/fiyat hesapla (DB değişmez)
+    if (sartname_id) {
+      const kurallarResult = await query(
+        `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true`,
+        [sartname_id]
+      );
+      const kurallar = kurallarResult.rows;
+      const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
+      const sozluk = sozlukResult.rows;
+
+      if (kurallar.length > 0 && sozluk.length > 0) {
+        for (const r of rows) {
+          if (r.alt_tip_id) {
+            const preview = await receteSartnamePreview(r.id, r.alt_tip_id, kurallar, sozluk);
+            if (preview.tahmini_maliyet != null) {
+              r.tahmini_maliyet = preview.tahmini_maliyet;
+            }
+            if (preview.porsiyon_gram != null) {
+              r.porsiyon_miktar = preview.porsiyon_gram;
+            }
+          }
+        }
+      }
+    }
+
     res.json({
       success: true,
-      data: result.rows,
+      data: rows,
       total: parseInt(countResult.rows[0].total, 10),
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
@@ -231,109 +264,6 @@ router.get('/receteler/:id', async (req, res) => {
 });
 
 // =============================================
-// REÇETE MALZEMELERİ (ESKİ STİL)
-// =============================================
-
-// Reçeteye malzeme ekle
-router.post('/recete/:receteId/malzeme', async (req, res) => {
-  try {
-    const { receteId } = req.params;
-    const { malzeme_adi, miktar, birim, stok_kart_id, zorunlu = true } = req.body;
-
-    // Birim doğrulama
-    if (birim) {
-      const birimCheck = validateReceteBirim(birim);
-      if (!birimCheck.valid) {
-        return res.status(400).json({ success: false, error: birimCheck.error });
-      }
-    }
-
-    // Sıra numarası al
-    const siraResult = await query(
-      'SELECT COALESCE(MAX(sira), 0) + 1 as sira FROM recete_malzemeler WHERE recete_id = $1',
-      [receteId]
-    );
-    const sira = siraResult.rows[0].sira;
-
-    const result = await query(
-      `
-      INSERT INTO recete_malzemeler (recete_id, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *
-    `,
-      [receteId, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira]
-    );
-
-    // Maliyeti yeniden hesapla
-    await hesaplaReceteMaliyet(receteId);
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Malzeme güncelle
-router.put('/recete/malzeme/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { malzeme_adi, miktar, birim, stok_kart_id } = req.body;
-
-    // Birim doğrulama
-    if (birim) {
-      const birimCheck = validateReceteBirim(birim);
-      if (!birimCheck.valid) {
-        return res.status(400).json({ success: false, error: birimCheck.error });
-      }
-    }
-
-    const result = await query(
-      `
-      UPDATE recete_malzemeler
-      SET malzeme_adi = $1, miktar = $2, birim = $3, stok_kart_id = $4
-      WHERE id = $5
-      RETURNING *
-    `,
-      [malzeme_adi, miktar, birim, stok_kart_id, id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
-    }
-
-    // Maliyeti yeniden hesapla
-    await hesaplaReceteMaliyet(result.rows[0].recete_id);
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Malzeme sil
-router.delete('/recete/malzeme/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Önce recete_id'yi al
-    const malzemeResult = await query('SELECT recete_id FROM recete_malzemeler WHERE id = $1', [id]);
-    if (malzemeResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
-    }
-    const receteId = malzemeResult.rows[0].recete_id;
-
-    await query('DELETE FROM recete_malzemeler WHERE id = $1', [id]);
-
-    // Maliyeti yeniden hesapla
-    await hesaplaReceteMaliyet(receteId);
-
-    res.json({ success: true, message: 'Malzeme silindi' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// =============================================
 // REÇETE CRUD
 // =============================================
 
@@ -356,6 +286,7 @@ router.post('/receteler', async (req, res) => {
       aciklama,
       ai_olusturuldu,
       proje_id, // Proje bazlı reçete için
+      alt_tip_id, // Gramaj şablonu alt tipi
       malzemeler, // [{stok_kart_id, malzeme_adi, miktar, birim, zorunlu}]
     } = req.body;
 
@@ -366,8 +297,8 @@ router.post('/receteler', async (req, res) => {
         kod, ad, kategori_id, porsiyon_miktar,
         hazirlik_suresi, pisirme_suresi,
         kalori, protein, karbonhidrat, yag, lif,
-        tarif, aciklama, ai_olusturuldu, proje_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        tarif, aciklama, ai_olusturuldu, proje_id, alt_tip_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `,
       [
@@ -386,6 +317,7 @@ router.post('/receteler', async (req, res) => {
         aciklama,
         ai_olusturuldu || false,
         proje_id || null,
+        alt_tip_id || null,
       ]
     );
 
@@ -453,6 +385,7 @@ router.put('/receteler/:id', async (req, res) => {
       lif,
       tarif,
       aciklama,
+      alt_tip_id,
     } = req.body;
 
     const result = await query(
@@ -470,8 +403,9 @@ router.put('/receteler/:id', async (req, res) => {
         lif = COALESCE($10, lif),
         tarif = COALESCE($11, tarif),
         aciklama = COALESCE($12, aciklama),
+        alt_tip_id = COALESCE($13, alt_tip_id),
         updated_at = NOW()
-      WHERE id = $13
+      WHERE id = $14
       RETURNING *
     `,
       [
@@ -487,6 +421,7 @@ router.put('/receteler/:id', async (req, res) => {
         lif,
         tarif,
         aciklama,
+        alt_tip_id,
         id,
       ]
     );
