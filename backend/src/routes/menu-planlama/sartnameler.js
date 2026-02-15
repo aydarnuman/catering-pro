@@ -981,6 +981,7 @@ router.get('/gramaj-kontrol-toplu', async (req, res) => {
       const { uygun_sayisi, uyumsuz_sayisi, toplam_kontrol } = gramajKontrolHesapla(
         malzemeler.rows,
         altTipKurallari,
+        kurallarTum.rows,
         sozluk
       );
       toplamUygun += uygun_sayisi;
