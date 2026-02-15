@@ -830,12 +830,65 @@ router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req,
 // Reçetenin gramajlarını şartname kurallarıyla karşılaştır
 // =============================================
 
+/**
+ * Tek reçete için gramaj kontrolü sonucu (malzemeler + kurallar + sözlük verildiğinde)
+ * @returns {{ uygun_sayisi: number, uyumsuz_sayisi: number, toplam_kontrol: number, sonuclar: Array }}
+ */
+function gramajKontrolHesapla(malzemelerRows, kurallarRows, sozluk) {
+  const kontrolSonuclari = [];
+  let toplamUygun = 0;
+  let toplamUyumsuz = 0;
+  for (const kural of kurallarRows) {
+    let eslesenMalzeme = null;
+    for (const malzeme of malzemelerRows) {
+      const eslesme = malzemeTipiEslestir(malzeme.malzeme_adi, sozluk);
+      if (eslesme && eslesme.malzeme_tipi === kural.malzeme_tipi) {
+        eslesenMalzeme = malzeme;
+        break;
+      }
+    }
+    if (eslesenMalzeme) {
+      const gercekGramaj = parseFloat(eslesenMalzeme.miktar) || 0;
+      const hedefGramaj = parseFloat(kural.gramaj);
+      const tolerans = hedefGramaj * 0.15;
+      let durum = 'uygun';
+      if (gercekGramaj < hedefGramaj - tolerans) durum = 'dusuk';
+      else if (gercekGramaj > hedefGramaj + tolerans) durum = 'yuksek';
+      if (durum === 'uygun') toplamUygun++;
+      else toplamUyumsuz++;
+      kontrolSonuclari.push({
+        malzeme_adi: eslesenMalzeme.malzeme_adi,
+        malzeme_tipi: kural.malzeme_tipi,
+        recete_gramaj: gercekGramaj,
+        hedef_gramaj: hedefGramaj,
+        birim: kural.birim,
+        durum,
+      });
+    } else {
+      toplamUyumsuz++;
+      kontrolSonuclari.push({
+        malzeme_adi: null,
+        malzeme_tipi: kural.malzeme_tipi,
+        recete_gramaj: null,
+        hedef_gramaj: parseFloat(kural.gramaj),
+        birim: kural.birim,
+        durum: 'eksik',
+      });
+    }
+  }
+  return {
+    uygun_sayisi: toplamUygun,
+    uyumsuz_sayisi: toplamUyumsuz,
+    toplam_kontrol: kontrolSonuclari.length,
+    sonuclar: kontrolSonuclari,
+  };
+}
+
 router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
   try {
     const { receteId } = req.params;
     const { sartname_id, proje_id } = req.query;
 
-    // Reçete bilgisi
     const recete = await query(
       `
       SELECT r.*, rk.ad as kategori_adi, att.ad as alt_tip_adi, att.kod as alt_tip_kodu
@@ -851,18 +904,14 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
 
-    // Malzemeleri al
     const malzemeler = await query(
-      `
-      SELECT rm.*, urk.ad as stok_adi
-      FROM recete_malzemeler rm
-      LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
-      WHERE rm.recete_id = $1
-    `,
+      `SELECT rm.*, urk.ad as stok_adi
+       FROM recete_malzemeler rm
+       LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
+       WHERE rm.recete_id = $1`,
       [receteId]
     );
 
-    // Şartname ID bul
     let sartnameIdToUse = sartname_id;
     if (!sartnameIdToUse && proje_id) {
       const sartResult = await query(
@@ -884,63 +933,18 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
       });
     }
 
-    // Şartname gramaj kurallarını al (yeni tablo)
     const kurallarResult = await query(
       `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND alt_tip_id = $2 AND aktif = true ORDER BY sira`,
       [sartnameIdToUse, recete.rows[0].alt_tip_id]
     );
-
-    // Eşleme sözlüğünü al
     const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
     const sozluk = sozlukResult.rows;
 
-    // Kontrol: her kural için reçete malzemesi bul
-    const kontrolSonuclari = [];
-    let toplamUygun = 0;
-    let toplamUyumsuz = 0;
-
-    for (const kural of kurallarResult.rows) {
-      // Eşleşen malzeme var mı?
-      let eslesenMalzeme = null;
-      for (const malzeme of malzemeler.rows) {
-        const eslesme = malzemeTipiEslestir(malzeme.malzeme_adi, sozluk);
-        if (eslesme && eslesme.malzeme_tipi === kural.malzeme_tipi) {
-          eslesenMalzeme = malzeme;
-          break;
-        }
-      }
-
-      if (eslesenMalzeme) {
-        const gercekGramaj = parseFloat(eslesenMalzeme.miktar) || 0;
-        const hedefGramaj = parseFloat(kural.gramaj);
-        const tolerans = hedefGramaj * 0.15; // %15 tolerans
-
-        let durum = 'uygun';
-        if (gercekGramaj < hedefGramaj - tolerans) durum = 'dusuk';
-        else if (gercekGramaj > hedefGramaj + tolerans) durum = 'yuksek';
-
-        if (durum === 'uygun') toplamUygun++;
-        else toplamUyumsuz++;
-
-        kontrolSonuclari.push({
-          malzeme_adi: eslesenMalzeme.malzeme_adi,
-          malzeme_tipi: kural.malzeme_tipi,
-          recete_gramaj: gercekGramaj,
-          hedef_gramaj: hedefGramaj,
-          birim: kural.birim,
-          durum,
-        });
-      } else {
-        kontrolSonuclari.push({
-          malzeme_adi: null,
-          malzeme_tipi: kural.malzeme_tipi,
-          recete_gramaj: null,
-          hedef_gramaj: parseFloat(kural.gramaj),
-          birim: kural.birim,
-          durum: 'eksik',
-        });
-      }
-    }
+    const { uygun_sayisi, uyumsuz_sayisi, sonuclar } = gramajKontrolHesapla(
+      malzemeler.rows,
+      kurallarResult.rows,
+      sozluk
+    );
 
     res.json({
       success: true,
@@ -950,10 +954,102 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
         gramaj_kontrol: {
           sartname_id: sartnameIdToUse,
           alt_tip: recete.rows[0].alt_tip_adi,
-          sonuclar: kontrolSonuclari,
-          uygun_sayisi: toplamUygun,
-          uyumsuz_sayisi: toplamUyumsuz,
-          toplam_kontrol: kontrolSonuclari.length,
+          sonuclar,
+          uygun_sayisi,
+          uyumsuz_sayisi,
+          toplam_kontrol: sonuclar.length,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Toplu gramaj uyum kontrolü (şartname/kategori bazlı)
+router.get('/gramaj-kontrol-toplu', async (req, res) => {
+  try {
+    const { sartname_id, kategori_id } = req.query;
+    if (!sartname_id) {
+      return res.status(400).json({ success: false, error: 'sartname_id zorunlu' });
+    }
+    const sartnameId = Number(sartname_id);
+    const kategoriId = kategori_id ? Number(kategori_id) : null;
+
+    const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
+    const sozluk = sozlukResult.rows;
+
+    let receteQuery = `
+      SELECT r.id, r.ad, r.alt_tip_id
+      FROM receteler r
+      WHERE r.aktif = true AND r.alt_tip_id IS NOT NULL
+    `;
+    const receteParams = [];
+    let paramIdx = 1;
+    if (kategoriId != null) {
+      receteQuery += ` AND r.kategori_id = $${paramIdx}`;
+      receteParams.push(kategoriId);
+      paramIdx++;
+    }
+    const recetelerResult = await query(receteQuery, receteParams);
+    const receteler = recetelerResult.rows;
+
+    const kurallarTum = await query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [
+      sartnameId,
+    ]);
+    const kurallarByAltTip = new Map();
+    for (const k of kurallarTum.rows) {
+      const aid = k.alt_tip_id;
+      if (!kurallarByAltTip.has(aid)) kurallarByAltTip.set(aid, []);
+      kurallarByAltTip.get(aid).push(k);
+    }
+
+    const recetelerSonuc = [];
+    let toplamUygun = 0;
+    let toplamUyumsuz = 0;
+
+    for (const recete of receteler) {
+      const altTipKurallari = kurallarByAltTip.get(recete.alt_tip_id) || [];
+      if (altTipKurallari.length === 0) {
+        recetelerSonuc.push({
+          recete_id: recete.id,
+          ad: recete.ad,
+          uygun_sayisi: 0,
+          uyumsuz_sayisi: 0,
+          toplam_kontrol: 0,
+          tam_uyum: null,
+        });
+        continue;
+      }
+      const malzemeler = await query(
+        'SELECT id, malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1',
+        [recete.id]
+      );
+      const { uygun_sayisi, uyumsuz_sayisi, toplam_kontrol } = gramajKontrolHesapla(
+        malzemeler.rows,
+        altTipKurallari,
+        sozluk
+      );
+      toplamUygun += uygun_sayisi;
+      toplamUyumsuz += uyumsuz_sayisi;
+      recetelerSonuc.push({
+        recete_id: recete.id,
+        ad: recete.ad,
+        uygun_sayisi,
+        uyumsuz_sayisi,
+        toplam_kontrol,
+        tam_uyum: toplam_kontrol > 0 ? uyumsuz_sayisi === 0 : null,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        receteler: recetelerSonuc,
+        ozet: {
+          toplam_recete: receteler.length,
+          toplam_uygun: toplamUygun,
+          toplam_uyumsuz: toplamUyumsuz,
         },
       },
     });

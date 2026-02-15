@@ -719,6 +719,29 @@ export const menuPlanlamaAPI = {
     return response.data;
   },
 
+  /** Toplu gramaj uyum kontrolü (şartname bazlı, isteğe bağlı kategori) */
+  async getGramajKontrolToplu(
+    sartnameId: number,
+    params?: { kategori_id?: number }
+  ): Promise<
+    ApiResponse<{
+      receteler: Array<{
+        recete_id: number;
+        ad: string;
+        uygun_sayisi: number;
+        uyumsuz_sayisi: number;
+        toplam_kontrol: number;
+        tam_uyum: boolean | null;
+      }>;
+      ozet: { toplam_recete: number; toplam_uygun: number; toplam_uyumsuz: number };
+    }>
+  > {
+    const response = await api.get('/api/menu-planlama/gramaj-kontrol-toplu', {
+      params: { sartname_id: sartnameId, ...params },
+    });
+    return response.data;
+  },
+
   /** Reçete–şartname gramaj uyum kontrolü (uygun/düşük/yüksek/eksik) */
   async getGramajKontrol(
     receteId: number,

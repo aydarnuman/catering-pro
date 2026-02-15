@@ -18,7 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconBook2, IconPlus, IconSearch, IconSparkles } from '@tabler/icons-react';
+import { IconBook2, IconClipboardList, IconPlus, IconSearch, IconSparkles } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
@@ -37,6 +37,7 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
   const [receteArama, setReceteArama] = useState('');
   const [debouncedReceteArama] = useDebouncedValue(receteArama, 300);
   const [seciliKategoriKod, setSeciliKategoriKod] = useState<string | null>(null);
+  const [seciliSartnameId, setSeciliSartnameId] = useState<string | null>(null);
 
   // Hızlı reçete ekleme state'leri
   const [hizliReceteAdi, setHizliReceteAdi] = useState('');
@@ -55,17 +56,42 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
     staleTime: 60000,
   });
 
-  // React Query: Reçeteler listesi
+  // Şartname listesi (önizleme için)
+  type SartnameItem = { id: number; kod: string; ad: string };
+  const { data: sartnameler = [] } = useQuery<SartnameItem[]>({
+    queryKey: ['sartname-liste'],
+    queryFn: async () => {
+      const res = await menuPlanlamaAPI.getSartnameListesi();
+      return res.success ? (res.data as SartnameItem[]) : [];
+    },
+    enabled: isActive,
+    staleTime: 60 * 1000,
+  });
+
+  // Toplu gramaj uyum kontrolü (şartname seçiliyken özet)
+  const { data: gramajKontrolToplu } = useQuery({
+    queryKey: ['gramaj-kontrol-toplu', seciliSartnameId],
+    queryFn: async () => {
+      if (!seciliSartnameId) return null;
+      const res = await menuPlanlamaAPI.getGramajKontrolToplu(Number(seciliSartnameId));
+      return res.success ? res.data : null;
+    },
+    enabled: !!seciliSartnameId && isActive,
+    staleTime: 60 * 1000,
+  });
+
+  // React Query: Reçeteler listesi (şartname seçiliyse önizleme gramaj/fiyat ile)
   const {
     data: receteler = [],
     isLoading: recetelerLoading,
     error: recetelerError,
   } = useQuery<Recete[]>({
-    queryKey: ['receteler', debouncedReceteArama],
+    queryKey: ['receteler', debouncedReceteArama, seciliSartnameId],
     queryFn: async (): Promise<Recete[]> => {
       const res = await menuPlanlamaAPI.getReceteler({
         limit: 1000,
         arama: debouncedReceteArama || undefined,
+        sartname_id: seciliSartnameId ? parseInt(seciliSartnameId, 10) : undefined,
       });
       if (!res.success) {
         throw new Error('Reçeteler yüklenemedi');
@@ -283,6 +309,41 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
           Reçete adını yazın, AI otomatik malzemeleri önersin
         </Text>
       </Paper>
+
+      {/* Şartname önizleme seçicisi - seçilen şartnameye göre gramaj/fiyat önizlemesi */}
+      {sartnameler.length > 0 && (
+        <Stack gap="xs" mb="md">
+          <Select
+            placeholder="Şartnameye göre önizleme (gramaj & fiyat)"
+            value={seciliSartnameId}
+            onChange={setSeciliSartnameId}
+            data={sartnameler.map((s) => ({ value: String(s.id), label: `${s.kod || ''} ${s.ad}`.trim() }))}
+            clearable
+            leftSection={<IconClipboardList size={16} />}
+            size="sm"
+            radius="md"
+            styles={{
+              input: {
+                background: 'var(--mantine-color-dark-6)',
+                border: seciliSartnameId ? '1px solid var(--mantine-color-teal-6)' : undefined,
+              },
+            }}
+            comboboxProps={{ withinPortal: true }}
+          />
+          {gramajKontrolToplu?.ozet && gramajKontrolToplu.ozet.toplam_recete > 0 && (
+            <Group gap="xs">
+              <Badge size="sm" variant="light" color="green">
+                {gramajKontrolToplu.receteler.filter((r) => r.tam_uyum === true).length} uyumlu reçete
+              </Badge>
+              {gramajKontrolToplu.ozet.toplam_uyumsuz > 0 && (
+                <Badge size="sm" variant="light" color="orange">
+                  {gramajKontrolToplu.receteler.filter((r) => r.tam_uyum === false).length} uyumsuz reçete
+                </Badge>
+              )}
+            </Group>
+          )}
+        </Stack>
+      )}
 
       {/* Premium Search */}
       <TextInput
