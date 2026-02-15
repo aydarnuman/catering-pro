@@ -52,6 +52,7 @@ import {
   getTarihAraligi,
   type OgunInfo,
   type PlanTipi,
+  type TakvimHucre,
   type TakvimState,
 } from './calendar/types';
 import { useMenuPlanlama } from './MenuPlanlamaContext';
@@ -260,6 +261,7 @@ export function MenuTakvim() {
         if (!ogunKod || !ogun.tarih) continue;
         const tarihStr = ogun.tarih.split('T')[0];
         const key = `${tarihStr}_${ogunKod}`;
+        const ogunData = ogun as Record<string, unknown>;
         yeniState[key] = {
           tarih: new Date(tarihStr),
           ogunTipiId: ogun.ogun_tipi_id,
@@ -270,6 +272,8 @@ export function MenuTakvim() {
             ikon: y.recete_ikon || '🍽️',
             kategoriAdi: y.recete_kategori || undefined,
           })),
+          sartnameDurum: (ogunData.sartname_durum as 'uygun' | 'uyari' | 'kontrol_yok') || undefined,
+          sartnameUyarilar: (ogunData.sartname_uyarilar as TakvimHucre['sartnameUyarilar']) || undefined,
         };
       }
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { ActionIcon, Badge, Box, Group, Paper, SimpleGrid, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { IconCopy, IconX } from '@tabler/icons-react';
+import { ActionIcon, Box, Group, Paper, SimpleGrid, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconAlertTriangle, IconCheck, IconCopy, IconX } from '@tabler/icons-react';
 import { formatMoney } from '@/lib/formatters';
 import type { OgunInfo, TakvimHucre, TakvimState } from './types';
 import { formatGunAdi, formatGunNo, formatTarih } from './types';
@@ -38,10 +38,12 @@ export function MonthlyCalendarGrid({
         const isSelected = selectedGun === tarihKey;
         const isKopyaKaynak = kopyaKaynakTarih && formatTarih(kopyaKaynakTarih) === tarihKey;
 
-        // Bu günün yemek sayısını ve maliyetini hesapla
+        // Bu günün yemek sayısını, maliyetini, isimlerini ve şartname durumunu hesapla
         let yemekSayisi = 0;
         let gunMaliyet = 0;
-        const doluOgunler: string[] = [];
+        const tumYemekAdlari: string[] = [];
+        let gunSartnameDurum: 'uygun' | 'uyari' | 'kontrol_yok' | null = null;
+        const gunSartnameUyarilar: string[] = [];
 
         for (const ogun of ogunler) {
           const key = getHucreKey(tarih, ogun.kod);
@@ -49,7 +51,22 @@ export function MonthlyCalendarGrid({
           if (hucre && hucre.yemekler.length > 0) {
             yemekSayisi += hucre.yemekler.length;
             gunMaliyet += hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
-            doluOgunler.push(ogun.kod);
+            for (const y of hucre.yemekler) {
+              tumYemekAdlari.push(y.ad);
+            }
+            // Şartname durumunu topla
+            if (hucre.sartnameDurum === 'uyari') {
+              gunSartnameDurum = 'uyari';
+              if (hucre.sartnameUyarilar) {
+                for (const uy of hucre.sartnameUyarilar) {
+                  gunSartnameUyarilar.push(`${ogun.ad}: ${uy.mesaj}`);
+                }
+              }
+            } else if (hucre.sartnameDurum === 'uygun' && gunSartnameDurum !== 'uyari') {
+              gunSartnameDurum = 'uygun';
+            } else if (hucre.sartnameDurum === 'kontrol_yok' && gunSartnameDurum === null) {
+              gunSartnameDurum = 'kontrol_yok';
+            }
           }
         }
 
@@ -156,44 +173,39 @@ export function MonthlyCalendarGrid({
               </Group>
 
               {gunDolu ? (
-                <Stack gap={2}>
-                  <Group gap={4}>
-                    {ogunler.map((ogun) => {
-                      const dolu = doluOgunler.includes(ogun.kod);
-                      return (
-                        <Badge
-                          key={ogun.kod}
-                          size="xs"
-                          variant={dolu ? 'light' : 'outline'}
-                          color={dolu ? ogun.renk : 'gray'}
-                          style={{ opacity: dolu ? 1 : 0.3 }}
-                        >
-                          {ogun.ad.charAt(0)}
-                        </Badge>
-                      );
-                    })}
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="10px" c="dimmed">
-                      {yemekSayisi} yemek
+                <Stack gap={1}>
+                  {tumYemekAdlari.map((ad, i) => (
+                    <Text key={i} size="9px" c="dimmed" lineClamp={1}>
+                      {ad}
                     </Text>
+                  ))}
+                  <Group justify="space-between" mt={2}>
+                    <Group gap={4}>
+                      <Text size="10px" c="dimmed">
+                        {yemekSayisi} yemek
+                      </Text>
+                      {gunSartnameDurum === 'uygun' && (
+                        <Tooltip label="Şartname uyumlu">
+                          <ThemeIcon size={14} color="green" variant="light" radius="xl">
+                            <IconCheck size={10} />
+                          </ThemeIcon>
+                        </Tooltip>
+                      )}
+                      {gunSartnameDurum === 'uyari' && (
+                        <Tooltip
+                          label={gunSartnameUyarilar.length > 0 ? gunSartnameUyarilar.join('\n') : 'Şartname uyumsuzluğu var'}
+                          multiline
+                          w={240}
+                        >
+                          <ThemeIcon size={14} color="orange" variant="light" radius="xl">
+                            <IconAlertTriangle size={10} />
+                          </ThemeIcon>
+                        </Tooltip>
+                      )}
+                    </Group>
                     <Text size="10px" fw={600} c="teal">
                       {formatMoney(gunMaliyet)}
                     </Text>
-                  </Group>
-                  {/* Öğün bazlı mini maliyet */}
-                  <Group gap={2} wrap="nowrap">
-                    {ogunler.map((ogun) => {
-                      const key = getHucreKey(tarih, ogun.kod);
-                      const hucre: TakvimHucre | undefined = takvimState[key];
-                      if (!hucre || hucre.yemekler.length === 0) return null;
-                      const ogunMaliyet = hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
-                      return (
-                        <Text key={ogun.kod} size="8px" c={ogun.renk} fw={500}>
-                          {ogun.ad.charAt(0)}: {formatMoney(ogunMaliyet)}
-                        </Text>
-                      );
-                    })}
                   </Group>
                 </Stack>
               ) : (

@@ -15,9 +15,12 @@ import {
   Text,
   TextInput,
   ThemeIcon,
+  Tooltip,
   UnstyledButton,
 } from '@mantine/core';
 import {
+  IconAlertTriangle,
+  IconCheck,
   IconChevronDown,
   IconChevronUp,
   IconPlus,
@@ -86,6 +89,8 @@ export function MealCellPopover({
   const yemekSayisi = hucre?.yemekler?.length || 0;
   const toplamFiyat = hucre?.yemekler?.reduce((sum, y) => sum + y.fiyat, 0) || 0;
   const toplamMalzeme = hucre?.yemekler?.reduce((sum, y) => sum + (y.malzemeSayisi || 0), 0) || 0;
+  const sartnameDurum = hucre?.sartnameDurum;
+  const sartnameUyarilar = hucre?.sartnameUyarilar;
 
   // Yemek ekleme dropdown açık mı - boş hücrelerde otomatik aç
   const [eklemeAcik, setEklemeAcik] = useState(false);
@@ -147,9 +152,29 @@ export function MealCellPopover({
           ) : (
             <Stack gap={4}>
               <Group justify="space-between" wrap="nowrap">
-                <Text size="xs" fw={600} lineClamp={1}>
-                  {yemekSayisi} yemek
-                </Text>
+                <Group gap={4}>
+                  <Text size="xs" fw={600} lineClamp={1}>
+                    {yemekSayisi} yemek
+                  </Text>
+                  {sartnameDurum === 'uygun' && (
+                    <Tooltip label="Şartname uyumlu">
+                      <ThemeIcon size={14} color="green" variant="light" radius="xl">
+                        <IconCheck size={10} />
+                      </ThemeIcon>
+                    </Tooltip>
+                  )}
+                  {sartnameDurum === 'uyari' && (
+                    <Tooltip
+                      label={sartnameUyarilar?.map((u) => u.mesaj).join('\n') || 'Uyumsuzluk var'}
+                      multiline
+                      w={220}
+                    >
+                      <ThemeIcon size={14} color="orange" variant="light" radius="xl">
+                        <IconAlertTriangle size={10} />
+                      </ThemeIcon>
+                    </Tooltip>
+                  )}
+                </Group>
                 <ActionIcon
                   size="xs"
                   variant="subtle"
@@ -288,6 +313,39 @@ export function MealCellPopover({
                     {formatMoney(toplamFiyat)}
                   </Text>
                 </Group>
+
+                {/* Şartname uyumluluk durumu */}
+                {sartnameDurum === 'uygun' && (
+                  <Group
+                    gap={6}
+                    p="4px 8px"
+                    style={{ borderRadius: 6, background: 'var(--mantine-color-green-light)' }}
+                  >
+                    <IconCheck size={12} color="var(--mantine-color-green-6)" />
+                    <Text size="10px" fw={600} c="green">
+                      Şartname uyumlu
+                    </Text>
+                  </Group>
+                )}
+                {sartnameDurum === 'uyari' && sartnameUyarilar && sartnameUyarilar.length > 0 && (
+                  <Stack
+                    gap={2}
+                    p="6px 8px"
+                    style={{ borderRadius: 6, background: 'var(--mantine-color-orange-light)' }}
+                  >
+                    <Group gap={4}>
+                      <IconAlertTriangle size={12} color="var(--mantine-color-orange-6)" />
+                      <Text size="10px" fw={600} c="orange">
+                        Şartname uyarıları
+                      </Text>
+                    </Group>
+                    {sartnameUyarilar.map((uy) => (
+                      <Text key={`${uy.tip}-${uy.mesaj}`} size="9px" c="orange.3">
+                        • {uy.mesaj}
+                      </Text>
+                    ))}
+                  </Stack>
+                )}
               </Stack>
             )}
           </Box>

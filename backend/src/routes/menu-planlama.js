@@ -198,6 +198,7 @@ router.get('/menu-planlari/:id', async (req, res) => {
       `
       SELECT
         mpo.*,
+        ot.kod as ogun_tip_kodu,
         ot.ad as ogun_tip_adi,
         ot.ikon as ogun_ikon,
         json_agg(
@@ -206,7 +207,9 @@ router.get('/menu-planlari/:id', async (req, res) => {
             'recete_id', moy.recete_id,
             'recete_ad', r.ad,
             'recete_kategori', rk.ad,
+            'recete_kategori_kod', rk.kod,
             'recete_ikon', rk.ikon,
+            'recete_alt_tip_id', r.alt_tip_id,
             'sira', moy.sira,
             'porsiyon_maliyet', moy.porsiyon_maliyet,
             'toplam_maliyet', moy.toplam_maliyet
@@ -218,17 +221,114 @@ router.get('/menu-planlari/:id', async (req, res) => {
       LEFT JOIN receteler r ON r.id = moy.recete_id
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
       WHERE mpo.menu_plan_id = $1
-      GROUP BY mpo.id, ot.ad, ot.ikon
+      GROUP BY mpo.id, ot.kod, ot.ad, ot.ikon
       ORDER BY mpo.tarih, mpo.ogun_tipi_id
     `,
       [id]
     );
 
+    // Şartname uyumluluk durumu hesapla
+    const ogunler = ogunlerResult.rows;
+    const projeId = planResult.rows[0].proje_id;
+    try {
+      if (projeId) {
+        const sartnameRes = await query(
+          `SELECT ps.sartname_id
+           FROM proje_sartname_atamalari ps
+           WHERE ps.proje_id = $1 AND ps.aktif = true
+           LIMIT 1`,
+          [projeId]
+        );
+
+        if (sartnameRes.rows.length > 0) {
+          const sartnameId = sartnameRes.rows[0].sartname_id;
+
+          const ogunYapilariRes = await query(
+            `SELECT DISTINCT ON (ogun_tipi) ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler
+             FROM sartname_ogun_yapisi
+             WHERE sartname_id = $1 AND aktif = true
+             ORDER BY ogun_tipi, id DESC`,
+            [sartnameId]
+          );
+          const ogunYapilari = Object.fromEntries(ogunYapilariRes.rows.map((r) => [r.ogun_tipi, r]));
+
+          const [tumKurallarRes, sozlukRes] = await Promise.all([
+            query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [sartnameId]),
+            query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
+          ]);
+          const tumKurallar = tumKurallarRes.rows;
+
+          for (const ogun of ogunler) {
+            const yemekler = ogun.yemekler || [];
+            if (yemekler.length === 0) {
+              ogun.sartname_durum = 'kontrol_yok';
+              continue;
+            }
+
+            const uyarilar = [];
+
+            for (const yemek of yemekler) {
+              if (!yemek.recete_id || !yemek.recete_alt_tip_id) continue;
+              try {
+                const malzRes = await query(
+                  'SELECT malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1',
+                  [yemek.recete_id]
+                );
+                const altTipKurallar = tumKurallar.filter(
+                  (k) => Number(k.alt_tip_id) === Number(yemek.recete_alt_tip_id)
+                );
+                if (altTipKurallar.length > 0) {
+                  const kontrol = gramajKontrolHesapla(malzRes.rows, altTipKurallar, tumKurallar, sozlukRes.rows);
+                  if (kontrol.uyumsuz_sayisi > 0) {
+                    uyarilar.push({
+                      tip: 'gramaj',
+                      recete_ad: yemek.recete_ad,
+                      mesaj: `${yemek.recete_ad}: ${kontrol.uyumsuz_sayisi} gramaj uyumsuzluğu`,
+                    });
+                  }
+                }
+              } catch (_e) {
+                // devam
+              }
+            }
+
+            const ogunTipKodu = ogun.ogun_tip_kodu;
+            const ogunYapi = ogunTipKodu ? ogunYapilari[ogunTipKodu] : null;
+            if (ogunYapi) {
+              const yemekSayisi = yemekler.length;
+              if (ogunYapi.max_cesit && yemekSayisi > ogunYapi.max_cesit) {
+                uyarilar.push({ tip: 'cesit_fazla', mesaj: `Maks ${ogunYapi.max_cesit} çeşit, ${yemekSayisi} var` });
+              }
+              if (ogunYapi.min_cesit && yemekSayisi < ogunYapi.min_cesit) {
+                uyarilar.push({ tip: 'cesit_eksik', mesaj: `Min ${ogunYapi.min_cesit} çeşit, ${yemekSayisi} var` });
+              }
+              if (ogunYapi.zorunlu_kategoriler && ogunYapi.zorunlu_kategoriler.length > 0) {
+                const mevcutKategoriler = [...new Set(yemekler.map((y) => y.recete_kategori_kod).filter(Boolean))];
+                const eksik = ogunYapi.zorunlu_kategoriler.filter((zk) => !mevcutKategoriler.includes(zk));
+                if (eksik.length > 0) {
+                  uyarilar.push({ tip: 'kategori_eksik', mesaj: `Eksik: ${eksik.join(', ')}`, eksik });
+                }
+              }
+            }
+
+            ogun.sartname_durum = uyarilar.length > 0 ? 'uyari' : 'uygun';
+            if (uyarilar.length > 0) ogun.sartname_uyarilar = uyarilar;
+          }
+        } else {
+          for (const ogun of ogunler) ogun.sartname_durum = 'kontrol_yok';
+        }
+      } else {
+        for (const ogun of ogunler) ogun.sartname_durum = 'kontrol_yok';
+      }
+    } catch (_e) {
+      for (const ogun of ogunler) ogun.sartname_durum = 'kontrol_yok';
+    }
+
     res.json({
       success: true,
       data: {
         ...planResult.rows[0],
-        ogunler: ogunlerResult.rows,
+        ogunler,
       },
     });
   } catch (error) {
@@ -751,7 +851,9 @@ router.get('/menu-plan', async (req, res) => {
             'recete_id', moy.recete_id,
             'recete_ad', r.ad,
             'recete_kategori', rk.ad,
+            'recete_kategori_kod', rk.kod,
             'recete_ikon', rk.ikon,
+            'recete_alt_tip_id', r.alt_tip_id,
             'sira', moy.sira,
             'porsiyon_maliyet', moy.porsiyon_maliyet,
             'toplam_maliyet', moy.toplam_maliyet
@@ -770,11 +872,129 @@ router.get('/menu-plan', async (req, res) => {
       [planId, baslangic, bitis]
     );
 
+    // Şartname uyumluluk durumu hesapla (her öğün için)
+    const ogunler = ogunlerResult.rows;
+    try {
+      const sartnameRes = await query(
+        `SELECT ps.sartname_id
+         FROM proje_sartname_atamalari ps
+         WHERE ps.proje_id = $1 AND ps.aktif = true
+         LIMIT 1`,
+        [proje_id]
+      );
+
+      if (sartnameRes.rows.length > 0) {
+        const sartnameId = sartnameRes.rows[0].sartname_id;
+
+        // Öğün yapısı kurallarını toplu çek
+        const ogunYapilariRes = await query(
+          `SELECT DISTINCT ON (ogun_tipi) ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler
+           FROM sartname_ogun_yapisi
+           WHERE sartname_id = $1 AND aktif = true
+           ORDER BY ogun_tipi, id DESC`,
+          [sartnameId]
+        );
+        const ogunYapilari = Object.fromEntries(ogunYapilariRes.rows.map((r) => [r.ogun_tipi, r]));
+
+        // Gramaj kurallarını toplu çek
+        const [tumKurallarRes, sozlukRes] = await Promise.all([
+          query('SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true', [sartnameId]),
+          query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true'),
+        ]);
+        const tumKurallar = tumKurallarRes.rows;
+
+        for (const ogun of ogunler) {
+          const yemekler = ogun.yemekler || [];
+          if (yemekler.length === 0) {
+            ogun.sartname_durum = 'kontrol_yok';
+            continue;
+          }
+
+          const uyarilar = [];
+
+          // (a) Gramaj kontrolü — her yemek için
+          for (const yemek of yemekler) {
+            if (!yemek.recete_id || !yemek.recete_alt_tip_id) continue;
+            try {
+              const malzRes = await query(
+                'SELECT malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1',
+                [yemek.recete_id]
+              );
+              const altTipKurallar = tumKurallar.filter(
+                (k) => Number(k.alt_tip_id) === Number(yemek.recete_alt_tip_id)
+              );
+              if (altTipKurallar.length > 0) {
+                const kontrol = gramajKontrolHesapla(malzRes.rows, altTipKurallar, tumKurallar, sozlukRes.rows);
+                if (kontrol.uyumsuz_sayisi > 0) {
+                  uyarilar.push({
+                    tip: 'gramaj',
+                    recete_ad: yemek.recete_ad,
+                    mesaj: `${yemek.recete_ad}: ${kontrol.uyumsuz_sayisi} gramaj uyumsuzluğu`,
+                  });
+                }
+              }
+            } catch (_e) {
+              // Devam et
+            }
+          }
+
+          // (b) Öğün yapısı kontrolü
+          const ogunYapi = ogunYapilari[ogun.ogun_tip_kodu];
+          if (ogunYapi) {
+            const yemekSayisi = yemekler.length;
+
+            if (ogunYapi.max_cesit && yemekSayisi > ogunYapi.max_cesit) {
+              uyarilar.push({
+                tip: 'cesit_fazla',
+                mesaj: `Maks ${ogunYapi.max_cesit} çeşit, ${yemekSayisi} var`,
+              });
+            }
+            if (ogunYapi.min_cesit && yemekSayisi < ogunYapi.min_cesit) {
+              uyarilar.push({
+                tip: 'cesit_eksik',
+                mesaj: `Min ${ogunYapi.min_cesit} çeşit, ${yemekSayisi} var`,
+              });
+            }
+
+            if (ogunYapi.zorunlu_kategoriler && ogunYapi.zorunlu_kategoriler.length > 0) {
+              const mevcutKategoriler = [...new Set(yemekler.map((y) => y.recete_kategori_kod).filter(Boolean))];
+              const eksik = ogunYapi.zorunlu_kategoriler.filter((zk) => !mevcutKategoriler.includes(zk));
+              if (eksik.length > 0) {
+                uyarilar.push({
+                  tip: 'kategori_eksik',
+                  mesaj: `Eksik kategoriler: ${eksik.join(', ')}`,
+                  eksik,
+                });
+              }
+            }
+          }
+
+          // Durum belirle
+          if (uyarilar.length > 0) {
+            ogun.sartname_durum = 'uyari';
+            ogun.sartname_uyarilar = uyarilar;
+          } else {
+            ogun.sartname_durum = 'uygun';
+          }
+        }
+      } else {
+        // Şartname ataması yok
+        for (const ogun of ogunler) {
+          ogun.sartname_durum = 'kontrol_yok';
+        }
+      }
+    } catch (_sartnameErr) {
+      // Şartname kontrolü başarısız olursa durum bilgisi olmadan devam et
+      for (const ogun of ogunler) {
+        ogun.sartname_durum = 'kontrol_yok';
+      }
+    }
+
     res.json({
       success: true,
       data: {
         plan_id: planId,
-        ogunler: ogunlerResult.rows,
+        ogunler,
       },
     });
   } catch (error) {

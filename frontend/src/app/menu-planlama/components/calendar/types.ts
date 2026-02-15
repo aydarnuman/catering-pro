@@ -11,10 +11,19 @@ export interface TakvimYemek {
   kategoriAdi?: string;
 }
 
+export interface SartnameUyari {
+  tip: string;
+  mesaj: string;
+  recete_ad?: string;
+  eksik?: string[];
+}
+
 export interface TakvimHucre {
   tarih: Date;
   ogunTipiId: number;
   yemekler: TakvimYemek[];
+  sartnameUyarilar?: SartnameUyari[];
+  sartnameDurum?: 'uygun' | 'uyari' | 'kontrol_yok';
 }
 
 export interface TakvimState {
