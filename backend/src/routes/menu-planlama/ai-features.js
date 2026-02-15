@@ -3,6 +3,7 @@ import express from 'express';
 import { getProfilKurallari, SUPPORTED_PROFILES } from '../../data/sartname-gramaj-sablonlari.js';
 import { query } from '../../database.js';
 import aiAgent from '../../services/ai-agent.js';
+import logger from '../../utils/logger.js';
 
 // Basit Claude çağrısı (processQuery'nin context ağırlığından kaçınmak için)
 async function simpleClaudeCall(prompt, { maxTokens = 4000, temperature = 0.1 } = {}) {
@@ -843,7 +844,10 @@ Sadece JSON döndür, açıklama ekleme.`;
       },
     });
   } catch (error) {
-    console.error('[ai-gramaj-olustur] HATA:', error.message, error.stack?.split('\n').slice(0, 3).join('\n'));
+    logger.error('[ai-gramaj-olustur] HATA:', {
+      message: error.message,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+    });
     res.status(500).json({ success: false, error: error.message });
   }
 });

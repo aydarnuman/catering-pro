@@ -173,7 +173,7 @@ app.get('/', (req, res) => {
 });
 
 // /api/health alias - /health ile tutarlılık için (her iki URL de çalışsın)
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', async (_req, res) => {
   try {
     const dbResult = await pool.query('SELECT NOW()');
     res.json({

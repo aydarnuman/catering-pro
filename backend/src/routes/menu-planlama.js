@@ -1174,7 +1174,7 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
                 'SELECT COUNT(*) as sayi FROM menu_ogun_yemekleri WHERE menu_ogun_id = $1',
                 [ogunId]
               );
-              const yemekSayisi = parseInt(mevcutYemekRes.rows[0]?.sayi) || 0;
+              const yemekSayisi = parseInt(mevcutYemekRes.rows[0]?.sayi, 10) || 0;
 
               if (yapi.max_cesit && yemekSayisi > yapi.max_cesit) {
                 uyariListesi.push({
