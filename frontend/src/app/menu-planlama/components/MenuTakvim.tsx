@@ -37,6 +37,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
+import { formatMoney } from '@/lib/formatters';
 import { MealCellPopover } from './calendar/MealCellPopover';
 import { MonthlyCalendarGrid } from './calendar/MonthlyCalendarGrid';
 import { PlanSummary } from './calendar/PlanSummary';
@@ -230,6 +231,29 @@ export function MenuTakvim() {
       gunler.add(key.split('_')[0]);
     }
     return gunler.size;
+  }, [takvimState]);
+
+  // Öğün bazlı toplam maliyetler
+  const ogunMaliyetleri = useMemo(() => {
+    const maliyetler: Record<string, number> = {};
+    for (const ogun of OGUNLER) {
+      maliyetler[ogun.kod] = 0;
+    }
+    for (const [key, hucre] of Object.entries(takvimState)) {
+      const ogunKod = key.split('_')[1];
+      maliyetler[ogunKod] = (maliyetler[ogunKod] || 0) + hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
+    }
+    return maliyetler;
+  }, [takvimState]);
+
+  // Günlük toplam maliyetler
+  const gunlukMaliyetler = useMemo(() => {
+    const maliyetler: Record<string, number> = {};
+    for (const [key, hucre] of Object.entries(takvimState)) {
+      const tarihKey = key.split('_')[0];
+      maliyetler[tarihKey] = (maliyetler[tarihKey] || 0) + hucre.yemekler.reduce((s, y) => s + y.fiyat, 0);
+    }
+    return maliyetler;
   }, [takvimState]);
 
   // Planı kaydet
@@ -544,6 +568,11 @@ export function MenuTakvim() {
                         {ogun.ad}
                       </Text>
                     </Group>
+                    {ogunMaliyetleri[ogun.kod] > 0 && (
+                      <Text size="9px" fw={600} c={ogun.renk} mt={2}>
+                        {formatMoney(ogunMaliyetleri[ogun.kod])}
+                      </Text>
+                    )}
                   </Box>
                   {tarihler.map((tarih) => {
                     const key = getHucreKey(tarih, ogun.kod);
@@ -569,6 +598,48 @@ export function MenuTakvim() {
                   })}
                 </Group>
               ))}
+
+              {/* Günlük Toplam Maliyetler Satırı */}
+              {Object.keys(gunlukMaliyetler).length > 0 && (
+                <Group
+                  gap={0}
+                  wrap="nowrap"
+                  mt="xs"
+                  pt="xs"
+                  style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}
+                >
+                  <Box w={80}>
+                    <Text size="xs" fw={700} c="dimmed">
+                      Günlük
+                    </Text>
+                  </Box>
+                  {tarihler.map((tarih) => {
+                    const tarihKey = formatTarih(tarih);
+                    const gunMaliyet = gunlukMaliyetler[tarihKey] || 0;
+                    return (
+                      <Box
+                        key={`toplam-${tarihKey}`}
+                        style={{ flex: 1, minWidth: 100, padding: '0 4px', textAlign: 'center' }}
+                      >
+                        {gunMaliyet > 0 ? (
+                          <Stack gap={0} align="center">
+                            <Text size="xs" fw={700} c="teal">
+                              {formatMoney(gunMaliyet)}
+                            </Text>
+                            <Text size="9px" c="dimmed">
+                              {formatMoney(gunMaliyet / kisiSayisi)}/kişi
+                            </Text>
+                          </Stack>
+                        ) : (
+                          <Text size="xs" c="dimmed">
+                            —
+                          </Text>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Group>
+              )}
             </Box>
           </ScrollArea>
         </Paper>
@@ -581,6 +652,11 @@ export function MenuTakvim() {
         toplamOgun={Object.keys(takvimState).length}
         toplamMaliyet={toplamMaliyet}
         kisiSayisi={kisiSayisi}
+        ogunMaliyetleri={OGUNLER.map((o) => ({
+          ad: o.ad,
+          renk: o.renk,
+          maliyet: ogunMaliyetleri[o.kod] || 0,
+        }))}
       />
     </Stack>
   );
