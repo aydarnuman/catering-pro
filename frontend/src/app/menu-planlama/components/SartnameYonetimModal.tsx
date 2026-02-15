@@ -27,6 +27,7 @@ import { IconCheck, IconClipboardList, IconPlus, IconRefresh, IconRobot, IconTra
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { type AltTipTanimi, type GramajKurali, menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
+import { menuPlanlamaKeys } from './queryKeys';
 
 interface SartnameYonetimModalProps {
   opened: boolean;
@@ -74,7 +75,7 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
 
   // Şartname listesi
   const { data: sartnameler = [], isLoading: sartnameLoading } = useQuery<SartnameItem[]>({
-    queryKey: ['sartname-liste'],
+    queryKey: menuPlanlamaKeys.sartnameler.liste(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getSartnameListesi();
       return res.success ? (res.data as SartnameItem[]) : [];
@@ -104,7 +105,7 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
 
   // Reçete kategorileri (toplu uygulama filtre için)
   const { data: receteKategorileri = [] } = useQuery({
-    queryKey: ['recete-kategorileri'],
+    queryKey: menuPlanlamaKeys.receteler.kategoriler(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getKategoriler();
       return res.success ? (res.data as Array<{ id: number; ad: string }>) : [];
@@ -131,7 +132,7 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
   const silSartnameMutation = useMutation({
     mutationFn: (id: number) => menuPlanlamaAPI.deleteSartname(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sartname-liste'] });
+      queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.sartnameler.liste() });
       setSeciliSartnameId(null);
       notifications.show({ message: 'Şartname silindi', color: 'green' });
     },
@@ -145,7 +146,7 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
     mutationFn: (data: { ad: string; kod: string }) => menuPlanlamaAPI.createSartname({ ad: data.ad, kod: data.kod }),
     onSuccess: (res) => {
       if (res.success) {
-        queryClient.invalidateQueries({ queryKey: ['sartname-liste'] });
+        queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.sartnameler.liste() });
         setSeciliSartnameId(res.data.id);
         setYeniSartnameFormu(null);
         notifications.show({ message: 'Şartname oluşturuldu', color: 'green' });
@@ -250,8 +251,8 @@ export function SartnameYonetimModal({ opened, onClose }: SartnameYonetimModalPr
           message: `${d.guncellenen_recete} reçetede ${d.guncellenen_malzeme} malzeme güncellendi.`,
           color: 'green',
         });
-        queryClient.invalidateQueries({ queryKey: ['receteler'] });
-        queryClient.invalidateQueries({ queryKey: ['recete-kategorileri'] });
+        queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.all() });
+        queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.kategoriler() });
       }
     },
     onError: (err: Error) => {

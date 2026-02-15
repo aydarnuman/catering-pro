@@ -1,20 +1,21 @@
 'use client';
 
-import { Box, Center, Container, Loader, Stack, Tabs, Text } from '@mantine/core';
+import { Box, Button, Center, Container, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconBook2, IconCalendar, IconFile, IconPackages } from '@tabler/icons-react';
+import { IconBook2, IconCalendar, IconClipboardList, IconPackages } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
-import { KaydedilenMenuler } from './components/KaydedilenMenuler';
 import { MenuPlanlamaProvider } from './components/MenuPlanlamaContext';
-import { MenuTakvim } from './components/MenuTakvim';
 import { MobileMenuNav } from './components/MobileMenuNav';
+import { PlanlamaWorkspace } from './components/PlanlamaWorkspace';
 import { ReceteDetayModal } from './components/ReceteDetayModal';
 import { RecetelerTab } from './components/RecetelerTab';
+import { SartnameYonetimModal } from './components/SartnameYonetimModal';
+import { menuPlanlamaKeys } from './components/queryKeys';
 import {
   type BackendReceteResponse,
   type KategoriInfo,
@@ -23,7 +24,13 @@ import {
 } from './components/types';
 import { UrunlerTab } from './components/UrunlerTab';
 
-const VALID_TABS = ['takvim', 'receteler', 'urunler', 'menuler'] as const;
+const VALID_TABS = ['planlama', 'receteler', 'urunler'] as const;
+
+// Eski URL'lerden yönlendirme
+const TAB_ALIASES: Record<string, string> = {
+  takvim: 'planlama',
+  menuler: 'planlama',
+};
 
 export default function MenuPlanlamaPage() {
   const { isMobile, isMounted } = useResponsive();
@@ -31,9 +38,19 @@ export default function MenuPlanlamaPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // URL'den tab parametresini oku
+  // URL'den tab parametresini oku (eski URL uyumluluğu dahil)
   const tabParam = searchParams.get('tab');
-  const initialTab = VALID_TABS.includes(tabParam as (typeof VALID_TABS)[number]) ? tabParam : 'takvim';
+  const resolvedTab = tabParam ? TAB_ALIASES[tabParam] || tabParam : null;
+  const initialTab = VALID_TABS.includes(resolvedTab as (typeof VALID_TABS)[number]) ? resolvedTab : 'planlama';
+
+  // Eski URL'den ?mode=kurum bilgisini de çek (menuler&subtab=kurum → planlama&mode=kurum)
+  const subtabParam = searchParams.get('subtab');
+  const initialMode =
+    tabParam === 'menuler' && subtabParam === 'kurum'
+      ? 'kurum'
+      : searchParams.get('mode') === 'kurum'
+        ? 'kurum'
+        : 'proje';
 
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
 
@@ -42,16 +59,21 @@ export default function MenuPlanlamaPage() {
     (tab: string | null) => {
       setActiveTab(tab);
       const params = new URLSearchParams(searchParams.toString());
-      if (tab && tab !== 'takvim') {
+      if (tab && tab !== 'planlama') {
         params.set('tab', tab);
       } else {
         params.delete('tab');
       }
+      // Eski param'ları temizle
+      params.delete('subtab');
       const qs = params.toString();
       router.replace(`/menu-planlama${qs ? `?${qs}` : ''}`, { scroll: false });
     },
     [router, searchParams]
   );
+
+  // Şartname yönetimi modal
+  const [sartnameModalOpened, setSartnameModalOpened] = useState(false);
 
   // Reçete detay modal
   const [detayModalOpened, setDetayModalOpened] = useState(false);
@@ -64,7 +86,7 @@ export default function MenuPlanlamaPage() {
     error: receteKategorileriError,
     refetch: refetchReceteler,
   } = useQuery<ReceteKategori[]>({
-    queryKey: ['recete-kategorileri'],
+    queryKey: menuPlanlamaKeys.receteler.kategoriler(),
     queryFn: async (): Promise<ReceteKategori[]> => {
       const result = await menuPlanlamaAPI.getRecetelerMaliyet();
       if (!result.success) {
@@ -138,8 +160,8 @@ export default function MenuPlanlamaPage() {
 
   // Realtime hook
   useRealtimeRefetch(['menu_items', 'urunler'], () => {
-    queryClient.invalidateQueries({ queryKey: ['recete-kategorileri'] });
-    queryClient.invalidateQueries({ queryKey: ['receteler'] });
+    queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.kategoriler() });
+    queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.all() });
     queryClient.invalidateQueries({ queryKey: ['urunler'] });
   });
 
@@ -151,10 +173,10 @@ export default function MenuPlanlamaPage() {
 
   // Kategoriler (memoized)
   const KATEGORILER = useMemo<KategoriInfo[]>(() => {
-    if (receteKategorileri.length === 0) {
+    if ((receteKategorileri ?? []).length === 0) {
       return VARSAYILAN_KATEGORILER;
     }
-    return receteKategorileri.map((k) => ({
+    return (receteKategorileri ?? []).map((k) => ({
       kod: k.kod,
       ad: k.ad,
       ikon: k.ikon,
@@ -184,12 +206,8 @@ export default function MenuPlanlamaPage() {
         <Container size="xl" py="md">
           <Tabs value={activeTab} onChange={handleTabChange} variant="outline" radius="md">
             <Tabs.List mb="md">
-              {/* Planlama sekmeleri */}
-              <Tabs.Tab value="takvim" leftSection={<IconCalendar size={16} />}>
-                Takvim
-              </Tabs.Tab>
-              <Tabs.Tab value="menuler" leftSection={<IconFile size={16} />}>
-                Menüler
+              <Tabs.Tab value="planlama" leftSection={<IconCalendar size={16} />}>
+                Planlama
               </Tabs.Tab>
 
               {/* Ayırıcı */}
@@ -202,18 +220,30 @@ export default function MenuPlanlamaPage() {
                 }}
               />
 
-              {/* Yardımcı araçlar */}
               <Tabs.Tab value="receteler" leftSection={<IconBook2 size={16} />}>
                 Reçeteler
               </Tabs.Tab>
               <Tabs.Tab value="urunler" leftSection={<IconPackages size={16} />}>
                 Ürünler
               </Tabs.Tab>
+
+              {/* Şartname Yönetimi butonu - tabların sağında */}
+              <Box ml="auto" style={{ display: 'flex', alignItems: 'center' }}>
+                <Button
+                  leftSection={<IconClipboardList size={14} />}
+                  variant="light"
+                  size="xs"
+                  color="teal"
+                  onClick={() => setSartnameModalOpened(true)}
+                >
+                  Şartname Yönetimi
+                </Button>
+              </Box>
             </Tabs.List>
 
-            <Tabs.Panel value="takvim">
+            <Tabs.Panel value="planlama">
               <MenuPlanlamaProvider>
-                <MenuTakvim />
+                <PlanlamaWorkspace initialMode={initialMode as 'proje' | 'kurum'} />
               </MenuPlanlamaProvider>
             </Tabs.Panel>
 
@@ -228,12 +258,6 @@ export default function MenuPlanlamaPage() {
             <Tabs.Panel value="urunler">
               <UrunlerTab isActive={activeTab === 'urunler'} isMobile={isMobile} isMounted={isMounted} />
             </Tabs.Panel>
-
-            <Tabs.Panel value="menuler">
-              <MenuPlanlamaProvider>
-                <KaydedilenMenuler />
-              </MenuPlanlamaProvider>
-            </Tabs.Panel>
           </Tabs>
         </Container>
 
@@ -241,14 +265,14 @@ export default function MenuPlanlamaPage() {
         {isMobile && isMounted && (
           <MobileMenuNav
             activeCategory={
-              activeTab === 'takvim'
+              activeTab === 'planlama'
                 ? 'planlama'
-                : activeTab === 'receteler' || activeTab === 'urunler' || activeTab === 'menuler'
+                : activeTab === 'receteler' || activeTab === 'urunler'
                   ? 'katalog'
                   : 'analiz'
             }
             onCategoryChange={(cat) => {
-              if (cat === 'planlama') handleTabChange('takvim');
+              if (cat === 'planlama') handleTabChange('planlama');
               else if (cat === 'katalog') handleTabChange('receteler');
               else if (cat === 'analiz') handleTabChange('urunler');
             }}
@@ -263,6 +287,9 @@ export default function MenuPlanlamaPage() {
           isMobile={isMobile}
           isMounted={isMounted}
         />
+
+        {/* Şartname Yönetimi Drawer */}
+        <SartnameYonetimModal opened={sartnameModalOpened} onClose={() => setSartnameModalOpened(false)} />
       </Box>
     </Box>
   );

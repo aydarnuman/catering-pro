@@ -2,10 +2,12 @@
 
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Divider,
   Group,
+  Loader,
   NumberInput,
   Paper,
   ScrollArea,
@@ -29,6 +31,7 @@ import {
   IconCoffee,
   IconCopy,
   IconDeviceFloppy,
+  IconFilePlus,
   IconMoon,
   IconSun,
   IconUsers,
@@ -51,6 +54,7 @@ import {
   type TakvimState,
 } from './calendar/types';
 import { useMenuPlanlama } from './MenuPlanlamaContext';
+import { menuPlanlamaKeys } from './queryKeys';
 
 // Öğün bilgileri
 const OGUNLER: OgunInfo[] = [
@@ -72,9 +76,12 @@ const getKategorilerByOgun = (ogunKod: string): string[] => {
   }
 };
 
+// Öğün tipi ID'den koda dönüşüm
+const OGUN_ID_TO_KOD: Record<number, string> = { 1: 'kahvalti', 2: 'ogle', 3: 'aksam' };
+
 export function MenuTakvim() {
   const queryClient = useQueryClient();
-  const { projeler } = useMenuPlanlama();
+  const { projeler, kaydedilenMenuler, kaydedilenMenulerLoading, refetchMenuler } = useMenuPlanlama();
 
   // Plan state
   const [selectedProjeId, setSelectedProjeId] = useState<number | null>(null);
@@ -82,6 +89,10 @@ export function MenuTakvim() {
   const [baslangicTarihi, setBaslangicTarihi] = useState<Date>(new Date());
   const [kisiSayisi, setKisiSayisi] = useState(500);
   const [takvimState, setTakvimState] = useState<TakvimState>({});
+
+  // Saved plan editing state
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
 
   // Popover state
   const [aktifHucreKey, setAktifHucreKey] = useState<string | null>(null);
@@ -99,7 +110,7 @@ export function MenuTakvim() {
 
   // Reçeteleri çek
   const { data: recetelerData, isLoading: recetelerLoading } = useQuery({
-    queryKey: ['receteler-takvim', debouncedArama, seciliKategori, aktifOgunKod],
+    queryKey: menuPlanlamaKeys.receteler.takvim(debouncedArama, seciliKategori || undefined, aktifOgunKod || undefined),
     queryFn: async () => {
       let kategori = seciliKategori || undefined;
       if (!kategori && aktifOgunKod && !debouncedArama) {
@@ -220,6 +231,69 @@ export function MenuTakvim() {
     });
   };
 
+  // Kaydedilmiş planı takvime yükle
+  const loadSavedPlan = async (planId: number) => {
+    if (loadingPlanId) return;
+    setLoadingPlanId(planId);
+    try {
+      const res = await menuPlanlamaAPI.getMenuPlanDetay(planId);
+      if (!res.success || !res.data) {
+        notifications.show({ title: 'Hata', message: 'Plan yüklenemedi', color: 'red' });
+        return;
+      }
+      const plan = res.data;
+
+      // Takvim state'ini oluştur
+      const yeniState: TakvimState = {};
+      for (const ogun of plan.ogunler) {
+        const ogunKod = OGUN_ID_TO_KOD[ogun.ogun_tipi_id];
+        if (!ogunKod || !ogun.tarih) continue;
+        const tarihStr = ogun.tarih.split('T')[0];
+        const key = `${tarihStr}_${ogunKod}`;
+        yeniState[key] = {
+          tarih: new Date(tarihStr),
+          ogunTipiId: ogun.ogun_tipi_id,
+          yemekler: (ogun.yemekler || []).map((y) => ({
+            id: `recete-${y.recete_id}-${Date.now()}-${Math.random()}`,
+            ad: y.recete_ad || '',
+            fiyat: Number(y.porsiyon_maliyet) || 0,
+            ikon: y.recete_ikon || '🍽️',
+            kategoriAdi: y.recete_kategori || undefined,
+          })),
+        };
+      }
+
+      // Plan ayarlarını yükle
+      setSelectedProjeId(plan.proje_id);
+      const tipMap: Record<string, PlanTipi> = { gunluk: 'gunluk', haftalik: 'haftalik', aylik: 'aylik' };
+      setPlanTipi(tipMap[plan.tip] || 'haftalik');
+      setBaslangicTarihi(new Date(plan.baslangic_tarihi));
+      setKisiSayisi(plan.varsayilan_kisi_sayisi || 500);
+      setTakvimState(yeniState);
+      setEditingPlanId(planId);
+      setAktifHucreKey(null);
+
+      notifications.show({ title: 'Yüklendi', message: `"${plan.ad}" takvime yüklendi`, color: 'blue' });
+    } catch {
+      notifications.show({ title: 'Hata', message: 'Plan yüklenirken bir hata oluştu', color: 'red' });
+    } finally {
+      setLoadingPlanId(null);
+    }
+  };
+
+  // Yeni plan başlat (takvimi temizle)
+  const startNewPlan = () => {
+    setTakvimState({});
+    setEditingPlanId(null);
+    setAktifHucreKey(null);
+  };
+
+  // Filtrelenmiş kaydedilen menüler (seçili projeye göre)
+  const filteredMenuler = useMemo(() => {
+    if (!selectedProjeId) return kaydedilenMenuler;
+    return kaydedilenMenuler.filter((m) => m.proje_id === selectedProjeId);
+  }, [kaydedilenMenuler, selectedProjeId]);
+
   // Hesaplanan değerler
   const toplamMaliyet = useMemo(() => {
     return Object.values(takvimState).reduce((sum, hucre) => {
@@ -315,7 +389,9 @@ export function MenuTakvim() {
     onSuccess: () => {
       notifications.show({ title: 'Başarılı', message: 'Menü planı kaydedildi', color: 'green' });
       setTakvimState({});
-      queryClient.invalidateQueries({ queryKey: ['kaydedilen-menuler'] });
+      setEditingPlanId(null);
+      queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.menuPlanlari() });
+      refetchMenuler();
     },
     onError: (error: Error) => {
       notifications.show({ title: 'Hata', message: error.message, color: 'red' });
@@ -340,9 +416,11 @@ export function MenuTakvim() {
                 <IconCalendar size={20} />
               </ThemeIcon>
               <Box>
-                <Title order={4}>Menü Planlama Takvimi</Title>
+                <Title order={4}>{editingPlanId ? 'Plan Düzenleme' : 'Menü Planlama Takvimi'}</Title>
                 <Text size="xs" c="dimmed">
-                  Günlük, haftalık veya aylık menü planı oluşturun
+                  {editingPlanId
+                    ? `Plan #${editingPlanId} düzenleniyor`
+                    : 'Günlük, haftalık veya aylık menü planı oluşturun'}
                 </Text>
               </Box>
             </Group>
@@ -443,6 +521,91 @@ export function MenuTakvim() {
           </SimpleGrid>
         </Stack>
       </Paper>
+
+      {/* Kaydedilmiş Planlar (yatay scroll) */}
+      {(filteredMenuler.length > 0 || kaydedilenMenulerLoading) && (
+        <ScrollArea scrollbarSize={6} type="hover">
+          <Group gap="sm" wrap="nowrap" pb={4}>
+            {/* Yeni plan kartı */}
+            <Paper
+              p="xs"
+              px="sm"
+              radius="md"
+              withBorder
+              style={{
+                cursor: 'pointer',
+                flexShrink: 0,
+                minWidth: 140,
+                borderStyle: editingPlanId === null && Object.keys(takvimState).length === 0 ? 'solid' : 'dashed',
+                borderColor: editingPlanId === null ? 'var(--mantine-color-indigo-5)' : 'var(--mantine-color-dark-4)',
+                background: editingPlanId === null ? 'rgba(99,102,241,0.08)' : undefined,
+              }}
+              onClick={startNewPlan}
+            >
+              <Stack align="center" gap={4} py={4}>
+                <IconFilePlus size={18} style={{ opacity: 0.7 }} />
+                <Text size="xs" fw={600}>
+                  Yeni Plan
+                </Text>
+              </Stack>
+            </Paper>
+
+            {kaydedilenMenulerLoading && (
+              <Stack align="center" justify="center" style={{ minWidth: 100 }}>
+                <Loader size="xs" />
+              </Stack>
+            )}
+
+            {filteredMenuler.map((menu) => {
+              const isActive = editingPlanId === menu.id;
+              const isLoading = loadingPlanId === menu.id;
+              return (
+                <Paper
+                  key={menu.id}
+                  p="xs"
+                  px="sm"
+                  radius="md"
+                  withBorder
+                  style={{
+                    cursor: isLoading ? 'wait' : 'pointer',
+                    flexShrink: 0,
+                    minWidth: 200,
+                    background: isActive ? 'rgba(59,130,246,0.12)' : undefined,
+                    borderColor: isActive ? 'var(--mantine-color-blue-5)' : undefined,
+                    opacity: isLoading ? 0.7 : 1,
+                  }}
+                  onClick={() => !isLoading && loadSavedPlan(menu.id)}
+                >
+                  <Group gap={8} wrap="nowrap" mb={4}>
+                    <Text size="xs" fw={600} lineClamp={1} style={{ flex: 1 }}>
+                      {menu.ad}
+                    </Text>
+                    {isLoading && <Loader size={12} />}
+                  </Group>
+                  <Group gap={4} wrap="wrap">
+                    <Badge size="xs" variant="light" color="blue">
+                      {new Date(menu.baslangic_tarihi).toLocaleDateString('tr-TR', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </Badge>
+                    {menu.ogunler && (
+                      <Badge size="xs" variant="light" color="gray">
+                        {menu.ogunler.length} öğün
+                      </Badge>
+                    )}
+                  </Group>
+                  {Number(menu.toplam_maliyet) > 0 && (
+                    <Text size="10px" fw={600} c="teal" mt={4}>
+                      {formatMoney(menu.toplam_maliyet || 0)}
+                    </Text>
+                  )}
+                </Paper>
+              );
+            })}
+          </Group>
+        </ScrollArea>
+      )}
 
       {/* Takvim Grid */}
       {planTipi === 'aylik' ? (

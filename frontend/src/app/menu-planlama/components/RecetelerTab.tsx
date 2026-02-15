@@ -22,6 +22,7 @@ import { IconBook2, IconClipboardList, IconPlus, IconSearch, IconSparkles } from
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
+import { menuPlanlamaKeys } from './queryKeys';
 import type { KategoriInfo } from './types';
 
 interface RecetelerTabProps {
@@ -47,7 +48,7 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
   // Reçete kategorilerini API'den çek
   type KategoriApiItem = { id: number; kod: string; ad: string; ikon: string; sira: number };
   const { data: receteKategorileriAPI = [] } = useQuery<KategoriApiItem[]>({
-    queryKey: ['recete-kategorileri-api'],
+    queryKey: menuPlanlamaKeys.receteler.kategorilerApi(),
     queryFn: async (): Promise<KategoriApiItem[]> => {
       const res = await menuPlanlamaAPI.getKategoriler();
       if (!res.success || !Array.isArray(res.data)) return [];
@@ -59,7 +60,7 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
   // Şartname listesi (önizleme için)
   type SartnameItem = { id: number; kod: string; ad: string };
   const { data: sartnameler = [] } = useQuery<SartnameItem[]>({
-    queryKey: ['sartname-liste'],
+    queryKey: menuPlanlamaKeys.sartnameler.liste(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getSartnameListesi();
       return res.success ? (res.data as SartnameItem[]) : [];
@@ -86,7 +87,7 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
     isLoading: recetelerLoading,
     error: recetelerError,
   } = useQuery<Recete[]>({
-    queryKey: ['receteler', debouncedReceteArama, seciliSartnameId],
+    queryKey: menuPlanlamaKeys.receteler.liste(debouncedReceteArama, seciliSartnameId ? parseInt(seciliSartnameId, 10) : null),
     queryFn: async (): Promise<Recete[]> => {
       const res = await menuPlanlamaAPI.getReceteler({
         limit: 1000,
@@ -207,8 +208,8 @@ export function RecetelerTab({ fetchReceteDetay, KATEGORILER, isActive }: Recete
       // Formu temizle ve listeyi yenile
       setHizliReceteAdi('');
       setHizliReceteKategoriId(null);
-      queryClient.invalidateQueries({ queryKey: ['receteler'] });
-      queryClient.invalidateQueries({ queryKey: ['recete-kategorileri'] });
+      queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.all() });
+      queryClient.invalidateQueries({ queryKey: menuPlanlamaKeys.receteler.kategoriler() });
 
       // Yeni reçetenin detayını aç
       fetchReceteDetay(yeniReceteId);

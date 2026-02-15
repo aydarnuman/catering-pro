@@ -52,6 +52,7 @@ import {
   type MaliyetSeviyesi,
 } from '@/lib/api/services/kurum-menuleri';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
+import { menuPlanlamaKeys } from './queryKeys';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -163,7 +164,7 @@ export function KurumMenuTakvim({ initialMenuId }: KurumMenuTakvimProps = {}) {
 
   // Fetch recipes for popover
   const { data: receteResp, isLoading: receteLoading } = useQuery({
-    queryKey: ['receteler-kurum', searchText],
+    queryKey: menuPlanlamaKeys.receteler.kurum(searchText || undefined),
     queryFn: () => menuPlanlamaAPI.getReceteler({ arama: searchText || undefined, limit: 30 }),
     staleTime: 5 * 60 * 1000,
     enabled: activeCell !== null,

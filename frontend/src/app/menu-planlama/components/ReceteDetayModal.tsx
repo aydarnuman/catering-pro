@@ -20,6 +20,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { type AltTipTanimi, menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
+import { menuPlanlamaKeys } from './queryKeys';
 import type { BackendMaliyetAnaliziResponse, ReceteDetay, SartnameSet } from './types';
 
 type GramajOnizlemeItem = {
@@ -50,7 +51,7 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
 
   // Şartname listesini API'den çek
   const { data: sartnameListesi = [] } = useQuery<SartnameSet[]>({
-    queryKey: ['sartname-liste'],
+    queryKey: menuPlanlamaKeys.sartnameler.liste(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getSartnameListesi();
       return res.success ? (res.data as SartnameSet[]) : [];
@@ -73,7 +74,7 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
     data: gramajOnizleme,
     isLoading: gramajOnizlemeLoading,
   } = useQuery({
-    queryKey: ['recete-sartname-gramaj-onizleme', receteId, activeReceteTab],
+    queryKey: menuPlanlamaKeys.sartnameler.gramajOnizleme(receteId, activeReceteTab ? String(activeReceteTab) : undefined),
     queryFn: async () => {
       if (!receteId || !activeReceteTab) return null;
       const res = await menuPlanlamaAPI.getReceteSartnameGramajOnizleme(receteId, activeReceteTab);
@@ -85,7 +86,7 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
 
   // Gramaj uyum kontrolü (şartnameye göre uygun/düşük/yüksek/eksik)
   const { data: gramajKontrolData } = useQuery({
-    queryKey: ['recete-gramaj-kontrol', receteId, activeReceteTab],
+    queryKey: menuPlanlamaKeys.sartnameler.gramajKontrol(receteId, activeReceteTab ? String(activeReceteTab) : undefined),
     queryFn: async () => {
       if (!receteId || !activeReceteTab) return null;
       const res = await menuPlanlamaAPI.getGramajKontrol(receteId, { sartname_id: activeReceteTab });
@@ -101,7 +102,7 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
     isLoading: detayLoading,
     error: receteDetayError,
   } = useQuery<ReceteDetay>({
-    queryKey: ['recete-detay', receteId],
+    queryKey: menuPlanlamaKeys.receteler.detay(receteId),
     queryFn: async (): Promise<ReceteDetay> => {
       if (!receteId) throw new Error('Reçete ID gerekli');
 
@@ -451,7 +452,7 @@ function AltTipSecici({ receteId }: { receteId: number }) {
 
   // Reçetenin mevcut detayını al
   const { data: receteData, refetch: refetchRecete } = useQuery({
-    queryKey: ['recete-alt-tip', receteId],
+    queryKey: menuPlanlamaKeys.receteler.altTip(receteId),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getRecete(receteId);
       return res.success ? res.data : null;

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createContext, type ReactNode, useContext } from 'react';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 import type { MenuPlan, OgunTipi } from './types';
+import { menuPlanlamaKeys } from './queryKeys';
 
 export type { Proje } from '@/types/domain';
 export type { MenuPlan, OgunTipi } from './types';
@@ -25,7 +26,7 @@ const MenuPlanlamaContext = createContext<MenuPlanlamaContextType | null>(null);
 export function MenuPlanlamaProvider({ children }: { children: ReactNode }) {
   // Projeleri çek
   const { data: projelerData, isLoading: projelerLoading } = useQuery({
-    queryKey: ['menu-planlama-projeler'],
+    queryKey: menuPlanlamaKeys.projeler(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getProjeler();
       return res.success ? res.data : [];
@@ -35,7 +36,7 @@ export function MenuPlanlamaProvider({ children }: { children: ReactNode }) {
 
   // Öğün tiplerini çek
   const { data: ogunTipleriData, isLoading: ogunTipleriLoading } = useQuery({
-    queryKey: ['menu-planlama-ogun-tipleri'],
+    queryKey: menuPlanlamaKeys.ogunTipleri(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getOgunTipleri();
       return res.success ? res.data : [];
@@ -49,7 +50,7 @@ export function MenuPlanlamaProvider({ children }: { children: ReactNode }) {
     isLoading: kaydedilenMenulerLoading,
     refetch: refetchMenuler,
   } = useQuery({
-    queryKey: ['kaydedilen-menuler'],
+    queryKey: menuPlanlamaKeys.menuPlanlari(),
     queryFn: async () => {
       const res = await menuPlanlamaAPI.getMenuPlanlari();
       return res.success ? res.data : [];
