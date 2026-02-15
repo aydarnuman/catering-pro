@@ -86,7 +86,7 @@ export function MenuTakvim() {
   const OGUNLER = useMemo(() => ogunTipleriToInfo(ogunTipleri), [ogunTipleri]);
   const OGUN_ID_TO_KOD = useMemo(
     () => Object.fromEntries(ogunTipleri.map((ot) => [ot.id, ot.kod])) as Record<number, string>,
-    [ogunTipleri],
+    [ogunTipleri]
   );
 
   // Plan state
@@ -419,7 +419,14 @@ export function MenuTakvim() {
           .slice(0, 3)
           .map((u) => {
             const tarihStr = new Date(u.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-            const ogunStr = u.ogun_tipi_kod === 'ogle' ? 'Öğle' : u.ogun_tipi_kod === 'aksam' ? 'Akşam' : u.ogun_tipi_kod === 'kahvalti' ? 'Kahvaltı' : u.ogun_tipi_kod;
+            const ogunStr =
+              u.ogun_tipi_kod === 'ogle'
+                ? 'Öğle'
+                : u.ogun_tipi_kod === 'aksam'
+                  ? 'Akşam'
+                  : u.ogun_tipi_kod === 'kahvalti'
+                    ? 'Kahvaltı'
+                    : u.ogun_tipi_kod;
             return `${tarihStr} ${ogunStr}: ${u.uyarilar.map((uy) => uy.mesaj).join(', ')}`;
           })
           .join('\n');

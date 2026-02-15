@@ -243,7 +243,12 @@ function LeafletMap({
   return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
 }
 
-export default function TenderMapModal({ opened, onClose, tenders: initialTenders, onSelectTender }: TenderMapModalProps) {
+export default function TenderMapModal({
+  opened,
+  onClose,
+  tenders: initialTenders,
+  onSelectTender,
+}: TenderMapModalProps) {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [mapKey, setMapKey] = useState(0);
   const [allTenders, setAllTenders] = useState<Tender[]>([]);

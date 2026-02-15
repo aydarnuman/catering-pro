@@ -88,7 +88,10 @@ export function RecetelerTab({ fetchReceteDetay, onMaliyetClick, KATEGORILER, is
     isLoading: recetelerLoading,
     error: recetelerError,
   } = useQuery<Recete[]>({
-    queryKey: menuPlanlamaKeys.receteler.liste(debouncedReceteArama, seciliSartnameId ? parseInt(seciliSartnameId, 10) : null),
+    queryKey: menuPlanlamaKeys.receteler.liste(
+      debouncedReceteArama,
+      seciliSartnameId ? parseInt(seciliSartnameId, 10) : null
+    ),
     queryFn: async (): Promise<Recete[]> => {
       const res = await menuPlanlamaAPI.getReceteler({
         limit: 1000,

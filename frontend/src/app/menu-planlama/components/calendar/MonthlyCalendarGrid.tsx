@@ -1,6 +1,17 @@
 'use client';
 
-import { ActionIcon, Box, Group, Paper, SimpleGrid, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
+import {
+  ActionIcon,
+  Box,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  ThemeIcon,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconCopy, IconX } from '@tabler/icons-react';
 import { formatMoney } from '@/lib/formatters';
 import type { OgunInfo, TakvimHucre, TakvimState } from './types';
@@ -193,7 +204,9 @@ export function MonthlyCalendarGrid({
                       )}
                       {gunSartnameDurum === 'uyari' && (
                         <Tooltip
-                          label={gunSartnameUyarilar.length > 0 ? gunSartnameUyarilar.join('\n') : 'Şartname uyumsuzluğu var'}
+                          label={
+                            gunSartnameUyarilar.length > 0 ? gunSartnameUyarilar.join('\n') : 'Şartname uyumsuzluğu var'
+                          }
                           multiline
                           w={240}
                         >

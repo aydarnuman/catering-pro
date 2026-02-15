@@ -127,20 +127,12 @@ export function GenerationToolbar({
 
   const placeholder = isCatering ? 'Mesajınızı yazın…' : 'Yapay zeka ile ne oluşturmak istersiniz?';
 
-  const ctaLabel = isCatering
-    ? prompt.trim()
-      ? 'Gönder'
-      : "AI'ya Sor"
-    : isMobile
-      ? 'Üret'
-      : 'Oluştur';
+  const ctaLabel = isCatering ? (prompt.trim() ? 'Gönder' : "AI'ya Sor") : isMobile ? 'Üret' : 'Oluştur';
 
   const handleSubmit = () => {
     const text = prompt.trim();
     if (isCatering) {
-      window.dispatchEvent(
-        new CustomEvent('open-ai-chat', { detail: { message: text || undefined } })
-      );
+      window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { message: text || undefined } }));
       onAIClick?.();
       setPrompt('');
     }
@@ -281,9 +273,7 @@ export function GenerationToolbar({
               transition: 'background 0.15s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = isDark
-                ? 'rgba(255,255,255,0.03)'
-                : 'rgba(0,0,0,0.02)';
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'transparent';
@@ -299,11 +289,7 @@ export function GenerationToolbar({
             </Text>
             <Group gap="sm">
               <RealtimeIndicator />
-              <Tooltip
-                label={expanded ? "Toolbar'ı kapat" : "Toolbar'ı aç"}
-                position="bottom"
-                withArrow
-              >
+              <Tooltip label={expanded ? "Toolbar'ı kapat" : "Toolbar'ı aç"} position="bottom" withArrow>
                 <ActionIcon
                   variant="subtle"
                   size="sm"
@@ -354,11 +340,7 @@ export function GenerationToolbar({
                   </ActionIcon>
                 );
                 const btn =
-                  isCatering && 'href' in item && item.href ? (
-                    <Link href={item.href}>{actionIcon}</Link>
-                  ) : (
-                    actionIcon
-                  );
+                  isCatering && 'href' in item && item.href ? <Link href={item.href}>{actionIcon}</Link> : actionIcon;
                 return (
                   <Tooltip
                     key={item.label}
@@ -401,11 +383,7 @@ export function GenerationToolbar({
                   </ActionIcon>
                 );
                 const btn =
-                  isCatering && 'href' in item && item.href ? (
-                    <Link href={item.href}>{actionIcon}</Link>
-                  ) : (
-                    actionIcon
-                  );
+                  isCatering && 'href' in item && item.href ? <Link href={item.href}>{actionIcon}</Link> : actionIcon;
                 return (
                   <Tooltip
                     key={item.label}
@@ -464,9 +442,7 @@ export function GenerationToolbar({
                     variant="subtle"
                     size="lg"
                     radius="xl"
-                    onClick={
-                      isCatering && 'action' in item && item.action === 'ai' ? onAIClick : undefined
-                    }
+                    onClick={isCatering && 'action' in item && item.action === 'ai' ? onAIClick : undefined}
                     style={{
                       color: '#a3a3a3',
                       transition: 'all 0.2s ease',
@@ -476,11 +452,7 @@ export function GenerationToolbar({
                   </ActionIcon>
                 );
                 const btn =
-                  isCatering && 'href' in item && item.href ? (
-                    <Link href={item.href}>{actionIcon}</Link>
-                  ) : (
-                    actionIcon
-                  );
+                  isCatering && 'href' in item && item.href ? <Link href={item.href}>{actionIcon}</Link> : actionIcon;
                 return (
                   <Tooltip
                     key={item.label}
@@ -616,9 +588,7 @@ export function GenerationToolbar({
                   backgroundColor: isDark ? 'rgba(230, 197, 48, 0.2)' : 'rgba(230, 197, 48, 0.9)',
                   color: isDark ? '#e6c530' : '#0a0a0a',
                   flexShrink: 0,
-                  border: isDark
-                    ? '1px solid rgba(230, 197, 48, 0.35)'
-                    : '1px solid rgba(230, 197, 48, 0.5)',
+                  border: isDark ? '1px solid rgba(230, 197, 48, 0.35)' : '1px solid rgba(230, 197, 48, 0.5)',
                   boxShadow: 'none',
                   borderRadius: 9999,
                   '&:hover': {

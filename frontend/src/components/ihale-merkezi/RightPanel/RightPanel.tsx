@@ -469,7 +469,11 @@ export function RightPanel({
                   </Box>
                 </Group>
 
-                {(hasAnalysis || tenderCards.length > 0 || paketiNotes.length > 0 || correctionCount > 0 || isConfirmed) && (
+                {(hasAnalysis ||
+                  tenderCards.length > 0 ||
+                  paketiNotes.length > 0 ||
+                  correctionCount > 0 ||
+                  isConfirmed) && (
                   <Group gap={6} wrap="wrap">
                     {hasAnalysis && (
                       <Badge size="xs" variant="subtle" color="violet" radius="sm">

@@ -18,8 +18,8 @@ import {
   NumberInput,
   Paper,
   rem,
-  Select,
   SegmentedControl,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -684,9 +684,7 @@ export default function PersonelPage() {
   };
 
   const handleTogglePersonelSelection = (id: number) => {
-    setSelectedPersonelIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedPersonelIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleBulkPasif = async () => {
@@ -765,7 +763,11 @@ export default function PersonelPage() {
 
   /** P5: Satır/kart sol kenar rengi (durum göstergesi) */
   const getDurumBorderColor = (durum: string) => {
-    const map: Record<string, string> = { aktif: 'var(--mantine-color-green-6)', izinli: 'var(--mantine-color-yellow-6)', pasif: 'var(--mantine-color-gray-5)' };
+    const map: Record<string, string> = {
+      aktif: 'var(--mantine-color-green-6)',
+      izinli: 'var(--mantine-color-yellow-6)',
+      pasif: 'var(--mantine-color-gray-5)',
+    };
     return map[durum] ?? 'var(--mantine-color-gray-4)';
   };
 
@@ -1043,11 +1045,7 @@ export default function PersonelPage() {
                             {selectedPersonelIds.length} personel seçildi
                           </Text>
                           <Group gap="xs">
-                            <Button
-                              variant="subtle"
-                              size="xs"
-                              onClick={() => setSelectedPersonelIds([])}
-                            >
+                            <Button variant="subtle" size="xs" onClick={() => setSelectedPersonelIds([])}>
                               Seçimi kaldır
                             </Button>
                             {canEditPersonel && (
@@ -2229,8 +2227,7 @@ export default function PersonelPage() {
                               : '—'}
                           </Text>
                           <Text size="xs" c="dimmed">
-                            Son ödeme:{' '}
-                            {(selectedPersonel as { son_odeme_durumu?: string })?.son_odeme_durumu ?? '—'}
+                            Son ödeme: {(selectedPersonel as { son_odeme_durumu?: string })?.son_odeme_durumu ?? '—'}
                           </Text>
                         </Group>
                       </div>

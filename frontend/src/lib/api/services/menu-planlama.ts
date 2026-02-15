@@ -801,9 +801,7 @@ export const menuPlanlamaAPI = {
       toplam_maliyet: number;
     }>
   > {
-    const response = await api.get(
-      `/api/menu-planlama/recete/${receteId}/sartname/${sartnameId}/gramaj-onizleme`
-    );
+    const response = await api.get(`/api/menu-planlama/recete/${receteId}/sartname/${sartnameId}/gramaj-onizleme`);
     return response.data;
   },
 

@@ -83,9 +83,8 @@ export function MealCellPopover({
   onKategoriChange,
   kategoriler,
 }: MealCellPopoverProps) {
-  const KATEGORILER = kategoriler && kategoriler.length > 0
-    ? [{ kod: '', ad: 'Tümü' }, ...kategoriler]
-    : VARSAYILAN_KATEGORILER;
+  const KATEGORILER =
+    kategoriler && kategoriler.length > 0 ? [{ kod: '', ad: 'Tümü' }, ...kategoriler] : VARSAYILAN_KATEGORILER;
   const yemekSayisi = hucre?.yemekler?.length || 0;
   const toplamFiyat = hucre?.yemekler?.reduce((sum, y) => sum + y.fiyat, 0) || 0;
   const toplamMalzeme = hucre?.yemekler?.reduce((sum, y) => sum + (y.malzemeSayisi || 0), 0) || 0;

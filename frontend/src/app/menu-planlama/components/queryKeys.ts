@@ -39,8 +39,7 @@ export const menuPlanlamaKeys = {
 
   // ─── Maliyet Analizi ──────────────────────────────────────
   maliyetAnalizi: {
-    detay: (receteId: number | null) =>
-      [...menuPlanlamaKeys.all, 'maliyetAnalizi', 'detay', receteId] as const,
+    detay: (receteId: number | null) => [...menuPlanlamaKeys.all, 'maliyetAnalizi', 'detay', receteId] as const,
   },
 
   // ─── Şartnameler ───────────────────────────────────────────

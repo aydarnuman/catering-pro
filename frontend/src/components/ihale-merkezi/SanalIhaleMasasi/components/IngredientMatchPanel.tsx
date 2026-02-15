@@ -98,11 +98,7 @@ export function IngredientMatchPanel({ agentColor = 'green' }: IngredientMatchPa
         <ScrollArea.Autosize mah={400}>
           <Stack gap={6}>
             {allMenuler.map((menu) => (
-              <MenuShortCard
-                key={menu.id}
-                menu={menu}
-                onClick={() => router.push('/menu-planlama?mode=kurum')}
-              />
+              <MenuShortCard key={menu.id} menu={menu} onClick={() => router.push('/menu-planlama?mode=kurum')} />
             ))}
           </Stack>
         </ScrollArea.Autosize>

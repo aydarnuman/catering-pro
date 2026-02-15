@@ -70,11 +70,11 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
   }, [sartnameListesi, activeReceteTab, setActiveReceteTab]);
 
   // Şartname gramaj önizlemesi (yeni sistem - sartname_gramaj_kurallari)
-  const {
-    data: gramajOnizleme,
-    isLoading: gramajOnizlemeLoading,
-  } = useQuery({
-    queryKey: menuPlanlamaKeys.sartnameler.gramajOnizleme(receteId, activeReceteTab ? String(activeReceteTab) : undefined),
+  const { data: gramajOnizleme, isLoading: gramajOnizlemeLoading } = useQuery({
+    queryKey: menuPlanlamaKeys.sartnameler.gramajOnizleme(
+      receteId,
+      activeReceteTab ? String(activeReceteTab) : undefined
+    ),
     queryFn: async () => {
       if (!receteId || !activeReceteTab) return null;
       const res = await menuPlanlamaAPI.getReceteSartnameGramajOnizleme(receteId, activeReceteTab);
@@ -86,7 +86,10 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
 
   // Gramaj uyum kontrolü (şartnameye göre uygun/düşük/yüksek/eksik)
   const { data: gramajKontrolData } = useQuery({
-    queryKey: menuPlanlamaKeys.sartnameler.gramajKontrol(receteId, activeReceteTab ? String(activeReceteTab) : undefined),
+    queryKey: menuPlanlamaKeys.sartnameler.gramajKontrol(
+      receteId,
+      activeReceteTab ? String(activeReceteTab) : undefined
+    ),
     queryFn: async () => {
       if (!receteId || !activeReceteTab) return null;
       const res = await menuPlanlamaAPI.getGramajKontrol(receteId, { sartname_id: activeReceteTab });
@@ -183,22 +186,23 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
           {/* Alt Tip Seçici */}
           <AltTipSecici receteId={receteDetay.id} />
 
-            <Stack gap="md">
-              {/* Mevcut şartnamelerden seçerek reçete–şartname gramaj karşılaştırması */}
-              <Select
-                label="Şartnameye göre gramaj önizlemesi"
-                description="Karşılaştırmak için mevcut şartnamelerden birini seçin"
-                placeholder="Şartname seçin..."
-                value={activeReceteTab?.toString() ?? null}
-                onChange={(val) => setActiveReceteTab(val ? Number(val) : null)}
-                data={(sartnameListesi ?? []).map((s) => ({ value: s.id.toString(), label: s.ad }))}
-                clearable
-                searchable
-                style={{ maxWidth: 320 }}
-              />
+          <Stack gap="md">
+            {/* Mevcut şartnamelerden seçerek reçete–şartname gramaj karşılaştırması */}
+            <Select
+              label="Şartnameye göre gramaj önizlemesi"
+              description="Karşılaştırmak için mevcut şartnamelerden birini seçin"
+              placeholder="Şartname seçin..."
+              value={activeReceteTab?.toString() ?? null}
+              onChange={(val) => setActiveReceteTab(val ? Number(val) : null)}
+              data={(sartnameListesi ?? []).map((s) => ({ value: s.id.toString(), label: s.ad }))}
+              clearable
+              searchable
+              style={{ maxWidth: 320 }}
+            />
 
-              {/* Gramaj uyum kontrolü özeti (şartname → reçete) */}
-              {activeReceteTab != null && (() => {
+            {/* Gramaj uyum kontrolü özeti (şartname → reçete) */}
+            {activeReceteTab != null &&
+              (() => {
                 const kontrol = gramajKontrolData?.gramaj_kontrol ?? null;
                 if (!kontrol) return null;
                 const { uygun_sayisi, uyumsuz_sayisi, toplam_kontrol, sonuclar } = kontrol;
@@ -212,21 +216,11 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
                       </Text>
                     </Group>
                     <Group gap="md">
-                      <Badge
-                        size="sm"
-                        variant="light"
-                        color="green"
-                        leftSection={<IconCheck size={12} />}
-                      >
+                      <Badge size="sm" variant="light" color="green" leftSection={<IconCheck size={12} />}>
                         {uygun_sayisi} uygun
                       </Badge>
                       {uyumsuz_sayisi > 0 && (
-                        <Badge
-                          size="sm"
-                          variant="light"
-                          color="orange"
-                          leftSection={<IconAlertCircle size={12} />}
-                        >
+                        <Badge size="sm" variant="light" color="orange" leftSection={<IconAlertCircle size={12} />}>
                           {uyumsuz_sayisi} uyumsuz
                         </Badge>
                       )}
@@ -258,19 +252,9 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
                                 <Badge
                                   size="xs"
                                   variant="light"
-                                  color={
-                                    s.durum === 'eksik'
-                                      ? 'red'
-                                      : s.durum === 'dusuk'
-                                        ? 'yellow'
-                                        : 'orange'
-                                  }
+                                  color={s.durum === 'eksik' ? 'red' : s.durum === 'dusuk' ? 'yellow' : 'orange'}
                                 >
-                                  {s.durum === 'eksik'
-                                    ? 'Eksik'
-                                    : s.durum === 'dusuk'
-                                      ? 'Düşük'
-                                      : 'Yüksek'}
+                                  {s.durum === 'eksik' ? 'Eksik' : s.durum === 'dusuk' ? 'Düşük' : 'Yüksek'}
                                 </Badge>
                               </Table.Td>
                             </Table.Tr>
@@ -282,151 +266,151 @@ export function ReceteDetayModal({ opened, onClose, receteId, isMobile, isMounte
                 );
               })()}
 
-              {/* Varyant fiyat bilgisi */}
-              {receteDetay.malzemeler.some((m) => m.fiyat_kaynagi === 'VARYANT') && (
-                <Alert variant="light" color="violet" icon={<IconInfoCircle size={16} />} radius="md" py="xs">
-                  <Group gap="xs" wrap="wrap">
-                    <Text size="xs">Bazı malzemelerin fiyatı varyantlardan alınıyor:</Text>
-                    {receteDetay.malzemeler
-                      .filter((m) => m.fiyat_kaynagi === 'VARYANT')
-                      .map((m) => (
-                        <Badge key={m.id} size="xs" variant="light" color="violet" radius="sm">
-                          {m.malzeme_adi}
-                          {m.varyant_kaynak_adi ? ` → ${m.varyant_kaynak_adi}` : ''}
-                        </Badge>
-                      ))}
-                  </Group>
-                </Alert>
-              )}
+            {/* Varyant fiyat bilgisi */}
+            {receteDetay.malzemeler.some((m) => m.fiyat_kaynagi === 'VARYANT') && (
+              <Alert variant="light" color="violet" icon={<IconInfoCircle size={16} />} radius="md" py="xs">
+                <Group gap="xs" wrap="wrap">
+                  <Text size="xs">Bazı malzemelerin fiyatı varyantlardan alınıyor:</Text>
+                  {receteDetay.malzemeler
+                    .filter((m) => m.fiyat_kaynagi === 'VARYANT')
+                    .map((m) => (
+                      <Badge key={m.id} size="xs" variant="light" color="violet" radius="sm">
+                        {m.malzeme_adi}
+                        {m.varyant_kaynak_adi ? ` → ${m.varyant_kaynak_adi}` : ''}
+                      </Badge>
+                    ))}
+                </Group>
+              </Alert>
+            )}
 
-              {/* Gramaj Önizleme Tablosu (yeni sistem - sartname_gramaj_kurallari) */}
-              {(() => {
-                const malzemeler = (gramajOnizleme?.malzemeler ?? []) as GramajOnizlemeItem[];
-                const altTipId = gramajOnizleme?.alt_tip_id ?? null;
-                const toplamMaliyet = gramajOnizleme?.toplam_maliyet ?? 0;
-                const sartnameSecili = activeReceteTab != null;
+            {/* Gramaj Önizleme Tablosu (yeni sistem - sartname_gramaj_kurallari) */}
+            {(() => {
+              const malzemeler = (gramajOnizleme?.malzemeler ?? []) as GramajOnizlemeItem[];
+              const altTipId = gramajOnizleme?.alt_tip_id ?? null;
+              const toplamMaliyet = gramajOnizleme?.toplam_maliyet ?? 0;
+              const sartnameSecili = activeReceteTab != null;
 
-                if (!sartnameSecili) {
-                  return (
-                    <Paper withBorder radius="md" p="xl">
-                      <Text size="sm" c="dimmed" ta="center">
-                        Karşılaştırma için yukarıdaki listeden bir şartname seçin.
-                      </Text>
-                    </Paper>
-                  );
-                }
-
-                if (gramajOnizlemeLoading) {
-                  return (
-                    <Paper withBorder radius="md" p="xl">
-                      <Center>
-                        <Loader size="sm" color="teal" />
-                      </Center>
-                    </Paper>
-                  );
-                }
-
-                if (!altTipId) {
-                  return (
-                    <Paper withBorder radius="md" p="xl">
-                      <Text size="sm" c="dimmed" ta="center">
-                        Reçeteye alt tip atanmamış. Alt tip atandığında şartname gramaj kuralları görünür.
-                      </Text>
-                    </Paper>
-                  );
-                }
-
-                if (malzemeler.length === 0) {
-                  return (
-                    <Paper withBorder radius="md" p="xl">
-                      <Text size="sm" c="dimmed" ta="center">
-                        Bu reçetede malzeme bulunamadı.
-                      </Text>
-                    </Paper>
-                  );
-                }
-
-                const sartnameDoluSayisi = malzemeler.filter((m) => m.sartname_gramaj != null).length;
-
+              if (!sartnameSecili) {
                 return (
-                  <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
-                    {sartnameDoluSayisi === 0 && (
-                      <Alert variant="light" color="blue" radius="md" m="md" mb={0}>
-                        <Text size="sm">
-                          Bu şartnamede bu alt tip için eşleşen gramaj kuralı bulunamadı. Şartname Yönetimi&apos;nden
-                          kural ekleyebilirsiniz.
-                        </Text>
-                      </Alert>
-                    )}
-                    <Table>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th style={{ width: '35%' }}>Malzeme</Table.Th>
-                          <Table.Th ta="right" style={{ width: '12%' }}>
-                            Reçete
-                          </Table.Th>
-                          <Table.Th ta="right" style={{ width: '12%' }}>
-                            Şartname
-                          </Table.Th>
-                          <Table.Th ta="center" style={{ width: '8%' }}>
-                            Birim
-                          </Table.Th>
-                          <Table.Th ta="right" style={{ width: '15%' }}>
-                            Fiyat
-                          </Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {malzemeler.map((m) => (
-                          <Table.Tr key={m.id}>
-                            <Table.Td>
-                              <Text size="sm">{m.malzeme_adi}</Text>
-                              {m.malzeme_tipi && (
-                                <Badge size="xs" variant="light" color="teal" mt={4}>
-                                  {m.malzeme_tipi}
-                                </Badge>
-                              )}
-                            </Table.Td>
-                            <Table.Td ta="right">
-                              <Text size="sm" c="dimmed">
-                                {m.mevcut_miktar}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td ta="right">
-                              {m.sartname_gramaj != null ? (
-                                <Text size="sm" fw={600} c="teal">
-                                  {m.sartname_gramaj}
-                                </Text>
-                              ) : (
-                                <Text size="sm" c="dimmed">
-                                  —
-                                </Text>
-                              )}
-                            </Table.Td>
-                            <Table.Td ta="center">
-                              <Text size="xs" c="dimmed">
-                                {m.kullanilan_birim}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td ta="right">
-                              <Text size="sm">₺{m.hesaplanan_fiyat.toFixed(2)}</Text>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                    <Group justify="flex-end" p="md" bg="dark.6">
-                      <Text size="sm" fw={600}>
-                        Toplam: ₺{toplamMaliyet.toFixed(2)}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" ta="center" pb="md" px="md">
-                      Şartname kurallarını düzenlemek için Şartname Yönetimi&apos;ni kullanın.
+                  <Paper withBorder radius="md" p="xl">
+                    <Text size="sm" c="dimmed" ta="center">
+                      Karşılaştırma için yukarıdaki listeden bir şartname seçin.
                     </Text>
                   </Paper>
                 );
-              })()}
-            </Stack>
+              }
+
+              if (gramajOnizlemeLoading) {
+                return (
+                  <Paper withBorder radius="md" p="xl">
+                    <Center>
+                      <Loader size="sm" color="teal" />
+                    </Center>
+                  </Paper>
+                );
+              }
+
+              if (!altTipId) {
+                return (
+                  <Paper withBorder radius="md" p="xl">
+                    <Text size="sm" c="dimmed" ta="center">
+                      Reçeteye alt tip atanmamış. Alt tip atandığında şartname gramaj kuralları görünür.
+                    </Text>
+                  </Paper>
+                );
+              }
+
+              if (malzemeler.length === 0) {
+                return (
+                  <Paper withBorder radius="md" p="xl">
+                    <Text size="sm" c="dimmed" ta="center">
+                      Bu reçetede malzeme bulunamadı.
+                    </Text>
+                  </Paper>
+                );
+              }
+
+              const sartnameDoluSayisi = malzemeler.filter((m) => m.sartname_gramaj != null).length;
+
+              return (
+                <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
+                  {sartnameDoluSayisi === 0 && (
+                    <Alert variant="light" color="blue" radius="md" m="md" mb={0}>
+                      <Text size="sm">
+                        Bu şartnamede bu alt tip için eşleşen gramaj kuralı bulunamadı. Şartname Yönetimi&apos;nden
+                        kural ekleyebilirsiniz.
+                      </Text>
+                    </Alert>
+                  )}
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th style={{ width: '35%' }}>Malzeme</Table.Th>
+                        <Table.Th ta="right" style={{ width: '12%' }}>
+                          Reçete
+                        </Table.Th>
+                        <Table.Th ta="right" style={{ width: '12%' }}>
+                          Şartname
+                        </Table.Th>
+                        <Table.Th ta="center" style={{ width: '8%' }}>
+                          Birim
+                        </Table.Th>
+                        <Table.Th ta="right" style={{ width: '15%' }}>
+                          Fiyat
+                        </Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {malzemeler.map((m) => (
+                        <Table.Tr key={m.id}>
+                          <Table.Td>
+                            <Text size="sm">{m.malzeme_adi}</Text>
+                            {m.malzeme_tipi && (
+                              <Badge size="xs" variant="light" color="teal" mt={4}>
+                                {m.malzeme_tipi}
+                              </Badge>
+                            )}
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text size="sm" c="dimmed">
+                              {m.mevcut_miktar}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            {m.sartname_gramaj != null ? (
+                              <Text size="sm" fw={600} c="teal">
+                                {m.sartname_gramaj}
+                              </Text>
+                            ) : (
+                              <Text size="sm" c="dimmed">
+                                —
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td ta="center">
+                            <Text size="xs" c="dimmed">
+                              {m.kullanilan_birim}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text size="sm">₺{m.hesaplanan_fiyat.toFixed(2)}</Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                  <Group justify="flex-end" p="md" bg="dark.6">
+                    <Text size="sm" fw={600}>
+                      Toplam: ₺{toplamMaliyet.toFixed(2)}
+                    </Text>
+                  </Group>
+                  <Text size="xs" c="dimmed" ta="center" pb="md" px="md">
+                    Şartname kurallarını düzenlemek için Şartname Yönetimi&apos;ni kullanın.
+                  </Text>
+                </Paper>
+              );
+            })()}
+          </Stack>
         </Stack>
       ) : (
         <Text c="dimmed" ta="center" py="xl">

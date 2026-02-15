@@ -317,8 +317,7 @@ export function DocumentWizardModal({ opened, onClose, tenderId, tenderTitle, on
         }
 
         const stepStatus =
-          data.message === 'Buton linki bulunamadı' ||
-          (failedCount > 0 && downloadedCount === 0 && contentCount === 0)
+          data.message === 'Buton linki bulunamadı' || (failedCount > 0 && downloadedCount === 0 && contentCount === 0)
             ? 'error'
             : 'success';
 

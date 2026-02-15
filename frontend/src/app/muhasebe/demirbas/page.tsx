@@ -985,77 +985,83 @@ export default function DemirbasPage() {
               Şirket varlıklarınızı takip edin
             </Text>
           </Box>
-        <Group gap="xs">
-          <Tooltip label="Raporlar">
-            <ActionIcon variant="light" color="indigo" size="lg" radius="xl" onClick={() => setRaporMerkeziOpen(true)}>
-              <IconClipboardList size={18} />
+          <Group gap="xs">
+            <Tooltip label="Raporlar">
+              <ActionIcon
+                variant="light"
+                color="indigo"
+                size="lg"
+                radius="xl"
+                onClick={() => setRaporMerkeziOpen(true)}
+              >
+                <IconClipboardList size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <ActionIcon variant="light" size="lg" radius="xl" onClick={loadData} title="Yenile">
+              <IconRefresh size={18} />
             </ActionIcon>
-          </Tooltip>
-          <ActionIcon variant="light" size="lg" radius="xl" onClick={loadData} title="Yenile">
-            <IconRefresh size={18} />
-          </ActionIcon>
+          </Group>
         </Group>
-      </Group>
 
-      {/* İstatistik Kartları */}
-      {istatistik && (
-        <Paper
-          p="md"
-          radius="lg"
-          mb="lg"
-          style={{
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-            border: '1px solid var(--mantine-color-gray-2)',
-          }}
-        >
-          <SimpleGrid cols={{ base: 2, sm: 4, md: 5 }} spacing="md">
-            <Box ta="center" py="xs">
-              <Text size="2rem" fw={800} c="indigo">
-                {istatistik.toplam_demirbas}
-              </Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-                Toplam Varlık
-              </Text>
-            </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="teal">
-                {formatMoney(Number(istatistik.toplam_net_deger))}
-              </Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-                Net Değer
-              </Text>
-            </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="blue">
-                {istatistik.zimmetli}
-              </Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-                Zimmetli
-              </Text>
-            </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="yellow">
-                {istatistik.bakimda}
-              </Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-                Bakımda
-              </Text>
-            </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="orange">
-                {formatMoney(Number(istatistik.toplam_amortisman))}
-              </Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-                Birikmiş Amor.
-              </Text>
-            </Box>
-          </SimpleGrid>
-        </Paper>
-      )}
+        {/* İstatistik Kartları */}
+        {istatistik && (
+          <Paper
+            p="md"
+            radius="lg"
+            mb="lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+              border: '1px solid var(--mantine-color-gray-2)',
+            }}
+          >
+            <SimpleGrid cols={{ base: 2, sm: 4, md: 5 }} spacing="md">
+              <Box ta="center" py="xs">
+                <Text size="2rem" fw={800} c="indigo">
+                  {istatistik.toplam_demirbas}
+                </Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  Toplam Varlık
+                </Text>
+              </Box>
+              <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                <Text size="2rem" fw={800} c="teal">
+                  {formatMoney(Number(istatistik.toplam_net_deger))}
+                </Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  Net Değer
+                </Text>
+              </Box>
+              <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                <Text size="2rem" fw={800} c="blue">
+                  {istatistik.zimmetli}
+                </Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  Zimmetli
+                </Text>
+              </Box>
+              <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                <Text size="2rem" fw={800} c="yellow">
+                  {istatistik.bakimda}
+                </Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  Bakımda
+                </Text>
+              </Box>
+              <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                <Text size="2rem" fw={800} c="orange">
+                  {formatMoney(Number(istatistik.toplam_amortisman))}
+                </Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  Birikmiş Amor.
+                </Text>
+              </Box>
+            </SimpleGrid>
+          </Paper>
+        )}
 
-      {/* Kategori Filtreleri - Kompakt Butonlar */}
-      {/* Kategori Filtreleri - Gizli (gerekirse açılabilir) */}
-      {/* 
+        {/* Kategori Filtreleri - Kompakt Butonlar */}
+        {/* Kategori Filtreleri - Gizli (gerekirse açılabilir) */}
+        {/* 
       <Paper p="xs" radius="md" withBorder mb="sm" bg="gray.0">
         <Group gap={6} wrap="wrap">
           <Button
@@ -1098,1404 +1104,1412 @@ export default function DemirbasPage() {
       </Paper>
       */}
 
-      {/* Lokasyon & Proje Yönetimi - Yan Yana */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="md">
-        {/* Lokasyonlar */}
-        <Paper
-          p="md"
-          radius="md"
-          withBorder
-          bg={isDark ? 'dark.6' : 'gray.0'}
-          style={{
-            background: isDark
-              ? undefined
-              : 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, var(--mantine-color-gray-0) 100%)',
-          }}
-        >
-          <Text size="sm" fw={600} c={isDark ? 'orange.4' : 'orange.7'} mb="sm">
-            📍 Lokasyonlar
-          </Text>
-
-          {lokasyonlar.length === 0 ? (
-            <Text size="sm" c="dimmed" ta="center" py="md">
-              Henüz lokasyon yok
-            </Text>
-          ) : (
-            <Stack gap="xs" mb="sm">
-              {lokasyonlar.slice(0, 5).map((lok) => (
-                <Group
-                  key={lok.id}
-                  justify="space-between"
-                  p="xs"
-                  style={{
-                    background:
-                      selectedLokasyonFilter === lok.id
-                        ? isDark
-                          ? 'rgba(249,115,22,0.25)'
-                          : '#fed7aa'
-                        : isDark
-                          ? 'var(--mantine-color-dark-5)'
-                          : '#fafafa',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    border: selectedLokasyonFilter === lok.id ? '2px solid var(--mantine-color-orange-6)' : '2px solid transparent',
-                  }}
-                  onClick={() => {
-                    if (selectedLokasyonFilter === lok.id) {
-                      setSelectedLokasyonFilter(null);
-                    } else {
-                      setSelectedLokasyonFilter(lok.id);
-                      setSelectedProjeFilter(null); // Proje filtresini temizle
-                    }
-                  }}
-                >
-                  <Group gap="xs">
-                    <Text size="md">
-                      {lok.tip === 'sube' ? '🏢' : lok.tip === 'depo' ? '📦' : lok.tip === 'ofis' ? '🏠' : '📍'}
-                    </Text>
-                    <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
-                      {lok.ad}
-                    </Text>
-                    <Badge size="xs" variant="light" color="orange">
-                      {lok.demirbas_sayisi || 0}
-                    </Badge>
-                  </Group>
-                  <Menu shadow="md" width={100} position="bottom-end">
-                    <Menu.Target>
-                      <ActionIcon size="xs" variant="subtle" onClick={(e) => e.stopPropagation()}>
-                        <IconDotsVertical size={14} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => handleEditLokasyon(lok)}>
-                        Düzenle
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<IconTrash size={14} />}
-                        color="red"
-                        onClick={() => handleDeleteLokasyon(lok.id)}
-                      >
-                        Sil
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-              ))}
-              {lokasyonlar.length > 5 && (
-                <Text size="xs" c="dimmed" ta="center">
-                  +{lokasyonlar.length - 5} daha...
-                </Text>
-              )}
-            </Stack>
-          )}
-
-          <Button
-            size="xs"
-            variant="light"
-            color="orange"
-            fullWidth
-            leftSection={<IconPlus size={14} />}
-            onClick={() => {
-              resetLokasyonForm();
-              openLokasyonModal();
+        {/* Lokasyon & Proje Yönetimi - Yan Yana */}
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="md">
+          {/* Lokasyonlar */}
+          <Paper
+            p="md"
+            radius="md"
+            withBorder
+            bg={isDark ? 'dark.6' : 'gray.0'}
+            style={{
+              background: isDark
+                ? undefined
+                : 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, var(--mantine-color-gray-0) 100%)',
             }}
           >
-            Yeni Lokasyon
-          </Button>
-        </Paper>
-
-        {/* Projeler */}
-        <Paper
-          p="md"
-          radius="md"
-          withBorder
-          bg={isDark ? 'dark.6' : 'gray.0'}
-          style={{
-            background: isDark
-              ? undefined
-              : 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, var(--mantine-color-gray-0) 100%)',
-          }}
-        >
-          <Text size="sm" fw={600} c={isDark ? 'blue.4' : 'blue.7'} mb="sm">
-            📁 Projeler
-          </Text>
-
-          {projeler.length === 0 ? (
-            <Text size="sm" c="dimmed" ta="center" py="md">
-              Henüz proje yok
+            <Text size="sm" fw={600} c={isDark ? 'orange.4' : 'orange.7'} mb="sm">
+              📍 Lokasyonlar
             </Text>
-          ) : (
-            <Stack gap="xs" mb="sm">
-              {projeler.slice(0, 5).map((proje) => (
-                <Group
-                  key={proje.id}
-                  justify="space-between"
-                  p="xs"
-                  style={{
-                    background:
-                      selectedProjeFilter === proje.id
-                        ? isDark
-                          ? 'rgba(59,130,246,0.25)'
-                          : '#bfdbfe'
-                        : isDark
-                          ? 'var(--mantine-color-dark-5)'
-                          : '#f8faff',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    border: selectedProjeFilter === proje.id ? '2px solid var(--mantine-color-blue-6)' : '2px solid transparent',
-                  }}
-                  onClick={() => {
-                    if (selectedProjeFilter === proje.id) {
-                      setSelectedProjeFilter(null);
-                    } else {
-                      setSelectedProjeFilter(proje.id);
-                      setSelectedLokasyonFilter(null); // Lokasyon filtresini temizle
-                    }
-                  }}
-                >
-                  <Group gap="xs">
-                    <Text size="md">📁</Text>
-                    <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
-                      {proje.ad}
-                    </Text>
+
+            {lokasyonlar.length === 0 ? (
+              <Text size="sm" c="dimmed" ta="center" py="md">
+                Henüz lokasyon yok
+              </Text>
+            ) : (
+              <Stack gap="xs" mb="sm">
+                {lokasyonlar.slice(0, 5).map((lok) => (
+                  <Group
+                    key={lok.id}
+                    justify="space-between"
+                    p="xs"
+                    style={{
+                      background:
+                        selectedLokasyonFilter === lok.id
+                          ? isDark
+                            ? 'rgba(249,115,22,0.25)'
+                            : '#fed7aa'
+                          : isDark
+                            ? 'var(--mantine-color-dark-5)'
+                            : '#fafafa',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      border:
+                        selectedLokasyonFilter === lok.id
+                          ? '2px solid var(--mantine-color-orange-6)'
+                          : '2px solid transparent',
+                    }}
+                    onClick={() => {
+                      if (selectedLokasyonFilter === lok.id) {
+                        setSelectedLokasyonFilter(null);
+                      } else {
+                        setSelectedLokasyonFilter(lok.id);
+                        setSelectedProjeFilter(null); // Proje filtresini temizle
+                      }
+                    }}
+                  >
+                    <Group gap="xs">
+                      <Text size="md">
+                        {lok.tip === 'sube' ? '🏢' : lok.tip === 'depo' ? '📦' : lok.tip === 'ofis' ? '🏠' : '📍'}
+                      </Text>
+                      <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
+                        {lok.ad}
+                      </Text>
+                      <Badge size="xs" variant="light" color="orange">
+                        {lok.demirbas_sayisi || 0}
+                      </Badge>
+                    </Group>
+                    <Menu shadow="md" width={100} position="bottom-end">
+                      <Menu.Target>
+                        <ActionIcon size="xs" variant="subtle" onClick={(e) => e.stopPropagation()}>
+                          <IconDotsVertical size={14} />
+                        </ActionIcon>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => handleEditLokasyon(lok)}>
+                          Düzenle
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<IconTrash size={14} />}
+                          color="red"
+                          onClick={() => handleDeleteLokasyon(lok.id)}
+                        >
+                          Sil
+                        </Menu.Item>
+                      </Menu.Dropdown>
+                    </Menu>
                   </Group>
-                  <Badge size="xs" variant="light" color="blue">
-                    {demirbaslar.filter((d) => d.proje_id === proje.id).length} varlık
-                  </Badge>
-                </Group>
-              ))}
-              {projeler.length > 5 && (
-                <Text size="xs" c="dimmed" ta="center">
-                  +{projeler.length - 5} daha...
-                </Text>
-              )}
-            </Stack>
-          )}
+                ))}
+                {lokasyonlar.length > 5 && (
+                  <Text size="xs" c="dimmed" ta="center">
+                    +{lokasyonlar.length - 5} daha...
+                  </Text>
+                )}
+              </Stack>
+            )}
 
-          {projeler.length === 0 && (
-            <Text size="xs" c="dimmed" ta="center" fs="italic">
-              Projeler merkezi sistemden yüklenir
+            <Button
+              size="xs"
+              variant="light"
+              color="orange"
+              fullWidth
+              leftSection={<IconPlus size={14} />}
+              onClick={() => {
+                resetLokasyonForm();
+                openLokasyonModal();
+              }}
+            >
+              Yeni Lokasyon
+            </Button>
+          </Paper>
+
+          {/* Projeler */}
+          <Paper
+            p="md"
+            radius="md"
+            withBorder
+            bg={isDark ? 'dark.6' : 'gray.0'}
+            style={{
+              background: isDark
+                ? undefined
+                : 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, var(--mantine-color-gray-0) 100%)',
+            }}
+          >
+            <Text size="sm" fw={600} c={isDark ? 'blue.4' : 'blue.7'} mb="sm">
+              📁 Projeler
             </Text>
+
+            {projeler.length === 0 ? (
+              <Text size="sm" c="dimmed" ta="center" py="md">
+                Henüz proje yok
+              </Text>
+            ) : (
+              <Stack gap="xs" mb="sm">
+                {projeler.slice(0, 5).map((proje) => (
+                  <Group
+                    key={proje.id}
+                    justify="space-between"
+                    p="xs"
+                    style={{
+                      background:
+                        selectedProjeFilter === proje.id
+                          ? isDark
+                            ? 'rgba(59,130,246,0.25)'
+                            : '#bfdbfe'
+                          : isDark
+                            ? 'var(--mantine-color-dark-5)'
+                            : '#f8faff',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      border:
+                        selectedProjeFilter === proje.id
+                          ? '2px solid var(--mantine-color-blue-6)'
+                          : '2px solid transparent',
+                    }}
+                    onClick={() => {
+                      if (selectedProjeFilter === proje.id) {
+                        setSelectedProjeFilter(null);
+                      } else {
+                        setSelectedProjeFilter(proje.id);
+                        setSelectedLokasyonFilter(null); // Lokasyon filtresini temizle
+                      }
+                    }}
+                  >
+                    <Group gap="xs">
+                      <Text size="md">📁</Text>
+                      <Text size="sm" fw={500} c={isDark ? 'gray.1' : 'dark.7'}>
+                        {proje.ad}
+                      </Text>
+                    </Group>
+                    <Badge size="xs" variant="light" color="blue">
+                      {demirbaslar.filter((d) => d.proje_id === proje.id).length} varlık
+                    </Badge>
+                  </Group>
+                ))}
+                {projeler.length > 5 && (
+                  <Text size="xs" c="dimmed" ta="center">
+                    +{projeler.length - 5} daha...
+                  </Text>
+                )}
+              </Stack>
+            )}
+
+            {projeler.length === 0 && (
+              <Text size="xs" c="dimmed" ta="center" fs="italic">
+                Projeler merkezi sistemden yüklenir
+              </Text>
+            )}
+          </Paper>
+        </SimpleGrid>
+
+        {/* Ana İçerik */}
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Tabs value={activeTab} onChange={setActiveTab}>
+            <Group justify="space-between" align="flex-end">
+              <Tabs.List>
+                <Tabs.Tab value="tumu">Tümü ({demirbaslar.length})</Tabs.Tab>
+                <Tabs.Tab value="zimmetli" color="blue">
+                  Zimmetli ({demirbaslar.filter((d) => d.zimmetli_personel_id).length})
+                </Tabs.Tab>
+                <Tabs.Tab value="bakimda" color="yellow">
+                  Bakımda ({demirbaslar.filter((d) => d.durum === 'bakimda').length})
+                </Tabs.Tab>
+              </Tabs.List>
+
+              <Menu shadow="md" width={220}>
+                <Menu.Target>
+                  <Button
+                    variant="filled"
+                    color="indigo"
+                    size="sm"
+                    radius="xl"
+                    leftSection={<IconPlus size={16} />}
+                    rightSection={<IconChevronDown size={14} />}
+                  >
+                    Yeni Ekle
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>Envanter Türü Seçin</Menu.Label>
+                  <Menu.Item leftSection={<IconPackage size={16} />} onClick={openDemirbasModal}>
+                    Genel Envanter
+                  </Menu.Item>
+                  <Menu.Item leftSection={<IconCar size={16} />} onClick={openAracModal}>
+                    Araç Ekle
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Label>Toplu İşlemler</Menu.Label>
+                  <Menu.Item
+                    leftSection={<IconTrash size={16} color="red" />}
+                    onClick={handleBulkDelete}
+                    disabled={selectedItems.length === 0}
+                  >
+                    Seçilenleri Sil ({selectedItems.length})
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
+
+            {/* Aktif Filtreler */}
+            {(selectedLokasyonFilter || selectedProjeFilter || selectedKategori) && (
+              <Box mt="md" mb="sm">
+                <Group gap="xs">
+                  <Text size="sm" c="dimmed">
+                    Filtreler:
+                  </Text>
+                  {selectedLokasyonFilter && (
+                    <Badge
+                      variant="filled"
+                      color="orange"
+                      rightSection={
+                        <ActionIcon
+                          size="xs"
+                          variant="transparent"
+                          c="white"
+                          onClick={() => setSelectedLokasyonFilter(null)}
+                        >
+                          <IconX size={12} />
+                        </ActionIcon>
+                      }
+                    >
+                      📍 {lokasyonlar.find((l) => l.id === selectedLokasyonFilter)?.ad}
+                    </Badge>
+                  )}
+                  {selectedProjeFilter && (
+                    <Badge
+                      variant="filled"
+                      color="blue"
+                      rightSection={
+                        <ActionIcon
+                          size="xs"
+                          variant="transparent"
+                          c="white"
+                          onClick={() => setSelectedProjeFilter(null)}
+                        >
+                          <IconX size={12} />
+                        </ActionIcon>
+                      }
+                    >
+                      📁 {projeler.find((p) => p.id === selectedProjeFilter)?.ad}
+                    </Badge>
+                  )}
+                  {selectedKategori && (
+                    <Badge
+                      size="lg"
+                      variant="light"
+                      color="indigo"
+                      rightSection={
+                        <ActionIcon size="xs" variant="transparent" c="white" onClick={() => setSelectedKategori(null)}>
+                          <IconX size={12} />
+                        </ActionIcon>
+                      }
+                    >
+                      📦 {kategoriler.find((k) => k.id.toString() === selectedKategori)?.ad ?? 'Kategori'}
+                    </Badge>
+                  )}
+                  <Button
+                    variant="subtle"
+                    size="xs"
+                    color="gray"
+                    onClick={() => {
+                      setSelectedLokasyonFilter(null);
+                      setSelectedProjeFilter(null);
+                      setSelectedKategori(null);
+                    }}
+                  >
+                    Tümünü Temizle
+                  </Button>
+                </Group>
+              </Box>
+            )}
+
+            <Box mt="md">
+              <Group gap="sm" mb="md" wrap="wrap">
+                <TextInput
+                  placeholder="Kod, ad, marka, model veya seri no ile ara..."
+                  leftSection={<IconSearch size={16} />}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ flex: 1, minWidth: 220 }}
+                />
+                <Select
+                  placeholder="Kategori"
+                  clearable
+                  value={selectedKategori}
+                  onChange={setSelectedKategori}
+                  data={kategoriler.map((k) => ({ value: k.id.toString(), label: `${k.ikon || ''} ${k.ad}`.trim() }))}
+                  style={{ width: 180 }}
+                />
+              </Group>
+
+              {/* Toplu İşlem Çubuğu */}
+              {selectedItems.length > 0 && (
+                <Paper p="xs" mb="sm" withBorder radius="md" bg="indigo.0">
+                  <Group justify="space-between">
+                    <Text size="sm" fw={500} c="indigo.7">
+                      {selectedItems.length} envanter seçildi
+                    </Text>
+                    <Group gap="xs">
+                      <Button size="xs" variant="light" color="gray" onClick={() => setSelectedItems([])}>
+                        Seçimi Kaldır
+                      </Button>
+                      <Button size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={handleBulkDelete}>
+                        Toplu Sil
+                      </Button>
+                    </Group>
+                  </Group>
+                </Paper>
+              )}
+
+              <Table.ScrollContainer minWidth={1000}>
+                <Table striped highlightOnHover verticalSpacing="md">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={40}>
+                        <Checkbox
+                          checked={
+                            selectedItems.length === filteredDemirbaslar.length && filteredDemirbaslar.length > 0
+                          }
+                          indeterminate={selectedItems.length > 0 && selectedItems.length < filteredDemirbaslar.length}
+                          onChange={handleSelectAll}
+                        />
+                      </Table.Th>
+                      <Table.Th w={100}>Kod</Table.Th>
+                      <Table.Th miw={180}>Envanter</Table.Th>
+                      <Table.Th>Kategori</Table.Th>
+                      <Table.Th>Lokasyon</Table.Th>
+                      <Table.Th>Zimmetli</Table.Th>
+                      <Table.Th>Değer</Table.Th>
+                      <Table.Th>Garanti</Table.Th>
+                      <Table.Th>Durum</Table.Th>
+                      <Table.Th w={120}>İşlemler</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filteredDemirbaslar.length === 0 ? (
+                      <Table.Tr>
+                        <Table.Td colSpan={10}>
+                          <Stack align="center" gap="md" py="xl">
+                            <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                              <IconPackage size={28} />
+                            </ThemeIcon>
+                            <Text ta="center" c="dimmed">
+                              {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
+                            </Text>
+                            {!searchTerm && (
+                              <Button
+                                variant="light"
+                                color="indigo"
+                                leftSection={<IconPlus size={16} />}
+                                onClick={openDemirbasModal}
+                              >
+                                Yeni Envanter Ekle
+                              </Button>
+                            )}
+                          </Stack>
+                        </Table.Td>
+                      </Table.Tr>
+                    ) : (
+                      filteredDemirbaslar.map((item) => (
+                        <Table.Tr
+                          key={item.id}
+                          bg={selectedItems.includes(item.id) ? 'indigo.0' : undefined}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleShowDetay(item.id)}
+                        >
+                          <Table.Td onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedItems.includes(item.id)}
+                              onChange={() => handleSelectItem(item.id)}
+                            />
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" color="indigo">
+                              {item.kod}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Tooltip
+                              label={[item.ad, item.marka, item.model].filter(Boolean).join(' • ')}
+                              multiline
+                              maw={300}
+                            >
+                              <Stack gap={2} style={{ overflow: 'hidden' }}>
+                                <Text size="sm" fw={500} lineClamp={1}>
+                                  {item.ad}
+                                </Text>
+                                {(item.marka || item.model) && (
+                                  <Text size="xs" c="dimmed" lineClamp={1}>
+                                    {[item.marka, item.model].filter(Boolean).join(' ')}
+                                  </Text>
+                                )}
+                              </Stack>
+                            </Tooltip>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              variant="light"
+                              leftSection={<Text size="sm">{item.kategori_ikon}</Text>}
+                              style={{
+                                backgroundColor: `${item.kategori_renk}20`,
+                                color: item.kategori_renk,
+                              }}
+                            >
+                              {item.kategori_ad}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <IconMapPin size={14} color="gray" />
+                              <Text size="sm">{item.lokasyon_ad || '-'}</Text>
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            {item.zimmetli_personel ? (
+                              <Group gap="xs">
+                                <IconUser size={14} color="blue" />
+                                <Stack gap={0}>
+                                  <Text size="sm">{item.zimmetli_personel}</Text>
+                                  <Text size="xs" c="dimmed">
+                                    {item.zimmetli_departman}
+                                  </Text>
+                                </Stack>
+                              </Group>
+                            ) : (
+                              <Text size="sm" c="dimmed">
+                                -
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
+                            <Stack gap={0}>
+                              <Text size="sm" fw={500}>
+                                {formatMoney(Number(item.net_defter_degeri))}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                Alış: {formatMoney(Number(item.alis_fiyati))}
+                              </Text>
+                            </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge color={getGarantiColor(item.garanti_durumu)} variant="light">
+                              {item.garanti_bitis ? formatDate(item.garanti_bitis) : 'Belirsiz'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge color={getDurumColor(item.durum)} variant="filled">
+                              {item.durum?.toUpperCase()}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td onClick={(e) => e.stopPropagation()}>
+                            <Group gap={4}>
+                              {!item.zimmetli_personel_id ? (
+                                <Tooltip label="Zimmet Ver">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="blue"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedDemirbas(item);
+                                      openZimmetModal();
+                                    }}
+                                  >
+                                    <IconUser size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip label="Zimmet İade">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="orange"
+                                    size="sm"
+                                    onClick={() => handleZimmetIade(item.id)}
+                                  >
+                                    <IconReceipt size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                              <Tooltip label="Transfer">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="teal"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDemirbas(item);
+                                    openTransferModal();
+                                  }}
+                                >
+                                  <IconArrowsExchange size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              {item.durum !== 'bakimda' && (
+                                <Tooltip label="Bakıma Gönder">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="yellow"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedDemirbas(item);
+                                      openBakimModal();
+                                    }}
+                                  >
+                                    <IconTool size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                              <Tooltip label="Sil">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  size="sm"
+                                  onClick={() => handleDelete(item.id)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            </Box>
+          </Tabs>
+        </Card>
+
+        {/* Uyarı Kartları */}
+        <SimpleGrid cols={{ base: 1, md: 2 }} mt="lg">
+          {garantiYaklasan.length > 0 && (
+            <Card withBorder radius="md" p="md">
+              <Group mb="md">
+                <ThemeIcon color="yellow" variant="light" size="lg">
+                  <IconAlertTriangle size={20} />
+                </ThemeIcon>
+                <Text fw={600}>Garantisi Yaklaşan</Text>
+              </Group>
+              <Stack gap="xs">
+                {garantiYaklasan.map((item) => (
+                  <Paper key={item.id} withBorder p="sm" radius="md">
+                    <Group justify="space-between">
+                      <div>
+                        <Text size="sm" fw={500}>
+                          {item.ad}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {item.marka} {item.model}
+                        </Text>
+                      </div>
+                      <Badge color="yellow" variant="light">
+                        {item.kalan_gun} gün
+                      </Badge>
+                    </Group>
+                  </Paper>
+                ))}
+              </Stack>
+            </Card>
           )}
-        </Paper>
-      </SimpleGrid>
 
-      {/* Ana İçerik */}
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Group justify="space-between" align="flex-end">
-            <Tabs.List>
-              <Tabs.Tab value="tumu">Tümü ({demirbaslar.length})</Tabs.Tab>
-              <Tabs.Tab value="zimmetli" color="blue">
-                Zimmetli ({demirbaslar.filter((d) => d.zimmetli_personel_id).length})
-              </Tabs.Tab>
-              <Tabs.Tab value="bakimda" color="yellow">
-                Bakımda ({demirbaslar.filter((d) => d.durum === 'bakimda').length})
-              </Tabs.Tab>
-            </Tabs.List>
+          {bakimdakiler.length > 0 && (
+            <Card withBorder radius="md" p="md">
+              <Group mb="md">
+                <ThemeIcon color="orange" variant="light" size="lg">
+                  <IconTool size={20} />
+                </ThemeIcon>
+                <Text fw={600}>Bakımda Olanlar</Text>
+              </Group>
+              <Stack gap="xs">
+                {bakimdakiler.map((item) => (
+                  <Paper key={item.id} withBorder p="sm" radius="md">
+                    <Group justify="space-between">
+                      <div>
+                        <Text size="sm" fw={500}>
+                          {item.ad}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {item.servis_firma}
+                        </Text>
+                      </div>
+                      <Badge color="orange" variant="light">
+                        {item.gecen_gun} gündür
+                      </Badge>
+                    </Group>
+                  </Paper>
+                ))}
+              </Stack>
+            </Card>
+          )}
+        </SimpleGrid>
 
-            <Menu shadow="md" width={220}>
-              <Menu.Target>
-                <Button
-                  variant="filled"
-                  color="indigo"
-                  size="sm"
-                  radius="xl"
-                  leftSection={<IconPlus size={16} />}
-                  rightSection={<IconChevronDown size={14} />}
-                >
-                  Yeni Ekle
+        {/* ========== MODAL'LAR ========== */}
+
+        {/* Genel Envanter Modal - Yatay Kategori Kartları */}
+        <Modal
+          opened={demirbasModalOpened}
+          onClose={() => {
+            closeDemirbasModal();
+            resetDemirbasForm();
+          }}
+          title={
+            <Group gap="xs">
+              <IconPlus size={20} />
+              <Text fw={600}>Yeni Envanter Ekle</Text>
+            </Group>
+          }
+          size="xl"
+          fullScreen={isMobile}
+        >
+          {envanterStep === 1 ? (
+            // Adım 1: Kategori Seçimi - Yatay Kartlar
+            <Box>
+              <Text size="sm" c="dimmed" mb="md">
+                Eklemek istediğiniz envanter türünü seçin:
+              </Text>
+              {anaKategoriler.length === 0 ? (
+                <Alert color="yellow">Kategoriler yükleniyor...</Alert>
+              ) : (
+                <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
+                  {anaKategoriler
+                    .filter((k) => k.kod !== 'ARAC')
+                    .map((kat) => (
+                      <Paper
+                        key={kat.id}
+                        withBorder
+                        p="md"
+                        radius="md"
+                        onClick={() => handleKategoriSelect(kat)}
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          textAlign: 'center',
+                          border: `2px solid ${kat.renk}30`,
+                          background: `linear-gradient(135deg, ${kat.renk}08 0%, ${kat.renk}15 100%)`,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.boxShadow = `0 8px 25px ${kat.renk}40`;
+                          e.currentTarget.style.borderColor = kat.renk;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                          e.currentTarget.style.borderColor = `${kat.renk}30`;
+                        }}
+                      >
+                        <Text size="2.5rem" mb="xs">
+                          {kat.ikon}
+                        </Text>
+                        <Text size="sm" fw={600} c={kat.renk}>
+                          {kat.ad}
+                        </Text>
+                      </Paper>
+                    ))}
+                </SimpleGrid>
+              )}
+            </Box>
+          ) : (
+            // Adım 2: Form
+            <Box>
+              <Group mb="md">
+                <Button variant="light" size="xs" onClick={() => setEnvanterStep(1)}>
+                  ← Geri
                 </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Label>Envanter Türü Seçin</Menu.Label>
-                <Menu.Item leftSection={<IconPackage size={16} />} onClick={openDemirbasModal}>
-                  Genel Envanter
-                </Menu.Item>
-                <Menu.Item leftSection={<IconCar size={16} />} onClick={openAracModal}>
-                  Araç Ekle
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Label>Toplu İşlemler</Menu.Label>
-                <Menu.Item
-                  leftSection={<IconTrash size={16} color="red" />}
-                  onClick={handleBulkDelete}
-                  disabled={selectedItems.length === 0}
-                >
-                  Seçilenleri Sil ({selectedItems.length})
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-
-          {/* Aktif Filtreler */}
-          {(selectedLokasyonFilter || selectedProjeFilter || selectedKategori) && (
-            <Box mt="md" mb="sm">
-              <Group gap="xs">
-                <Text size="sm" c="dimmed">
-                  Filtreler:
-                </Text>
-                {selectedLokasyonFilter && (
-                  <Badge
-                    variant="filled"
-                    color="orange"
-                    rightSection={
-                      <ActionIcon
-                        size="xs"
-                        variant="transparent"
-                        c="white"
-                        onClick={() => setSelectedLokasyonFilter(null)}
-                      >
-                        <IconX size={12} />
-                      </ActionIcon>
-                    }
-                  >
-                    📍 {lokasyonlar.find((l) => l.id === selectedLokasyonFilter)?.ad}
-                  </Badge>
-                )}
-                {selectedProjeFilter && (
-                  <Badge
-                    variant="filled"
-                    color="blue"
-                    rightSection={
-                      <ActionIcon
-                        size="xs"
-                        variant="transparent"
-                        c="white"
-                        onClick={() => setSelectedProjeFilter(null)}
-                      >
-                        <IconX size={12} />
-                      </ActionIcon>
-                    }
-                  >
-                    📁 {projeler.find((p) => p.id === selectedProjeFilter)?.ad}
-                  </Badge>
-                )}
-                {selectedKategori && (
+                {selectedKategoriForForm && (
                   <Badge
                     size="lg"
-                    variant="light"
-                    color="indigo"
-                    rightSection={
-                      <ActionIcon
-                        size="xs"
-                        variant="transparent"
-                        c="white"
-                        onClick={() => setSelectedKategori(null)}
-                      >
-                        <IconX size={12} />
-                      </ActionIcon>
-                    }
+                    style={{
+                      backgroundColor: `${selectedKategoriForForm.renk}20`,
+                      color: selectedKategoriForForm.renk,
+                    }}
                   >
-                    📦 {kategoriler.find((k) => k.id.toString() === selectedKategori)?.ad ?? 'Kategori'}
+                    {selectedKategoriForForm.ikon} {selectedKategoriForForm.ad}
                   </Badge>
                 )}
+              </Group>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <TextInput
+                  label="Envanter Adı"
+                  placeholder="Örn: MacBook Pro 16"
+                  value={demirbasForm.ad}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, ad: e.target.value })}
+                  required
+                />
+                <StyledDatePicker
+                  label="Alış Tarihi"
+                  placeholder="Seçin"
+                  value={demirbasForm.alis_tarihi}
+                  onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_tarihi: val })}
+                  required
+                />
+                <TextInput
+                  label="Marka"
+                  placeholder="Örn: Apple"
+                  value={demirbasForm.marka}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, marka: e.target.value })}
+                />
+                <TextInput
+                  label="Model"
+                  placeholder="Örn: M3 Pro"
+                  value={demirbasForm.model}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, model: e.target.value })}
+                />
+                <TextInput
+                  label="Seri No"
+                  placeholder="Cihaz seri numarası"
+                  value={demirbasForm.seri_no}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, seri_no: e.target.value })}
+                />
+                <NumberInput
+                  label="Alış Fiyatı (₺)"
+                  placeholder="0"
+                  value={demirbasForm.alis_fiyati}
+                  onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })}
+                  min={0}
+                  thousandSeparator=","
+                />
+                <NumberInput
+                  label="Garanti Süresi (Ay)"
+                  placeholder="24"
+                  value={demirbasForm.garanti_suresi}
+                  onChange={(val) => setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })}
+                  min={0}
+                />
+                <Select
+                  label="Lokasyon"
+                  placeholder="Seçin"
+                  data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
+                  value={demirbasForm.lokasyon_id}
+                  onChange={(val) => setDemirbasForm({ ...demirbasForm, lokasyon_id: val || '' })}
+                  searchable
+                />
+                <Select
+                  label="Proje"
+                  placeholder="Proje seçin (opsiyonel)"
+                  data={projeler.map((p) => ({ value: p.id.toString(), label: p.ad }))}
+                  value={demirbasForm.proje_id}
+                  onChange={(val) => setDemirbasForm({ ...demirbasForm, proje_id: val || '' })}
+                  searchable
+                  clearable
+                />
+                <TextInput
+                  label="Lokasyon Detay"
+                  placeholder="Oda no, kat vb."
+                  value={demirbasForm.lokasyon_detay}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })}
+                />
+                <Textarea
+                  label="Açıklama"
+                  placeholder="Ek notlar..."
+                  value={demirbasForm.aciklama}
+                  onChange={(e) => setDemirbasForm({ ...demirbasForm, aciklama: e.target.value })}
+                />
+              </SimpleGrid>
+              <Group justify="flex-end" mt="lg">
                 <Button
-                  variant="subtle"
-                  size="xs"
-                  color="gray"
+                  variant="light"
                   onClick={() => {
-                    setSelectedLokasyonFilter(null);
-                    setSelectedProjeFilter(null);
-                    setSelectedKategori(null);
+                    closeDemirbasModal();
+                    resetDemirbasForm();
                   }}
                 >
-                  Tümünü Temizle
+                  İptal
+                </Button>
+                <Button onClick={handleSaveDemirbas} loading={loading}>
+                  Kaydet
                 </Button>
               </Group>
             </Box>
           )}
+        </Modal>
 
-          <Box mt="md">
-            <Group gap="sm" mb="md" wrap="wrap">
-              <TextInput
-                placeholder="Kod, ad, marka, model veya seri no ile ara..."
-                leftSection={<IconSearch size={16} />}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ flex: 1, minWidth: 220 }}
-              />
-              <Select
-                placeholder="Kategori"
-                clearable
-                value={selectedKategori}
-                onChange={setSelectedKategori}
-                data={kategoriler.map((k) => ({ value: k.id.toString(), label: `${k.ikon || ''} ${k.ad}`.trim() }))}
-                style={{ width: 180 }}
-              />
+        {/* Araç Ekleme Modal */}
+        <Modal
+          opened={aracModalOpened}
+          onClose={() => {
+            closeAracModal();
+            resetAracForm();
+          }}
+          title={
+            <Group gap="xs">
+              <IconCar size={20} />
+              <Text fw={600}>Yeni Araç Ekle</Text>
             </Group>
+          }
+          size="xl"
+          fullScreen={isMobile}
+        >
+          <Tabs defaultValue="genel">
+            <Tabs.List>
+              <Tabs.Tab value="genel">Genel Bilgiler</Tabs.Tab>
+              <Tabs.Tab value="teknik">Teknik Bilgiler</Tabs.Tab>
+              <Tabs.Tab value="belgeler">Belge & Tarihler</Tabs.Tab>
+            </Tabs.List>
 
-            {/* Toplu İşlem Çubuğu */}
-            {selectedItems.length > 0 && (
-              <Paper p="xs" mb="sm" withBorder radius="md" bg="indigo.0">
-                <Group justify="space-between">
-                  <Text size="sm" fw={500} c="indigo.7">
-                    {selectedItems.length} envanter seçildi
-                  </Text>
-                  <Group gap="xs">
-                    <Button size="xs" variant="light" color="gray" onClick={() => setSelectedItems([])}>
-                      Seçimi Kaldır
-                    </Button>
-                    <Button size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={handleBulkDelete}>
-                      Toplu Sil
-                    </Button>
-                  </Group>
-                </Group>
-              </Paper>
-            )}
-
-            <Table.ScrollContainer minWidth={1000}>
-              <Table striped highlightOnHover verticalSpacing="md">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w={40}>
-                      <Checkbox
-                        checked={selectedItems.length === filteredDemirbaslar.length && filteredDemirbaslar.length > 0}
-                        indeterminate={selectedItems.length > 0 && selectedItems.length < filteredDemirbaslar.length}
-                        onChange={handleSelectAll}
-                      />
-                    </Table.Th>
-                    <Table.Th w={100}>Kod</Table.Th>
-                    <Table.Th miw={180}>Envanter</Table.Th>
-                    <Table.Th>Kategori</Table.Th>
-                    <Table.Th>Lokasyon</Table.Th>
-                    <Table.Th>Zimmetli</Table.Th>
-                    <Table.Th>Değer</Table.Th>
-                    <Table.Th>Garanti</Table.Th>
-                    <Table.Th>Durum</Table.Th>
-                    <Table.Th w={120}>İşlemler</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredDemirbaslar.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={10}>
-                        <Stack align="center" gap="md" py="xl">
-                          <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
-                            <IconPackage size={28} />
-                          </ThemeIcon>
-                          <Text ta="center" c="dimmed">
-                            {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
-                          </Text>
-                          {!searchTerm && (
-                            <Button
-                              variant="light"
-                              color="indigo"
-                              leftSection={<IconPlus size={16} />}
-                              onClick={openDemirbasModal}
-                            >
-                              Yeni Envanter Ekle
-                            </Button>
-                          )}
-                        </Stack>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    filteredDemirbaslar.map((item) => (
-                      <Table.Tr
-                        key={item.id}
-                        bg={selectedItems.includes(item.id) ? 'indigo.0' : undefined}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => handleShowDetay(item.id)}
-                      >
-                        <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedItems.includes(item.id)}
-                            onChange={() => handleSelectItem(item.id)}
-                          />
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge variant="light" color="indigo">
-                            {item.kod}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Tooltip
-                            label={[item.ad, item.marka, item.model].filter(Boolean).join(' • ')}
-                            multiline
-                            maw={300}
-                          >
-                            <Stack gap={2} style={{ overflow: 'hidden' }}>
-                              <Text size="sm" fw={500} lineClamp={1}>
-                                {item.ad}
-                              </Text>
-                              {(item.marka || item.model) && (
-                                <Text size="xs" c="dimmed" lineClamp={1}>
-                                  {[item.marka, item.model].filter(Boolean).join(' ')}
-                                </Text>
-                              )}
-                            </Stack>
-                          </Tooltip>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            variant="light"
-                            leftSection={<Text size="sm">{item.kategori_ikon}</Text>}
-                            style={{
-                              backgroundColor: `${item.kategori_renk}20`,
-                              color: item.kategori_renk,
-                            }}
-                          >
-                            {item.kategori_ad}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <IconMapPin size={14} color="gray" />
-                            <Text size="sm">{item.lokasyon_ad || '-'}</Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          {item.zimmetli_personel ? (
-                            <Group gap="xs">
-                              <IconUser size={14} color="blue" />
-                              <Stack gap={0}>
-                                <Text size="sm">{item.zimmetli_personel}</Text>
-                                <Text size="xs" c="dimmed">
-                                  {item.zimmetli_departman}
-                                </Text>
-                              </Stack>
-                            </Group>
-                          ) : (
-                            <Text size="sm" c="dimmed">
-                              -
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td>
-                          <Stack gap={0}>
-                            <Text size="sm" fw={500}>
-                              {formatMoney(Number(item.net_defter_degeri))}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              Alış: {formatMoney(Number(item.alis_fiyati))}
-                            </Text>
-                          </Stack>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge color={getGarantiColor(item.garanti_durumu)} variant="light">
-                            {item.garanti_bitis ? formatDate(item.garanti_bitis) : 'Belirsiz'}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge color={getDurumColor(item.durum)} variant="filled">
-                            {item.durum?.toUpperCase()}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Group gap={4}>
-                            {!item.zimmetli_personel_id ? (
-                              <Tooltip label="Zimmet Ver">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="blue"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedDemirbas(item);
-                                    openZimmetModal();
-                                  }}
-                                >
-                                  <IconUser size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip label="Zimmet İade">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="orange"
-                                  size="sm"
-                                  onClick={() => handleZimmetIade(item.id)}
-                                >
-                                  <IconReceipt size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                            <Tooltip label="Transfer">
-                              <ActionIcon
-                                variant="subtle"
-                                color="teal"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedDemirbas(item);
-                                  openTransferModal();
-                                }}
-                              >
-                                <IconArrowsExchange size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                            {item.durum !== 'bakimda' && (
-                              <Tooltip label="Bakıma Gönder">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="yellow"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedDemirbas(item);
-                                    openBakimModal();
-                                  }}
-                                >
-                                  <IconTool size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                            <Tooltip label="Sil">
-                              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDelete(item.id)}>
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </Box>
-        </Tabs>
-      </Card>
-
-      {/* Uyarı Kartları */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} mt="lg">
-        {garantiYaklasan.length > 0 && (
-          <Card withBorder radius="md" p="md">
-            <Group mb="md">
-              <ThemeIcon color="yellow" variant="light" size="lg">
-                <IconAlertTriangle size={20} />
-              </ThemeIcon>
-              <Text fw={600}>Garantisi Yaklaşan</Text>
-            </Group>
-            <Stack gap="xs">
-              {garantiYaklasan.map((item) => (
-                <Paper key={item.id} withBorder p="sm" radius="md">
-                  <Group justify="space-between">
-                    <div>
-                      <Text size="sm" fw={500}>
-                        {item.ad}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {item.marka} {item.model}
-                      </Text>
-                    </div>
-                    <Badge color="yellow" variant="light">
-                      {item.kalan_gun} gün
-                    </Badge>
-                  </Group>
-                </Paper>
-              ))}
-            </Stack>
-          </Card>
-        )}
-
-        {bakimdakiler.length > 0 && (
-          <Card withBorder radius="md" p="md">
-            <Group mb="md">
-              <ThemeIcon color="orange" variant="light" size="lg">
-                <IconTool size={20} />
-              </ThemeIcon>
-              <Text fw={600}>Bakımda Olanlar</Text>
-            </Group>
-            <Stack gap="xs">
-              {bakimdakiler.map((item) => (
-                <Paper key={item.id} withBorder p="sm" radius="md">
-                  <Group justify="space-between">
-                    <div>
-                      <Text size="sm" fw={500}>
-                        {item.ad}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {item.servis_firma}
-                      </Text>
-                    </div>
-                    <Badge color="orange" variant="light">
-                      {item.gecen_gun} gündür
-                    </Badge>
-                  </Group>
-                </Paper>
-              ))}
-            </Stack>
-          </Card>
-        )}
-      </SimpleGrid>
-
-      {/* ========== MODAL'LAR ========== */}
-
-      {/* Genel Envanter Modal - Yatay Kategori Kartları */}
-      <Modal
-        opened={demirbasModalOpened}
-        onClose={() => {
-          closeDemirbasModal();
-          resetDemirbasForm();
-        }}
-        title={
-          <Group gap="xs">
-            <IconPlus size={20} />
-            <Text fw={600}>Yeni Envanter Ekle</Text>
-          </Group>
-        }
-        size="xl"
-        fullScreen={isMobile}
-      >
-        {envanterStep === 1 ? (
-          // Adım 1: Kategori Seçimi - Yatay Kartlar
-          <Box>
-            <Text size="sm" c="dimmed" mb="md">
-              Eklemek istediğiniz envanter türünü seçin:
-            </Text>
-            {anaKategoriler.length === 0 ? (
-              <Alert color="yellow">Kategoriler yükleniyor...</Alert>
-            ) : (
-              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
-                {anaKategoriler
-                  .filter((k) => k.kod !== 'ARAC')
-                  .map((kat) => (
-                    <Paper
-                      key={kat.id}
-                      withBorder
-                      p="md"
-                      radius="md"
-                      onClick={() => handleKategoriSelect(kat)}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        textAlign: 'center',
-                        border: `2px solid ${kat.renk}30`,
-                        background: `linear-gradient(135deg, ${kat.renk}08 0%, ${kat.renk}15 100%)`,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = `0 8px 25px ${kat.renk}40`;
-                        e.currentTarget.style.borderColor = kat.renk;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.borderColor = `${kat.renk}30`;
-                      }}
-                    >
-                      <Text size="2.5rem" mb="xs">
-                        {kat.ikon}
-                      </Text>
-                      <Text size="sm" fw={600} c={kat.renk}>
-                        {kat.ad}
-                      </Text>
-                    </Paper>
-                  ))}
+            <Tabs.Panel value="genel" pt="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <TextInput
+                  label="Araç Adı"
+                  placeholder="Örn: Ford Transit"
+                  value={aracForm.ad}
+                  onChange={(e) => setAracForm({ ...aracForm, ad: e.target.value })}
+                  required
+                />
+                <TextInput
+                  label="Plaka"
+                  placeholder="34 ABC 123"
+                  value={aracForm.plaka}
+                  onChange={(e) => setAracForm({ ...aracForm, plaka: e.target.value.toUpperCase() })}
+                  required
+                />
+                <TextInput
+                  label="Marka"
+                  placeholder="Örn: Ford"
+                  value={aracForm.marka}
+                  onChange={(e) => setAracForm({ ...aracForm, marka: e.target.value })}
+                />
+                <TextInput
+                  label="Model"
+                  placeholder="Örn: Transit Custom"
+                  value={aracForm.model}
+                  onChange={(e) => setAracForm({ ...aracForm, model: e.target.value })}
+                />
+                <NumberInput
+                  label="Model Yılı"
+                  value={aracForm.yil}
+                  onChange={(val) => setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })}
+                  min={1990}
+                  max={new Date().getFullYear() + 1}
+                />
+                <Select
+                  label="Yakıt Tipi"
+                  data={[
+                    { value: 'benzin', label: '⛽ Benzin' },
+                    { value: 'dizel', label: '🛢️ Dizel' },
+                    { value: 'lpg', label: '🔵 LPG' },
+                    { value: 'elektrik', label: '⚡ Elektrik' },
+                    { value: 'hibrit', label: '🔋 Hibrit' },
+                  ]}
+                  value={aracForm.yakit_tipi}
+                  onChange={(val) => setAracForm({ ...aracForm, yakit_tipi: val || 'dizel' })}
+                />
+                <TextInput
+                  label="Renk"
+                  placeholder="Beyaz"
+                  value={aracForm.renk}
+                  onChange={(e) => setAracForm({ ...aracForm, renk: e.target.value })}
+                />
+                <Select
+                  label="Lokasyon"
+                  placeholder="Seçin"
+                  data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
+                  value={aracForm.lokasyon_id}
+                  onChange={(val) => setAracForm({ ...aracForm, lokasyon_id: val || '' })}
+                  searchable
+                />
               </SimpleGrid>
-            )}
-          </Box>
-        ) : (
-          // Adım 2: Form
-          <Box>
-            <Group mb="md">
-              <Button variant="light" size="xs" onClick={() => setEnvanterStep(1)}>
-                ← Geri
-              </Button>
-              {selectedKategoriForForm && (
-                <Badge
-                  size="lg"
-                  style={{
-                    backgroundColor: `${selectedKategoriForForm.renk}20`,
-                    color: selectedKategoriForForm.renk,
-                  }}
-                >
-                  {selectedKategoriForForm.ikon} {selectedKategoriForForm.ad}
-                </Badge>
-              )}
-            </Group>
+            </Tabs.Panel>
 
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-              <TextInput
-                label="Envanter Adı"
-                placeholder="Örn: MacBook Pro 16"
-                value={demirbasForm.ad}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, ad: e.target.value })}
-                required
-              />
-              <StyledDatePicker
-                label="Alış Tarihi"
-                placeholder="Seçin"
-                value={demirbasForm.alis_tarihi}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_tarihi: val })}
-                required
-              />
-              <TextInput
-                label="Marka"
-                placeholder="Örn: Apple"
-                value={demirbasForm.marka}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, marka: e.target.value })}
-              />
-              <TextInput
-                label="Model"
-                placeholder="Örn: M3 Pro"
-                value={demirbasForm.model}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, model: e.target.value })}
-              />
-              <TextInput
-                label="Seri No"
-                placeholder="Cihaz seri numarası"
-                value={demirbasForm.seri_no}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, seri_no: e.target.value })}
-              />
-              <NumberInput
-                label="Alış Fiyatı (₺)"
-                placeholder="0"
-                value={demirbasForm.alis_fiyati}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })}
-                min={0}
-                thousandSeparator=","
-              />
-              <NumberInput
-                label="Garanti Süresi (Ay)"
-                placeholder="24"
-                value={demirbasForm.garanti_suresi}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })}
-                min={0}
-              />
-              <Select
-                label="Lokasyon"
-                placeholder="Seçin"
-                data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
-                value={demirbasForm.lokasyon_id}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, lokasyon_id: val || '' })}
-                searchable
-              />
-              <Select
-                label="Proje"
-                placeholder="Proje seçin (opsiyonel)"
-                data={projeler.map((p) => ({ value: p.id.toString(), label: p.ad }))}
-                value={demirbasForm.proje_id}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, proje_id: val || '' })}
-                searchable
-                clearable
-              />
-              <TextInput
-                label="Lokasyon Detay"
-                placeholder="Oda no, kat vb."
-                value={demirbasForm.lokasyon_detay}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })}
-              />
+            <Tabs.Panel value="teknik" pt="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <TextInput
+                  label="Şasi No"
+                  placeholder="VIN numarası"
+                  value={aracForm.sasi_no}
+                  onChange={(e) => setAracForm({ ...aracForm, sasi_no: e.target.value })}
+                />
+                <TextInput
+                  label="Motor No"
+                  placeholder="Motor numarası"
+                  value={aracForm.motor_no}
+                  onChange={(e) => setAracForm({ ...aracForm, motor_no: e.target.value })}
+                />
+                <NumberInput
+                  label="Kilometre"
+                  placeholder="0"
+                  value={aracForm.km}
+                  onChange={(val) => setAracForm({ ...aracForm, km: Number(val) || 0 })}
+                  min={0}
+                  thousandSeparator=","
+                  suffix=" km"
+                />
+                <NumberInput
+                  label="Alış Fiyatı (₺)"
+                  placeholder="0"
+                  value={aracForm.alis_fiyati}
+                  onChange={(val) => setAracForm({ ...aracForm, alis_fiyati: Number(val) || 0 })}
+                  min={0}
+                  thousandSeparator=","
+                />
+                <StyledDatePicker
+                  label="Alış Tarihi"
+                  placeholder="Seçin"
+                  value={aracForm.alis_tarihi}
+                  onChange={(val) => setAracForm({ ...aracForm, alis_tarihi: val })}
+                  required
+                />
+              </SimpleGrid>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="belgeler" pt="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <Paper withBorder p="md" radius="md" bg="yellow.0">
+                  <Group mb="sm">
+                    <IconShieldCheck size={20} color="orange" />
+                    <Text fw={600}>Muayene</Text>
+                  </Group>
+                  <StyledDatePicker
+                    label="Muayene Tarihi"
+                    placeholder="Son muayene tarihi"
+                    value={aracForm.muayene_tarihi}
+                    onChange={(val) => setAracForm({ ...aracForm, muayene_tarihi: val })}
+                  />
+                </Paper>
+
+                <Paper withBorder p="md" radius="md" bg="blue.0">
+                  <Group mb="sm">
+                    <IconShieldCheck size={20} color="blue" />
+                    <Text fw={600}>Trafik Sigortası</Text>
+                  </Group>
+                  <StyledDatePicker
+                    label="Sigorta Bitiş Tarihi"
+                    placeholder="Bitiş tarihi"
+                    value={aracForm.sigorta_bitis}
+                    onChange={(val) => setAracForm({ ...aracForm, sigorta_bitis: val })}
+                  />
+                </Paper>
+
+                <Paper withBorder p="md" radius="md" bg="teal.0">
+                  <Group mb="sm">
+                    <IconShieldCheck size={20} color="teal" />
+                    <Text fw={600}>Kasko</Text>
+                  </Group>
+                  <StyledDatePicker
+                    label="Kasko Bitiş Tarihi"
+                    placeholder="Bitiş tarihi"
+                    value={aracForm.kasko_bitis}
+                    onChange={(val) => setAracForm({ ...aracForm, kasko_bitis: val })}
+                  />
+                </Paper>
+              </SimpleGrid>
+
               <Textarea
                 label="Açıklama"
-                placeholder="Ek notlar..."
-                value={demirbasForm.aciklama}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, aciklama: e.target.value })}
+                placeholder="Araç hakkında ek notlar..."
+                value={aracForm.aciklama}
+                onChange={(e) => setAracForm({ ...aracForm, aciklama: e.target.value })}
+                mt="md"
               />
-            </SimpleGrid>
-            <Group justify="flex-end" mt="lg">
-              <Button
-                variant="light"
-                onClick={() => {
-                  closeDemirbasModal();
-                  resetDemirbasForm();
-                }}
-              >
-                İptal
-              </Button>
-              <Button onClick={handleSaveDemirbas} loading={loading}>
-                Kaydet
-              </Button>
-            </Group>
-          </Box>
-        )}
-      </Modal>
+            </Tabs.Panel>
+          </Tabs>
 
-      {/* Araç Ekleme Modal */}
-      <Modal
-        opened={aracModalOpened}
-        onClose={() => {
-          closeAracModal();
-          resetAracForm();
-        }}
-        title={
-          <Group gap="xs">
-            <IconCar size={20} />
-            <Text fw={600}>Yeni Araç Ekle</Text>
+          <Group justify="flex-end" mt="xl">
+            <Button
+              variant="light"
+              onClick={() => {
+                closeAracModal();
+                resetAracForm();
+              }}
+            >
+              İptal
+            </Button>
+            <Button color="pink" onClick={handleSaveArac} loading={loading} leftSection={<IconCar size={16} />}>
+              Araç Kaydet
+            </Button>
           </Group>
-        }
-        size="xl"
-        fullScreen={isMobile}
-      >
-        <Tabs defaultValue="genel">
-          <Tabs.List>
-            <Tabs.Tab value="genel">Genel Bilgiler</Tabs.Tab>
-            <Tabs.Tab value="teknik">Teknik Bilgiler</Tabs.Tab>
-            <Tabs.Tab value="belgeler">Belge & Tarihler</Tabs.Tab>
-          </Tabs.List>
+        </Modal>
 
-          <Tabs.Panel value="genel" pt="md">
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-              <TextInput
-                label="Araç Adı"
-                placeholder="Örn: Ford Transit"
-                value={aracForm.ad}
-                onChange={(e) => setAracForm({ ...aracForm, ad: e.target.value })}
-                required
-              />
-              <TextInput
-                label="Plaka"
-                placeholder="34 ABC 123"
-                value={aracForm.plaka}
-                onChange={(e) => setAracForm({ ...aracForm, plaka: e.target.value.toUpperCase() })}
-                required
-              />
-              <TextInput
-                label="Marka"
-                placeholder="Örn: Ford"
-                value={aracForm.marka}
-                onChange={(e) => setAracForm({ ...aracForm, marka: e.target.value })}
-              />
-              <TextInput
-                label="Model"
-                placeholder="Örn: Transit Custom"
-                value={aracForm.model}
-                onChange={(e) => setAracForm({ ...aracForm, model: e.target.value })}
-              />
-              <NumberInput
-                label="Model Yılı"
-                value={aracForm.yil}
-                onChange={(val) => setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })}
-                min={1990}
-                max={new Date().getFullYear() + 1}
-              />
-              <Select
-                label="Yakıt Tipi"
-                data={[
-                  { value: 'benzin', label: '⛽ Benzin' },
-                  { value: 'dizel', label: '🛢️ Dizel' },
-                  { value: 'lpg', label: '🔵 LPG' },
-                  { value: 'elektrik', label: '⚡ Elektrik' },
-                  { value: 'hibrit', label: '🔋 Hibrit' },
-                ]}
-                value={aracForm.yakit_tipi}
-                onChange={(val) => setAracForm({ ...aracForm, yakit_tipi: val || 'dizel' })}
-              />
-              <TextInput
-                label="Renk"
-                placeholder="Beyaz"
-                value={aracForm.renk}
-                onChange={(e) => setAracForm({ ...aracForm, renk: e.target.value })}
-              />
-              <Select
-                label="Lokasyon"
-                placeholder="Seçin"
-                data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
-                value={aracForm.lokasyon_id}
-                onChange={(val) => setAracForm({ ...aracForm, lokasyon_id: val || '' })}
-                searchable
-              />
-            </SimpleGrid>
-          </Tabs.Panel>
+        {/* Zimmet Modal */}
+        <Modal
+          opened={zimmetModalOpened}
+          onClose={closeZimmetModal}
+          title={
+            <Group gap="xs">
+              <IconUser size={20} />
+              <Text fw={600}>Zimmet Ver</Text>
+            </Group>
+          }
+          size="md"
+          fullScreen={isMobile}
+        >
+          {selectedDemirbas && (
+            <Alert color="blue" variant="light" mb="md">
+              <Text size="sm">
+                {selectedDemirbas.kod} - {selectedDemirbas.ad}
+              </Text>
+            </Alert>
+          )}
+          <Stack gap="md">
+            <Select
+              label="Personel"
+              placeholder="Seçin"
+              searchable
+              data={personeller.map((p) => ({
+                value: p.id.toString(),
+                label: `${p.ad} ${p.soyad} - ${p.departman || 'Belirtilmemiş'}`,
+              }))}
+              value={zimmetForm.personel_id}
+              onChange={(val) => setZimmetForm({ ...zimmetForm, personel_id: val || '' })}
+              required
+            />
+            <StyledDatePicker
+              label="Zimmet Tarihi"
+              value={zimmetForm.tarih}
+              onChange={(val) => setZimmetForm({ ...zimmetForm, tarih: val || new Date() })}
+            />
+            <Textarea
+              label="Notlar"
+              placeholder="Zimmet ile ilgili notlar..."
+              value={zimmetForm.notlar}
+              onChange={(e) => setZimmetForm({ ...zimmetForm, notlar: e.target.value })}
+            />
+          </Stack>
+          <Group justify="flex-end" mt="lg">
+            <Button variant="light" onClick={closeZimmetModal}>
+              İptal
+            </Button>
+            <Button color="blue" onClick={handleZimmetVer} loading={loading}>
+              Zimmet Ver
+            </Button>
+          </Group>
+        </Modal>
 
-          <Tabs.Panel value="teknik" pt="md">
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-              <TextInput
-                label="Şasi No"
-                placeholder="VIN numarası"
-                value={aracForm.sasi_no}
-                onChange={(e) => setAracForm({ ...aracForm, sasi_no: e.target.value })}
-              />
-              <TextInput
-                label="Motor No"
-                placeholder="Motor numarası"
-                value={aracForm.motor_no}
-                onChange={(e) => setAracForm({ ...aracForm, motor_no: e.target.value })}
-              />
-              <NumberInput
-                label="Kilometre"
-                placeholder="0"
-                value={aracForm.km}
-                onChange={(val) => setAracForm({ ...aracForm, km: Number(val) || 0 })}
-                min={0}
-                thousandSeparator=","
-                suffix=" km"
-              />
-              <NumberInput
-                label="Alış Fiyatı (₺)"
-                placeholder="0"
-                value={aracForm.alis_fiyati}
-                onChange={(val) => setAracForm({ ...aracForm, alis_fiyati: Number(val) || 0 })}
-                min={0}
-                thousandSeparator=","
-              />
-              <StyledDatePicker
-                label="Alış Tarihi"
-                placeholder="Seçin"
-                value={aracForm.alis_tarihi}
-                onChange={(val) => setAracForm({ ...aracForm, alis_tarihi: val })}
-                required
-              />
-            </SimpleGrid>
-          </Tabs.Panel>
+        {/* Bakım Modal */}
+        <Modal
+          opened={bakimModalOpened}
+          onClose={closeBakimModal}
+          title={
+            <Group gap="xs">
+              <IconTool size={20} />
+              <Text fw={600}>Bakıma Gönder</Text>
+            </Group>
+          }
+          size="md"
+          fullScreen={isMobile}
+        >
+          {selectedDemirbas && (
+            <Alert color="yellow" variant="light" mb="md">
+              <Text size="sm">
+                {selectedDemirbas.kod} - {selectedDemirbas.ad}
+              </Text>
+            </Alert>
+          )}
+          <Stack gap="md">
+            <Select
+              label="Bakım Tipi"
+              data={[
+                { value: 'ariza', label: '🔧 Arıza/Onarım' },
+                { value: 'periyodik', label: '📅 Periyodik Bakım' },
+                { value: 'garanti', label: '🛡️ Garanti Kapsamında' },
+                { value: 'onleyici', label: '⚠️ Önleyici Bakım' },
+              ]}
+              value={bakimForm.bakim_tipi}
+              onChange={(val) => setBakimForm({ ...bakimForm, bakim_tipi: val || 'ariza' })}
+            />
+            <Textarea
+              label="Bakım Nedeni"
+              placeholder="Arıza veya bakım açıklaması..."
+              value={bakimForm.bakim_nedeni}
+              onChange={(e) => setBakimForm({ ...bakimForm, bakim_nedeni: e.target.value })}
+              required
+            />
+            <TextInput
+              label="Servis Firma"
+              placeholder="Servis firması adı"
+              value={bakimForm.servis_firma}
+              onChange={(e) => setBakimForm({ ...bakimForm, servis_firma: e.target.value })}
+            />
+            <StyledDatePicker
+              label="Tahmini Dönüş"
+              value={bakimForm.tahmini_donus}
+              onChange={(val) => setBakimForm({ ...bakimForm, tahmini_donus: val })}
+            />
+            <NumberInput
+              label="Tahmini Maliyet (₺)"
+              value={bakimForm.tahmini_maliyet}
+              onChange={(val) => setBakimForm({ ...bakimForm, tahmini_maliyet: Number(val) || 0 })}
+              min={0}
+            />
+            <Checkbox
+              label="Garanti kapsamında"
+              checked={bakimForm.garanti_kapsaminda}
+              onChange={(e) => setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })}
+            />
+          </Stack>
+          <Group justify="flex-end" mt="lg">
+            <Button variant="light" onClick={closeBakimModal}>
+              İptal
+            </Button>
+            <Button color="yellow" onClick={handleBakimaGonder} loading={loading}>
+              Bakıma Gönder
+            </Button>
+          </Group>
+        </Modal>
 
-          <Tabs.Panel value="belgeler" pt="md">
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-              <Paper withBorder p="md" radius="md" bg="yellow.0">
-                <Group mb="sm">
-                  <IconShieldCheck size={20} color="orange" />
-                  <Text fw={600}>Muayene</Text>
-                </Group>
-                <StyledDatePicker
-                  label="Muayene Tarihi"
-                  placeholder="Son muayene tarihi"
-                  value={aracForm.muayene_tarihi}
-                  onChange={(val) => setAracForm({ ...aracForm, muayene_tarihi: val })}
-                />
-              </Paper>
-
-              <Paper withBorder p="md" radius="md" bg="blue.0">
-                <Group mb="sm">
-                  <IconShieldCheck size={20} color="blue" />
-                  <Text fw={600}>Trafik Sigortası</Text>
-                </Group>
-                <StyledDatePicker
-                  label="Sigorta Bitiş Tarihi"
-                  placeholder="Bitiş tarihi"
-                  value={aracForm.sigorta_bitis}
-                  onChange={(val) => setAracForm({ ...aracForm, sigorta_bitis: val })}
-                />
-              </Paper>
-
-              <Paper withBorder p="md" radius="md" bg="teal.0">
-                <Group mb="sm">
-                  <IconShieldCheck size={20} color="teal" />
-                  <Text fw={600}>Kasko</Text>
-                </Group>
-                <StyledDatePicker
-                  label="Kasko Bitiş Tarihi"
-                  placeholder="Bitiş tarihi"
-                  value={aracForm.kasko_bitis}
-                  onChange={(val) => setAracForm({ ...aracForm, kasko_bitis: val })}
-                />
-              </Paper>
-            </SimpleGrid>
-
+        {/* Transfer Modal */}
+        <Modal
+          opened={transferModalOpened}
+          onClose={closeTransferModal}
+          title={
+            <Group gap="xs">
+              <IconArrowsExchange size={20} />
+              <Text fw={600}>Lokasyon Transfer</Text>
+            </Group>
+          }
+          size="md"
+          fullScreen={isMobile}
+        >
+          {selectedDemirbas && (
+            <Alert color="teal" variant="light" mb="md">
+              <Text size="sm">
+                {selectedDemirbas.kod} - {selectedDemirbas.ad}
+              </Text>
+              <Text size="xs" c="dimmed">
+                Mevcut: {selectedDemirbas.lokasyon_ad || 'Belirtilmemiş'}
+              </Text>
+            </Alert>
+          )}
+          <Stack gap="md">
+            <Select
+              label="Hedef Lokasyon"
+              placeholder="Seçin"
+              data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
+              value={transferForm.lokasyon_id}
+              onChange={(val) => setTransferForm({ ...transferForm, lokasyon_id: val || '' })}
+              required
+              searchable
+            />
+            <TextInput
+              label="Lokasyon Detay"
+              placeholder="Oda no, kat vb."
+              value={transferForm.lokasyon_detay}
+              onChange={(e) => setTransferForm({ ...transferForm, lokasyon_detay: e.target.value })}
+            />
             <Textarea
               label="Açıklama"
-              placeholder="Araç hakkında ek notlar..."
-              value={aracForm.aciklama}
-              onChange={(e) => setAracForm({ ...aracForm, aciklama: e.target.value })}
-              mt="md"
+              placeholder="Transfer nedeni..."
+              value={transferForm.aciklama}
+              onChange={(e) => setTransferForm({ ...transferForm, aciklama: e.target.value })}
             />
-          </Tabs.Panel>
-        </Tabs>
-
-        <Group justify="flex-end" mt="xl">
-          <Button
-            variant="light"
-            onClick={() => {
-              closeAracModal();
-              resetAracForm();
-            }}
-          >
-            İptal
-          </Button>
-          <Button color="pink" onClick={handleSaveArac} loading={loading} leftSection={<IconCar size={16} />}>
-            Araç Kaydet
-          </Button>
-        </Group>
-      </Modal>
-
-      {/* Zimmet Modal */}
-      <Modal
-        opened={zimmetModalOpened}
-        onClose={closeZimmetModal}
-        title={
-          <Group gap="xs">
-            <IconUser size={20} />
-            <Text fw={600}>Zimmet Ver</Text>
-          </Group>
-        }
-        size="md"
-        fullScreen={isMobile}
-      >
-        {selectedDemirbas && (
-          <Alert color="blue" variant="light" mb="md">
-            <Text size="sm">
-              {selectedDemirbas.kod} - {selectedDemirbas.ad}
-            </Text>
-          </Alert>
-        )}
-        <Stack gap="md">
-          <Select
-            label="Personel"
-            placeholder="Seçin"
-            searchable
-            data={personeller.map((p) => ({
-              value: p.id.toString(),
-              label: `${p.ad} ${p.soyad} - ${p.departman || 'Belirtilmemiş'}`,
-            }))}
-            value={zimmetForm.personel_id}
-            onChange={(val) => setZimmetForm({ ...zimmetForm, personel_id: val || '' })}
-            required
-          />
-          <StyledDatePicker
-            label="Zimmet Tarihi"
-            value={zimmetForm.tarih}
-            onChange={(val) => setZimmetForm({ ...zimmetForm, tarih: val || new Date() })}
-          />
-          <Textarea
-            label="Notlar"
-            placeholder="Zimmet ile ilgili notlar..."
-            value={zimmetForm.notlar}
-            onChange={(e) => setZimmetForm({ ...zimmetForm, notlar: e.target.value })}
-          />
-        </Stack>
-        <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeZimmetModal}>
-            İptal
-          </Button>
-          <Button color="blue" onClick={handleZimmetVer} loading={loading}>
-            Zimmet Ver
-          </Button>
-        </Group>
-      </Modal>
-
-      {/* Bakım Modal */}
-      <Modal
-        opened={bakimModalOpened}
-        onClose={closeBakimModal}
-        title={
-          <Group gap="xs">
-            <IconTool size={20} />
-            <Text fw={600}>Bakıma Gönder</Text>
-          </Group>
-        }
-        size="md"
-        fullScreen={isMobile}
-      >
-        {selectedDemirbas && (
-          <Alert color="yellow" variant="light" mb="md">
-            <Text size="sm">
-              {selectedDemirbas.kod} - {selectedDemirbas.ad}
-            </Text>
-          </Alert>
-        )}
-        <Stack gap="md">
-          <Select
-            label="Bakım Tipi"
-            data={[
-              { value: 'ariza', label: '🔧 Arıza/Onarım' },
-              { value: 'periyodik', label: '📅 Periyodik Bakım' },
-              { value: 'garanti', label: '🛡️ Garanti Kapsamında' },
-              { value: 'onleyici', label: '⚠️ Önleyici Bakım' },
-            ]}
-            value={bakimForm.bakim_tipi}
-            onChange={(val) => setBakimForm({ ...bakimForm, bakim_tipi: val || 'ariza' })}
-          />
-          <Textarea
-            label="Bakım Nedeni"
-            placeholder="Arıza veya bakım açıklaması..."
-            value={bakimForm.bakim_nedeni}
-            onChange={(e) => setBakimForm({ ...bakimForm, bakim_nedeni: e.target.value })}
-            required
-          />
-          <TextInput
-            label="Servis Firma"
-            placeholder="Servis firması adı"
-            value={bakimForm.servis_firma}
-            onChange={(e) => setBakimForm({ ...bakimForm, servis_firma: e.target.value })}
-          />
-          <StyledDatePicker
-            label="Tahmini Dönüş"
-            value={bakimForm.tahmini_donus}
-            onChange={(val) => setBakimForm({ ...bakimForm, tahmini_donus: val })}
-          />
-          <NumberInput
-            label="Tahmini Maliyet (₺)"
-            value={bakimForm.tahmini_maliyet}
-            onChange={(val) => setBakimForm({ ...bakimForm, tahmini_maliyet: Number(val) || 0 })}
-            min={0}
-          />
-          <Checkbox
-            label="Garanti kapsamında"
-            checked={bakimForm.garanti_kapsaminda}
-            onChange={(e) => setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })}
-          />
-        </Stack>
-        <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeBakimModal}>
-            İptal
-          </Button>
-          <Button color="yellow" onClick={handleBakimaGonder} loading={loading}>
-            Bakıma Gönder
-          </Button>
-        </Group>
-      </Modal>
-
-      {/* Transfer Modal */}
-      <Modal
-        opened={transferModalOpened}
-        onClose={closeTransferModal}
-        title={
-          <Group gap="xs">
-            <IconArrowsExchange size={20} />
-            <Text fw={600}>Lokasyon Transfer</Text>
-          </Group>
-        }
-        size="md"
-        fullScreen={isMobile}
-      >
-        {selectedDemirbas && (
-          <Alert color="teal" variant="light" mb="md">
-            <Text size="sm">
-              {selectedDemirbas.kod} - {selectedDemirbas.ad}
-            </Text>
-            <Text size="xs" c="dimmed">
-              Mevcut: {selectedDemirbas.lokasyon_ad || 'Belirtilmemiş'}
-            </Text>
-          </Alert>
-        )}
-        <Stack gap="md">
-          <Select
-            label="Hedef Lokasyon"
-            placeholder="Seçin"
-            data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
-            value={transferForm.lokasyon_id}
-            onChange={(val) => setTransferForm({ ...transferForm, lokasyon_id: val || '' })}
-            required
-            searchable
-          />
-          <TextInput
-            label="Lokasyon Detay"
-            placeholder="Oda no, kat vb."
-            value={transferForm.lokasyon_detay}
-            onChange={(e) => setTransferForm({ ...transferForm, lokasyon_detay: e.target.value })}
-          />
-          <Textarea
-            label="Açıklama"
-            placeholder="Transfer nedeni..."
-            value={transferForm.aciklama}
-            onChange={(e) => setTransferForm({ ...transferForm, aciklama: e.target.value })}
-          />
-        </Stack>
-        <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeTransferModal}>
-            İptal
-          </Button>
-          <Button color="teal" onClick={handleTransfer} loading={loading}>
-            Transfer Yap
-          </Button>
-        </Group>
-      </Modal>
-
-      {/* Detay Modal */}
-      <Modal
-        opened={detayModalOpened}
-        onClose={closeDetayModal}
-        title={
-          <Group gap="xs">
-            <IconClipboardList size={20} />
-            <Text fw={600}>Envanter Detayı</Text>
-          </Group>
-        }
-        size="xl"
-        fullScreen={isMobile}
-      >
-        {detayData && (
-          <Stack gap="md">
-            <Paper withBorder p="md" radius="md">
-              <Group justify="space-between" align="flex-start">
-                <div>
-                  <Badge size="lg" variant="light" color="indigo" mb="xs">
-                    {detayData.kod}
-                  </Badge>
-                  <Title order={4}>{detayData.ad}</Title>
-                  <Text c="dimmed">{[detayData.marka, detayData.model].filter(Boolean).join(' ')}</Text>
-                  {detayData.seri_no && <Text size="sm">Seri No: {detayData.seri_no}</Text>}
-                </div>
-                <Badge color={getDurumColor(detayData.durum || '')} size="lg">
-                  {detayData.durum?.toUpperCase()}
-                </Badge>
-              </Group>
-            </Paper>
-
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">
-                  💰 Mali Bilgiler
-                </Text>
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text size="sm">Alış Fiyatı:</Text>
-                    <Text size="sm" fw={500}>
-                      {formatMoney(Number(detayData.alis_fiyati))}
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Birikmiş Amortisman:</Text>
-                    <Text size="sm" fw={500} c="orange">
-                      {formatMoney(Number(detayData.birikimis_amortisman))}
-                    </Text>
-                  </Group>
-                  <Divider />
-                  <Group justify="space-between">
-                    <Text size="sm" fw={600}>
-                      Net Değer:
-                    </Text>
-                    <Text size="sm" fw={700} c="teal">
-                      {formatMoney(Number(detayData.net_defter_degeri))}
-                    </Text>
-                  </Group>
-                  <Progress
-                    value={(Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100}
-                    color="orange"
-                    size="sm"
-                    mt="xs"
-                  />
-                </Stack>
-              </Paper>
-
-              <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">
-                  👤 Zimmet & Lokasyon
-                </Text>
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text size="sm">Zimmetli:</Text>
-                    <Text size="sm" fw={500}>
-                      {detayData.zimmetli_personel || '-'}
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Departman:</Text>
-                    <Text size="sm">{detayData.zimmetli_departman || '-'}</Text>
-                  </Group>
-                  <Divider />
-                  <Group justify="space-between">
-                    <Text size="sm">Lokasyon:</Text>
-                    <Text size="sm" fw={500}>
-                      {detayData.lokasyon_ad || '-'}
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Detay:</Text>
-                    <Text size="sm">{detayData.lokasyon_detay || '-'}</Text>
-                  </Group>
-                </Stack>
-              </Paper>
-            </SimpleGrid>
-
-            {detayData.hareketler && detayData.hareketler.length > 0 && (
-              <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">
-                  📜 Hareket Geçmişi
-                </Text>
-                <Table striped>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Tarih</Table.Th>
-                      <Table.Th>İşlem</Table.Th>
-                      <Table.Th>Açıklama</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {detayData.hareketler.map((h) => (
-                      <Table.Tr key={`${h.tarih}-${h.hareket_tipi}-${h.aciklama || ''}`}>
-                        <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                        <Table.Td>
-                          <Badge variant="light" size="sm">
-                            {h.hareket_tipi}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{h.aciklama || '-'}</Text>
-                          {h.yeni_personel && (
-                            <Text size="xs" c="dimmed">
-                              → {h.yeni_personel}
-                            </Text>
-                          )}
-                          {h.yeni_lokasyon && (
-                            <Text size="xs" c="dimmed">
-                              → {h.yeni_lokasyon}
-                            </Text>
-                          )}
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Paper>
-            )}
           </Stack>
-        )}
-      </Modal>
-
-      {/* Lokasyon Yönetimi Modal */}
-      <Modal
-        opened={lokasyonModalOpened}
-        onClose={() => {
-          closeLokasyonModal();
-          resetLokasyonForm();
-        }}
-        title={
-          <Group gap="xs">
-            <IconMapPin size={20} />
-            <Text fw={600}>{editingLokasyon ? 'Lokasyon Düzenle' : 'Yeni Lokasyon Ekle'}</Text>
+          <Group justify="flex-end" mt="lg">
+            <Button variant="light" onClick={closeTransferModal}>
+              İptal
+            </Button>
+            <Button color="teal" onClick={handleTransfer} loading={loading}>
+              Transfer Yap
+            </Button>
           </Group>
-        }
-        size="md"
-        fullScreen={isMobile}
-      >
-        <Stack gap="md">
-          <TextInput
-            label="Lokasyon Adı"
-            placeholder="örn: Ana Depo, Merkez Ofis"
-            value={lokasyonForm.ad}
-            onChange={(e) => setLokasyonForm({ ...lokasyonForm, ad: e.target.value })}
-            required
-            leftSection={<IconBuilding size={16} />}
-          />
-          <TextInput
-            label="Kod"
-            placeholder="örn: DEPO-01"
-            value={lokasyonForm.kod}
-            onChange={(e) => setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })}
-          />
-          <Select
-            label="Lokasyon Tipi"
-            data={[
-              { value: 'depo', label: '📦 Depo' },
-              { value: 'sube', label: '🏢 Şube' },
-              { value: 'ofis', label: '🏠 Ofis' },
-              { value: 'santiye', label: '🏗️ Şantiye' },
-              { value: 'diger', label: '📍 Diğer' },
-            ]}
-            value={lokasyonForm.tip}
-            onChange={(val) => setLokasyonForm({ ...lokasyonForm, tip: val || 'depo' })}
-          />
-          <TextInput
-            label="Adres"
-            placeholder="Tam adres"
-            value={lokasyonForm.adres}
-            onChange={(e) => setLokasyonForm({ ...lokasyonForm, adres: e.target.value })}
-          />
-          <Textarea
-            label="Açıklama"
-            placeholder="Ek notlar..."
-            value={lokasyonForm.aciklama}
-            onChange={(e) => setLokasyonForm({ ...lokasyonForm, aciklama: e.target.value })}
-            rows={2}
-          />
-        </Stack>
-        <Group justify="flex-end" mt="lg">
-          <Button
-            variant="light"
-            onClick={() => {
-              closeLokasyonModal();
-              resetLokasyonForm();
-            }}
-          >
-            İptal
-          </Button>
-          <Button color="orange" onClick={handleSaveLokasyon} loading={loading}>
-            {editingLokasyon ? 'Güncelle' : 'Kaydet'}
-          </Button>
-        </Group>
-      </Modal>
+        </Modal>
 
-      {/* Rapor Merkezi Modal */}
-      <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="operasyon" />
+        {/* Detay Modal */}
+        <Modal
+          opened={detayModalOpened}
+          onClose={closeDetayModal}
+          title={
+            <Group gap="xs">
+              <IconClipboardList size={20} />
+              <Text fw={600}>Envanter Detayı</Text>
+            </Group>
+          }
+          size="xl"
+          fullScreen={isMobile}
+        >
+          {detayData && (
+            <Stack gap="md">
+              <Paper withBorder p="md" radius="md">
+                <Group justify="space-between" align="flex-start">
+                  <div>
+                    <Badge size="lg" variant="light" color="indigo" mb="xs">
+                      {detayData.kod}
+                    </Badge>
+                    <Title order={4}>{detayData.ad}</Title>
+                    <Text c="dimmed">{[detayData.marka, detayData.model].filter(Boolean).join(' ')}</Text>
+                    {detayData.seri_no && <Text size="sm">Seri No: {detayData.seri_no}</Text>}
+                  </div>
+                  <Badge color={getDurumColor(detayData.durum || '')} size="lg">
+                    {detayData.durum?.toUpperCase()}
+                  </Badge>
+                </Group>
+              </Paper>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <Paper withBorder p="md" radius="md">
+                  <Text fw={600} mb="sm" c="dimmed">
+                    💰 Mali Bilgiler
+                  </Text>
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text size="sm">Alış Fiyatı:</Text>
+                      <Text size="sm" fw={500}>
+                        {formatMoney(Number(detayData.alis_fiyati))}
+                      </Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Birikmiş Amortisman:</Text>
+                      <Text size="sm" fw={500} c="orange">
+                        {formatMoney(Number(detayData.birikimis_amortisman))}
+                      </Text>
+                    </Group>
+                    <Divider />
+                    <Group justify="space-between">
+                      <Text size="sm" fw={600}>
+                        Net Değer:
+                      </Text>
+                      <Text size="sm" fw={700} c="teal">
+                        {formatMoney(Number(detayData.net_defter_degeri))}
+                      </Text>
+                    </Group>
+                    <Progress
+                      value={(Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100}
+                      color="orange"
+                      size="sm"
+                      mt="xs"
+                    />
+                  </Stack>
+                </Paper>
+
+                <Paper withBorder p="md" radius="md">
+                  <Text fw={600} mb="sm" c="dimmed">
+                    👤 Zimmet & Lokasyon
+                  </Text>
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text size="sm">Zimmetli:</Text>
+                      <Text size="sm" fw={500}>
+                        {detayData.zimmetli_personel || '-'}
+                      </Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Departman:</Text>
+                      <Text size="sm">{detayData.zimmetli_departman || '-'}</Text>
+                    </Group>
+                    <Divider />
+                    <Group justify="space-between">
+                      <Text size="sm">Lokasyon:</Text>
+                      <Text size="sm" fw={500}>
+                        {detayData.lokasyon_ad || '-'}
+                      </Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Detay:</Text>
+                      <Text size="sm">{detayData.lokasyon_detay || '-'}</Text>
+                    </Group>
+                  </Stack>
+                </Paper>
+              </SimpleGrid>
+
+              {detayData.hareketler && detayData.hareketler.length > 0 && (
+                <Paper withBorder p="md" radius="md">
+                  <Text fw={600} mb="sm" c="dimmed">
+                    📜 Hareket Geçmişi
+                  </Text>
+                  <Table striped>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Tarih</Table.Th>
+                        <Table.Th>İşlem</Table.Th>
+                        <Table.Th>Açıklama</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {detayData.hareketler.map((h) => (
+                        <Table.Tr key={`${h.tarih}-${h.hareket_tipi}-${h.aciklama || ''}`}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" size="sm">
+                              {h.hareket_tipi}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{h.aciklama || '-'}</Text>
+                            {h.yeni_personel && (
+                              <Text size="xs" c="dimmed">
+                                → {h.yeni_personel}
+                              </Text>
+                            )}
+                            {h.yeni_lokasyon && (
+                              <Text size="xs" c="dimmed">
+                                → {h.yeni_lokasyon}
+                              </Text>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              )}
+            </Stack>
+          )}
+        </Modal>
+
+        {/* Lokasyon Yönetimi Modal */}
+        <Modal
+          opened={lokasyonModalOpened}
+          onClose={() => {
+            closeLokasyonModal();
+            resetLokasyonForm();
+          }}
+          title={
+            <Group gap="xs">
+              <IconMapPin size={20} />
+              <Text fw={600}>{editingLokasyon ? 'Lokasyon Düzenle' : 'Yeni Lokasyon Ekle'}</Text>
+            </Group>
+          }
+          size="md"
+          fullScreen={isMobile}
+        >
+          <Stack gap="md">
+            <TextInput
+              label="Lokasyon Adı"
+              placeholder="örn: Ana Depo, Merkez Ofis"
+              value={lokasyonForm.ad}
+              onChange={(e) => setLokasyonForm({ ...lokasyonForm, ad: e.target.value })}
+              required
+              leftSection={<IconBuilding size={16} />}
+            />
+            <TextInput
+              label="Kod"
+              placeholder="örn: DEPO-01"
+              value={lokasyonForm.kod}
+              onChange={(e) => setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })}
+            />
+            <Select
+              label="Lokasyon Tipi"
+              data={[
+                { value: 'depo', label: '📦 Depo' },
+                { value: 'sube', label: '🏢 Şube' },
+                { value: 'ofis', label: '🏠 Ofis' },
+                { value: 'santiye', label: '🏗️ Şantiye' },
+                { value: 'diger', label: '📍 Diğer' },
+              ]}
+              value={lokasyonForm.tip}
+              onChange={(val) => setLokasyonForm({ ...lokasyonForm, tip: val || 'depo' })}
+            />
+            <TextInput
+              label="Adres"
+              placeholder="Tam adres"
+              value={lokasyonForm.adres}
+              onChange={(e) => setLokasyonForm({ ...lokasyonForm, adres: e.target.value })}
+            />
+            <Textarea
+              label="Açıklama"
+              placeholder="Ek notlar..."
+              value={lokasyonForm.aciklama}
+              onChange={(e) => setLokasyonForm({ ...lokasyonForm, aciklama: e.target.value })}
+              rows={2}
+            />
+          </Stack>
+          <Group justify="flex-end" mt="lg">
+            <Button
+              variant="light"
+              onClick={() => {
+                closeLokasyonModal();
+                resetLokasyonForm();
+              }}
+            >
+              İptal
+            </Button>
+            <Button color="orange" onClick={handleSaveLokasyon} loading={loading}>
+              {editingLokasyon ? 'Güncelle' : 'Kaydet'}
+            </Button>
+          </Group>
+        </Modal>
+
+        {/* Rapor Merkezi Modal */}
+        <RaporMerkeziModal opened={raporMerkeziOpen} onClose={() => setRaporMerkeziOpen(false)} module="operasyon" />
       </Container>
     </Box>
   );
