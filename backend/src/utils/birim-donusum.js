@@ -303,6 +303,3 @@ export function donusumCarpaniAlSync(kaynakBirim, hedefBirim) {
   // Fallback
   return FALLBACK_DONUSUMLER[key] ?? 1;
 }
-
-// Test fonksiyonu
-export async function testBirimDonusum() {}

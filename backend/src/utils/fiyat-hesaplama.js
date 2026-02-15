@@ -353,16 +353,3 @@ export async function logMaliyetDegisimi(queryFn, data) {
     return null;
   }
 }
-
-// Test fonksiyonu
-export async function testFiyatHesaplama() {
-  const _testMalzeme = {
-    miktar: 100,
-    birim: 'g',
-    fatura_fiyat: 45,
-    fatura_fiyat_tarihi: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 gün önce
-    piyasa_fiyat: 52,
-    piyasa_fiyat_tarihi: new Date(),
-    fiyat_birimi: 'kg',
-  };
-}

@@ -149,18 +149,62 @@ export interface Recete {
   proje_adi?: string;
 }
 
+// Maliyet analizi malzeme detayı
+export interface MaliyetMalzeme {
+  id: number;
+  malzeme_adi: string;
+  miktar: string;
+  birim: string;
+  sistem_fiyat: number;
+  piyasa_fiyat: number;
+  sistem_toplam: number;
+  piyasa_toplam: number;
+  piyasa_detay: { min: number; max: number; ort: number; tarih: string } | null;
+  fiyat_kaynagi: string | null;
+  varyant_kaynak_adi: string | null;
+  varyant_sayisi: number;
+  carpan: number;
+  fiyat_birimi: string;
+}
+
+// Maliyet analizi response
+export interface MaliyetAnaliziData {
+  recete: {
+    id: number;
+    ad: string;
+    kod: string;
+    kategori: string;
+    ikon: string;
+    porsiyon: number;
+    kalori: number;
+    protein: number;
+  };
+  malzemeler: MaliyetMalzeme[];
+  maliyet: {
+    sistem: number;
+    piyasa: number;
+    fark: number;
+    fark_yuzde: number | string;
+  };
+}
+
 // Malzeme
 export interface Malzeme {
   id?: number;
   recete_id?: number;
   urun_adi?: string;
+  malzeme_adi?: string;
   stok_kart_id?: number;
   urun_kart_id?: number;
   miktar: number;
   birim: string;
+  birim_fiyat?: number;
   sistem_fiyat?: number;
   piyasa_fiyat?: number;
   maliyet?: number;
+  toplam_fiyat?: number;
+  fiyat_kaynagi?: string;
+  zorunlu?: boolean;
 }
 
 // Reçete Kategorisi
@@ -376,6 +420,7 @@ export const menuPlanlamaAPI = {
 
   /**
    * Plana öğün ekle
+   * @deprecated saveFullPlan kullan — bu metod artık çağrılmıyor
    */
   async addOgunToPlan(planId: number, data: OgunCreatePayload): Promise<ApiResponse<{ id: number }>> {
     const response = await api.post(`/api/menu-planlama/menu-planlari/${planId}/ogunler`, data);
@@ -384,6 +429,7 @@ export const menuPlanlamaAPI = {
 
   /**
    * Öğüne yemek ekle
+   * @deprecated saveFullPlan kullan — bu metod artık çağrılmıyor
    */
   async addYemekToOgun(ogunId: number, data: YemekCreatePayload): Promise<ApiResponse<unknown>> {
     const response = await api.post(`/api/menu-planlama/ogunler/${ogunId}/yemekler`, data);
@@ -495,9 +541,9 @@ export const menuPlanlamaAPI = {
 
   /**
    * Reçete maliyet analizi getir
-   * Backend BackendMaliyetAnaliziResponse döndürüyor
+   * Malzeme bazlı maliyet kırılımı (sistem vs piyasa, fiyat kaynağı, çarpan vb.)
    */
-  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<unknown>> {
+  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<MaliyetAnaliziData>> {
     const response = await api.get(`/api/maliyet-analizi/receteler/${receteId}/maliyet`);
     return response.data;
   },
@@ -582,15 +628,13 @@ export const menuPlanlamaAPI = {
     return response.data;
   },
 
-  /**
-   * Şartname oluştur
-   */
   /** Şartname sil (soft delete) */
   async deleteSartname(sartnameId: number): Promise<ApiResponse<unknown>> {
     const response = await api.put(`/api/menu-planlama/sartname/${sartnameId}`, { aktif: false });
     return response.data;
   },
 
+  /** Şartname oluştur */
   async createSartname(data: { ad: string; kod?: string; kurum_id?: number }): Promise<ApiResponse<{ id: number }>> {
     const response = await api.post('/api/menu-planlama/sartname', data);
     return response.data;
