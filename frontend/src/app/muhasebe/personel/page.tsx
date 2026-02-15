@@ -18,6 +18,7 @@ import {
   Paper,
   rem,
   Select,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Table,
@@ -203,6 +204,7 @@ export default function PersonelPage() {
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>('personel');
   const [searchTerm, setSearchTerm] = useState('');
+  const [personelViewMode, setPersonelViewMode] = useState<'table' | 'cards'>('table');
 
   // === BORDRO STATE ===
   const [bordroYil, setBordroYil] = useState(new Date().getFullYear());
@@ -916,13 +918,24 @@ export default function PersonelPage() {
                   <Stack gap="md">
                     {/* Aksiyon Bar */}
                     <Group justify="space-between">
-                      <TextInput
-                        placeholder="Personel ara..."
-                        leftSection={<IconSearch size={16} />}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.currentTarget.value)}
-                        style={{ width: 300 }}
-                      />
+                      <Group gap="sm">
+                        <TextInput
+                          placeholder="Personel ara..."
+                          leftSection={<IconSearch size={16} />}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.currentTarget.value)}
+                          style={{ width: 300 }}
+                        />
+                        <SegmentedControl
+                          value={personelViewMode}
+                          onChange={(v) => setPersonelViewMode(v as 'table' | 'cards')}
+                          data={[
+                            { value: 'table', label: 'Tablo' },
+                            { value: 'cards', label: 'Kart' },
+                          ]}
+                          size="sm"
+                        />
+                      </Group>
                       {canCreatePersonel && (
                         <Button
                           variant="gradient"
@@ -970,6 +983,86 @@ export default function PersonelPage() {
                           )}
                         </Stack>
                       </Center>
+                    ) : personelViewMode === 'cards' ? (
+                      <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
+                        {filteredPersoneller.map((personel) => (
+                          <Card key={personel.id} withBorder padding="md" radius="md" shadow="sm">
+                            <Group justify="space-between" mb="sm">
+                              <Group gap="sm">
+                                <Avatar color={getAvatarColor(personel.departman ?? null)} radius="xl" size="md">
+                                  {personel.ad[0]}
+                                  {personel.soyad[0]}
+                                </Avatar>
+                                <div>
+                                  <Text size="sm" fw={600}>
+                                    {personel.ad} {personel.soyad}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {personel.pozisyon || '-'}
+                                  </Text>
+                                </div>
+                              </Group>
+                              <Menu position="bottom-end" shadow="md">
+                                <Menu.Target>
+                                  <ActionIcon variant="subtle" color="gray" size="sm">
+                                    <IconDotsVertical size={16} />
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item
+                                    leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />}
+                                    onClick={() => {
+                                      setSelectedPersonel(personel);
+                                      openDetailModal();
+                                    }}
+                                  >
+                                    Detay
+                                  </Menu.Item>
+                                  {canEditPersonel && (
+                                    <Menu.Item
+                                      leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
+                                      onClick={() => handleEditPersonel(personel)}
+                                    >
+                                      Düzenle
+                                    </Menu.Item>
+                                  )}
+                                  {canDeletePersonel && (
+                                    <>
+                                      <Menu.Divider />
+                                      <Menu.Item
+                                        color="red"
+                                        leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={() => handleDeletePersonel(personel.id)}
+                                      >
+                                        Sil
+                                      </Menu.Item>
+                                    </>
+                                  )}
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Group>
+                            <Group gap="xs" mb="xs">
+                              <Badge variant="light" color={getAvatarColor(personel.departman ?? null)} size="sm">
+                                {personel.departman || 'Belirsiz'}
+                              </Badge>
+                              {getDurumBadge(personel.durum || 'aktif')}
+                            </Group>
+                            <Group justify="space-between" mt="xs">
+                              <Text size="xs" c="dimmed">
+                                İşe giriş: {formatDate(personel.ise_giris_tarihi)}
+                              </Text>
+                            </Group>
+                            <Group justify="space-between" mt="xs">
+                              <Text size="sm" fw={600} c="green">
+                                {formatMoney(personel.maas)}
+                              </Text>
+                              <Text size="xs" c="orange">
+                                Bordro: {formatMoney(personel.bordro_maas || 0)}
+                              </Text>
+                            </Group>
+                          </Card>
+                        ))}
+                      </SimpleGrid>
                     ) : (
                       <Table.ScrollContainer minWidth={800}>
                         <Table verticalSpacing="sm" highlightOnHover>
