@@ -237,7 +237,8 @@ JWT_EXPIRES_IN=7d
 # AI SERVISLERI (Opsiyonel - AI ozellikleri icin)
 # =============================================================================
 # Claude AI (AI Asistan)
-CLAUDE_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...
+# Not: CLAUDE_API_KEY artik kullanilmiyor (deprecated), ANTHROPIC_API_KEY kullanin
 
 # Azure Document AI (Dokuman analizi)
 AZURE_DOCUMENT_AI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
@@ -266,8 +267,9 @@ PORT=3001
 **Frontend (`frontend/.env.local`):**
 
 ```env
-# API URL (Opsiyonel - varsayilan localhost:3001)
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# API URL: Bu degisken artik kullanilmiyor.
+# API URL otomatik olarak lib/config.ts tarafindan belirlenir.
+# NEXT_PUBLIC_API_URL=http://localhost:3001  # DEPRECATED - config.ts dinamik URL olusturur
 
 # Supabase (Sadece Realtime ozellikleri icin - Auth KULLANILMIYOR)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co

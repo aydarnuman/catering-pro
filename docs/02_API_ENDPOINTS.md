@@ -384,14 +384,7 @@ Hesaplar arası transfer
 | tutar | number | ✅ |
 | aciklama | string | - |
 
-### `GET /api/gelir-gider`
-Gelir/gider listesi
-
-### `POST /api/gelir-gider` 🔒
-Yeni gelir/gider
-
-### `GET /api/gelir-gider/ozet`
-Aylık özet
+> **Not:** `/api/gelir-gider` endpoint'i kaldirilmistir. Gelir/gider islemleri `/muhasebe/finans` sayfasi uzerinden yapilir.
 
 ---
 

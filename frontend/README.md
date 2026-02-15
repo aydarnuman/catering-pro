@@ -510,7 +510,7 @@ function MyPage() {
 
 ```env
 # .env.local
-NEXT_PUBLIC_API_URL=http://localhost:3001  # Optional - config.ts otomatik belirler
+# NEXT_PUBLIC_API_URL artik kullanilmiyor - API URL otomatik olarak lib/config.ts tarafindan belirlenir
 
 # Supabase (Sadece Realtime icin - Auth KULLANILMIYOR)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co

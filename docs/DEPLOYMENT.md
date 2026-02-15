@@ -252,7 +252,8 @@ ifconfig | grep "inet " | grep -v 127.0.0.1
 
 2. Frontend'te `.env.local` oluşturun:
 ```env
-NEXT_PUBLIC_API_URL=http://192.168.1.100:3001
+# NEXT_PUBLIC_API_URL artik kullanilmiyor - API URL otomatik olarak lib/config.ts tarafindan belirlenir
+# Mobil test icin ozel bir env degiskeni ayarlamaya gerek yoktur
 ```
 
 3. Telefondan erişin:

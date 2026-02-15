@@ -425,8 +425,8 @@ OPENAI_API_KEY=
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...your-anon-key
 
-# API (Zorunlu)
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# API (Opsiyonel - config.ts otomatik belirler, artik zorunlu degil)
+# NEXT_PUBLIC_API_URL=http://localhost:3001
 
 # Opsiyonel
 NEXT_PUBLIC_ENABLE_REALTIME=true

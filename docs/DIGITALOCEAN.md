@@ -364,7 +364,7 @@ Frontend build sırasında doğru URL kullanıldığından emin olun:
 ```bash
 # Sunucuda kontrol
 cat /root/catering-pro/frontend/.env.production
-# Çıktı: NEXT_PUBLIC_API_URL=https://catering-tr.com
+# Not: NEXT_PUBLIC_API_URL artik kullanilmiyor, config.ts API URL'yi otomatik belirler
 
 # .env.local dosyası OLMAMALI!
 ls -la /root/catering-pro/frontend/.env*

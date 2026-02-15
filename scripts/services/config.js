@@ -183,13 +183,13 @@ export const requiredEnvVars = {
         description: 'Supabase anonymous key',
         pattern: /^eyJ.+/,
       },
-      {
-        name: 'NEXT_PUBLIC_API_URL',
-        description: 'Backend API URL\'i',
-        pattern: /^https?:\/\/.+/,
-      },
     ],
     optional: [
+      {
+        name: 'NEXT_PUBLIC_API_URL',
+        description: 'Backend API URL\'i (deprecated - config.ts otomatik belirler)',
+        pattern: /^https?:\/\/.+/,
+      },
       {
         name: 'NEXT_PUBLIC_ENABLE_REALTIME',
         description: 'Realtime özelliği (true/false)',

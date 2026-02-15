@@ -50,7 +50,7 @@ UYUMSOFT_PASSWORD=your_password
 # APP CONFIG
 NODE_ENV=development
 PORT=3001
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# NEXT_PUBLIC_API_URL artik kullanilmiyor - lib/config.ts API URL'yi otomatik belirler
 ```
 
 ## 4. Database Migration

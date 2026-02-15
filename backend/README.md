@@ -300,7 +300,7 @@ http://localhost:3001/api-docs.json
 DATABASE_URL=postgresql://user:pass@host:5432/db
 
 # AI Services
-CLAUDE_API_KEY=sk-ant-...  # veya ANTHROPIC_API_KEY
+ANTHROPIC_API_KEY=sk-ant-...
 AZURE_DOCUMENT_AI_ENDPOINT=xxx
 AZURE_DOCUMENT_AI_KEY=xxx
 
