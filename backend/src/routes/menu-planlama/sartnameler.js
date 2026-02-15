@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../../database.js';
+import { kuralBul, malzemeTipiEslestir, receteSartnameMalzemeOnizleme } from '../../services/sartname-onizleme.js';
 
 const router = express.Router();
 
@@ -24,7 +25,7 @@ router.get('/sartname/kurumlar', async (_req, res) => {
 // Şartnameleri listele
 router.get('/sartname/liste', async (req, res) => {
   try {
-    const { kurum_id: _kurum_id, proje_id: _proje_id, aktif = true } = req.query;
+    const { kurum_id, aktif = 'true' } = req.query;
 
     const whereConditions = [];
     const params = [];
@@ -50,7 +51,7 @@ router.get('/sartname/liste', async (req, res) => {
         ps.*,
         sk.ad as kurum_adi,
         sk.ikon as kurum_ikon,
-        (SELECT COUNT(*) FROM sartname_porsiyon_gramajlari spg WHERE spg.sartname_id = ps.id AND spg.aktif = true) as gramaj_sayisi,
+        (SELECT COUNT(*) FROM sartname_gramaj_kurallari sgk WHERE sgk.sartname_id = ps.id AND sgk.aktif = true) as gramaj_sayisi,
         (SELECT COUNT(*) FROM proje_sartname_atamalari psa WHERE psa.sartname_id = ps.id) as proje_sayisi
       FROM proje_sartnameleri ps
       LEFT JOIN sartname_kurumlari sk ON sk.id = ps.kurum_id
@@ -69,11 +70,38 @@ router.get('/sartname/liste', async (req, res) => {
 // Yeni şartname oluştur
 router.post('/sartname', async (req, res) => {
   try {
-    const { kod, ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar } = req.body;
+    const { kod: inputKod, ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar } = req.body;
 
-    if (!kod || !ad) {
-      return res.status(400).json({ success: false, error: 'Kod ve ad zorunlu' });
+    if (!ad) {
+      return res.status(400).json({ success: false, error: 'Ad zorunlu' });
     }
+
+    // Kod verilmediyse ad'dan otomatik oluştur (büyük harf, Türkçe karakter temizle)
+    const kod =
+      inputKod ||
+      ad
+        .toUpperCase()
+        .replace(/[ÇçĞğİıÖöŞşÜü]/g, (c) => {
+          const map = {
+            Ç: 'C',
+            ç: 'C',
+            Ğ: 'G',
+            ğ: 'G',
+            İ: 'I',
+            ı: 'I',
+            Ö: 'O',
+            ö: 'O',
+            Ş: 'S',
+            ş: 'S',
+            Ü: 'U',
+            ü: 'U',
+          };
+          return map[c] || c;
+        })
+        .replace(/[^A-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 30);
 
     const result = await query(
       `
@@ -89,6 +117,202 @@ router.post('/sartname', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// =============================================
+// SABİT PATH ROUTE'LARI (/:id'den ÖNCE olmalı!)
+// =============================================
+
+// Alt tipleri listele (kategori gruplanmış)
+router.get('/sartname/alt-tipler', async (_req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        att.*,
+        rk.ad as kategori_adi,
+        rk.ikon as kategori_ikon,
+        rk.kod as kategori_kodu
+      FROM alt_tip_tanimlari att
+      LEFT JOIN recete_kategoriler rk ON rk.id = att.kategori_id
+      WHERE att.aktif = true
+      ORDER BY rk.sira, att.sira
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Alt tip ekle
+router.post('/sartname/alt-tipler', async (req, res) => {
+  try {
+    const { kod, ad, kategori_id, aciklama, ikon } = req.body;
+
+    if (!kod || !ad) {
+      return res.status(400).json({ success: false, error: 'Kod ve ad zorunlu' });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO alt_tip_tanimlari (kod, ad, kategori_id, aciklama, ikon, sira)
+      VALUES ($1, $2, $3, $4, $5, (SELECT COALESCE(MAX(sira), 0) + 1 FROM alt_tip_tanimlari WHERE kategori_id = $3))
+      RETURNING *
+    `,
+      [kod, ad, kategori_id, aciklama, ikon]
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, error: 'Bu kod zaten mevcut' });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Alt tip güncelle
+router.put('/sartname/alt-tipler/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ad, aciklama, ikon, aktif, sira } = req.body;
+
+    const result = await query(
+      `
+      UPDATE alt_tip_tanimlari
+      SET ad = COALESCE($1, ad),
+          aciklama = COALESCE($2, aciklama),
+          ikon = COALESCE($3, ikon),
+          aktif = COALESCE($4, aktif),
+          sira = COALESCE($5, sira)
+      WHERE id = $6
+      RETURNING *
+    `,
+      [ad, aciklama, ikon, aktif, sira, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Alt tip bulunamadı' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Malzeme eşleme sözlüğünü getir
+router.get('/sartname/malzeme-eslesmeleri', async (_req, res) => {
+  try {
+    const result = await query(`
+      SELECT * FROM malzeme_tip_eslesmeleri
+      WHERE aktif = true
+      ORDER BY malzeme_tipi
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Gramaj kuralı güncelle (sabit path)
+router.put('/sartname/gramaj-kurallari/:kuralId', async (req, res) => {
+  try {
+    const { kuralId } = req.params;
+    const { alt_tip_id, malzeme_tipi, gramaj, birim, aciklama, sira, aktif } = req.body;
+
+    const result = await query(
+      `
+      UPDATE sartname_gramaj_kurallari
+      SET alt_tip_id = COALESCE($1, alt_tip_id),
+          malzeme_tipi = COALESCE($2, malzeme_tipi),
+          gramaj = COALESCE($3, gramaj),
+          birim = COALESCE($4, birim),
+          aciklama = COALESCE($5, aciklama),
+          sira = COALESCE($6, sira),
+          aktif = COALESCE($7, aktif)
+      WHERE id = $8
+      RETURNING *
+    `,
+      [alt_tip_id, malzeme_tipi, gramaj, birim, aciklama, sira, aktif, kuralId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Gramaj kuralı bulunamadı' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Gramaj kuralı sil (sabit path, soft delete)
+router.delete('/sartname/gramaj-kurallari/:kuralId', async (req, res) => {
+  try {
+    const { kuralId } = req.params;
+
+    await query('UPDATE sartname_gramaj_kurallari SET aktif = false WHERE id = $1', [kuralId]);
+
+    res.json({ success: true, message: 'Gramaj kuralı silindi' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Malzeme eşleme güncelle (sabit path)
+router.put('/sartname/malzeme-eslesmeleri/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { eslesen_kelimeler, urun_kategori_kodlari, aciklama } = req.body;
+
+    const result = await query(
+      `
+      UPDATE malzeme_tip_eslesmeleri
+      SET eslesen_kelimeler = COALESCE($1, eslesen_kelimeler),
+          urun_kategori_kodlari = COALESCE($2, urun_kategori_kodlari),
+          aciklama = COALESCE($3, aciklama)
+      WHERE id = $4
+      RETURNING *
+    `,
+      [eslesen_kelimeler, urun_kategori_kodlari, aciklama, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Eşleme bulunamadı' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Yeni malzeme eşleme ekle
+router.post('/sartname/malzeme-eslesmeleri', async (req, res) => {
+  try {
+    const { malzeme_tipi, eslesen_kelimeler, urun_kategori_kodlari, aciklama } = req.body;
+
+    if (!malzeme_tipi || !eslesen_kelimeler?.length) {
+      return res.status(400).json({ success: false, error: 'Malzeme tipi ve eşleşen kelimeler zorunlu' });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO malzeme_tip_eslesmeleri (malzeme_tipi, eslesen_kelimeler, urun_kategori_kodlari, aciklama)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `,
+      [malzeme_tipi, eslesen_kelimeler, urun_kategori_kodlari || [], aciklama]
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// PARAMETRELİ ROUTE'LAR (/:id ile)
+// =============================================
 
 // Şartname detayı
 router.get('/sartname/:id', async (req, res) => {
@@ -238,7 +462,7 @@ router.get('/proje/:projeId/sartnameler', async (req, res) => {
         sk.ad as kurum_adi,
         sk.ikon as kurum_ikon,
         psa.varsayilan,
-        (SELECT COUNT(*) FROM sartname_porsiyon_gramajlari spg WHERE spg.sartname_id = ps.id AND spg.aktif = true) as gramaj_sayisi
+        (SELECT COUNT(*) FROM sartname_gramaj_kurallari sgk WHERE sgk.sartname_id = ps.id AND sgk.aktif = true) as gramaj_sayisi
       FROM proje_sartname_atamalari psa
       JOIN proje_sartnameleri ps ON ps.id = psa.sartname_id
       LEFT JOIN sartname_kurumlari sk ON sk.id = ps.kurum_id
@@ -411,21 +635,213 @@ router.put('/ogun-yapisi/:id', async (req, res) => {
 });
 
 // =============================================
-// GRAMAJ KONTROL FONKSİYONLARI
+// GRAMAJ KURALLARI (YENİ SİSTEM - /:id parametreli)
 // =============================================
 
-// Reçete gramaj kontrolü
+// Şartnamenin gramaj kurallarını getir (alt tip gruplanmış)
+router.get('/sartname/:id/gramaj-kurallari', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      `
+      SELECT
+        sgk.*,
+        att.kod as alt_tip_kodu,
+        att.ad as alt_tip_adi,
+        att.ikon as alt_tip_ikon,
+        rk.ad as kategori_adi,
+        rk.ikon as kategori_ikon,
+        rk.kod as kategori_kodu
+      FROM sartname_gramaj_kurallari sgk
+      JOIN alt_tip_tanimlari att ON att.id = sgk.alt_tip_id
+      LEFT JOIN recete_kategoriler rk ON rk.id = att.kategori_id
+      WHERE sgk.sartname_id = $1 AND sgk.aktif = true
+      ORDER BY rk.sira, att.sira, sgk.sira
+    `,
+      [id]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Gramaj kuralı ekle
+router.post('/sartname/:id/gramaj-kurallari', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { alt_tip_id, malzeme_tipi, gramaj, birim, aciklama } = req.body;
+
+    if (!alt_tip_id || !malzeme_tipi || gramaj == null) {
+      return res.status(400).json({ success: false, error: 'Alt tip, malzeme tipi ve gramaj zorunlu' });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO sartname_gramaj_kurallari (sartname_id, alt_tip_id, malzeme_tipi, gramaj, birim, aciklama, sira)
+      VALUES ($1, $2, $3, $4, $5, $6,
+        (SELECT COALESCE(MAX(sira), 0) + 1 FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND alt_tip_id = $2))
+      RETURNING *
+    `,
+      [id, alt_tip_id, malzeme_tipi, gramaj, birim || 'g', aciklama]
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, error: 'Bu alt tip ve malzeme tipi kombinasyonu zaten mevcut' });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// TOPLU UYGULAMA
+// Şartname gramajlarını reçetelere toplu uygula
+// =============================================
+
+// Toplu gramaj uygulama (eşleme: sartname-onizleme ile aynı çok katmanlı mantık)
+router.post('/sartname/:sartnameId/toplu-uygula', async (req, res) => {
+  try {
+    const { sartnameId } = req.params;
+    const { recete_ids, kategori_id, alt_tip_id: filterAltTipId } = req.body;
+
+    // 1. Şartname kurallarını al
+    const kurallarResult = await query(
+      `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND aktif = true`,
+      [sartnameId]
+    );
+    const kurallar = kurallarResult.rows;
+
+    if (kurallar.length === 0) {
+      return res.status(400).json({ success: false, error: 'Bu şartnameye ait gramaj kuralı bulunamadı' });
+    }
+
+    // 2. Malzeme eşleme sözlüğünü al
+    const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
+    const sozluk = sozlukResult.rows;
+
+    // 3. Hedef reçeteleri bul
+    let receteQuery = `
+      SELECT r.id, r.ad, r.alt_tip_id, r.kategori_id
+      FROM receteler r
+      WHERE r.aktif = true AND r.alt_tip_id IS NOT NULL
+    `;
+    const receteParams = [];
+    let paramIdx = 1;
+
+    if (recete_ids?.length) {
+      receteQuery += ` AND r.id = ANY($${paramIdx})`;
+      receteParams.push(recete_ids);
+      paramIdx++;
+    }
+    if (kategori_id) {
+      receteQuery += ` AND r.kategori_id = $${paramIdx}`;
+      receteParams.push(kategori_id);
+      paramIdx++;
+    }
+    if (filterAltTipId) {
+      receteQuery += ` AND r.alt_tip_id = $${paramIdx}`;
+      receteParams.push(filterAltTipId);
+    }
+
+    const recetelerResult = await query(receteQuery, receteParams);
+    const receteler = recetelerResult.rows;
+
+    if (receteler.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          guncellenen_recete: 0,
+          guncellenen_malzeme: 0,
+          eslesmeyenler: [],
+          mesaj: 'Uygulanacak reçete bulunamadı',
+        },
+      });
+    }
+
+    let guncelRecete = 0;
+    let guncelMalzeme = 0;
+    const eslesmeyenler = [];
+
+    for (const recete of receteler) {
+      // Bu reçetenin alt tipine ait kuralları filtrele
+      const receteKurallari = kurallar.filter((k) => k.alt_tip_id === recete.alt_tip_id);
+      if (receteKurallari.length === 0) continue;
+
+      // Reçetenin malzemelerini al
+      const malzemeResult = await query(
+        `SELECT id, malzeme_adi, miktar, birim FROM recete_malzemeler WHERE recete_id = $1`,
+        [recete.id]
+      );
+
+      let receteDegisti = false;
+
+      // Malzeme merkezli eşleme: her malzeme için önizleme ile aynı kuralBul kullanılır
+      for (const malzeme of malzemeResult.rows) {
+        const sonuc = kuralBul(malzeme.malzeme_adi, sozluk, receteKurallari, kurallar);
+        if (sonuc) {
+          await query(`UPDATE recete_malzemeler SET miktar = $1, birim = $2 WHERE id = $3`, [
+            sonuc.kural.gramaj,
+            sonuc.kural.birim,
+            malzeme.id,
+          ]);
+          guncelMalzeme++;
+          receteDegisti = true;
+        }
+      }
+
+      if (receteDegisti) guncelRecete++;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        guncellenen_recete: guncelRecete,
+        guncellenen_malzeme: guncelMalzeme,
+        toplam_recete: receteler.length,
+        eslesmeyenler,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// GRAMAJ ÖNİZLEME (YENİ SİSTEM - Modal için)
+// Reçete malzemeleri + şartname override gramajları
+// =============================================
+
+router.get('/recete/:receteId/sartname/:sartnameId/gramaj-onizleme', async (req, res) => {
+  try {
+    const { receteId, sartnameId } = req.params;
+    const result = await receteSartnameMalzemeOnizleme(Number(receteId), Number(sartnameId));
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// GRAMAJ KONTROL (YENİ SİSTEM)
+// Reçetenin gramajlarını şartname kurallarıyla karşılaştır
+// =============================================
+
 router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
   try {
     const { receteId } = req.params;
     const { sartname_id, proje_id } = req.query;
 
-    // Reçete ve malzemelerini al
+    // Reçete bilgisi
     const recete = await query(
       `
-      SELECT r.*, rk.ad as kategori_adi
+      SELECT r.*, rk.ad as kategori_adi, att.ad as alt_tip_adi, att.kod as alt_tip_kodu
       FROM receteler r
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
+      LEFT JOIN alt_tip_tanimlari att ON att.id = r.alt_tip_id
       WHERE r.id = $1
     `,
       [receteId]
@@ -435,6 +851,7 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
 
+    // Malzemeleri al
     const malzemeler = await query(
       `
       SELECT rm.*, urk.ad as stok_adi
@@ -447,75 +864,80 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
 
     // Şartname ID bul
     let sartnameIdToUse = sartname_id;
-
     if (!sartnameIdToUse && proje_id) {
-      const sartname = await query(
-        `
-        SELECT sartname_id FROM proje_sartname_atamalari
-        WHERE proje_id = $1 AND varsayilan = true
-        LIMIT 1
-      `,
+      const sartResult = await query(
+        'SELECT sartname_id FROM proje_sartname_atamalari WHERE proje_id = $1 AND varsayilan = true LIMIT 1',
         [proje_id]
       );
-      sartnameIdToUse = sartname.rows[0]?.sartname_id;
+      sartnameIdToUse = sartResult.rows[0]?.sartname_id;
     }
 
-    if (!sartnameIdToUse) {
+    if (!sartnameIdToUse || !recete.rows[0].alt_tip_id) {
       return res.json({
         success: true,
         data: {
           recete: recete.rows[0],
           malzemeler: malzemeler.rows,
           gramaj_kontrol: null,
-          mesaj: 'Şartname belirtilmedi',
+          mesaj: !sartnameIdToUse ? 'Şartname belirtilmedi' : 'Reçeteye alt tip atanmamış',
         },
       });
     }
 
-    // Şartname gramajlarını al
-    const gramajlar = await query(
-      `
-      SELECT * FROM sartname_gramajlari
-      WHERE sartname_id = $1 AND aktif = true
-        AND (yemek_turu ILIKE $2 OR yemek_adi ILIKE $2 OR kategori_id = $3)
-    `,
-      [sartnameIdToUse, `%${recete.rows[0].ad}%`, recete.rows[0].kategori_id]
+    // Şartname gramaj kurallarını al (yeni tablo)
+    const kurallarResult = await query(
+      `SELECT * FROM sartname_gramaj_kurallari WHERE sartname_id = $1 AND alt_tip_id = $2 AND aktif = true ORDER BY sira`,
+      [sartnameIdToUse, recete.rows[0].alt_tip_id]
     );
 
-    // Kontrol sonuçları
+    // Eşleme sözlüğünü al
+    const sozlukResult = await query('SELECT * FROM malzeme_tip_eslesmeleri WHERE aktif = true');
+    const sozluk = sozlukResult.rows;
+
+    // Kontrol: her kural için reçete malzemesi bul
     const kontrolSonuclari = [];
     let toplamUygun = 0;
     let toplamUyumsuz = 0;
 
-    for (const malzeme of malzemeler.rows) {
-      // Bu malzeme için şartname gramajı var mı?
-      const eslesenGramaj = gramajlar.rows.find(
-        (g) =>
-          g.malzeme_adi.toLowerCase().includes(malzeme.malzeme_adi?.toLowerCase()) ||
-          malzeme.malzeme_adi?.toLowerCase().includes(g.malzeme_adi.toLowerCase()) ||
-          (malzeme.stok_kart_id && g.stok_kart_id === malzeme.stok_kart_id)
-      );
+    for (const kural of kurallarResult.rows) {
+      // Eşleşen malzeme var mı?
+      let eslesenMalzeme = null;
+      for (const malzeme of malzemeler.rows) {
+        const eslesme = malzemeTipiEslestir(malzeme.malzeme_adi, sozluk);
+        if (eslesme && eslesme.malzeme_tipi === kural.malzeme_tipi) {
+          eslesenMalzeme = malzeme;
+          break;
+        }
+      }
 
-      if (eslesenGramaj) {
-        const gercekGramaj = parseFloat(malzeme.miktar) || 0;
-        const minGramaj = parseFloat(eslesenGramaj.min_gramaj);
-        const maxGramaj = parseFloat(eslesenGramaj.max_gramaj) || minGramaj * 1.5;
+      if (eslesenMalzeme) {
+        const gercekGramaj = parseFloat(eslesenMalzeme.miktar) || 0;
+        const hedefGramaj = parseFloat(kural.gramaj);
+        const tolerans = hedefGramaj * 0.15; // %15 tolerans
 
         let durum = 'uygun';
-        if (gercekGramaj < minGramaj) durum = 'dusuk';
-        else if (gercekGramaj > maxGramaj) durum = 'yuksek';
+        if (gercekGramaj < hedefGramaj - tolerans) durum = 'dusuk';
+        else if (gercekGramaj > hedefGramaj + tolerans) durum = 'yuksek';
 
         if (durum === 'uygun') toplamUygun++;
         else toplamUyumsuz++;
 
         kontrolSonuclari.push({
-          malzeme_adi: malzeme.malzeme_adi,
+          malzeme_adi: eslesenMalzeme.malzeme_adi,
+          malzeme_tipi: kural.malzeme_tipi,
           recete_gramaj: gercekGramaj,
-          min_gramaj: minGramaj,
-          max_gramaj: maxGramaj,
-          birim: eslesenGramaj.birim,
+          hedef_gramaj: hedefGramaj,
+          birim: kural.birim,
           durum,
-          zorunlu: eslesenGramaj.zorunlu,
+        });
+      } else {
+        kontrolSonuclari.push({
+          malzeme_adi: null,
+          malzeme_tipi: kural.malzeme_tipi,
+          recete_gramaj: null,
+          hedef_gramaj: parseFloat(kural.gramaj),
+          birim: kural.birim,
+          durum: 'eksik',
         });
       }
     }
@@ -527,6 +949,7 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
         malzemeler: malzemeler.rows,
         gramaj_kontrol: {
           sartname_id: sartnameIdToUse,
+          alt_tip: recete.rows[0].alt_tip_adi,
           sonuclar: kontrolSonuclari,
           uygun_sayisi: toplamUygun,
           uyumsuz_sayisi: toplamUyumsuz,
