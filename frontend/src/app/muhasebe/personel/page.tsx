@@ -763,6 +763,12 @@ export default function PersonelPage() {
     );
   };
 
+  /** P5: Satır/kart sol kenar rengi (durum göstergesi) */
+  const getDurumBorderColor = (durum: string) => {
+    const map: Record<string, string> = { aktif: 'var(--mantine-color-green-6)', izinli: 'var(--mantine-color-yellow-6)', pasif: 'var(--mantine-color-gray-5)' };
+    return map[durum] ?? 'var(--mantine-color-gray-4)';
+  };
+
   // Filtrelenmiş personeller (arama + departman + durum)
   const filteredPersoneller = personeller.filter((p) => {
     const matchesSearch =
@@ -1004,6 +1010,16 @@ export default function PersonelPage() {
                           size="sm"
                         />
                       </Group>
+                      <Button
+                        component={Link}
+                        href="/muhasebe/demirbas"
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        title="Zimmetli demirbaşları görüntüle"
+                      >
+                        Zimmetli demirbaşlar
+                      </Button>
                       {canCreatePersonel && (
                         <Button
                           variant="gradient"
@@ -1085,7 +1101,18 @@ export default function PersonelPage() {
                     ) : personelViewMode === 'cards' ? (
                       <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
                         {filteredPersoneller.map((personel) => (
-                          <Card key={personel.id} withBorder padding="md" radius="md" shadow="sm">
+                          <Card
+                            key={personel.id}
+                            withBorder
+                            padding="md"
+                            radius="md"
+                            shadow="sm"
+                            style={{
+                              borderLeftWidth: 3,
+                              borderLeftColor: getDurumBorderColor(personel.durum || 'aktif'),
+                              borderLeftStyle: 'solid',
+                            }}
+                          >
                             <Group justify="space-between" mb="sm">
                               <Group gap="sm">
                                 <Checkbox
@@ -1211,7 +1238,14 @@ export default function PersonelPage() {
                           </Table.Thead>
                           <Table.Tbody>
                             {filteredPersoneller.map((personel) => (
-                              <Table.Tr key={personel.id}>
+                              <Table.Tr
+                                key={personel.id}
+                                style={{
+                                  borderLeftWidth: 3,
+                                  borderLeftColor: getDurumBorderColor(personel.durum || 'aktif'),
+                                  borderLeftStyle: 'solid',
+                                }}
+                              >
                                 <Table.Td>
                                   <Checkbox
                                     checked={selectedPersonelIds.includes(personel.id)}
@@ -2186,6 +2220,19 @@ export default function PersonelPage() {
                         <Text size="sm" c="dimmed" mt={4}>
                           🏢 {selectedProjeData?.ad || 'Proje Atanmamış'} • ⏱️ Kıdem: {kidemStr}
                         </Text>
+                        {/* P2: İzin kalan / son ödeme (API'de varsa dolar) */}
+                        <Group gap="lg" mt="xs" visibleFrom="xs">
+                          <Text size="xs" c="dimmed">
+                            İzin kalan:{' '}
+                            {(selectedPersonel as { izin_kalan_gun?: number })?.izin_kalan_gun != null
+                              ? `${(selectedPersonel as { izin_kalan_gun?: number }).izin_kalan_gun} gün`
+                              : '—'}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Son ödeme:{' '}
+                            {(selectedPersonel as { son_odeme_durumu?: string })?.son_odeme_durumu ?? '—'}
+                          </Text>
+                        </Group>
                       </div>
                     </Group>
                   </Paper>
