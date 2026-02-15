@@ -795,7 +795,7 @@ router.post('/karsilastir', async (req, res) => {
           en_ucuz: enUcuz,
           en_pahali: enPahali,
           fark: enPahali.sistem_maliyet - enUcuz.sistem_maliyet,
-          fark_yuzde: (((enPahali.sistem_maliyet - enUcuz.sistem_maliyet) / enUcuz.sistem_maliyet) * 100).toFixed(1),
+          fark_yuzde: enUcuz.sistem_maliyet > 0 ? (((enPahali.sistem_maliyet - enUcuz.sistem_maliyet) / enUcuz.sistem_maliyet) * 100).toFixed(1) : '0.0',
         },
       },
     });
@@ -1081,6 +1081,8 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         fiyat_kaynagi: m.fiyat_kaynagi || null,
         varyant_kaynak_adi: m.varyant_kaynak_adi || null,
         varyant_sayisi: Number(m.varyant_sayisi) || 0,
+        carpan,
+        fiyat_birimi: urunBirim,
       });
     }
 

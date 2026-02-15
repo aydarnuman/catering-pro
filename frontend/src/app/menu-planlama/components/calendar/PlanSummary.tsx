@@ -27,7 +27,7 @@ export function PlanSummary({
   ogunMaliyetleri,
 }: PlanSummaryProps) {
   const gunlukOrtMaliyet = doluGunSayisi > 0 ? toplamMaliyet / doluGunSayisi : 0;
-  const kisiBasi = doluGunSayisi > 0 ? toplamMaliyet / (doluGunSayisi * kisiSayisi) : 0;
+  const kisiBasi = doluGunSayisi > 0 && kisiSayisi > 0 ? toplamMaliyet / (doluGunSayisi * kisiSayisi) : 0;
 
   return (
     <Paper p="md" radius="md" withBorder>
@@ -90,7 +90,7 @@ export function PlanSummary({
         </Group>
 
         {/* Öğün Bazlı Maliyet Dağılımı */}
-        {ogunMaliyetleri && ogunMaliyetleri.some((o) => o.maliyet > 0) && (
+        {ogunMaliyetleri?.some((o) => o.maliyet > 0) && (
           <Group gap="md" pt="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
             <Text size="xs" fw={600} c="dimmed">
               Öğün Dağılımı:
