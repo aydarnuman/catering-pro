@@ -35,9 +35,10 @@ export function fiyatGuncelMi(tarih, maxGun = FIYAT_GECERLILIK_GUN) {
 
 /**
  * Malzeme için en uygun fiyatı belirle
- * Öncelik: fatura (güncel) > piyasa > fatura (eski) > manuel > 0
+ * Öncelik (maliyet-hesaplama-service ile tutarlı):
+ *   aktif_fiyat > son_alış (≤90 gün) > piyasa > son_alış (eski) > manuel > varyant > 0
  *
- * @param {Object} malzeme - recete_malzemeler satırı
+ * @param {Object} malzeme - recete_malzemeler satırı (JOIN ürün kartı ile)
  * @param {string} tercih - 'auto', 'fatura', 'piyasa'
  * @returns {Object} { fiyat, kaynak, tarih, guncel, uyari }
  */
@@ -53,9 +54,12 @@ export function getFiyat(malzeme, tercih = 'auto') {
   // Eğer malzeme objesinde fiyat_tercihi varsa, onu kullan (parametre öncelikli)
   const kullanilacakTercih = tercih !== 'auto' ? tercih : malzeme.fiyat_tercihi || 'auto';
 
+  // Aktif fiyat kontrolü (ürün kartından)
+  const aktifFiyat = parseFloat(malzeme.aktif_fiyat || malzeme.urun_aktif_fiyat) || 0;
+
   // Fatura fiyatı kontrolü
-  const faturaFiyat = parseFloat(malzeme.fatura_fiyat) || 0;
-  const faturaTarih = malzeme.fatura_fiyat_tarihi;
+  const faturaFiyat = parseFloat(malzeme.fatura_fiyat || malzeme.son_alis_fiyati || malzeme.urun_son_alis) || 0;
+  const faturaTarih = malzeme.fatura_fiyat_tarihi || malzeme.son_alis_tarihi || malzeme.urun_son_alis_tarihi;
   const faturaGuncel = fiyatGuncelMi(faturaTarih);
 
   // Piyasa fiyatı kontrolü
@@ -64,7 +68,10 @@ export function getFiyat(malzeme, tercih = 'auto') {
   const piyasaGuncel = piyasaTarih ? fiyatGuncelMi(piyasaTarih) : { guncel: false, gun: null };
 
   // Manuel fiyat
-  const manuelFiyat = parseFloat(malzeme.manuel_fiyat) || parseFloat(malzeme.toplam_fiyat) || 0;
+  const manuelFiyat = parseFloat(malzeme.manuel_fiyat || malzeme.urun_manuel_fiyat) || parseFloat(malzeme.toplam_fiyat) || 0;
+
+  // Varyant fiyat (ana ürün yoksa varyantlardan)
+  const varyantFiyat = parseFloat(malzeme.varyant_fiyat) || 0;
 
   // Tercih: Sadece fatura
   if (kullanilacakTercih === 'fatura') {
@@ -99,8 +106,19 @@ export function getFiyat(malzeme, tercih = 'auto') {
     return { ...result, uyari: 'Piyasa fiyatı bulunamadı' };
   }
 
-  // Tercih: Auto (akıllı seçim)
-  // 1. Güncel fatura fiyatı varsa onu kullan
+  // Tercih: Auto (akıllı seçim — maliyet-hesaplama-service ile tutarlı öncelik)
+  // 1. Aktif fiyat varsa onu kullan
+  if (aktifFiyat > 0) {
+    return {
+      fiyat: aktifFiyat,
+      kaynak: 'aktif',
+      tarih: null,
+      guncel: true,
+      uyari: null,
+    };
+  }
+
+  // 2. Güncel fatura fiyatı varsa onu kullan
   if (faturaFiyat > 0 && faturaGuncel.guncel) {
     return {
       fiyat: faturaFiyat,
@@ -111,7 +129,7 @@ export function getFiyat(malzeme, tercih = 'auto') {
     };
   }
 
-  // 2. Piyasa fiyatı varsa onu kullan
+  // 3. Piyasa fiyatı varsa onu kullan
   if (piyasaFiyat > 0) {
     return {
       fiyat: piyasaFiyat,
@@ -127,7 +145,7 @@ export function getFiyat(malzeme, tercih = 'auto') {
     };
   }
 
-  // 3. Eski fatura fiyatı varsa onu kullan (uyarıyla)
+  // 4. Eski fatura fiyatı varsa onu kullan (uyarıyla)
   if (faturaFiyat > 0) {
     return {
       fiyat: faturaFiyat,
@@ -138,7 +156,7 @@ export function getFiyat(malzeme, tercih = 'auto') {
     };
   }
 
-  // 4. Manuel fiyat
+  // 5. Manuel fiyat
   if (manuelFiyat > 0) {
     return {
       fiyat: manuelFiyat,
@@ -149,7 +167,18 @@ export function getFiyat(malzeme, tercih = 'auto') {
     };
   }
 
-  // 5. Fiyat yok
+  // 6. Varyant fiyat (son fallback)
+  if (varyantFiyat > 0) {
+    return {
+      fiyat: varyantFiyat,
+      kaynak: 'varyant',
+      tarih: null,
+      guncel: false,
+      uyari: 'Varyant fiyatı kullanılıyor',
+    };
+  }
+
+  // 7. Fiyat yok
   return {
     fiyat: 0,
     kaynak: null,

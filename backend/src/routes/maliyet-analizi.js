@@ -910,17 +910,17 @@ router.get('/receteler', async (req, res) => {
         FROM recete_malzemeler rm
         LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
         WHERE rm.recete_id = r.id) as piyasa_maliyet,
-        -- Fatura güncellik kontrolü (30 gün)
-        (SELECT MIN(fiyat_guncel_mi(COALESCE(rm.fatura_fiyat_tarihi, uk.son_alis_tarihi), 30))::boolean
+        -- Fatura güncellik kontrolü (FIYAT_GECERLILIK_GUN=90 ile tutarlı)
+        (SELECT MIN(fiyat_guncel_mi(COALESCE(rm.fatura_fiyat_tarihi, uk.son_alis_tarihi), 90))::boolean
          FROM recete_malzemeler rm
          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
          WHERE rm.recete_id = r.id) as fatura_guncel,
-        -- Piyasa güncellik kontrolü (7 gün - piyasa daha sık güncellenmeli)
+        -- Piyasa güncellik kontrolü (90 gün — FIYAT_GECERLILIK_GUN ile tutarlı)
         (SELECT MIN(fiyat_guncel_mi(
            COALESCE(
              rm.piyasa_fiyat_tarihi,
              (SELECT arastirma_tarihi FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1)
-           ), 7))::boolean
+           ), 90))::boolean
          FROM recete_malzemeler rm
          WHERE rm.recete_id = r.id) as piyasa_guncel
       FROM receteler r
